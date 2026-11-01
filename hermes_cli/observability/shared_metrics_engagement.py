@@ -134,21 +134,8 @@ def _profile_hash(profile_home: Path) -> str:
 
 
 def _collects(home: Path) -> bool:
-    """The root profile's own collection consent (read-only; never touches its runtime)."""
-    from hermes_constants import reset_hermes_home_override, set_hermes_home_override
-
-    token = set_hermes_home_override(str(home))
-    try:
-        from hermes_cli.config import read_raw_config_readonly
-
-        config: Any = read_raw_config_readonly() or {}
-    except Exception:
-        return False
-    finally:
-        reset_hermes_home_override(token)
-    for key in ("telemetry", "shared_metrics"):
-        config = config.get(key) if isinstance(config, dict) else None
-    return isinstance(config, dict) and config.get("enabled") is True
+    """No profile can collect shared engagement metrics in Meu."""
+    return False
 
 
 _root_stores: dict[Path, Any] = {}

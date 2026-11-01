@@ -1,18 +1,15 @@
 import type { SharedMetricsConsentResult } from '@hermes/shared'
 import { atom } from 'nanostores'
 
-import { recordOnboarding, setDesktopMetricsGate } from './desktop-metrics'
-
-/** Public page describing exactly what shared metrics contain and how consent windows work. */
-export const SHARED_METRICS_DOCS_URL = 'https://hermes-agent.nousresearch.com/docs/developer-guide/relay-shared-metrics'
+import { setDesktopMetricsGate } from './desktop-metrics'
 
 export type SharedMetricsConsent = SharedMetricsConsentResult
 
-/** The first-run answers, as the two config opt-ins `hermes setup` writes: each sets both. */
+/** Legacy callers may still name share; both answers enforce the Meu opt-out. */
 export type SharedMetricsChoice = 'off' | 'share'
 
 export const SHARED_METRICS_CHOICES: Record<SharedMetricsChoice, { enabled: boolean; send: boolean }> = {
-  share: { enabled: true, send: true },
+  share: { enabled: false, send: false },
   off: { enabled: false, send: false }
 }
 
@@ -47,7 +44,7 @@ export async function readSharedMetricsConsent(request: SharedMetricsRequester):
   try {
     const consent = await request<SharedMetricsConsent>('shared_metrics.status')
 
-    return isConsent(consent) ? consent : null
+    return isConsent(consent) ? { enabled: false, send: false, decided: true, reask: false } : null
   } catch {
     return null
   }
@@ -56,16 +53,16 @@ export async function readSharedMetricsConsent(request: SharedMetricsRequester):
 /** Write both opt-ins; the backend forces `send` off without `enabled` and reconciles consent. */
 export async function saveSharedMetricsConsent(
   request: SharedMetricsRequester,
-  flags: { enabled: boolean; send: boolean },
+  _flags: { enabled: boolean; send: boolean },
   { firstRun = false }: { firstRun?: boolean } = {}
 ): Promise<SharedMetricsConsent> {
-  const consent = await request<SharedMetricsConsent>('shared_metrics.set', { ...flags, first_run: firstRun })
+  const consent = await request<SharedMetricsConsent>('shared_metrics.set', { enabled: false, send: false, first_run: firstRun })
 
   if (!isConsent(consent)) {
     throw new Error('Unexpected shared_metrics.set response')
   }
 
-  return consent
+  return { enabled: false, send: false, decided: true, reask: false }
 }
 
 /**
@@ -79,8 +76,8 @@ export const $sharedMetricsConsent = atom<SharedMetricsConsent | null>(null)
 export const $sharedMetricsDetailsOpen = atom(false)
 
 /** The first-run offer is still unanswered for the focused profile. */
-export function sharedMetricsOfferPending(consent: SharedMetricsConsent | null): boolean {
-  return consent?.decided === false
+export function sharedMetricsOfferPending(_consent: SharedMetricsConsent | null): boolean {
+  return false
 }
 
 /** Record a first-run answer; the strip and the dialog retire as soon as the backend reports it decided. */
@@ -91,39 +88,12 @@ export async function answerSharedMetricsOffer(
   const consent = await saveSharedMetricsConsent(request, SHARED_METRICS_CHOICES[choice], { firstRun: true })
 
   if (consent) {
-    // Gate first: the consent answer is itself a first-run step, counted only when it opted in.
-    setDesktopMetricsGate(consent.enabled ? 'on' : 'off')
-    recordOnboarding('consent', 'completed')
+    setDesktopMetricsGate('off')
   }
 
   $sharedMetricsConsent.set(consent)
   $sharedMetricsDetailsOpen.set(false)
 }
 
-/**
- * Send the packaged self-update run main persisted (it survives the restart
- * that applied it). Main keeps the record until the RPC resolves, and its claim
- * makes concurrent callers a no-op. Fire-and-forget: errors are swallowed.
- */
-export async function reportPendingUpdateRun(request: SharedMetricsRequester): Promise<void> {
-  const updates = window.hermesDesktop?.updates
-
-  try {
-    const run = await updates?.takePendingRun?.()
-
-    if (!run) {
-      return
-    }
-
-    let sent = false
-
-    try {
-      await request('shared_metrics.update_run', { ...run })
-      sent = true
-    } finally {
-      await updates?.ackPendingRun?.(sent)
-    }
-  } catch {
-    // Telemetry never surfaces; an unsent record retries on the next attach.
-  }
-}
+/** Retained for existing boot callers; pending metrics are never forwarded. */
+export async function reportPendingUpdateRun(_request: SharedMetricsRequester): Promise<void> {}

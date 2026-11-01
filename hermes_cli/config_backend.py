@@ -246,7 +246,22 @@ class FileBackend:
         return True
 
     def boot(self, home: Path) -> None:
-        return None
+        # Migrate existing profiles once at boot; the runtime gates also cover read-only files.
+        from hermes_cli.meu_privacy import disable_shared_metrics
+
+        if not self.exists(home):
+            return
+        try:
+            raw = self.read_user_doc(home)
+            if isinstance(raw, dict):
+                private = disable_shared_metrics(raw)
+                if private != raw:
+                    write_config_document(self.config_path(home), private)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Could not persist Meu privacy policy; shared metrics remain disabled", exc_info=True)
 
     def protected_env_names(self) -> frozenset:
         return frozenset()
@@ -464,8 +479,7 @@ def config_exists(config_path: PathLike) -> bool:
 
 def write_config_document(config_path: PathLike, document: dict, *, extra_content_on_create: Optional[str] = None) -> None:
     """Replace a config file's document (comment-preserving merge for the file backend)."""
-    backend, home = _route(config_path)
-    backend.write_changes(home, Changes(document=document, extra_content_on_create=extra_content_on_create))
+    write_changes(config_path, Changes(document=document, extra_content_on_create=extra_content_on_create))
 
 
 def config_destination(config_path: PathLike) -> str:
@@ -486,9 +500,8 @@ def write_config_keys(config_path: PathLike, updates: Mapping[str, Any]) -> None
     A remote backend sends them as one CAS PATCH, so a refusal of any of them (a lock, a value
     check) changes none of them: a grouped edit such as a model switch (default + provider + ...)
     never lands half-applied. The file backend applies them key by key, as before."""
-    backend, home = _route(config_path)
-    backend.write_changes(home, Changes(set={k: v for k, v in updates.items() if v is not None},
-                                        unset=tuple(k for k, v in updates.items() if v is None)))
+    write_changes(config_path, Changes(set={k: v for k, v in updates.items() if v is not None},
+                                      unset=tuple(k for k, v in updates.items() if v is None)))
 
 
 def keeping_read_base(read):
@@ -548,8 +561,10 @@ def write_changes(config_path: PathLike, changes: Changes) -> None:
     """One :class:`Changes` write. Unlike :func:`write_config_keys`, a ``None`` in ``set`` stores
     an explicit null (Remote Config: "no value", masking an inherited scalar); the file backend
     writes it as YAML null."""
+    from hermes_cli.meu_privacy import private_config_changes
+
     backend, home = _route(config_path)
-    backend.write_changes(home, changes)
+    backend.write_changes(home, private_config_changes(changes))
 
 
 def deployment_env_names() -> frozenset:

@@ -1,45 +1,31 @@
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-
-import { afterAll, expect, test, vi } from 'vitest'
+import { expect, it, vi } from 'vitest'
 
 const handlers = new Map<string, (...args: unknown[]) => unknown>()
-const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-metrics-'))
-const sent: string[] = []
 
 vi.mock('electron', () => ({
-  app: { getPath: () => userData, getVersion: () => '1.0.0' },
-  BrowserWindow: { getAllWindows: () => [{ webContents: { send: (channel: string) => sent.push(channel) } }] },
-  ipcMain: {
-    handle: (channel: string, fn: (...args: unknown[]) => unknown) => {
-      handlers.set(channel, fn)
-    }
-  }
+  ipcMain: { handle: (channel: string, fn: (...args: unknown[]) => unknown) => handlers.set(channel, fn) }
 }))
-
-vi.mock('./install-stamp', () => ({ INSTALL_STAMP: { commitDate: 1_700_000_000 } }))
 
 const { registerDesktopSharedMetrics } = await import('./desktop-shared-metrics')
 
-afterAll(() => fs.rmSync(userData, { recursive: true, force: true }))
-
-const strategy = (mechanism: string) => ({ mechanism, apply: async () => ({ ok: true, handedOff: false }) }) as never
-
-test('a packaged apply is reported once through the renderer IPC; a checkout hand-off never is', async () => {
+it('keeps telemetry IPC inert while updates still apply and propagate errors', async () => {
   const metrics = registerDesktopSharedMetrics()
+  const result = { ok: true, handedOff: false }
+  const apply = vi.fn(async () => result)
+  const strategy = { mechanism: 'electron-updater', apply } as never
 
-  expect(handlers.has('hermes:startup-latency:claim')).toBe(true)
-  expect(handlers.has('hermes:desktop-metrics:crash:take')).toBe(true)
+  expect(await metrics.trackUpdateApply(strategy, strategy)).toBe(result)
+  expect(apply).toHaveBeenCalledTimes(1)
+  metrics.noteUpdateProgress('download')
+  metrics.recordRendererGone(1, 'crashed')
+  handlers.get('hermes:desktop-metrics:set-enabled')!({}, true, 'legacy')
 
-  await metrics.trackUpdateApply(null, strategy('checkout'))
-  expect(handlers.get('hermes:updates:metric:take')!({})).toBeNull()
+  for (const channel of ['hermes:startup-latency:claim', 'hermes:updates:metric:take', 'hermes:desktop-metrics:crash:take']) {
+    expect(handlers.get(channel)!({})).toBeNull()
+  }
 
-  await metrics.trackUpdateApply(strategy('electron-updater'), strategy('electron-updater'))
-  expect(sent).toContain('hermes:updates:metric:pending')
-  expect(handlers.get('hermes:updates:metric:take')!({})).toMatchObject({
-    mechanism: 'electron-updater',
-    outcome: 'noop',
-    from_commit_date: 1_700_000_000
-  })
+  const failure = new Error('apply failed')
+  const broken = { apply: async () => { throw failure } } as never
+
+  await expect(metrics.trackUpdateApply(broken, broken)).rejects.toBe(failure)
 })

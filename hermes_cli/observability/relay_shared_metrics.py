@@ -1363,23 +1363,7 @@ def _reconcile_store_consent(store: SharedMetricsStore, send_enabled: bool) -> N
 
 
 def enabled() -> bool:
-    """Return the shared-metrics policy for the active Hermes profile."""
-    profile_key = relay_runtime.current_profile_key()
-    try:
-        config: Any = _raw_config()
-    except Exception:
-        logger.debug("Unable to read Hermes shared-metrics policy", exc_info=True)
-        config = None
-    for key in ("telemetry", "shared_metrics"):
-        config = config.get(key) if isinstance(config, dict) else None
-    if isinstance(config, dict) and config.get("enabled") is True:
-        return True
-    if profile_key not in _RUNTIMES:  # the opted-out hot path: nothing to tear down, no lock
-        return False
-    with _RUNTIME_LOCK:
-        runtime = _RUNTIMES.pop(profile_key, None)
-        if isinstance(runtime, _Runtime):
-            runtime.deactivate()
+    """Shared metrics are unavailable in Meu, including for legacy opt-in profiles."""
     return False
 
 

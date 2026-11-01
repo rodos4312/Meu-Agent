@@ -512,61 +512,27 @@ def setup_tools(config: dict, first_install: bool = False):
 # ── Shared Metrics ──
 
 
-_SEND_CONSENT_EXPLAINER = (
-    "", "Sharing uploads each daily package to the Nous telemetry",
-    "service. Packages carry your profile-scoped install ID, a",
-    "stable random UUID that identifies this profile across days",
-    "(it contains no personal information and is reset by deleting",
-    "the shared-metrics directory). Only packages whose entire",
-    "collection period falls inside a recorded consent window are",
-    "ever sent. Apart from the fresh-install note (noted on this",
-    "machine and counted only once you opt in), data from before",
-    "you opt in is never sent. Sharing can be turned off again at",
-    "any time.",
-)
-
-
 def setup_telemetry(config: dict):
-    """Turn shared metrics on (collect and send to Nous) or off: one answer sets both keys."""
-    print_header("Shared Metrics")
-    _info("Shared metrics contain only bounded counters: activity, session length,",
-          "outcomes, error classes (with a fixed-list reason when a memory write or",
-          "context compression is refused, fails or is skipped), model routes and",
-          "token totals, built-in tool, command and catalog names, bucketed setup",
-          "counts, update and install results and timing (with a fixed-list reason",
-          "and the stage when one fails; a fresh install is noted on this machine and",
-          "counted only once you opt in), crashes,",
-          "startup and reply speed, messaging-platform health, how Hermes gets used",
-          "(agent accuracy and efficiency, active time per surface, which features and",
-          "settings are used or switched off, provider setup outcomes), and coarse",
-          "machine facts (RAM range, GPU type, version age and channel, updates behind,",
-          "local model server yes/no). Never prompts, files, paths, setting values or",
-          "error text.")
-    _info(*_SEND_CONSENT_EXPLAINER)
-    # The answer is written to config.yaml here, not by the caller's later save: that save strips
-    # values equal to the defaults, so a "no" would vanish and every surface would ask again.
+    """Meu has a fixed opt-out; the wizard cannot enable shared metrics."""
     from hermes_cli.observability.shared_metrics_consent import save_consent
 
-    shared_metrics = _sub_dict(_sub_dict(config, "telemetry"), "shared_metrics")
-    sharing = shared_metrics.get("enabled") is True and shared_metrics.get("send") is True
-    # One answer for both keys: off also withdraws send consent and stops collection.
-    share = prompt_yes_no("Send shared metrics to Nous?", default=sharing)
-    save_consent(share, share, config)
-    if share:
-        print_success("Shared metrics sent to Nous once a day.")
-    else:
-        print_info("Shared metrics off.")
+    save_consent(False, False, config)
+    print_info("Usage statistics collection and sharing are disabled in Meu.")
 
 
 def _record_send_consent_change(*, enabled: bool) -> None:
     """Reconcile consent windows at the moment the user decides — same single writer as the relay
     and the sender, so wizard, relay and mid-pass callers cannot disagree."""
     try:
+        from hermes_constants import get_hermes_home
+
+        if not (get_hermes_home() / "telemetry" / "shared_metrics" / "metrics.sqlite3").exists():
+            return
         from hermes_cli.observability.shared_metrics import SharedMetricsStore
         from hermes_cli.observability.shared_metrics_sender import reconcile_send_consent
         from hermes_cli.sqlite_util import write_txn
         with SharedMetricsStore()._connection() as connection, write_txn(connection):
-            reconcile_send_consent(connection, enabled)
+            reconcile_send_consent(connection, False)
     except Exception:
         # Never block the wizard on telemetry bookkeeping; the relay reconciles on the next hook.
         logger.debug("Unable to record shared-metrics consent change", exc_info=True)

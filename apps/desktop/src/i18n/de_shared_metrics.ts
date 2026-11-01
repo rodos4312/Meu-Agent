@@ -20,9 +20,8 @@ export const deSharedMetrics = {
   share: 'Mit Nous teilen',
   off: 'Nein, danke',
   saveFailed: 'Ihre Auswahl konnte nicht gespeichert werden',
-  sendLabel: 'Nutzungsstatistiken mit Nous teilen',
-  sendDesc:
-    'Nur Zählwerte, einmal täglich mit einer zufälligen ID für dieses Profil gesendet. Niemals Ihre Nachrichten, Dateien, Pfade oder Fehlertexte.',
+  sendLabel: 'Nutzungsstatistiken deaktiviert',
+  sendDesc: 'Meu erfasst keine Nutzungsstatistiken und sendet keine an Nous. Diese Einstellung kann nicht aktiviert werden.',
   unavailable: 'Aktualisieren Sie das Hermes-Backend, um diese Einstellung zu ändern.',
   stripBody: 'Nur Zählwerte. Niemals Ihre Nachrichten oder Dateien.',
   stripReaskBody:

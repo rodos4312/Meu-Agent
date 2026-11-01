@@ -21,9 +21,8 @@ export const frSharedMetrics = {
   share: 'Partager avec Nous',
   off: 'Non merci',
   saveFailed: 'Impossible d’enregistrer votre choix',
-  sendLabel: 'Partager les statistiques d’utilisation avec Nous',
-  sendDesc:
-    'Uniquement des comptages, envoyés une fois par jour avec un identifiant aléatoire pour ce profil. Jamais vos messages, fichiers, chemins ni textes d’erreur.',
+  sendLabel: 'Statistiques désactivées',
+  sendDesc: 'Meu ne collecte et ne transmet aucune statistique à Nous. Cette option ne peut pas être activée.',
   unavailable: 'Mettez à jour le backend Hermes pour modifier ce réglage.',
   stripBody: 'Uniquement des comptages. Jamais vos messages ni vos fichiers.',
   stripReaskBody:

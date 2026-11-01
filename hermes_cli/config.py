@@ -33,6 +33,7 @@ import hermes_yaml as yaml
 from hermes_cli.cli_output import line_input
 from hermes_cli.colors import Colors, color
 from hermes_cli import managed_scope
+from hermes_cli.meu_privacy import disable_shared_metrics
 from hermes_cli.default_soul import DEFAULT_SOUL_MD, is_legacy_template_soul
 from hermes_cli.left_core_migration import profile_env_names as _left_core_profile_env
 from hermes_cli.secret_prompt import masked_secret_prompt
@@ -2168,21 +2169,19 @@ def _last_known_good_fallback(config_path: Path, path_key: str, cache_sig, exc: 
 
 
 def _merge_managed_overlay(expanded: dict[str, Any]) -> tuple[dict[str, Any], Any]:
-    """Apply the managed-scope overlay; returns ``(merged, managed_config_or_falsy)``.
-    Managed wins at the leaf and is applied AFTER user expansion so a user ``${VAR}`` cannot shadow
-    a managed literal: managed values expand only against the process environment. This
-    deliberately inverts the usual env-over-config precedence for the keys the managed layer pins
-    (docs/design/managed-scope.md §4.1)."""
+    """Apply managed values after user expansion, then enforce Meu's fixed privacy policy.
+    Returns ``(merged, managed_config_or_falsy)``; see docs/design/managed-scope.md §4.1.
+    """
     managed_config = managed_scope.load_managed_config()
     if not managed_config:
-        return expanded, managed_config
+        return disable_shared_metrics(expanded), managed_config
     # Same canonicalization as the user config BEFORE merging (parity with
     # managed_scope.apply_managed_overlay) so the merged result never exposes a nested dict.
     managed_normalized = _normalize_root_model_keys(managed_config)
     if isinstance(managed_normalized.get("model"), str):
         managed_normalized = dict(managed_normalized)
         managed_normalized["model"] = {"default": managed_normalized["model"]}
-    return _deep_merge(expanded, _expand_env_vars(managed_normalized)), managed_config
+    return disable_shared_metrics(_deep_merge(expanded, _expand_env_vars(managed_normalized))), managed_config
 
 
 def _load_config_cache_hit(path_key: str, cache_sig: Any) -> Optional[dict[str, Any]]:
@@ -2215,7 +2214,7 @@ def _load_config_cache_hit(path_key: str, cache_sig: Any) -> Optional[dict[str, 
 def _load_config_impl(*, want_deepcopy: bool) -> dict[str, Any]:
     snapshot = _worker_config_snapshot()
     if snapshot is not None:
-        return _deep_merge(copy.deepcopy(DEFAULT_CONFIG), snapshot)
+        return disable_shared_metrics(_deep_merge(copy.deepcopy(DEFAULT_CONFIG), snapshot))
 
     # Lock-free fast path for cache hits — same publication contract as `_read_raw_config_impl`
     # above (whole-tuple replace, `_CONFIG_LOCK` only serializes rebuilds and writers). A hit costs

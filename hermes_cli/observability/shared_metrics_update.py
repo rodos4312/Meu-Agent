@@ -324,13 +324,8 @@ def _unmarked_failed_stage(run: dict[str, str], stages: list[dict[str, Any]]) ->
 
 
 def _collection_on() -> bool:
-    """Cheap pre-gate so a disabled install never loads the Relay runtime; `_emit` re-checks."""
-    from hermes_cli.config import read_raw_config_readonly
-
-    config: Any = read_raw_config_readonly() or {}
-    for key in ("telemetry", "shared_metrics"):
-        config = config.get(key) if isinstance(config, dict) else None
-    return isinstance(config, dict) and config.get("enabled") is True
+    """Meu does not collect update receipts for shared metrics."""
+    return False
 
 
 def _claim_update_id(update_id: Any) -> tuple[bool, Path | None]:

@@ -356,7 +356,7 @@ interface MetricsState {
 /** `on`/`off` = the focused profile's collection switch as last read; `null` = not known yet. */
 export type DesktopMetricsGate = 'off' | 'on' | null
 
-export const $desktopMetricsGate = atom<DesktopMetricsGate>(null)
+export const $desktopMetricsGate = atom<DesktopMetricsGate>('off')
 
 /** One id per renderer load: an onboarding step still open from another load was abandoned. */
 const LAUNCH_ID = randomUuid()
@@ -367,7 +367,7 @@ let request: SharedMetricsRequester | null = null
 let queue: [string, Record<string, unknown>][] = []
 let flushingDays = false
 /** Onboarding transitions before the consent answer (memory only); null once the answer is known. */
-let preConsent: (() => void)[] | null = []
+let preConsent: (() => void)[] | null = null
 let botCount = 0
 let lastInteractionAt = 0
 const areaOpenedAt = new Map<string, number>()
@@ -927,33 +927,12 @@ function forgetInMemory(): void {
 
 /** Apply the focused profile's collection switch. Off purges everything local. `decided` false
  *  (first-run offer unanswered) keeps the pre-consent onboarding transitions for a later yes. */
-export function setDesktopMetricsGate(next: DesktopMetricsGate, decided = true): void {
-  if (next === 'off' && decided) {
-    preConsent = null
-  }
-
-  if (next === $desktopMetricsGate.get()) {
-    return
-  }
-
-  $desktopMetricsGate.set(next)
-
-  if (next === 'off') {
-    forgetInMemory()
-    writeJson(stateKey(), null)
-    tellMain(false)
-
-    return
-  }
-
-  if (next === 'on') {
-    const held = preConsent ?? []
-
-    preConsent = null
-    tellMain(true)
-    flushDesktopMetrics()
-    held.forEach(replay => replay())
-  }
+export function setDesktopMetricsGate(_next: DesktopMetricsGate, _decided = true): void {
+  preConsent = null
+  $desktopMetricsGate.set('off')
+  forgetInMemory()
+  writeJson(stateKey(), null)
+  tellMain(false)
 }
 
 /** The requester for the focused profile's gateway (null while it is down: events queue in memory).
@@ -965,8 +944,8 @@ export function bindDesktopMetrics(next: SharedMetricsRequester | null, profileS
   if (nextScope !== scope) {
     forgetInMemory()
     scope = nextScope
-    preConsent = []
-    $desktopMetricsGate.set(null)
+    preConsent = null
+    $desktopMetricsGate.set('off')
   }
 
   request = next
@@ -982,7 +961,7 @@ export function tickDesktopMetrics(now = Date.now()): void {
 /** Test-only: forget in-memory state (localStorage is the test's to clear). */
 export function resetDesktopMetricsForTests(): void {
   scope = scopeKey('|default')
-  preConsent = []
+  preConsent = null
   request = null
   queue = []
   flushingDays = false
@@ -993,7 +972,7 @@ export function resetDesktopMetricsForTests(): void {
   recentClicks.clear()
   cancelPendingBackendDrop()
   lastBackendExitAt = 0
-  $desktopMetricsGate.set(null)
+  $desktopMetricsGate.set('off')
 }
 
 /** Prefix of the per-profile local record (`<prefix>:<scope hash>`). */

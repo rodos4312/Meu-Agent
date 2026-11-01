@@ -2316,18 +2316,12 @@ DEFAULT_CONFIG = {
         # Desktop first run, root profile only (onboarding_run.py): None = fresh install; true = next launch; false = done
         "run": None,
     },
-    # Privacy-safe aggregate metrics in this profile's local telemetry dir. Collection (`enabled`)
-    # and upload to Nous (`send`) are separate keys that every consent surface sets together; see
-    # website/docs/developer-guide/relay-shared-metrics.md Appendix A for consent/retention.
+    # Legacy config keys remain readable, but Meu enforces a fixed opt-out at runtime and on save.
     "telemetry": {
         "shared_metrics": {
             "enabled": False,
-            # Requires `enabled` (`send` alone logs an error). A package is sent only if its whole
-            # period is inside a recorded consent window.
             "send": False,
-            # Ingest endpoint (override for staging/local). Deliberately NOT env- overridable.
-            # Non-HTTPS refused unless the host is localhost.
-            "endpoint": "https://telemetry.nousresearch.com/v1/telemetry",
+            "endpoint": "",
         },
     },
 

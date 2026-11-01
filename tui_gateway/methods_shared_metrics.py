@@ -59,8 +59,7 @@ def _(rid, params: dict) -> dict:
     ``enabled`` is off (the wizard's rule: sending cannot outlive collection, and turning collection
     off withdraws send consent). ``first_run`` marks the Desktop first-run answer, which also records
     the setup-completed metric. Answers the stored ``{enabled, send, decided, reask}``."""
-    enabled = params.get("enabled") is True
-    send = enabled and params.get("send") is True
+    enabled = send = False  # Meu rejects all attempts to enable shared metrics.
     from hermes_cli.config_backend import ConfigWriteError, supports_file_tooling
     from hermes_cli.observability.shared_metrics_consent import OFFER_VERSION, set_answer
     try:

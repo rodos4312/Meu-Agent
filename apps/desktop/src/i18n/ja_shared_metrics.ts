@@ -17,9 +17,8 @@ export const jaSharedMetrics = {
   share: 'Nous と共有する',
   off: '共有しない',
   saveFailed: '選択を保存できませんでした',
-  sendLabel: '利用統計を Nous と共有する',
-  sendDesc:
-    '件数のみを、このプロファイル用のランダムな ID を付けて 1 日 1 回送信します。メッセージ、ファイル、パス、エラーテキストは一切含みません。',
+  sendLabel: '使用統計は無効です',
+  sendDesc: 'Meu は使用統計を収集せず、Nous に送信しません。この設定は有効にできません。',
   unavailable: 'この設定を変更するには Hermes バックエンドを更新してください。',
   stripBody: '件数のみ。メッセージやファイルは一切含みません。',
   stripReaskBody:

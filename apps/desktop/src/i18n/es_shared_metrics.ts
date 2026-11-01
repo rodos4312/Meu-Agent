@@ -20,9 +20,8 @@ export const esSharedMetrics = {
   share: 'Compartir con Nous',
   off: 'No, gracias',
   saveFailed: 'No se pudo guardar tu elección',
-  sendLabel: 'Compartir estadísticas de uso con Nous',
-  sendDesc:
-    'Solo recuentos, enviados una vez al día con un ID aleatorio para este perfil. Nunca tus mensajes, archivos, rutas ni textos de error.',
+  sendLabel: 'Estadísticas de uso desactivadas',
+  sendDesc: 'Meu no recopila ni envía estadísticas de uso a Nous. Esta opción no se puede activar.',
   unavailable: 'Actualiza el backend de Hermes para cambiar este ajuste.',
   stripBody: 'Solo recuentos. Nunca tus mensajes ni archivos.',
   stripReaskBody:

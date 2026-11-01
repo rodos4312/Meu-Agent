@@ -19,9 +19,8 @@ export const enSharedMetrics: Translations['sharedMetrics'] = {
   share: 'Share with Nous',
   off: 'No thanks',
   saveFailed: 'Couldn’t save your choice',
-  sendLabel: 'Share usage stats with Nous',
-  sendDesc:
-    'Counts only, sent once a day with a random ID for this profile. Never your messages, files, paths or error text.',
+  sendLabel: 'Usage statistics disabled',
+  sendDesc: 'Meu does not collect or send usage statistics to Nous. This setting cannot be enabled.',
   unavailable: 'Update the Hermes backend to change this setting.',
   stripBody: 'Counts only. Never your messages or files.',
   stripReaskBody: 'Asking once more: an earlier version could save “No thanks” before you saw this.',

@@ -783,22 +783,8 @@ function Fail([string]$msg, [string]$Class = "other") {
 # a later start only while shared metrics collection is on, and deletes it
 # unreported when collection is off. Best effort: never fails the install.
 function Write-InstallReceipt([string]$Outcome, [string]$FailedStage, [string]$Class) {
-    if ($script:InstallReceiptWritten) { return }
-    $script:InstallReceiptWritten = $true
-    $tmp = $null  # never a caller's $tmp (dynamic scope) in the catch below
-    try {
-        $dir = Join-Path $HermesHome "telemetry\shared_metrics\pending_installs"
-        New-Item -ItemType Directory -Force -Path $dir | Out-Null
-        $id = [guid]::NewGuid().ToString("N")
-        $json = '{{"id":"{0}","installer":"install_ps1","outcome":"{1}","failed_stage":"{2}","failure_class":"{3}","started_at":{4},"finished_at":{5}}}' -f `
-            $id, $Outcome, ($FailedStage -replace '-', '_'), $Class, $script:InstallStarted, [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-        $tmp = Join-Path $dir ".$id.tmp"
-        [IO.File]::WriteAllText($tmp, $json, (New-Object System.Text.UTF8Encoding $false))
-        Move-Item -LiteralPath $tmp -Destination (Join-Path $dir "$id.json") -Force
-    } catch {
-        # A full disk leaves a partial temp file the reader never looks at (it skips dotfiles).
-        if ($tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
-    }
+    # Meu does not collect installation telemetry.
+    return
 }
 
 # The receipt class for a ladder stage that threw. A native child Ctrl-C ended

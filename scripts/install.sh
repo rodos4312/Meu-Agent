@@ -139,17 +139,8 @@ error_line() {
 # later start only while shared metrics collection is on, and deletes it
 # unreported when collection is off. Best effort: never fails the install.
 write_install_receipt() {
-    # $1 outcome, $2 failed stage, $3 failure class. One file per run: the first writer wins.
-    # A failed write (full disk) removes its partial temp file: the reader never sees dotfiles.
-    {
-        local dir="$HERMES_HOME/telemetry/shared_metrics/pending_installs" id="$INSTALL_RUN_ID"
-        [ -n "$id" ] && [ ! -e "$dir/$id.json" ] && mkdir -p "$dir" && {
-            printf '{"id":"%s","installer":"install_sh","outcome":"%s","failed_stage":"%s","failure_class":"%s","started_at":%s,"finished_at":%s}\n' \
-                "$id" "$1" "$2" "$3" "$INSTALL_STARTED" "$(date +%s)" > "$dir/.$id.tmp" \
-                && mv -f "$dir/.$id.tmp" "$dir/$id.json" \
-                || rm -f "$dir/.$id.tmp"
-        }
-    } >/dev/null 2>&1 || :
+    # Meu does not collect installation telemetry.
+    return 0
 }
 
 # Ladder signal handling. The traps only note the signal while a stage owns the

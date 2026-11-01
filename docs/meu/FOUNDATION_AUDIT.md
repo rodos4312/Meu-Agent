@@ -1,6 +1,6 @@
 # Meu Agent — Foundation Audit and Engineering Gates
 
-Status: architecture reconnaissance (not a security certification or successful Windows build).
+Status: foundation in development. The initial reconnaissance below is historical; see the dated privacy verification at the end. This is not a security certification or a release approval.
 Base: fork of NousResearch/hermes-agent; development branch `dev/meu-foundation`.
 Target: Windows 11 native desktop, Greek-first, personal DeepSeek endpoint, optional Android bridge.
 
@@ -45,3 +45,56 @@ Target: Windows 11 native desktop, Greek-first, personal DeepSeek endpoint, opti
 ## Next implementation step
 
 Inspect `tools/` and desktop Windows computer-use handling plus relevant tests, document a reproducible failure/latency baseline, and implement the smallest behaviour change with a regression test. Do not rename the entire codebase before a working isolated smoke test.
+
+
+## Έλεγχος ιδιωτικότητας — 2 Νοεμβρίου 2026
+
+Εργασία αποκλειστικά στον `dev/meu-foundation`. Βάση ελέγχου: `b62cdc9af771d97f4a9280d8f42b18510198f85e`.
+Το Windows CI της βάσης ολοκληρώθηκε επιτυχώς, μαζί με τη δοκιμή installer/συντομεύσεων
+([εκτέλεση 41362371240](https://github.com/rodos4312/Meu-Agent/actions/runs/41362371240)).
+Τα αποτελέσματα αυτής της βάσης δεν αποτελούν επαλήθευση της νέας αλλαγής.
+
+### Εντοπισμένοι μηχανισμοί και αλλαγές
+
+- Ο κοινός αποστολέας `shared_metrics_sender.py` έκανε POST στο
+  `https://telemetry.nousresearch.com/v1/telemetry`, με τοπική ουρά, παράθυρα συγκατάθεσης
+  και επαναπροσπάθειες. Αφαιρέθηκαν η υλοποίηση HTTP, οι επαναπροσπάθειες και η αποστολή ουράς.
+  Το συμβατό `send_pending()` επιστρέφει μηδενικές αποστολές ακόμη και με παλιά ουρά,
+  ενεργή παλιά συγκατάθεση ή προσαρμοσμένο transport. Η απευθείας κλήση `_post()` απορρίπτεται.
+- Απενεργοποιήθηκαν οι πύλες συλλογής για κύκλο ζωής agent, μοντέλα, εργαλεία, εντολές,
+  engagement και ενημερώσεις. Η αποθήκευση τοπικών διαγνωστικών του agent παραμένει ξεχωριστή.
+- Το Desktop δεν συλλέγει ή προωθεί μετρήσεις κουμπιών, εκκίνησης, ενημερώσεων και crashes.
+  Οι συμβάσεις IPC διατηρούνται αδρανείς, ώστε εκκίνηση και ενημερώσεις να συνεχίσουν να λειτουργούν.
+- Οι installers PowerShell/Bash δεν γράφουν αποδείξεις χρήσης για μελλοντική αποστολή.
+- Οι ρυθμίσεις `telemetry.shared_metrics.enabled` και `send` επιβάλλονται ως `false`,
+  με κενό `endpoint`. Τα παλιά τοπικά προφίλ μετατρέπονται κατά την εκκίνηση και όλοι οι
+  τρόποι αποθήκευσης επιβάλλουν την ίδια πολιτική. Managed overlays και worker snapshots
+  δεν μπορούν να την παρακάμψουν. Αν ένα αρχείο δεν μπορεί να μετατραπεί, η αποστολή παραμένει
+  απενεργοποιημένη στον κώδικα και καταγράφεται η αποτυχία αποθήκευσης.
+- Καταργήθηκαν η ερώτηση συγκατάθεσης και η δυνατότητα ενεργοποίησης από Privacy.
+  Η πολιτική εξηγείται σε όλες τις υπάρχουσες γλώσσες του Desktop.
+- Οι κλήσεις DeepSeek, οι ρυθμίσεις μνήμης και ο μηχανισμός έγκρισης εργαλείων δεν αντικαταστάθηκαν.
+  Το προαιρετικό OpenTelemetry δεν έχει προεπιλεγμένο προορισμό στη Nous. Η χειροκίνητη
+  εξαγωγή trace στο Hugging Face είναι διαφορετική λειτουργία και δεν ενεργοποιήθηκε.
+
+### Επαληθεύσεις στο απομονωμένο Windows αντίγραφο
+
+- **105 Python tests πέρασαν**: πολιτική συλλογής/αποστολής, παλιά ουρά, αποθήκευση και
+  επανεκκίνηση, named-profile RPC, Windows installer, DeepSeek, τοπική συμβατότητα SQLite.
+- **26 UI tests πέρασαν** και **15 Electron tests πέρασαν**. Ένα υπάρχον Electron test
+  άλλης πλατφόρμας παραλείφθηκε στο Windows περιβάλλον.
+- **3 tests ορίου παράλληλων agent πέρασαν**. Πέρασε ο έλεγχος τύπων Desktop/Electron.
+- Οι **20 νέες δοκιμές ιδιωτικότητας απέτυχαν στην αρχική έκδοση**, και πέρασαν μετά την αλλαγή.
+  Η δοκιμή DeepSeek χρησιμοποιεί τον πραγματικό SDK/transport με προσομοιωμένη HTTP απάντηση:
+  αίτημα εργαλείου, επιστροφή αποτελέσματος και τελική απάντηση. Δεν έγινε κλήση σε πραγματικό
+  λογαριασμό DeepSeek ούτε χρήση προσωπικού API key.
+- Πέρασαν οι έλεγχοι ποιότητας και συμβάσεων ανάγνωσης/εγγραφής config.
+  Το workflow `meu-windows-validation.yml` περιλαμβάνει πλέον ξεχωριστό Windows job
+  ιδιωτικότητας/DeepSeek και τις νέες δοκιμές Desktop πριν τη συσκευασία.
+
+Η πλήρης upstream σουίτα δεν εκτελέστηκε. Οι παλιές δοκιμές που απαιτούν ενεργό upload
+δεν περιγράφουν την πολιτική του Meu και χρειάζονται ξεχωριστή προσαρμογή όταν επεκταθεί
+η συνολική κάλυψη του fork. Τα ιστορικά τοπικά αρχεία τηλεμετρίας δεν διαγράφηκαν μαζικά·
+ο νέος κώδικας δεν τα αποστέλλει. Η εγκατεστημένη εφαρμογή του χρήστη δεν ενημερώθηκε
+από αυτή την εργασία. Η μετονομασία, η τελική έκδοση installer, η γενική σταθερότητα,
+η ασφάλεια και η μνήμη παραμένουν ξεχωριστά στάδια με δικές τους δοκιμές αποδοχής.
