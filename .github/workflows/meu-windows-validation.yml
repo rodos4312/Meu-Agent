@@ -42,3 +42,16 @@ jobs:
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
+      - name: Build Meu desktop renderer and backend shell
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Package unsigned portable Meu Windows preview
+        working-directory: apps/desktop
+        run: npm run builder -- --win --x64 --dir
+      - name: Upload unpacked preview for review only
+        uses: actions/upload-artifact@v4
+        with:
+          name: Meu-Windows-x64-preview-unsigned
+          path: apps/desktop/release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
