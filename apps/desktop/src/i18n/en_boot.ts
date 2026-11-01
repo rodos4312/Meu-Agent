@@ -35,16 +35,16 @@ export const enBoot = {
     // the raw output stays behind "Show recent logs".
     causes: {
       exitedEarly: "Meu's background service stopped right after starting.",
-      timedOut: "Hermes' background service didn't answer in time.",
+      timedOut: "Meu's background service didn't answer in time.",
       permission: "Meu couldn't write to its data folder (permission problem).",
       diskFull: 'The disk is full, so Meu could not start.',
       portInUse: 'Another program is using the network port Meu needs.',
       installMissing: "Part of Meu's installation is missing. Choose Repair install to put it back."
     },
     failure: {
-      title: "Hermes couldn't start",
+      title: "Meu couldn't start",
       description:
-        "Hermes' background service didn't come up. Try one of the recovery steps below. Nothing here deletes your chats or settings.",
+        "Meu's background service didn't come up. Try one of the recovery steps below. Nothing here deletes your chats or settings.",
       details: 'Details',
       remoteTitle: 'Remote gateway sign-in required',
       remoteDescription:
