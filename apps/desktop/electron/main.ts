@@ -1311,7 +1311,9 @@ if (isPrimaryInstance) {
 // ACTIVE_HERMES_ROOT — the canonical mutable Hermes install. Same path
 // install.ps1 / install.sh use, so a desktop-only user and a CLI-only user end
 // up with identical layouts and can share one install.
-const ACTIVE_HERMES_ROOT = path.join(HERMES_HOME, 'hermes-agent')
+// Retain the backend's internal protocol name, but give Meu a visible
+// installation directory that belongs to Meu, not the upstream product.
+const ACTIVE_HERMES_ROOT = path.join(HERMES_HOME, PRODUCT_IDENTITY.appId === 'com.meuagent.desktop' ? 'meu-agent' : 'hermes-agent')
 setNoConsoleGitRoots([!IS_PACKAGED ? SOURCE_REPO_ROOT : null, ACTIVE_HERMES_ROOT])
 // VENV_ROOT — venv lives inside the repo, exactly like install.ps1 does it.
 const VENV_ROOT = path.join(ACTIVE_HERMES_ROOT, 'venv')
