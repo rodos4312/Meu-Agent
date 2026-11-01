@@ -1,9 +1,9 @@
 {
   "name": "hermes",
-  "productName": "Hermes",
+  "productName": "Meu",
   "private": true,
   "version": "0.0.0",
-  "description": "Native desktop shell for Hermes Agent.",
+  "description": "Meu personal AI desktop assistant, powered by Hermes Agent.",
   "author": "Nous Research",
   "repository": {
     "type": "git",
