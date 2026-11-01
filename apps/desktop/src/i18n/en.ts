@@ -484,8 +484,8 @@ export const en: Translations = {
       rejectAction: 'Reject',
       inputTitle: 'Input needed',
       inputTitleNamed: session => `Input needed — ${session}`,
-      inputBody: 'Hermes is waiting for your response.',
-      turnDoneTitle: 'Hermes finished',
+      inputBody: 'Meu is waiting for your response.',
+      turnDoneTitle: 'Meu finished',
       turnDoneBody: 'Message complete.',
       turnErrorTitle: 'Turn failed',
       backgroundDoneTitle: 'Background task finished',
@@ -741,7 +741,7 @@ export const en: Translations = {
     exportConfig: 'Export config',
     importConfig: 'Import config',
     resetToDefaults: 'Reset to defaults',
-    resetConfirm: 'Reset all settings to Hermes defaults?',
+    resetConfirm: 'Reset all settings to Meu defaults?',
     exportFailed: 'Export failed',
     resetFailed: 'Reset failed',
     pluginPages: {
@@ -1179,7 +1179,7 @@ export const en: Translations = {
       searchPlaceholder: 'Search…',
       noResults: 'No results found',
       systemDefault: 'System default',
-      loading: 'Loading Hermes configuration...',
+      loading: 'Loading Meu configuration...',
       emptyTitle: 'Nothing to configure',
       emptyDesc: 'This section has no adjustable settings.',
       failedLoad: 'Settings failed to load',
@@ -1310,7 +1310,7 @@ export const en: Translations = {
       kindRemote: 'Remote gateway',
       kindCloud: 'Hermes Cloud',
       kindSsh: 'SSH',
-      kindLocalDesc: 'The Hermes runtime managed by this app.',
+      kindLocalDesc: 'The Meu runtime managed by this app.',
       kindRemoteDesc: 'A Hermes gateway reachable over HTTP(S) — LAN, Tailscale, or the internet.',
       kindCloudDesc: 'A hosted instance discovered through your Hermes Cloud account.',
       kindSshDesc: 'A Hermes install reached over SSH.',
@@ -2109,7 +2109,7 @@ export const en: Translations = {
       halfDesktopHint: 'this app, same for every profile',
       halfAgent: 'Agent',
       halfAgentIn: (profile: string) => `Agent in ${profile}`,
-      defaultProfile: 'Hermes (default)',
+      defaultProfile: 'Meu (default)',
       kindAgent: 'Agent',
       kindDesktop: 'Desktop',
       kindBoth: 'Agent + Desktop',
@@ -3291,7 +3291,7 @@ export const en: Translations = {
     placeholderFollowUp: 'Send follow-up',
     newSessionPlaceholders: [
       'What are we building?',
-      'Give Hermes a task',
+      'Give Meu a task',
       "What's on your mind?",
       'Describe what you need',
       'What should we tackle?',
@@ -3917,7 +3917,7 @@ export const en: Translations = {
   freeTier: {
     providerRowTitle: 'Nous · free tier',
     providerRowPitch: 'Sign in with a Nous account to unlock more models and tools.',
-    readyTitle: 'Hermes is ready.',
+    readyTitle: 'Meu is ready.',
     readyCaption: 'Free · connectors included',
     begin: 'Begin',
     signInInstead: 'Sign in with a Nous account instead',
@@ -4460,7 +4460,7 @@ export const en: Translations = {
       errorRetryAtResetShort: time => `Retry at ${time}`,
       errorRateLimitResetBody: (provider, time) => `You've hit ${provider}'s rate limit. It resets at ${time}.`,
       errorGenericProvider: 'The AI service',
-      errorToastTitle: "Hermes couldn't finish the reply",
+      errorToastTitle: "Meu couldn't finish the reply",
       errorRetry: 'Retry',
       errorRetryScheduled: (time, wait) => `Retrying at ${time} — in ${wait}`,
       errorRetryScheduledCancel: 'Cancel',
@@ -4548,7 +4548,7 @@ export const en: Translations = {
       envRequired: 'Fill in the required credentials first',
       sendFailed: 'Could not send MCP setup response',
       reloadFailed: 'Server saved, but reloading MCP tools failed — they load next session',
-      gatewayDisconnected: 'Hermes is offline right now. Reconnect, then send it again.'
+      gatewayDisconnected: 'Meu is offline right now. Reconnect, then send it again.'
     },
     tool: {
       copyCode: 'Copy code',
@@ -4654,7 +4654,7 @@ export const en: Translations = {
   },
 
   prompts: {
-    gatewayDisconnected: 'Hermes is offline right now. Reconnect, then send it again.',
+    gatewayDisconnected: 'Meu is offline right now. Reconnect, then send it again.',
     reconnect: 'Reconnect',
     sudoSendFailed: 'Could not send sudo password',
     secretSendFailed: 'Could not send secret',
