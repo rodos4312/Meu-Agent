@@ -80,6 +80,10 @@ jobs:
           path: apps/desktop/release/Meu-*-win-x64.exe
           if-no-files-found: error
           retention-days: 7
+      - name: Smoke-test Meu installer and desktop shortcuts
+        shell: pwsh
+        working-directory: apps/desktop
+        run: ./scripts/test-meu-installer.ps1
       - name: Upload unpacked preview for review only
         uses: actions/upload-artifact@v4
         with:
