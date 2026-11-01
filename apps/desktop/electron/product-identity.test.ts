@@ -107,8 +107,8 @@ test('nonstable runtime pins userData before the app name can change', async ():
   }
 
   try {
-    assert.equal(runtime.applyDesktopIdentity(app, stable), null)
-    assert.equal(paths.userData, path.join(root, 'Hermes'))
+    assert.equal(runtime.applyDesktopIdentity(app, stable), 'Meu')
+    assert.equal(paths.userData, path.join(root, 'Meu'))
     assert.equal(runtime.applyDesktopIdentity(app, canary), canary.displayName)
     assert.equal(paths.userData, path.join(paths.appData, canary.appNamePascal))
     assert.equal(name, canary.displayName)
@@ -117,85 +117,26 @@ test('nonstable runtime pins userData before the app name can change', async ():
   }
 })
 
-test.each([
-  [undefined, 'Hermes', 'hermes', 'latest', 'canary'],
-  ['bundled', 'Hermes Agent', 'hermes', 'latest', 'canary'],
-  ['light', 'Hermes Light', 'hermes-light', 'light', 'light-canary']
-] as const)(
-  '%s separates stable, canary and independent commits',
-  async (
-    variant: string | undefined,
-    display: string,
-    cli: string,
-    channel: string,
-    canaryChannel: string
-  ): Promise<void> => {
-    const stable: ProductIdentity = await identityForVariant(variant)
-    assert.equal(stable.displayName, display)
-    assert.equal(stable.channel, channel)
-    assert.equal(stable.light, variant === 'light')
-    assert.equal(stable.storeMsix, undefined)
-    const identities: ProductIdentity[] = [stable]
+test.each([undefined, 'bundled'] as const)('Meu %s uses an independent product identity', async (variant): Promise<void> => {
+  const current = await identityForVariant(variant)
+  assert.equal(current.displayName, 'Meu')
+  assert.equal(current.appId, 'com.meuagent.desktop')
+  assert.equal(current.appNamePascal, 'Meu')
+  assert.equal(current.artifactNamePascal, 'Meu')
+  assert.equal(current.windowsExecutableName, 'Meu')
+  assert.equal(current.msixAppIdWithOrg, 'MeuAgent.Desktop')
+  assert.equal(current.channel, null)
+  assert.equal(current.storeMsix, undefined)
+})
 
-    for (const [tag, commit, expectedCli, expectedChannel] of [
-      ['v1.2.3+canary.20260818T000000Z', '', `${cli}-canary`, canaryChannel],
-      ['', 'abcdef1234567890abcdef1234567890abcdef12', `${cli}-abcdef1`, null],
-      ['', '1234567890abcdef1234567890abcdef12345678', `${cli}-1234567`, null]
-    ] as const) {
-      process.env.HERMES_PAYLOAD_TAG = tag
-      process.env.HERMES_BUILD_COMMIT = commit
-      const current: ProductIdentity = await identityForVariant(variant)
-      assert.equal(current.channel, expectedChannel)
-      assert.equal(current.cliName, expectedCli)
-      assert.equal(current.windowsExecutableName, expectedCli)
-      assert.equal(current.artifactNamePascal, stable.artifactNamePascal)
-      assert.deepEqual(current, await identityForVariant(variant))
-
-      if (commit) {
-        assert.equal(current.displayName, `${display} ${commit.slice(0, 7)}`)
-      }
-
-      for (const previous of identities) {
-        for (const field of [
-          'displayName',
-          'appId',
-          'appNamePascal',
-          'msixAppIdWithOrg',
-          'windowsExecutableName',
-          'cliName'
-        ] as const) {
-          assert.notEqual(current[field], previous[field], `${field} must isolate installations`)
-
-          if (commit) {
-            assert.ok(current[field].includes(commit.slice(0, 7)))
-          }
-        }
-      }
-
-      identities.push(current)
-    }
-
-    process.env.HERMES_BUILD_COMMIT = 'not-a-sha'
-    process.env.HERMES_PAYLOAD_TAG = 'v1.2.3'
-    assert.deepEqual(await identityForVariant(variant), stable)
-  }
-)
-
-test('light and bundled retain distinct OS markers from the full client', async (): Promise<void> => {
-  const full: ProductIdentity = await identityForVariant(undefined)
-
-  for (const variant of ['bundled', 'light']) {
-    const other: ProductIdentity = await identityForVariant(variant)
-
-    for (const field of ['displayName', 'appId', 'appNamePascal'] as const) {
-      assert.notEqual(other[field], full[field])
-    }
-
-    if (variant === 'light') {
-      assert.notEqual(other.msixAppIdWithOrg, full.msixAppIdWithOrg)
-      assert.notEqual(other.channel, full.channel)
-    }
-  }
+test('the official Light and Store variants keep distinct identities', async (): Promise<void> => {
+  const meu = await identityForVariant(undefined)
+  const light = await identityForVariant('light')
+  const store = await identityForVariant('store')
+  assert.equal(light.displayName, 'Hermes Light')
+  assert.notEqual(light.appId, meu.appId)
+  assert.notEqual(store.appId, meu.appId)
+  assert.notEqual(store.appNamePascal, meu.appNamePascal)
 })
 
 test('packaging isolates boot metadata and executable names without renaming release artifacts', async (): Promise<void> => {
@@ -267,14 +208,13 @@ test('store inherits the bundled app identity (shared userData) but swaps the MS
   const bundled: ProductIdentity = await identityForVariant('bundled')
   const store: ProductIdentity = await identityForVariant('store')
 
-  // Same Electron app: displayName/appNamePascal (-> shared userData dir),
-  // appId, and the out-of-store org-prefixed name are all inherited.
+  // Meu must never share a Windows identity or userData with the upstream Store app.
   assert.equal(store.store, true)
   assert.equal(store.light, false)
-  assert.equal(store.displayName, bundled.displayName)
-  assert.equal(store.appNamePascal, bundled.appNamePascal)
-  assert.equal(store.appId, bundled.appId)
-  assert.equal(store.msixAppIdWithOrg, bundled.msixAppIdWithOrg)
+  assert.notEqual(store.displayName, bundled.displayName)
+  assert.notEqual(store.appNamePascal, bundled.appNamePascal)
+  assert.notEqual(store.appId, bundled.appId)
+  assert.notEqual(store.msixAppIdWithOrg, bundled.msixAppIdWithOrg)
   // The store build never publishes to a feed.
   assert.equal(store.channel, null)
 })
