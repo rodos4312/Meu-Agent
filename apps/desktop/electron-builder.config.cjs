@@ -243,16 +243,6 @@ module.exports = {
     extraResources: [{ from: 'scripts/update-relaunch-waiter.ps1', to: 'update-relaunch-waiter.ps1' }],
     ...windowsSigning()
   },
-  // Optional unpackaged Windows installer for Meu desktop previews. The
-  // portable --dir build cannot create shortcuts because it is not installed.
-  nsis: {
-    oneClick: false,
-    perMachine: false,
-    allowToChangeInstallationDirectory: true,
-    createDesktopShortcut: true,
-    createStartMenuShortcut: true,
-    shortcutName: displayName
-  },
   msix: {
     // A store build uses the Partner Center packaging identity (the Store
     // re-signs + rewrites the publisher on submission); everything else uses
