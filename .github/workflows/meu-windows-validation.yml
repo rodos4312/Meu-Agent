@@ -1,0 +1,44 @@
+name: Meu Windows validation
+
+on:
+  push:
+    branches:
+      - dev/meu-foundation
+    paths:
+      - 'apps/desktop/**'
+      - '.github/workflows/meu-windows-validation.yml'
+      - 'scripts/msix-shared.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-identity-and-safety:
+    name: Meu identity and isolation on Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Meu development branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check Meu desktop identity
+        run: node apps/desktop/scripts/test-meu-brand.cjs
+      - name: Check separate data roots
+        run: node apps/desktop/scripts/test-meu-isolation.mjs
+      - name: Run relevant native desktop regression tests
+        working-directory: apps/desktop
+        run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts
+      - name: Typecheck desktop and Electron
+        working-directory: apps/desktop
+        run: npm run typecheck
