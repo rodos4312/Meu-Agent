@@ -133,7 +133,7 @@ module.exports = {
       ? [{ from: 'build/agent-payload', to: 'agent-payload' }]
       : []),
     {
-      from: 'assets/icon.ico',
+      from: appId === 'com.meuagent.desktop' ? 'assets/meu-icon.ico' : 'assets/icon.ico',
       to: 'icon.ico'
     }
   ],
@@ -233,6 +233,7 @@ module.exports = {
     ]
   },
   win: {
+    icon: appId === 'com.meuagent.desktop' ? 'assets/meu-icon.ico' : 'assets/icon.ico',
     executableName: windowsExecutableName,
     legalTrademarks: displayName,
     target: ['msix'],
