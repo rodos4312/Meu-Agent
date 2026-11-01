@@ -250,8 +250,8 @@ module.exports = {
     identityName: store ? mustStoreMsix(storeMsixWhenStore).identityName : msixAppIdWithOrg,
     applicationId: appNamePascal,
     displayName,
-    publisher: store ? mustStoreMsix(storeMsixWhenStore).publisher : OUT_OF_STORE_PUBLISHER,
-    publisherDisplayName: store ? mustStoreMsix(storeMsixWhenStore).publisherDisplayName : 'Nous Research',
+    publisher: store ? mustStoreMsix(storeMsixWhenStore).publisher : appId === 'com.meuagent.desktop' ? 'CN=Meu Agent Development' : OUT_OF_STORE_PUBLISHER,
+    publisherDisplayName: store ? mustStoreMsix(storeMsixWhenStore).publisherDisplayName : appId === 'com.meuagent.desktop' ? 'Meu Agent Development' : 'Nous Research',
     // The native quad is the build time (scripts/msix-shared.mjs::nativeQuad),
     // baked into the manifest template, so the builder's own build-number
     // override would stamp a second, conflicting version.
@@ -339,6 +339,12 @@ function isMachO(file) {
 }
 
 function windowsSigning() {
+  if (appId === 'com.meuagent.desktop') {
+    if (process.env.AZURE_SIGN_ENDPOINT || process.env.AZURE_CLIENT_ID) {
+      throw new Error('Meu must use its own signing certificate; refusing upstream Azure signing configuration')
+    }
+    return {} // Development MSIX is unsigned until Meu has an independently trusted publisher.
+  }
   if (!process.env.AZURE_SIGN_ENDPOINT || !process.env.AZURE_CLIENT_ID) {
     return {}
   }
