@@ -577,7 +577,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 })
 
 it.each([
-  ['installed', false, 'Use Meu on this computer', /already installed here/i, false],
+  ['installed', false, 'Use Meu on this computer', /runtime is installed here/i, false],
   ['bundled', true, 'Use Meu on this computer', /included with this app/i, false],
   [undefined, false, 'Install Meu locally', /Will install to/i, true]
 ] as const)(
