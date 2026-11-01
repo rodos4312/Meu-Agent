@@ -37,7 +37,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Check delegation Python modules compile
-        run: python -m compileall -q tools/delegate_tool_config.py agent/subagent_lifecycle.py tests/tools/test_meu_delegation_depth.py
+        run: python -m compileall -q tools/delegate_tool_config.py tools/delegate_tool.py tools/meu_limits.py agent/subagent_lifecycle.py tests/tools/test_meu_delegation_depth.py tests/tools/test_meu_concurrency.py
       - name: Check Meu desktop identity
         run: node apps/desktop/scripts/test-meu-brand.cjs
       - name: Check separate data roots
