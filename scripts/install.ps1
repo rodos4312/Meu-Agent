@@ -619,9 +619,10 @@ function Write-Warn([string]$msg) { Write-Host "[!] $msg" -ForegroundColor Yello
 function Write-Err([string]$msg) { Write-Host "[X] $msg" -ForegroundColor Red }
 
 function Write-Banner {
+    $banner = if ($env:MEU_AGENT_MODE -eq "1") { "Meu Agent Installer" } else { "Hermes Agent Installer" }
     Write-Host ""
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|             * Hermes Agent Installer                    |" -ForegroundColor Magenta
+    Write-Host ("|             * {0,-48}|" -f $banner) -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
     Write-Host "|  An open source AI agent by Nous Research.              |" -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
@@ -820,7 +821,7 @@ function Emit-Frame([bool]$ok, [string]$name, [bool]$skipped, [string]$reason = 
 $ProductTitle = if ($IncludeDesktop) { "Install command and app + desktop" } else { "Install command and app" }
 $Stages = @(
     @{ name = "prerequisites"; title = "System prerequisites"; category = "runtime"; needs_user_input = $false },
-    @{ name = "repository"; title = "Download Hermes Agent"; category = "runtime"; needs_user_input = $false },
+    @{ name = "repository"; title = $(if ($env:MEU_AGENT_MODE -eq "1") { "Download Meu Agent" } else { "Download Hermes Agent" }); category = "runtime"; needs_user_input = $false },
     @{ name = "venv"; title = "Create Python environment"; category = "runtime"; needs_user_input = $false },
     @{ name = "python-deps"; title = "Install Python dependencies"; category = "runtime"; needs_user_input = $false },
     @{ name = "config"; title = "Prepare config and skills"; category = "configuration"; needs_user_input = $false },
@@ -1225,7 +1226,7 @@ function Stage-Repository {
             }
             Move-Item -LiteralPath $tree -Destination $InstallDir
             Disable-TreelessGraphWrites $InstallDir
-            Write-Ok "Hermes Agent cloned"
+            Write-Ok "$(if ($env:MEU_AGENT_MODE -eq '1') { 'Meu Agent' } else { 'Hermes Agent' }) cloned"
         } finally {
             Remove-Item -LiteralPath $staged -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -1503,7 +1504,13 @@ function Stage-Complete {
         $marker | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $InstallDir ".hermes-bootstrap-complete") -Encoding UTF8
     }
     if ($Channel) { Invoke-InstalledHermes @('update', '--set-channel', $Channel) }
-    if ($commit) { Write-Ok "Hermes Agent install complete (pinned $commit). Run: hermes" }
+    if ($commit) {
+        if ($env:MEU_AGENT_MODE -eq '1') {
+            Write-Ok "Meu Agent install complete (pinned $commit). Open Meu to begin."
+        } else {
+            Write-Ok "Hermes Agent install complete (pinned $commit). Run: hermes"
+        }
+    }
 }
 
 function New-DesktopShortcuts {
@@ -1528,9 +1535,10 @@ function New-DesktopShortcuts {
             $iconLocation = "$TargetExe,0"
         }
 
+        $shortcutName = if ($env:MEU_AGENT_MODE -eq '1') { 'Meu' } else { 'Hermes' }
         $targets = @(
-            (Join-Path ([Environment]::GetFolderPath('Programs')) 'Hermes.lnk'),
-            (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Hermes.lnk')
+            (Join-Path ([Environment]::GetFolderPath('Programs')) "$shortcutName.lnk"),
+            (Join-Path ([Environment]::GetFolderPath('Desktop')) "$shortcutName.lnk")
         )
 
         foreach ($lnkPath in $targets) {
@@ -1545,7 +1553,7 @@ function New-DesktopShortcuts {
                 # that outlives the app then blocks the next update's swap (#101789).
                 $sc.WorkingDirectory = $env:USERPROFILE
                 $sc.IconLocation = $iconLocation
-                $sc.Description = 'Hermes Agent'
+                $sc.Description = if ($env:MEU_AGENT_MODE -eq '1') { 'Meu Agent' } else { 'Hermes Agent' }
                 $sc.Save()
                 Write-Ok "Shortcut created: $lnkPath"
             } catch {
