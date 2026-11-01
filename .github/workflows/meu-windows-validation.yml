@@ -49,8 +49,11 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile('scripts/install.ps1', [ref]$tokens, [ref]$errors) | Out-Null
-          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1')) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
+          }
       - name: Check Meu desktop identity
         run: node apps/desktop/scripts/test-meu-brand.cjs
       - name: Check separate data roots

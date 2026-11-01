@@ -29,7 +29,7 @@ foreach ($location in @('Desktop', 'Programs')) {
   }
   $shortcut = $shell.CreateShortcut($shortcutPath)
   if ([IO.Path]::GetFileName($shortcut.TargetPath) -ne 'Meu.exe') {
-    throw "Wrong shortcut target at $shortcutPath: $($shortcut.TargetPath)"
+    throw "Wrong shortcut target at ${shortcutPath}: $($shortcut.TargetPath)"
   }
   if (-not (Test-Path -LiteralPath $shortcut.TargetPath -PathType Leaf)) {
     throw "Meu.exe target missing: $($shortcut.TargetPath)"
