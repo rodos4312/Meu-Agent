@@ -6,6 +6,9 @@ on:
       - dev/meu-foundation
     paths:
       - 'apps/desktop/**'
+      - 'tools/**'
+      - 'agent/subagent_lifecycle.py'
+      - 'tests/tools/test_meu_*.py'
       - '.github/workflows/meu-windows-validation.yml'
       - 'scripts/msix-shared.mjs'
       - 'package.json'
@@ -38,6 +41,8 @@ jobs:
           python-version: '3.12'
       - name: Check delegation Python modules compile
         run: python -m compileall -q tools/delegate_tool_config.py tools/delegate_tool.py tools/meu_limits.py agent/subagent_lifecycle.py tests/tools/test_meu_delegation_depth.py tests/tools/test_meu_concurrency.py
+      - name: Verify Meu child concurrency and exception handling
+        run: python -m unittest discover -s tests/tools -p test_meu_gate_stdlib.py -v
       - name: Check Meu desktop identity
         run: node apps/desktop/scripts/test-meu-brand.cjs
       - name: Check separate data roots
