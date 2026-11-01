@@ -243,6 +243,17 @@ module.exports = {
     extraResources: [{ from: 'scripts/update-relaunch-waiter.ps1', to: 'update-relaunch-waiter.ps1' }],
     ...windowsSigning()
   },
+  // The Meu preview installer is separate from the official MSIX packaging.
+  // Installer shortcuts belong to the real installer, not the portable ZIP.
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: displayName,
+    uninstallDisplayName: displayName
+  },
   msix: {
     // A store build uses the Partner Center packaging identity (the Store
     // re-signs + rewrites the publisher on submission); everything else uses

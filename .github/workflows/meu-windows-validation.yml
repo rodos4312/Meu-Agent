@@ -57,7 +57,7 @@ jobs:
         run: node apps/desktop/scripts/test-meu-isolation.mjs
       - name: Run relevant native desktop regression tests
         working-directory: apps/desktop
-        run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts
+        run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts electron/bootstrap-single-flight.test.ts
       - name: Test Meu first-run setup interface
         working-directory: apps/desktop
         run: npx vitest run --project ui src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx
@@ -70,6 +70,16 @@ jobs:
       - name: Package unsigned portable Meu Windows preview
         working-directory: apps/desktop
         run: npm run builder -- --win --x64 --dir
+      - name: Package unsigned Meu Windows installer
+        working-directory: apps/desktop
+        run: npm run builder -- --win nsis --x64
+      - name: Upload Meu installer for manual Windows testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: Meu-Windows-x64-installer-unsigned-preview
+          path: apps/desktop/release/Meu-*-win-x64.exe
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload unpacked preview for review only
         uses: actions/upload-artifact@v4
         with:

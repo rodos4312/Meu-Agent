@@ -22,6 +22,20 @@ assert.equal(main.channel, null, 'No upstream Hermes update feed for Meu')
 assert.equal(main.cliName, 'hermes', 'Backend CLI remains compatible')
 assert.equal(pkg.productName, 'Meu')
 assert.match(html, /<title>Meu<\/title>/)
+// Guard the English copy the desktop actually ships, rather than only the
+// package metadata. Source identifiers may still carry Hermes protocol names.
+for (const relative of [
+  'src/i18n/en.ts',
+  'src/i18n/en_boot.ts',
+  'src/i18n/en_gateway_host.ts',
+  'src/i18n/en_onboarding.ts',
+  'src/i18n/en_first_run.ts',
+  'src/components/chat/intro-copy.jsonl'
+]) {
+  const copy = fs.readFileSync(path.join(root, relative), 'utf8')
+  assert.doesNotMatch(copy, /\\bHermes\\b/, `Visible upstream name remains in ${relative}`)
+}
+assert.match(fs.readFileSync(path.join(root, 'src/components/chat/intro.tsx'), 'utf8'), /WORDMARK = 'MEU'/)
 
 const lightModule = { exports: {} }
 vm.runInNewContext(fs.readFileSync(identityPath, 'utf8'), {
