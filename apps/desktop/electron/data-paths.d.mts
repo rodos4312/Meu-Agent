@@ -6,6 +6,8 @@ export function platformDefaultHermesHome(
 
 export function resolveDesktopUserData(defaultPath: string, env?: NodeJS.ProcessEnv): string
 
+export function resolveMeuHome(home: string, env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform): string
+
 export interface HermesHomeOptions {
   home: string
   env?: NodeJS.ProcessEnv
