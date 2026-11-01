@@ -395,7 +395,11 @@ def _run_single_child(
         heartbeat.start()
         _safe_progress(child_progress_cb, "subagent.start", preview=goal)
         run.seed_workspace()
-        result, failure_entry, _child_close_deferred = run.await_child()
+        # The async pool can fall back to inline execution when saturated. A
+        # shared semaphore gates actual Meu child model runs across both paths.
+        from tools.meu_limits import meu_child_slot
+        with meu_child_slot():
+            result, failure_entry, _child_close_deferred = run.await_child()
         if failure_entry is not None:
             return failure_entry
 
