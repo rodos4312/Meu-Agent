@@ -33,7 +33,7 @@ for (const relative of [
   'src/components/chat/intro-copy.jsonl'
 ]) {
   const copy = fs.readFileSync(path.join(root, relative), 'utf8')
-  assert.doesNotMatch(copy, /\\bHermes\\b/, `Visible upstream name remains in ${relative}`)
+  assert.doesNotMatch(copy, /\bHermes\b/, `Visible upstream name remains in ${relative}`)
 }
 assert.match(fs.readFileSync(path.join(root, 'src/components/chat/intro.tsx'), 'utf8'), /WORDMARK = 'MEU'/)
 
