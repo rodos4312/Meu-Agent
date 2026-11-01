@@ -1259,6 +1259,7 @@ const HERMES_HOME: string = PRODUCT_IDENTITY.appId === 'com.meuagent.desktop'
 // inherit Meu's data root even if an existing Hermes install exported HERMES_HOME.
 if (PRODUCT_IDENTITY.appId === 'com.meuagent.desktop') {
   process.env.HERMES_HOME = HERMES_HOME
+  process.env.MEU_AGENT_MODE = '1' // Inherited by the local Python gateway: enforce flat delegation.
 }
 
 // #77311: `desktop.electron_flags` and the renderer heap ceiling
