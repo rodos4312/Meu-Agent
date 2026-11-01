@@ -4,11 +4,13 @@ import { SubagentRow } from '@/app/agents'
 import { ActivityTimerText } from '@/components/chat/activity-timer-text'
 import { StatusRow } from '@/components/chat/status-row'
 import { StatusSection } from '@/components/chat/status-section'
+import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { useViewedInterval } from '@/hooks/use-viewed-interval'
 import { useI18n } from '@/i18n'
 import { useSessionSlice } from '@/lib/use-session-slice'
+import { requestForOwnedSession } from '@/store/session-states'
 import { $subagentsBySession, type SubagentProgress } from '@/store/subagents'
 
 import { SubagentControls } from './subagent-controls'
@@ -26,6 +28,8 @@ export function SubagentSection({ sessionId }: SubagentSectionProps) {
   const [nowMs, setNowMs] = useState(Date.now)
   const [selected, setSelected] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [stoppingAll, setStoppingAll] = useState(false)
+  const [stopFeedback, setStopFeedback] = useState('')
   const hasLive = live.length > 0
   const priced = items.filter(item => typeof item.costUsd === 'number' && Number.isFinite(item.costUsd))
   const reportedCost = priced.reduce((total, item) => total + (item.costUsd ?? 0), 0)
@@ -34,6 +38,27 @@ export function SubagentSection({ sessionId }: SubagentSectionProps) {
 
   if (!hasLive) {
     return null
+  }
+
+  const stopAll = async () => {
+    if (stoppingAll || !live.length) return
+    setStoppingAll(true)
+    setStopFeedback('')
+    // Every interrupt is scoped to the session's own gateway; never route
+    // child control to another active gateway during window switches.
+    const results = await Promise.allSettled(
+      live.map(item =>
+        requestForOwnedSession<{ found?: boolean }>(
+          sessionId,
+          async () => { throw new Error(t.agents.requestRejected) },
+          'subagent.interrupt',
+          { session_id: sessionId, subagent_id: item.id }
+        )
+      )
+    )
+    const accepted = results.filter(result => result.status === 'fulfilled' && result.value.found).length
+    setStopFeedback(`${accepted}/${results.length} stop requests accepted`)
+    setStoppingAll(false)
   }
 
   const row = (item: SubagentProgress) => (
@@ -83,6 +108,12 @@ export function SubagentSection({ sessionId }: SubagentSectionProps) {
         <div className="px-3 py-1 text-[0.68rem] text-(--ui-text-tertiary)" data-slot="meu-worker-budget">
           Meu · max 2 concurrent child runs · {live.length} pending/running
           {priced.length > 0 && ` · reported cost ${reportedCost.toFixed(4)} (${priced.length}/${items.length} with data)`}
+        </div>
+        <div className="flex items-center justify-between gap-2 px-3 pb-1">
+          <span className="text-[0.68rem] text-(--ui-text-tertiary)" role="status">{stopFeedback}</span>
+          <Button disabled={stoppingAll} onClick={() => void stopAll()} size="xs" type="button" variant="secondary">
+            {stoppingAll ? t.agents.stopRequested : `Meu · ${t.statusStack.stop} all`}
+          </Button>
         </div>
         <div className="max-h-[25vh] overflow-y-auto overscroll-y-auto">{live.map(row)}</div>
         {detail && (
