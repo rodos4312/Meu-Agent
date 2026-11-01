@@ -100,7 +100,24 @@ const officialChannel =
     key => request.identity[key] === identity[key]
   )
 
-module.exports = !request
+// Meu is a distinct personal desktop product. Preserve the existing Hermes CLI
+// command and Python protocol for compatibility, but never claim Nous's OS
+// identity or subscribe to Nous's auto-update feed for a source-built Meu app.
+// The official Store identity is intentionally untouched and is NOT a Meu build.
+const meuIdentity = !store && !light && !request
+  ? {
+      ...identity,
+      displayName: 'Meu',
+      appId: 'com.meuagent.desktop',
+      appNamePascal: 'Meu',
+      artifactNamePascal: 'Meu',
+      windowsExecutableName: 'Meu',
+      msixAppIdWithOrg: 'MeuAgent.Desktop',
+      channel: null
+    }
+  : null
+
+module.exports = meuIdentity || !request
   ? identity
   : Object.freeze(
       officialChannel
