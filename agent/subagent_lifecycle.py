@@ -278,6 +278,11 @@ class SubagentLifecycleService:
         parent = self._parent_agent_resolver()
         if parent is None:
             raise SubagentLifecycleError("No active Hermes parent session is available.")
+        # Plugin lifecycle launches must obey the same depth budget as
+        # delegate_task. Otherwise a leaf plugin could spawn grandchildren.
+        from tools.delegate_tool_config import _get_max_spawn_depth
+        if getattr(parent, "_delegate_depth", 0) >= _get_max_spawn_depth():
+            raise SubagentLifecycleError("Subagent depth limit reached; leaf agents cannot delegate.")
         request = _coerce_request(request)
         self._validate_request(request, parent)
         parent_session_id = _session_id_of(parent)
