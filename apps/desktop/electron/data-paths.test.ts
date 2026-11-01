@@ -4,7 +4,7 @@ import path from 'node:path'
 
 import { afterEach, test, vi } from 'vitest'
 
-import { platformDefaultHermesHome, resolveDesktopHermesHome, resolveDesktopUserData } from './data-paths'
+import { platformDefaultHermesHome, resolveDesktopHermesHome, resolveDesktopUserData, resolveMeuHome } from './data-paths'
 import { controlSocketPath } from './ssh-connection'
 
 afterEach((): void => {
@@ -75,4 +75,18 @@ test('explicit homes and userData retain precedence, and suffixed Windows homes 
     }),
     'C:\\custom'
   )
+})
+
+
+test('Meu home is independent of Hermes overrides, registry and migration', (): void => {
+  const winHome = 'C:\\Users\\Lazaros'
+  const env: NodeJS.ProcessEnv = {
+    LOCALAPPDATA: 'C:\\Users\\Lazaros\\AppData\\Local',
+    HERMES_HOME: 'D:\\HermesPersonal',
+    HERMES_DESKTOP_USER_DATA_DIR: 'D:\\OldHermesUI',
+    HERMES_DATA_DIR_SUFFIX: '-canary'
+  }
+  assert.equal(resolveMeuHome(winHome, env, 'win32'), 'C:\\Users\\Lazaros\\AppData\\Local\\MeuAgent')
+  assert.equal(resolveMeuHome('/home/lazaros', env, 'linux'), '/home/lazaros/.meu')
+  assert.equal(resolveMeuHome(winHome, { ...env, MEU_HOME: 'D:\\MeuOnly' }, 'win32'), 'D:\\MeuOnly')
 })
