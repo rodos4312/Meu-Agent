@@ -195,6 +195,10 @@ def _get_child_timeout() -> Optional[float]:
 def _get_max_spawn_depth() -> int:
     """delegation.max_spawn_depth floored at 1 (no ceiling). Depth 0 is the parent; agents at depths 0..N-1 may spawn,
     depth N is the leaf floor. Default 1 is flat. Each extra level multiplies API cost."""
+    # Meu's local agent has a non-overridable flat tree. An accidental config
+    # value cannot grant a child permission to start grandchildren.
+    if os.environ.get("MEU_AGENT_MODE") == "1":
+        return 1
     def _floored(v):
         ival = int(v)
         if ival < _MIN_SPAWN_DEPTH:
