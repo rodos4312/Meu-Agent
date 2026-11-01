@@ -3,11 +3,11 @@
   "productName": "Meu",
   "private": true,
   "version": "0.0.0",
-  "description": "Meu personal AI desktop assistant, powered by Hermes Agent.",
-  "author": "Nous Research",
+  "description": "Meu personal AI desktop assistant for Windows, based on open-source Hermes Agent.",
+  "author": "Meu Agent",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NousResearch/hermes-agent.git"
+    "url": "git+https://github.com/rodos4312/Meu-Agent.git"
   },
   "type": "module",
   "main": "dist/electron-main.mjs",
