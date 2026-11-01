@@ -165,7 +165,15 @@ test('packaging isolates boot metadata and executable names without renaming rel
     // changes neither its early userData lookup nor its single-instance lock.
     assert.equal(config.extraMetadata.productName, identity.displayName)
     assert.equal(config.extraMetadata.name, identity.appNamePascal)
-    assert.notEqual(config.extraMetadata.name, stableIdentity.appNamePascal)
+    if (identity.appId === 'com.meuagent.desktop') {
+      // Meu intentionally has one independent identity across local, canary,
+      // and commit builds: no upstream app name or state is ever borrowed.
+      assert.equal(config.extraMetadata.name, 'Meu')
+      assert.equal(config.extraMetadata.productName, 'Meu')
+      assert.equal(config.win.executableName, 'Meu')
+    } else {
+      assert.notEqual(config.extraMetadata.name, stableIdentity.appNamePascal)
+    }
     assert.equal(config.win.executableName, identity.windowsExecutableName)
 
     const {
