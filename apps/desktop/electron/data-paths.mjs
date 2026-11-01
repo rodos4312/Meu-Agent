@@ -32,6 +32,18 @@ export function platformDefaultHermesHome(home, env = process.env, platform = pr
   return path.posix.join(home, '.hermes') + suffix
 }
 
+/** Dedicated Meu data root. Never migrate or reuse the upstream Hermes state. */
+export function resolveMeuHome(home, env = process.env, platform = process.platform) {
+  const paths = platform === 'win32' ? path.win32 : path.posix
+  const explicit = String(env.MEU_HOME || '').trim()
+  if (explicit) return paths.resolve(explicit)
+  if (platform === 'win32') {
+    const localAppData = String(env.LOCALAPPDATA || '').trim() || paths.join(home, 'AppData', 'Local')
+    return paths.join(localAppData, 'MeuAgent')
+  }
+  return paths.join(home, '.meu')
+}
+
 export function resolveDesktopUserData(defaultPath, env = process.env) {
   return env.HERMES_DESKTOP_USER_DATA_DIR
     ? path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR)
