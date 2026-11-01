@@ -90,8 +90,8 @@ export const enBoot = {
         "Meu is holding off on starting so it can't load files an update may still be changing. It starts by itself as soon as the hold ends.",
       heldByProcess: pid =>
         `The update (process ${pid}) exited, but a process it started still holds the Meu install.`,
-      heldUnknown: 'An update exited, but a process it started still holds the Hermes install.',
-      unverified: "The update helper couldn't check who owns the Hermes install right now. Meu keeps checking.",
+      heldUnknown: 'An update exited, but a process it started still holds the Meu install.',
+      unverified: "The update helper couldn't check who owns the Meu install right now. Meu keeps checking.",
       since: time => `Waiting since ${time}`,
       lastChecked: time => `Last checked ${time}`,
       recoveryHint:
