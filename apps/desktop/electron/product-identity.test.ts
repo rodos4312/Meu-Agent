@@ -191,7 +191,13 @@ test('packaging isolates boot metadata and executable names without renaming rel
     assert.equal(appInfo.productFilename, identity.windowsExecutableName)
     assert.equal(config.mac.extendInfo.CFBundleExecutable, config.executableName)
     assert.equal(config.artifactName, stable.artifactName)
-    assert.equal(config.msix.customManifestPath, 'build/msix-manifest.xml')
+    // Meu does not create a separate canary/commit app identity, so its
+    // unchanged stable manifest template is correct. Upstream variants that
+    // change app identity need the staged per-build manifest instead.
+    assert.equal(
+      config.msix.customManifestPath,
+      identity.appId === 'com.meuagent.desktop' ? 'assets/msix-manifest.xml' : 'build/msix-manifest.xml'
+    )
 
     const {
       appIdentity
