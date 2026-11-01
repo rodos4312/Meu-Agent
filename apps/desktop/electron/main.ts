@@ -7863,7 +7863,11 @@ let _secretStoragePolicy: SecretStoragePolicy | null = null
 
 function secretStoragePolicy(): SecretStoragePolicy {
   if (!_secretStoragePolicy) {
-    _secretStoragePolicy = readSecretStoragePolicy(_secretStoragePolicyIo)
+    // Meu on Windows defaults to DPAPI-backed Electron safeStorage for new
+    // installs. Other products retain their existing keychain policy.
+    _secretStoragePolicy = PRODUCT_IDENTITY.appId === 'com.meuagent.desktop' && process.platform === 'win32' && !fs.existsSync(SECRET_STORAGE_POLICY_PATH)
+      ? { on: true, migrated: true }
+      : readSecretStoragePolicy(_secretStoragePolicyIo)
   }
 
   return _secretStoragePolicy
