@@ -7,6 +7,7 @@ on:
     paths:
       - 'apps/desktop/**'
       - 'tools/**'
+      - 'scripts/install.ps1'
       - 'agent/subagent_lifecycle.py'
       - 'tests/tools/test_meu_*.py'
       - '.github/workflows/meu-windows-validation.yml'
@@ -43,6 +44,13 @@ jobs:
         run: python -m compileall -q tools/delegate_tool_config.py tools/delegate_tool.py tools/meu_limits.py agent/subagent_lifecycle.py tests/tools/test_meu_delegation_depth.py tests/tools/test_meu_concurrency.py
       - name: Verify Meu child concurrency and exception handling
         run: python -m unittest discover -s tests/tools -p test_meu_gate_stdlib.py -v
+      - name: Parse Meu Windows installer PowerShell
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('scripts/install.ps1', [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
       - name: Check Meu desktop identity
         run: node apps/desktop/scripts/test-meu-brand.cjs
       - name: Check separate data roots
@@ -50,6 +58,9 @@ jobs:
       - name: Run relevant native desktop regression tests
         working-directory: apps/desktop
         run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts
+      - name: Test Meu first-run setup interface
+        working-directory: apps/desktop
+        run: npx vitest run --project ui src/components/desktop-install-overlay.test.tsx
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
