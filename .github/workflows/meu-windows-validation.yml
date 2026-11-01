@@ -32,6 +32,12 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Set up Python for backend syntax checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check delegation Python modules compile
+        run: python -m compileall -q tools/delegate_tool_config.py agent/subagent_lifecycle.py tests/tools/test_meu_delegation_depth.py
       - name: Check Meu desktop identity
         run: node apps/desktop/scripts/test-meu-brand.cjs
       - name: Check separate data roots
