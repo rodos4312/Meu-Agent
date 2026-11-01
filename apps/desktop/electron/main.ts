@@ -1260,6 +1260,9 @@ const HERMES_HOME: string = PRODUCT_IDENTITY.appId === 'com.meuagent.desktop'
 if (PRODUCT_IDENTITY.appId === 'com.meuagent.desktop') {
   process.env.HERMES_HOME = HERMES_HOME
   process.env.MEU_AGENT_MODE = '1' // Inherited by the local Python gateway: enforce flat delegation.
+  // The first-run installer must clone our own verified Meu source, not silently
+  // install NousResearch's upstream backend into Meu's private data root.
+  process.env.HERMES_REPO_URL = 'https://github.com/rodos4312/Meu-Agent.git'
 }
 
 // #77311: `desktop.electron_flags` and the renderer heap ceiling
