@@ -3,7 +3,7 @@
   "productName": "Meu",
   "private": true,
   "version": "0.0.0",
-  "description": "Meu personal AI desktop assistant for Windows, based on open-source Hermes Agent.",
+  "description": "Meu personal AI desktop assistant for Windows.",
   "author": "Meu Agent",
   "repository": {
     "type": "git",
