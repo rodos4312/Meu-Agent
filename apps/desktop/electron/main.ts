@@ -215,7 +215,7 @@ import type { RosterProfileMetadata } from './connection-registry'
 import { liveWindowState, overlayWindowState } from './connection-window-state'
 import { describeCrashReason, installCrashForensics } from './crash-forensics'
 import { adoptServedDashboardToken } from './dashboard-token'
-import { resolveDesktopHermesHome, resolveDesktopUserData } from './data-paths'
+import { resolveDesktopHermesHome, resolveDesktopUserData, resolveMeuHome } from './data-paths'
 import { registerDeepLinkProtocol as registerDeepLinkProtocolWith } from './deep-link-protocol'
 import { loadOrCreateInstallationId, sshOwnershipId } from './desktop-installation'
 import { formatDesktopLogLine, formatLogStamp } from './desktop-log-line'
@@ -724,7 +724,7 @@ import { resolvePickerDefaultPath, setActiveGatewayProfile, setWslBridgeProfileS
 const IDENTITY_APP_NAME: string | null = applyDesktopIdentity(app)
 const USER_DATA_OVERRIDE: string | undefined = process.env.HERMES_DESKTOP_USER_DATA_DIR
 
-if (USER_DATA_OVERRIDE || process.env.HERMES_DATA_DIR_SUFFIX) {
+if (PRODUCT_IDENTITY.appId !== 'com.meuagent.desktop' && (USER_DATA_OVERRIDE || process.env.HERMES_DATA_DIR_SUFFIX)) {
   const resolvedUserData: string = resolveDesktopUserData(app.getPath('userData'))
   fs.mkdirSync(resolvedUserData, { recursive: true })
   app.setPath('userData', resolvedUserData)
@@ -1247,11 +1247,19 @@ if (INSTALL_STAMP) {
 
 const DESKTOP_PROFILE_CONFIG_PATH: string = path.join(app.getPath('userData'), 'active-profile.json')
 
-const HERMES_HOME: string = resolveDesktopHermesHome({
-  home: app.getPath('home'),
-  directoryExists,
-  readWindowsHome: (): string | null => readWindowsUserEnvVar('HERMES_HOME')
-})
+const HERMES_HOME: string = PRODUCT_IDENTITY.appId === 'com.meuagent.desktop'
+  ? resolveMeuHome(app.getPath('home'))
+  : resolveDesktopHermesHome({
+      home: app.getPath('home'),
+      directoryExists,
+      readWindowsHome: (): string | null => readWindowsUserEnvVar('HERMES_HOME')
+    })
+
+// The backend retains its Hermes protocol names, but Meu's subprocesses must
+// inherit Meu's data root even if an existing Hermes install exported HERMES_HOME.
+if (PRODUCT_IDENTITY.appId === 'com.meuagent.desktop') {
+  process.env.HERMES_HOME = HERMES_HOME
+}
 
 // #77311: `desktop.electron_flags` and the renderer heap ceiling
 // (`desktop.renderer_max_old_space_mb`) used to reach Chromium only through
