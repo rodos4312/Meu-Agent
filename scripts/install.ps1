@@ -26,7 +26,7 @@ param(
     [string]$Commit = "",
     [string]$Channel = $(if ($env:HERMES_INSTALL_CHANNEL) { $env:HERMES_INSTALL_CHANNEL } else { "" }),
     [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }),
-    [string]$InstallDir = $(if ($env:HERMES_HOME) { "$env:HERMES_HOME\hermes-agent" } else { "$env:LOCALAPPDATA\hermes\hermes-agent" }),
+    [string]$InstallDir = $(if ($env:MEU_AGENT_MODE -eq "1") { Join-Path $HermesHome "meu-agent" } elseif ($env:HERMES_HOME) { "$env:HERMES_HOME\hermes-agent" } else { "$env:LOCALAPPDATA\hermes\hermes-agent" }),
     [switch]$Manifest,
     [string]$Stage,
     [switch]$ProtocolVersion,
@@ -333,7 +333,7 @@ function Initialize-ResolvedPaths {
     $resolvedDir = if ($script:BoundParams.ContainsKey('InstallDir')) {
         ConvertTo-LongPath $InstallDir
     } else {
-        Join-Path $resolvedHome 'hermes-agent'
+        Join-Path $resolvedHome $(if ($env:MEU_AGENT_MODE -eq '1') { 'meu-agent' } else { 'hermes-agent' })
     }
     # A HermesHome equal to or inside InstallDir puts the pm tool store
     # (<home>\tools) inside the checkout: the repository stage's
