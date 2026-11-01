@@ -27,6 +27,8 @@ export function SubagentSection({ sessionId }: SubagentSectionProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const hasLive = live.length > 0
+  const priced = items.filter(item => typeof item.costUsd === 'number' && Number.isFinite(item.costUsd))
+  const reportedCost = priced.reduce((total, item) => total + (item.costUsd ?? 0), 0)
 
   useViewedInterval(() => setNowMs(Date.now()), 1000, hasLive)
 
@@ -78,6 +80,10 @@ export function SubagentSection({ sessionId }: SubagentSectionProps) {
         icon={<Codicon className="text-(--ui-purple)" name="agent" size="0.8rem" />}
         label={t.statusStack.subagents(live.length)}
       >
+        <div className="px-3 py-1 text-[0.68rem] text-(--ui-text-tertiary)" data-slot="meu-worker-budget">
+          Meu · max 2 concurrent child runs · {live.length} pending/running
+          {priced.length > 0 && ` · reported cost ${reportedCost.toFixed(4)} (${priced.length}/${items.length} with data)`}
+        </div>
         <div className="max-h-[25vh] overflow-y-auto overscroll-y-auto">{live.map(row)}</div>
         {detail && (
           <div
