@@ -97,6 +97,8 @@ def _get_max_concurrent_children() -> int:
 
     Floor of 1 is the only bound enforced; there is no ceiling.
     """
+    if os.environ.get("MEU_AGENT_MODE") == "1":
+        return 2
     result = _knob(
         "max_concurrent_children", "DELEGATION_MAX_CONCURRENT_CHILDREN", lambda v: max(1, int(v)),
         _DEFAULT_MAX_CONCURRENT_CHILDREN,
