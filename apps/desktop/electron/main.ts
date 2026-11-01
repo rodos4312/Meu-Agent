@@ -109,6 +109,7 @@ import {
 } from './bootstrap-platform'
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
+import { BootstrapSingleFlight } from './bootstrap-single-flight'
 import { bootstrapSnapshot } from './bootstrap-state'
 import {
   BROWSER_WINDOW_HEIGHT,
@@ -1984,6 +1985,9 @@ let remoteReauthFailure = null
 // Active first-launch install, so the renderer's Cancel button (and app quit)
 // can abort the in-flight install.sh/ps1 instead of leaving it running.
 let bootstrapAbortController = null
+// Prevent a renderer/backend reconnect during slow first-run setup from starting
+// another installer against the same Python environment and update lock.
+const bootstrapInstallFlight = new BootstrapSingleFlight<Awaited<ReturnType<typeof runBootstrap>>>()
 // Explicit "the user asked for a repair" flag. Repair used to signal intent by
 // deleting the bootstrap marker, which stranded healthy installs whose only
 // problem was a transient backend error (#72166). Intent now lives here, so
@@ -5132,20 +5136,25 @@ async function ensureRuntime(
     }
 
     localBackendLifecycle.assertCanStart()
-    bootstrapAbortController = new AbortController()
+    if (bootstrapInstallFlight.isRunning()) {
+      rememberLog('[bootstrap] another connection attempt joined the active installer')
+    }
+    const bootstrapResult = await bootstrapInstallFlight.run(async () => {
+      // One owner for the entire installation, including its cancellation
+      // controller. Concurrent backend starts reuse its result.
+      const controller = new AbortController()
+      bootstrapAbortController = controller
+      bootstrapRepairRequested = false
+      bootstrapRepairAttempt = 0
 
-    // The repair request has been honoured by reaching the installer; clear it
-    // so a later boot isn't forced through bootstrap again.
-    bootstrapRepairRequested = false
-    bootstrapRepairAttempt = 0
-
-    const bootstrapResult = await runBootstrap({
+      try {
+        return await runBootstrap({
       installStamp: backend.installStamp,
       activeRoot: backend.activeRoot,
       sourceRepoRoot: SOURCE_REPO_ROOT,
       hermesHome: HERMES_HOME,
       logRoot: path.join(HERMES_HOME, 'logs'),
-      abortSignal: bootstrapAbortController.signal,
+      abortSignal: controller.signal,
       onEvent: ev => {
         // Tee every bootstrap event to (a) the desktop log for forensics
         // and (b) the renderer for live progress UI. Either may be absent;
@@ -5166,8 +5175,12 @@ async function ensureRuntime(
       writeMarker: writeBootstrapMarker,
       gitBinary: resolveGitBinary()
     })
-
-    bootstrapAbortController = null
+      } finally {
+        if (bootstrapAbortController === controller) {
+          bootstrapAbortController = null
+        }
+      }
+    })
 
     if (bootstrapResult.cancelled) {
       const cancelledError = new Error('Hermes install was cancelled.') as any
@@ -14423,6 +14436,14 @@ ipcMain.handle('hermes:backend:recycle', async (_event, profile) => {
   return { ok: true }
 })
 ipcMain.handle('hermes:bootstrap:reset', async () => {
+  // Do not clear connection ownership while a first-run installation runs.
+  // A timed-out renderer retry must not create a second installer against
+  // the same environment (observed on Meu Windows first-run).
+  if (bootstrapInstallFlight.isRunning()) {
+    rememberLog('[bootstrap] retry rejected: first-run installation still active')
+    return { ok: false, reason: 'install-in-progress' }
+  }
+
   // Renderer's "Reload and retry" path. Clear the latched failure and
   // reset connection state so the next startHermes() call restarts the
   // full backend flow (including a fresh runBootstrap pass).

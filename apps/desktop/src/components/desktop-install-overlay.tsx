@@ -771,9 +771,12 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                     // and main short-circuits to the latched error without
                     // re-running install.ps1.
                     try {
-                      await window.hermesDesktop?.resetBootstrap?.()
+                      const reset = await window.hermesDesktop?.resetBootstrap?.()
+                      // An ongoing install owns the update lock. Do not reload
+                      // and accidentally start an overlapping bootstrap.
+                      if (reset && !reset.ok) return
                     } catch {
-                      // best-effort -- continue with reload regardless
+                      return
                     }
 
                     window.location.reload()
