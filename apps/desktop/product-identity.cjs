@@ -117,10 +117,10 @@ const meuIdentity = !store && !light && !request
     }
   : null
 
-module.exports = meuIdentity || !request
+module.exports = meuIdentity || (!request
   ? identity
   : Object.freeze(
       officialChannel
         ? { ...identity, channel: request.channel }
         : { ...request.identity, store: false, light: false, channel: request.channel }
-    )
+    ))
