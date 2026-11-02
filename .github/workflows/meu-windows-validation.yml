@@ -44,7 +44,8 @@ permissions:
   contents: read
 
 env:
-  MEU_RELEASE_REQUEST: ${{ inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare ')) }}
+  MEU_RELEASE_REQUEST: >-
+    ${{ inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare ')) }}
 
 jobs:
   coordinator-compatibility:
@@ -342,7 +343,8 @@ jobs:
 
   release-draft:
     name: Prepare a draft in Meu GitHub Releases
-    if: (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
+    if: >-
+      (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
     needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
     runs-on: ubuntu-latest
     permissions:
