@@ -102,7 +102,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           $env:HERMES_DESKTOP_PYTHON = $env:HERMES_PYTHON
-          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts --reporter=list --workers=1
+          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts e2e/meu-provider-cleanup.spec.ts --reporter=list --workers=1
       - name: Preserve navigation screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -132,6 +132,13 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
+          tests/hermes_cli/test_meu_nous_routes.py
+          tests/hermes_cli/test_provider_catalog.py
+          tests/providers/test_provider_profiles.py
+          tests/providers/test_transport_parity.py
+          tests/agent/test_declared_conversation_scope.py
+          tests/agent/transports/test_chat_completions.py
+          tests/plugins/model_providers/test_brokered_oauth_refresh.py
           tests/tui_gateway/test_meu_privacy_rpc.py
           tests/scripts/install/test_meu_installer_privacy.py
           tests/agent/test_meu_deepseek_privacy.py
@@ -246,6 +253,9 @@ jobs:
       - name: Verify update notifications require an explicit install choice
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/store/meu-updates.test.ts src/store/updates.test.ts src/components/update-status.test.tsx src/app/updates-overlay.manual.test.tsx src/lib/update-notes.test.ts
+      - name: Verify removed Nous surfaces and provider credential recovery
+        working-directory: apps/desktop
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/store/desktop-metrics.test.ts src/store/shared-metrics.test.ts src/app/settings/shared-metrics-settings.test.tsx src/components/shared-metrics/consent-dialog.test.tsx src/components/shared-metrics/consent-strip.test.tsx src/app/gateway/report-startup-latency.test.ts

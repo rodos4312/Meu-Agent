@@ -38,7 +38,6 @@ _OAUTH_PROVIDER_CATALOG = LateState("_OAUTH_PROVIDER_CATALOG", "hermes_cli.web_s
 # test's monkeypatch on web_server_oauth must win at spawn time, not router-import time.
 # A direct import here made those mocks no-ops — the real poller then hit the network
 # from the leaked thread and segfaulted a later test's collection (CI flake, 2026-09-09).
-_nous_sign_in_poller = late("_nous_sign_in_poller", "hermes_cli.web_server_oauth")
 _minimax_poller = late("_minimax_poller", "hermes_cli.web_server_oauth")
 _xai_device_poller = late("_xai_device_poller", "hermes_cli.web_server_oauth")
 _profile_device_poller = late("_profile_device_poller", "hermes_cli.web_server_oauth")
@@ -109,35 +108,11 @@ def _drop_oauth_session(sid: str) -> None:
 
 
 def _start_poller(target, sid: str, prefix: str = "oauth-poll") -> None:
-    with _oauth_sessions_lock:
-        sess = _oauth_sessions.get(sid)
-
-    def run() -> None:
-        try:
-            target(sid)
-        finally:  # the session's status is final once its poller returns
-            from hermes_cli.observability.shared_metrics_setup import settle_oauth_setup
-            settle_oauth_setup(sess)
-
     # The poller saves credentials under ``_profile_scope(sess['profile'])``; an implicit
     # selector (None) must resolve in the REQUEST's home (a secondary-profile native ticket's
     # override), so the thread runs in a copy of the starting request's context.
     context = contextvars.copy_context()
-    threading.Thread(target=context.run, args=(run,), daemon=True, name=f"{prefix}-{sid[:6]}").start()
-
-
-def _track_oauth_setup(flow, session_id: str) -> None:
-    """Hand the setup flow to its session; settle it now if the poller already ended."""
-    from hermes_cli.observability.shared_metrics_setup import (
-        attach_oauth_setup, finish_provider_setup, settle_oauth_setup,
-    )
-    with _oauth_sessions_lock:
-        sess = _oauth_sessions.get(session_id)
-    if sess is None:  # cancelled before the start response even returned
-        finish_provider_setup(flow, "abandoned")
-        return
-    attach_oauth_setup(sess, flow)
-    settle_oauth_setup(sess)
+    threading.Thread(target=context.run, args=(target, sid), daemon=True, name=f"{prefix}-{sid[:6]}").start()
 
 
 def _device_session_started(
@@ -377,14 +352,9 @@ def _epoch_ms_to_iso(value: Any) -> Optional[str]:
 
 # Hand-written status cards per provider id: (hauth getter name, raw -> card).
 # Providers absent here fall through to the slug-driven ``get_auth_status``.
-# nous: refresh-free local snapshot so listing providers never performs an OAuth
-# refresh. xai: source_label is a human-readable origin (auth-store path /
+# xai: source_label is a human-readable origin (auth-store path /
 # credential source), not the internal auth_mode string ("oauth_pkce").
 _PROVIDER_STATUS: dict[str, tuple[str, Callable[[dict], dict]]] = {
-    "nous": ("get_nous_auth_status_local", lambda r: {**_status_card(
-        r, "nous_portal", r.get("portal_base_url") or "Nous Portal",
-        _truncate_token(r.get("access_token")), r.get("access_expires_at"), bool(r.get("has_refresh_token")),
-    ), "free_tier": bool(r.get("free_tier")), "account_tier": r.get("account_tier")}),
     "openai-codex": ("get_codex_auth_status", lambda r: _status_card(
         r, r.get("source") or "openai_codex", r.get("auth_mode") or "OpenAI Codex",
         _truncate_token(r.get("api_key")), None, False, r.get("last_refresh"),
@@ -430,73 +400,6 @@ def _resolve_provider_status(provider_id: str, status_fn) -> dict[str, Any]:
     except Exception as e:
         return {"logged_in": False, "error": str(e)}
     return {"logged_in": False}
-
-
-async def _start_nous_device_code(profile: Optional[str]) -> dict[str, Any]:
-    """Start a Nous sign-in: the shared ``anon_auth.run_sign_in`` flow, the plain device-code login.
-    This route creates the generator, pulls its first state (the device page link and code) and
-    hands that to the UI, then the poller drains the rest. A free tier the account replaces hands
-    its apps over after the save, inside the flow."""
-    from hermes_cli import anon_auth
-    from hermes_cli.auth import PROVIDER_REGISTRY
-    from hermes_cli.web_server_profiles import _config_profile_scope
-    pconfig = PROVIDER_REGISTRY["nous"]
-    portal_base_url = (
-        os.getenv("HERMES_PORTAL_BASE_URL") or os.getenv("NOUS_PORTAL_BASE_URL") or pconfig.portal_base_url
-    ).rstrip("/")
-
-    # The session is registered BEFORE the generator exists, so a cancel landing in the start
-    # window is already visible to the flow's own cancel check and persist guard.
-    sid, sess = _new_oauth_session("nous", "device_code", profile=profile)
-
-    def _cancelled() -> bool:
-        with _oauth_sessions_lock:
-            return bool(sess.get("cancelled"))
-
-    @contextlib.contextmanager
-    def _persist_guard():
-        # The desktop's guarantee: the final cancellation check and the save share one lock.
-        with _oauth_sessions_lock:
-            if sess.get("cancelled"):
-                sess["status"] = "cancelled"
-                yield False
-            else:
-                yield True
-
-    gen = anon_auth.run_sign_in(
-        timeout_seconds=15.0,
-        cancelled=_cancelled,
-        # The desktop also connects another account over a signed-in one.
-        replace_account=True,
-        persist_guard=_persist_guard,
-        # Config + auth store only, so the light contextvar scope -- never the skills-module one,
-        # whose process-global lock would be held across the whole wait.
-        scope=lambda: _config_profile_scope(_oauth_profile_name(profile)),
-    )
-    try:
-        first = await _httpx_call(lambda _client: next(gen))
-    except Exception:
-        with contextlib.suppress(Exception):
-            gen.close()
-        _drop_oauth_session(sid)
-        raise
-    if getattr(first, "kind", "") != "code":     # the store was unreadable or the code request failed
-        with contextlib.suppress(Exception):
-            gen.close()
-        _drop_oauth_session(sid)
-        raise HTTPException(400, detail=first.copy_terminal)
-    with _oauth_sessions_lock:
-        # ``device_code`` stays present because other routes read it; the generator owns the real one.
-        sess.update(dict(
-            portal_base_url=portal_base_url, client_id=pconfig.client_id, scope=pconfig.scope,
-            device_code="", interval=first.interval,
-            expires_at=time.time() + first.expires_in, _sign_in=gen))
-    _start_poller(_nous_sign_in_poller, sid)   # last: nothing observes `sess` before it is complete
-    return {
-        "session_id": sid, "flow": "device_code", "user_code": first.code,
-        "verification_url": first.link, "expires_in": first.expires_in,
-        "poll_interval": first.interval,
-    }
 
 
 async def _start_codex_device_code(profile: Optional[str]) -> dict[str, Any]:
@@ -580,7 +483,7 @@ async def _start_xai_device_code(profile: Optional[str]) -> dict[str, Any]:
 
 
 _DEVICE_CODE_STARTERS = {
-    "nous": _start_nous_device_code, "openai-codex": _start_codex_device_code,
+    "openai-codex": _start_codex_device_code,
     "minimax-oauth": _start_minimax_device_code, "xai-oauth": _start_xai_device_code,
 }
 
@@ -798,10 +701,8 @@ async def disconnect_oauth_provider(provider_id: str, request: Request, profile:
             _log.info("oauth/disconnect: %s", provider_id)
             return {"ok": True, "provider": provider_id}
         try:
-            from hermes_cli.auth import clear_provider_auth, invalidate_nous_auth_status_cache
+            from hermes_cli.auth import clear_provider_auth
             cleared = clear_provider_auth(provider_id)
-            if provider_id == "nous":
-                invalidate_nous_auth_status_cache()
             if not cleared:
                 raise _disconnect_http_error(409, provider["name"])
             _log.info("oauth/disconnect: %s (cleared=%s)", provider_id, cleared)
@@ -853,44 +754,14 @@ async def start_oauth_login(provider_id: str, request: Request, profile: Optiona
         raise HTTPException(400, f"{provider_id} uses an external CLI; run `{catalog_entry['cli_command']}` manually")
     if catalog_entry["flow"] != "device_code":
         raise HTTPException(status_code=400, detail="Unsupported flow")
-    flow = await _begin_oauth_setup_metric(provider_id, profile)
     try:
         body = await _start_device_code_flow(provider_id, profile=profile)
     except Exception as e:
-        await _end_oauth_setup_metric(flow, e)
         if isinstance(e, HTTPException):
             raise
         _log.exception("oauth/start %s failed", provider_id)
         raise HTTPException(status_code=500, detail=str(e))
-    if flow is not None:
-        await asyncio.to_thread(_track_oauth_setup, flow, body["session_id"])
     return body
-
-
-async def _begin_oauth_setup_metric(provider_id: str, profile: Optional[str]):
-    """Start the provider-setup metric off the event loop (a cold metrics runtime blocks); None when the
-    owning profile does not collect. Never raises: the start route's own validation owns errors."""
-    from hermes_cli.observability.shared_metrics_setup import begin_oauth_setup, collection_enabled
-    try:
-        profile_name = _oauth_profile_name(profile)
-        home = _resolve_profile_dir(profile_name) if profile_name else None
-        if not collection_enabled(home):
-            return None
-        return await asyncio.to_thread(begin_oauth_setup, provider_id, home)
-    except Exception:
-        return None
-
-
-async def _end_oauth_setup_metric(flow, exc: Exception) -> None:
-    if flow is None:
-        return
-    from hermes_cli.observability.shared_metrics_setup import finish_provider_setup, setup_failure_class
-    with contextlib.suppress(Exception):
-        # A 401/403 from the start route is the provider refusing this account/client; a 504 is the
-        # provider not answering in time.
-        status = exc.status_code if isinstance(exc, HTTPException) else None
-        failure = {401: "auth", 403: "auth", 504: "network"}.get(status) or setup_failure_class(exc)
-        await asyncio.to_thread(finish_provider_setup, flow, "failed", failure)
 
 
 @router.post("/api/providers/oauth/{provider_id}/submit")
@@ -953,25 +824,6 @@ async def poll_oauth_session(provider_id: str, session_id: str, profile: Optiona
     }
 
 
-@router.get("/api/providers/oauth/nous/handoff")
-async def nous_handoff_status(
-    request: Request, profile: Optional[str] = None, since: Optional[str] = None, wait: float = 0,
-):
-    """The profile's latest free-tier handoff (``guest_handoff.wire_status``). Token-protected. A
-    long-poll: given *since* (the ``updated_at`` the caller already shows) and *wait*, it answers once
-    the record changes. The keepalive retries a move in the background; this only reads."""
-    _require_token(request)
-    profile_name = _validate_oauth_profile(profile)
-
-    def _read() -> dict[str, Any]:
-        from hermes_cli.guest_handoff import handoff_status, wire_status
-        return wire_status(handoff_status())
-
-    return await _long_poll(
-        lambda: config_scoped_to_thread(profile_name, _read),
-        lambda status: since is None or status.get("updated_at") != since, wait, tick=1.0)
-
-
 @router.delete("/api/providers/oauth/sessions/{session_id}")
 async def cancel_oauth_session(session_id: str, request: Request, profile: Optional[str] = None):
     """Cancel a pending OAuth session. Token-protected.
@@ -992,7 +844,4 @@ async def cancel_oauth_session(session_id: str, request: Request, profile: Optio
             _oauth_sessions.pop(session_id, None)
     if sess is None:
         return {"ok": False, "message": "session not found"}
-    # Recorded now, not when the poller next wakes: a Nous/xAI poll can block for the code's lifetime.
-    from hermes_cli.observability.shared_metrics_setup import settle_oauth_setup
-    await asyncio.to_thread(settle_oauth_setup, sess)
     return {"ok": True, "session_id": session_id}

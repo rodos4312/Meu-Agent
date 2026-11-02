@@ -345,7 +345,6 @@ export type ErrorActionId =
   | 'retry_at_reset'
   | 'update_api_key'
   | 'sign_in_again'
-  | 'sign_in_free_tier'
   | 'switch_provider'
   | 'choose_model'
   | 'compress'
@@ -358,7 +357,6 @@ export type ErrorActionId =
   | 'open_setup_guide_local'
   | 'open_model_settings'
   | 'switch_to_model'
-  | 'use_credits'
   | 'open_billing'
 
 export interface ErrorCardActions {
@@ -373,8 +371,7 @@ export const ERROR_SETUP_GUIDE_URLS = {
 
 /** Provider pages where the user fixes an account-level routing/privacy block. */
 const PROVIDER_SETTINGS_URLS: Record<string, string> = {
-  openrouter: 'https://openrouter.ai/settings/privacy',
-  nous: 'https://portal.nousresearch.com'
+  openrouter: 'https://openrouter.ai/settings/privacy'
 }
 
 /** The provider's own settings page (privacy/data policy), when Hermes knows one. */
@@ -388,7 +385,7 @@ const CODE_ACTIONS: Partial<Record<ErrorCodeKey, ErrorCardActions>> = {
   content_policy_blocked: { primary: 'edit_message' },
   context_overflow: { primary: 'compress', secondary: 'start_new_session' },
   disk_full: { primary: 'open_hermes_folder', secondary: 'retry' },
-  free_tier_at_capacity: { primary: 'sign_in_free_tier', secondary: 'retry' },
+  free_tier_at_capacity: { primary: 'switch_provider', secondary: 'retry' },
   format_error: { primary: 'switch_provider', secondary: 'start_new_session' },
   free_tier_outage: { primary: 'retry' },
   model_not_found: { primary: 'choose_model' },
@@ -409,20 +406,19 @@ const CODE_ACTIONS: Partial<Record<ErrorCodeKey, ErrorCardActions>> = {
   loop_error: { primary: 'retry', secondary: 'start_new_session' }
 }
 
-// A window plan's limit: switch to the plan's recommended model, else spend credits
-// (Use credits when Keep going is off with a balance, else Add credits via Billing).
-// An older backend sends no structured limit: Billing, or another model.
+// An archived plan limit can offer another model or a timed retry.
+// Meu has no subscription or credit-purchase controls.
 // Once the reset has passed the allowance is back, so a plain Retry replaces the scheduled one.
 function usageWindowActions(surface: ErrorSurface): ErrorCardActions {
   const limit = surface.usageLimit
-  const credits: ErrorActionId = limit?.credits === 'use_credits' ? 'use_credits' : 'open_billing'
+  const credits: ErrorActionId = 'choose_model'
 
   if (limit?.suggestions.length) {
     return { primary: 'switch_to_model', secondary: credits }
   }
 
   if (!limit) {
-    return { primary: credits, secondary: 'choose_model' }
+    return { primary: credits }
   }
 
   if (surface.resetsAt === undefined) {
@@ -494,7 +490,7 @@ export function errorCardActions(surface: ErrorSurface | null | undefined): Erro
 
   // Signing in is free and lifts the refusal; a transient one (rate limit) can also just be retried.
   if (isFreeTierSurface(surface)) {
-    return surface.retryable ? { primary: 'sign_in_free_tier', secondary: 'retry' } : { primary: 'sign_in_free_tier' }
+    return surface.retryable ? { primary: 'switch_provider', secondary: 'retry' } : { primary: 'switch_provider' }
   }
 
   if (

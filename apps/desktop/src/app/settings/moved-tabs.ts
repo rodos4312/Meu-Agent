@@ -9,6 +9,13 @@ const MOVED_TO_CAPABILITIES: Record<string, { param: string; tab: string }> = {
 export function movedSettingsTabRedirect(search: string): null | string {
   const params = new URLSearchParams(search)
 
+  if (params.get('tab') === 'billing') {
+    params.set('tab', 'providers')
+    params.set('pview', 'keys')
+    for (const key of ['bview', 'page', 'setting', 'field']) params.delete(key)
+    return `/settings?${params}`
+  }
+
   if (
     params.get('tab') === 'config:advanced' &&
     (params.get('page') === 'delegation' || params.get('field')?.startsWith('delegation.'))

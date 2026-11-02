@@ -43,7 +43,6 @@ import { DocsLink, FlowPanel, Status } from './flow'
 import { FreeTierSetupNotice } from './free-tier-setup-notice'
 import { DecodedLabel } from './glyph'
 import {
-  FeaturedProviderRow,
   FireworksProviderRow,
   LocalModelsProviderRow,
   OpenRouterProviderRow,
@@ -52,7 +51,6 @@ import {
 } from './providers'
 
 export {
-  FeaturedProviderRow,
   FireworksProviderRow,
   KeyProviderRow,
   LocalModelsProviderRow,
@@ -584,44 +582,9 @@ function Header() {
   )
 }
 
-export const FEATURED_ID = 'nous'
-
-// Stand-in for the Nous row when the OAuth provider list could not be read
-// (it failed or came back empty, which drops the picker onto the key form).
-// Starting sign-in only needs the id; the backend's start reply decides the flow.
-const NOUS_FALLBACK: OAuthProvider = {
-  cli_command: 'hermes auth add nous',
-  docs_url: 'https://portal.nousresearch.com',
-  flow: 'device_code',
-  id: FEATURED_ID,
-  name: 'Nous Portal',
-  status: { logged_in: false }
-}
-
-const SHOW_ALL_KEY = 'hermes-onboarding-show-all-v1'
-
-const readShowAll = () => {
-  try {
-    return window.localStorage.getItem(SHOW_ALL_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-const persistShowAll = (value: boolean) => {
-  try {
-    window.localStorage.setItem(SHOW_ALL_KEY, value ? '1' : '0')
-  } catch {
-    // localStorage unavailable — degrade silently.
-  }
-
-  return value
-}
-
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
   const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
-  const [showAll, setShowAll] = useState(readShowAll)
   // Which key-form option to preselect when we flip to 'apikey' mode. The
   // OpenRouter row selects its key; the generic link lands on the first option.
   const [apiKeyInitialEnv, setApiKeyInitialEnv] = useState<string | undefined>(undefined)
@@ -650,8 +613,6 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
         initialEnvKey={apiKeyInitialEnv}
         localEndpoint={localEndpoint}
         manual={manual}
-        onSelect={select}
-        providers={ordered}
       />
     )
   }
@@ -659,15 +620,6 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   if (providers === null) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
   }
-
-  const featured = ordered.find(p => p.id === FEATURED_ID) ?? null
-  const rest = featured ? ordered.filter(p => p.id !== FEATURED_ID) : ordered
-  // Collapse the secondary providers behind a disclosure whenever Nous Portal
-  // is present to anchor the choice — otherwise show the full list. The
-  // Fireworks/OpenRouter key rows always live behind the disclosure, so the
-  // toggle is warranted even when there are no other OAuth providers.
-  const collapsible = Boolean(featured)
-  const showRest = !collapsible || showAll
 
   // "Run models locally" leaves the picker for Settings -> Providers ->
   // Local Models, where install/download live. First-run: persist the skip
@@ -687,35 +639,18 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        {featured ? <FeaturedProviderRow onSelect={select} provider={featured} /> : null}
         {/* The no-account path: everything runs on this machine. Shipped
             behind the --local launch flag. (Fireworks moved into the
             expanded list on main.) */}
         {$localModelsEnabled.get() ? <LocalModelsProviderRow onClick={openLocalModels} /> : null}
-        {showRest ? (
-          <>
-            {/* Fireworks leads the expanded list, matching CANONICAL_PROVIDERS
-                (Nous → Fireworks), but stays hidden until the user opens it. */}
-            <FireworksProviderRow onClick={() => openKeyForm('FIREWORKS_API_KEY')} />
-            {rest.map(p => (
-              <ProviderRow key={p.id} onSelect={select} provider={p} />
-            ))}
-            <OpenRouterProviderRow onClick={() => openKeyForm('OPENROUTER_API_KEY')} />
-          </>
-        ) : null}
+        <>
+          <FireworksProviderRow onClick={() => openKeyForm('FIREWORKS_API_KEY')} />
+          {ordered.map(p => (
+            <ProviderRow key={p.id} onSelect={select} provider={p} />
+          ))}
+          <OpenRouterProviderRow onClick={() => openKeyForm('OPENROUTER_API_KEY')} />
+        </>
       </div>
-      {collapsible ? (
-        <Button
-          className="mt-1 self-center font-medium"
-          onClick={() => setShowAll(persistShowAll(!showAll))}
-          size="xs"
-          type="button"
-          variant="text"
-        >
-          {showAll ? t.onboarding.collapse : t.onboarding.otherProviders}
-          <ChevronDown className={cn('size-3.5 transition', showAll && 'rotate-180')} />
-        </Button>
-      ) : null}
       <div className="flex items-center justify-between gap-3 pt-1">
         {/* First run only: let the user defer the choice and land in the app.
             In manual mode the overlay already has a close affordance, so the
@@ -729,18 +664,14 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   )
 }
 
-// The API-key step of the picker. Nous stays reachable from it, including when
-// the provider list failed to load and there is no picker to go back to; the
-// custom-endpoint form (localEndpoint) is a deliberate destination and skips it.
+// API-key setup remains available when account discovery is unavailable.
 function KeyFormStep({
   apiKeyOptions,
   ctx,
   hasOauth,
   initialEnvKey,
   localEndpoint,
-  manual,
-  onSelect,
-  providers
+  manual
 }: {
   apiKeyOptions: ApiKeyOption[]
   ctx: OnboardingContext
@@ -748,14 +679,9 @@ function KeyFormStep({
   initialEnvKey?: string
   localEndpoint: boolean
   manual: boolean
-  onSelect: (provider: OAuthProvider) => void
-  providers: OAuthProvider[]
 }) {
-  const nous = localEndpoint ? null : (providers.find(p => p.id === FEATURED_ID) ?? NOUS_FALLBACK)
-
   return (
     <div className="grid gap-3">
-      {nous ? <FeaturedProviderRow onSelect={onSelect} provider={nous} /> : null}
       <ApiKeyForm
         canGoBack={hasOauth && !localEndpoint}
         initialEnvKey={localEndpoint ? 'OPENAI_BASE_URL' : initialEnvKey}

@@ -120,8 +120,6 @@ def _external_process_cli_command(provider_id: str, default: str) -> str:
 # ``flow``: ``device_code`` = show code + URL + poll; ``external`` = delegated to a terminal/CLI.
 _OAUTH_PROVIDER_CATALOG: tuple[dict[str, Any], ...] = (
     # status_fn None → dispatched via auth.get_<provider>_auth_status.
-    {"id": "nous", "name": "Nous Portal", "flow": "device_code", "cli_command": "hermes auth add nous",
-     "docs_url": "https://portal.nousresearch.com", "status_fn": None},
     {"id": "openai-codex", "name": "ChatGPT or Codex Subscription", "flow": "device_code",
      "cli_command": "hermes auth add openai-codex", "docs_url": "https://platform.openai.com/docs",
      "status_fn": None},
@@ -181,71 +179,12 @@ def _oauth_poller(label: str):
                 else:
                     _log.info("oauth/device: %s login completed (session=%s)", label, session_id)
             except Exception as e:
-                from hermes_cli.observability.shared_metrics_setup import note_oauth_failure
                 _log.warning("%s device-code poll failed (session=%s): %s", label, session_id, e)
-                note_oauth_failure(sess, e)
                 with _oauth_sessions_lock:
                     sess["status"] = "error"
                     sess["error_message"] = str(e)
         return poller
     return deco
-
-
-def _record_sign_in_state(sess: dict[str, Any], state: Any) -> None:
-    """Write one ``anon_auth.SignInState`` onto the dashboard session, under the sessions lock.
-
-    The whole desktop mapping lives here: the state carries its own copy, so nothing below turns a
-    reason into a string. ``completed`` deliberately leaves ``status`` on ``"pending"`` so the
-    :func:`_oauth_poller` wrapper stamps ``"approved"`` when the poller returns.
-    """
-    kind = getattr(state, "kind", "")
-    if kind in ("code", "waiting"):
-        return          # the start route already published the code
-    with _oauth_sessions_lock:
-        if kind == "completed":
-            sess["account_email"] = state.email or None
-            # None when the config was left on the user's own model, as the poll route documents.
-            sess["model"] = state.model if state.model_changed else None
-            # What the free tier's handoff did (moved apps, apps to reconnect); empty without one.
-            sess["handoff"] = list(state.handoff)
-            # The same result as fields, so the desktop can name the apps and follow a retry.
-            sess["handoff_status"] = state.handoff_status
-            return
-        if kind == "cancelled":
-            sess["status"] = "cancelled"
-            return
-        if kind == "timed_out":
-            sess["status"], sess["reason"] = "error", "timeout"
-            # The enriched device-auth guidance, which the dashboard has room for.
-            sess["error_message"] = state.detail or state.copy
-            return
-        sess["status"] = "error"
-        sess["reason"] = getattr(state, "reason", "") or kind or "error"
-        sess["error_message"] = state.copy    # the chat form: no raw exception reaches the UI
-        # Whether a later attempt can succeed, and the wait the service named (seconds).
-        sess["retryable"] = bool(getattr(state, "retryable", False))
-        sess["retry_after"] = int(getattr(state, "retry_after", 0) or 0)
-
-
-@_oauth_poller("nous")
-def _nous_sign_in_poller(session_id: str, sess: dict[str, Any]) -> None:
-    """Drain the sign-in the start route began: the one shared flow, rendered onto the session.
-
-    The generator was created and advanced to its ``Code`` state by ``_start_nous_device_code``, so
-    it is already holding the device code and its HTTP client. Nothing here is wrapped in
-    ``_profile_scope``: that context manager holds a process-global lock and swaps module
-    attributes across its ``yield``, and this loop can last the sign-in code's whole expiry. The
-    generator scopes its own short config/auth-store sections instead.
-    """
-    gen = sess.get("_sign_in")
-    if gen is None:
-        return
-    try:
-        for state in gen:
-            _record_sign_in_state(sess, state)
-    finally:
-        with contextlib.suppress(Exception):
-            gen.close()     # unwinds the suspended HTTP client if we leave early
 
 
 @_oauth_poller("minimax")

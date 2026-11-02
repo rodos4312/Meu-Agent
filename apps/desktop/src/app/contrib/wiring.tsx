@@ -283,7 +283,7 @@ function useRecoveryRequestToasts(): void {
     billingSettingsSeenRef.current = billingSettingsRequest
 
     if (billingSettingsRequest > 0) {
-      navigate(`${SETTINGS_ROUTE}?tab=billing`)
+      navigate(`${SETTINGS_ROUTE}?tab=providers&pview=keys`)
     }
   }, [billingSettingsRequest, navigate])
 

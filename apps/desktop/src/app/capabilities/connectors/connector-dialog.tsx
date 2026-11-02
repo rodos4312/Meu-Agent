@@ -57,7 +57,6 @@ export interface ConnectorDialogProps {
   /** Escape inside the dialog; return true when it cancelled something, so the dialog stays open. */
   onEscape?: () => boolean
   onInstall?: (env: Record<string, string>) => void
-  onOpenAdmin?: () => void
   onOpenChange: (open: boolean) => void
   onReconnect?: () => void
   onServerToggle?: (next: boolean) => void
@@ -292,7 +291,6 @@ function HostedLead({
   onAuthenticate,
   onConnect,
   onInstall,
-  onOpenAdmin,
   onReconnect,
   onServerToggle,
   onToggleForMe,
@@ -326,7 +324,7 @@ function HostedLead({
         </div>
       ) : null}
 
-      <OrgNote count={orgDisabledCount} onOpenAdmin={onOpenAdmin} />
+      <OrgNote count={orgDisabledCount} />
 
       {onWayChange ? (
         <WaysSection
@@ -416,7 +414,7 @@ function FootLine({ children }: { children: string }) {
   )
 }
 
-function OrgNote({ count, onOpenAdmin }: { count: number; onOpenAdmin?: () => void }) {
+function OrgNote({ count }: { count: number }) {
   const { t } = useI18n()
   const copy = t.connectorsPage.dialog
 
@@ -427,11 +425,6 @@ function OrgNote({ count, onOpenAdmin }: { count: number; onOpenAdmin?: () => vo
   return (
     <div className="grid gap-1 rounded-md bg-(--ui-orange)/8 p-2.5">
       <p className="text-[0.7rem] text-(--ui-text-secondary)">{copy.orgNote(count)}</p>
-      {onOpenAdmin ? (
-        <Button className="justify-self-start" onClick={onOpenAdmin} size="inline" variant="textStrong">
-          {copy.orgLink}
-        </Button>
-      ) : null}
     </div>
   )
 }

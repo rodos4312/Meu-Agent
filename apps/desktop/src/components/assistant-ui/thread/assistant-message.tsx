@@ -22,7 +22,6 @@ import {
 import { useComposerScope } from '@/app/chat/composer/scope'
 import { useSessionView } from '@/app/chat/session-view'
 import { SETTINGS_ROUTE } from '@/app/routes'
-import { useBillingApi } from '@/app/settings/billing/api'
 import { dispatchedTo } from '@/components/assistant-ui/thread/agent-delivery'
 import { ChangedFilesCard } from '@/components/assistant-ui/thread/changed-files-card'
 import {
@@ -83,9 +82,8 @@ import { $touchPointer } from '@/lib/touch-interaction'
 import { useEnterAnimation } from '@/lib/use-enter-animation'
 import { cn } from '@/lib/utils'
 import { playSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
-import { $billingBlock, requestBillingSettings, runBillingRecovery } from '@/store/billing-block'
+import { $billingBlock, runBillingRecovery } from '@/store/billing-block'
 import { DESKTOP_BUTTON_ACTIONS, recordAction } from '@/store/desktop-metrics'
-import { openFreeTierSignIn } from '@/store/free-tier-sign-in'
 import { notifyError } from '@/store/notifications'
 import { startManualProviderOAuth } from '@/store/onboarding'
 import { $activeGatewayProfile, normalizeProfileKey, requestFreshSession } from '@/store/profile'
@@ -773,44 +771,6 @@ const SwitchToModelAction: FC<{ className: string; suggestion: UsageLimitSuggest
   )
 }
 
-// usage_window, Keep going off with a balance: "Use credits" turns the account
-// setting on (the same call as Settings → Billing's switch), then re-runs the
-// turn. A refusal (remote spending not allowed yet, step-up) opens Billing, which
-// explains and fixes it.
-const UseCreditsAction: FC<{ className: string }> = ({ className }) => {
-  const { t } = useI18n()
-  const copy = t.assistant.thread
-  const aui = useAui()
-  const api = useBillingApi()
-  const [busy, setBusy] = useState(false)
-
-  const turnOnCredits = useCallback(async () => {
-    triggerHaptic('submit')
-    setBusy(true)
-
-    try {
-      const result = await api.updateKeepGoingOnCredits(true)
-
-      if (result.ok) {
-        aui.message().reload()
-      } else {
-        requestBillingSettings()
-      }
-    } catch (error) {
-      notifyError(error, copy.errorUseCreditsFailed)
-    } finally {
-      setBusy(false)
-    }
-  }, [api, aui, copy.errorUseCreditsFailed])
-
-  return (
-    <button className={className} disabled={busy} onClick={() => void turnOnCredits()} type="button">
-      {busy && <Loader2Icon className="size-3 animate-spin" />}
-      {copy.errorUseCredits}
-    </button>
-  )
-}
-
 // One client-side retry of THIS turn at the provider's own reset moment (#98852,
 // option B): arm → visible countdown + Cancel → fires `message().reload()` — the
 // exact call behind the Retry button — exactly once. Nothing persists: closing
@@ -1096,7 +1056,7 @@ const textButton = (className: string, onClick: () => void, label: ReactNode) =>
 )
 
 // Out of credits runs the same recovery as the banner and toast: the failing provider's own
-// billing page (Nous → Settings → Billing). A plan limit is Nous billing. Without this chat's
+// billing page. Without this chat's
 // billing descriptor Hermes doesn't know where a third-party provider bills, so no button.
 const sameProvider = (a?: string | null, b?: string | null) =>
   Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase())
@@ -1118,13 +1078,11 @@ const OpenBillingAction: FC<{ className: string; label: string; surface?: ErrorS
       ? wall.block
       : null
 
-  const nousBilling = surface?.code === 'usage_window' || (surface?.provider || 'nous').toLowerCase() === 'nous'
-
-  if (!block && !nousBilling) {
+  if (!block) {
     return null
   }
 
-  return textButton(className, () => (block ? runBillingRecovery(block) : requestBillingSettings()), label)
+  return textButton(className, () => runBillingRecovery(block), label)
 }
 
 // One renderer per action (Error System Overhaul action table → the app's existing handlers).
@@ -1134,7 +1092,6 @@ const ERROR_ACTION_RENDERERS: Record<ErrorActionId, (ctx: ErrorActionContext) =>
 
     return suggestion ? <SwitchToModelAction className={className} suggestion={suggestion} /> : null
   },
-  use_credits: ({ className }) => <UseCreditsAction className={className} />,
   open_billing: ({ className, copy, surface }) => (
     <OpenBillingAction className={className} label={copy.errorOpenBillingSettings} surface={surface} />
   ),
@@ -1171,7 +1128,6 @@ const ERROR_ACTION_RENDERERS: Record<ErrorActionId, (ctx: ErrorActionContext) =>
       copy.errorSignInAgain(surface.providerLabel || surface.provider)
     )
   },
-  sign_in_free_tier: ({ className, copy }) => textButton(className, openFreeTierSignIn, copy.errorSignInFreeTier),
   switch_provider: ({ className, copy, inRouter }) =>
     inRouter ? <SwitchProviderAction className={className} label={copy.errorSwitchProvider} /> : null,
   open_model_settings: ({ className, copy, inRouter }) =>

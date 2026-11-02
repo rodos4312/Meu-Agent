@@ -11,8 +11,6 @@ import {
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
-import { openConnectorsAdmin } from './data/portal'
-
 export interface ConnectorDialogMenuProps {
   onDisconnect?: () => void
   onReconnect?: () => void
@@ -38,10 +36,6 @@ export function ConnectorDialogMenu({ onDisconnect, onReconnect, onRefreshTools 
         ) : null}
         <DropdownMenuItem className={dropdownMenuRow} onSelect={onRefreshTools}>
           {copy.dialog.menuRefreshTools}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className={dropdownMenuRow} onSelect={() => void openConnectorsAdmin()}>
-          {copy.dialog.orgLink}
         </DropdownMenuItem>
         {onDisconnect ? (
           <>

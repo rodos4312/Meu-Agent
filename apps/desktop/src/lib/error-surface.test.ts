@@ -179,9 +179,9 @@ describe('free-tier refusals', () => {
     retryable: false
   })!
 
-  it('carries the backend sentence and offers the free sign-in, never an OAuth re-login', () => {
+  it('carries the backend sentence and offers another provider for an archived free-tier refusal', () => {
     expect(surface.message).toBe('Using Hermes without signing in is switched off right now. To sign in: /login.')
-    expect(errorCardActions(surface)).toEqual({ primary: 'sign_in_free_tier' })
+    expect(errorCardActions(surface)).toEqual({ primary: 'switch_provider' })
   })
 
   it('renders the backend sentence as the body under its own title', () => {
@@ -259,7 +259,7 @@ describe('usage-window refusal', () => {
       retryable: true
     })!
 
-    expect(errorCardActions(surface)).toEqual({ primary: 'open_billing', secondary: 'choose_model' })
+    expect(errorCardActions(surface)).toEqual({ primary: 'choose_model' })
     expect(errorCardShowsDiagnostics(surface)).toBe(false)
     expect(surface.resetsAt).toBe(1_800_000_000)
     // Out of credits is a fault worth diagnosing.
@@ -290,7 +290,7 @@ describe('usage-window refusal', () => {
         { label: 'bad', model: 'bad', note: '', provider: 'nous' }
       ]
     })
-    expect(errorCardActions(surface)).toEqual({ primary: 'switch_to_model', secondary: 'use_credits' })
+    expect(errorCardActions(surface)).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
 
     // No balance: Add credits (Billing) instead of Use credits.
     const add = parseErrorSurface({
@@ -300,7 +300,7 @@ describe('usage-window refusal', () => {
       usage_limit: { credits: { action: 'add_credits' }, suggestions: [] }
     })
 
-    expect(errorCardActions(add)).toEqual({ primary: 'open_billing' })
+    expect(errorCardActions(add)).toEqual({ primary: 'choose_model' })
 
     // Keep going off and no balance: both steps live on the Billing page, so Open billing (not Use credits).
     const both = parseErrorSurface({
@@ -310,7 +310,7 @@ describe('usage-window refusal', () => {
       usage_limit: { credits: { action: 'add_credits_and_keep_going' }, suggestions: [] }
     })
 
-    expect(errorCardActions(both)).toEqual({ primary: 'open_billing' })
+    expect(errorCardActions(both)).toEqual({ primary: 'choose_model' })
   })
 
   it('falls back to its own table body when an older backend sent no sentence', () => {
@@ -362,7 +362,7 @@ describe('error card actions: one main action, at most one second option', () =>
   const at = (surface: Record<string, unknown>) => errorCardActions(parseErrorSurface(surface))
   const later = Math.floor(Date.now() / 1000) + 600
 
-  it('a plan limit switches to the recommended model, else spends credits', () => {
+  it('an archived plan limit offers another model without account spending', () => {
     const limit = (credits: string, suggestions: unknown[]) => ({
       code: 'usage_window',
       layer: 'billing',
@@ -372,23 +372,22 @@ describe('error card actions: one main action, at most one second option', () =>
 
     const suggestion = { label: 'Model Free', model: 'example/free', provider: 'nous' }
 
-    expect(at(limit('add_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'open_billing' })
-    expect(at(limit('use_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'use_credits' })
+    expect(at(limit('add_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
+    expect(at(limit('use_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
     expect(at({ ...limit('add_credits', []), resets_at: later })).toEqual({
-      primary: 'open_billing',
+      primary: 'choose_model',
       secondary: 'retry_at_reset'
     })
     // Too far ahead for a browser timer (a monthly window): no Retry until it passes.
-    expect(at({ ...limit('add_credits', []), resets_at: later + 30 * 86_400 })).toEqual({ primary: 'open_billing' })
+    expect(at({ ...limit('add_credits', []), resets_at: later + 30 * 86_400 })).toEqual({ primary: 'choose_model' })
     // The reset has passed: the allowance is back, so a plain Retry.
     expect(at({ ...limit('add_credits', []), resets_at: later - 1200 })).toEqual({
-      primary: 'open_billing',
+      primary: 'choose_model',
       secondary: 'retry'
     })
     // An older backend sends no structured limit: Billing, or another model.
     expect(at({ code: 'usage_window', layer: 'billing', retryable: true })).toEqual({
-      primary: 'open_billing',
-      secondary: 'choose_model'
+      primary: 'choose_model'
     })
   })
 
