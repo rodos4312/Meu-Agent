@@ -44,7 +44,48 @@ for (const launch of [1, 2]) {
     const state = await app.evaluate(({ app }) => ({ name: app.getName(), version: app.getVersion(), data: app.getPath('userData') }))
     assert.equal(state.name, 'Meu')
     assert.equal(path.resolve(state.data), path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
-    if (!stamp.meuUpdates) {
+    if (stamp.meuUpdates?.publicKey) {
+      await app.evaluate(() => {
+        const original = globalThis.fetch
+        globalThis.fetch = async (url, options) => {
+          if (String(url) === 'https://api.github.com/repos/rodos4312/Meu-Agent/releases?per_page=50') {
+            return new Response('[]', { headers: { 'content-type': 'application/json' } })
+          }
+          return original(url, options)
+        }
+      })
+      const status = await page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
+      assert.equal(status.supported, true)
+      assert.equal(status.updateAvailable, false)
+      assert.equal(status.mechanism, 'electron-updater')
+      console.log('[PASS] Packaged Meu checks its GitHub release channel with the free trusted update key')
+      await app.evaluate(() => {
+        const version = '0.1.0-dev.999'
+        const file = `Meu-${version}-win-x64.exe`
+        const directory = `https://github.com/rodos4312/Meu-Agent/releases/download/meu-v${version}/`
+        const manifest = {
+          schema: 2, repository: 'rodos4312/Meu-Agent', branch: 'dev/meu-foundation', channel: 'meu-preview',
+          publisherName: '', version, commit: 'a'.repeat(40), file, size: 12,
+          sha256: 'b'.repeat(64), sha512: Buffer.alloc(64).toString('base64'), signature: Buffer.alloc(64).toString('base64')
+        }
+        globalThis.fetch = async url => {
+          const value = String(url) === 'https://api.github.com/repos/rodos4312/Meu-Agent/releases?per_page=50'
+            ? [{ draft: false, tag_name: `meu-v${version}`, assets: ['meu-release.json', 'meu-preview.yml', file].map(name => ({
+              name, size: 12, browser_download_url: directory + name
+            })) }]
+            : String(url) === directory + 'meu-release.json' ? manifest : null
+          if (!value) throw new Error('Unexpected update destination in packaged refusal rehearsal')
+          return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })
+        }
+      })
+      const rejectedCheck = await page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
+      assert.equal(rejectedCheck.error, 'check-failed')
+      assert.match(rejectedCheck.message, /signature/)
+      const refused = await page.evaluate(() => window.hermesDesktop.updates.apply())
+      assert.equal(refused.ok, false)
+      assert.match(refused.message, /signature/)
+      console.log('[PASS] Packaged Meu rejects a forged release before download or installation')
+    } else if (!stamp.meuUpdates) {
       const status = await page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
       assert.equal(status.supported, false)
       assert.equal(status.reason, 'meu-signing-not-configured')

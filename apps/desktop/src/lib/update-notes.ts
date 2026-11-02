@@ -6,7 +6,7 @@
  * caller keeps the commit changelog when nothing comes back.
  */
 
-const REPOSITORY = 'NousResearch/hermes-agent'
+const REPOSITORY = 'rodos4312/Meu-Agent'
 const API = `https://api.github.com/repos/${REPOSITORY}`
 const SITE = `https://github.com/${REPOSITORY}`
 const MAX_ITEMS = 5
@@ -42,6 +42,10 @@ export function updateReleaseTag(status: NotesStatus): null | string {
 export function updateNotesSource(status: NotesStatus): null | UpdateNotesSource {
   if (status.rollback) {
     return null
+  }
+
+  if (status.channel === 'meu-preview') {
+    return status.latestTag?.startsWith('meu-v') ? { kind: 'release', tag: status.latestTag } : null
   }
 
   if (status.channel === 'stable') {

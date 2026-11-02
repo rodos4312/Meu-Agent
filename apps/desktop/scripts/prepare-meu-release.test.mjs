@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, generateKeyPairSync } from 'node:crypto'
 import { test } from 'vitest'
 import { dump } from 'js-yaml'
 
@@ -10,8 +10,9 @@ import { prepareMeuRelease } from './prepare-meu-release.mjs'
 import policy from '../meu-release.cjs'
 import { buildStampPayload } from './write-build-stamp.mjs'
 
-test('preview builds have no trusted update publisher; signing inputs are explicit and never contain credentials', () => {
-  assert.equal(policy.meuReleasePolicy({}), null)
+test('preview builds pin a free update key; paid signing is optional and credentials never enter the stamp', () => {
+  assert.ok(policy.meuReleasePolicy({}).publicKey)
+  assert.equal(policy.meuReleasePolicy({}).publisherName, undefined)
   assert.throws(() => policy.meuReleasePolicy({ MEU_SIGNED_RELEASE: '1' }), /certificate subject/)
   assert.throws(
     () =>
@@ -54,6 +55,52 @@ test('preview builds have no trusted update publisher; signing inputs are explic
   assert.equal(tagStamp.branch, policy.BRANCH)
 })
 
+test('free release preparation signs scanned bytes and refuses missing or mismatched private keys', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-key-release-'))
+  try {
+    const keys = generateKeyPairSync('ed25519')
+    const privateKey = keys.privateKey.export({ format: 'pem', type: 'pkcs8' })
+    const publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64')
+    const version = '0.1.0-dev.9'
+    const installer = path.join(root, `Meu-${version}-win-x64.exe`)
+    const bytes = Buffer.from('nonexecutable release fixture')
+    fs.writeFileSync(installer, bytes)
+    const report = {
+      file: path.basename(installer),
+      productVersion: version,
+      bytes: bytes.length,
+      status: 'clean',
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      sha512: createHash('sha512').update(bytes).digest('base64'),
+      scans: [{ exitCode: 0 }, { exitCode: 0 }],
+      signature: { status: 'NotSigned' }
+    }
+    const stamp = {
+      branch: policy.BRANCH,
+      commit: 'a'.repeat(40),
+      dirty: false,
+      meuUpdates: { repository: policy.REPOSITORY, branch: policy.BRANCH, channel: policy.CHANNEL, publicKey }
+    }
+    const feed = path.join(root, 'feed.yml')
+    fs.writeFileSync(feed, dump({ version, files: [{ url: report.file, sha512: report.sha512 }] }))
+    const args = { installer, report, stamp, version, feed, output: path.join(root, 'candidate'), privateKey }
+    assert.throws(() => prepareMeuRelease({ ...args, privateKey: undefined }), /private update key/)
+    const otherKey = generateKeyPairSync('ed25519').privateKey.export({ format: 'pem', type: 'pkcs8' })
+    assert.throws(() => prepareMeuRelease({ ...args, privateKey: otherKey }), /signature/)
+    const manifest = prepareMeuRelease(args)
+    assert.equal(manifest.schema, 2)
+    assert.ok(manifest.signature)
+    const files = fs
+      .readdirSync(args.output)
+      .map(file => fs.readFileSync(path.join(args.output, file), 'utf8'))
+      .join('')
+    assert.ok(!files.includes('PRIVATE KEY'))
+    assert.throws(() => prepareMeuRelease({ ...args, report: { ...report, status: 'failed' } }), /evidence/)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('release preparation binds native feed to the exact scanned and signed installer, and refuses failed evidence', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-release-'))
   try {
@@ -65,6 +112,7 @@ test('release preparation binds native feed to the exact scanned and signed inst
     const sha512 = createHash('sha512').update(bytes).digest('base64')
     const report = {
       file: path.basename(installer),
+      productVersion: version,
       bytes: bytes.length,
       sha256,
       sha512,
@@ -93,6 +141,7 @@ test('release preparation binds native feed to the exact scanned and signed inst
     for (const changed of [
       { status: 'failed' },
       { sha256: 'b'.repeat(64) },
+      { productVersion: '0.1.0-dev.1' },
       { signature: { ...report.signature, subject: 'CN=Someone Else' } }
     ]) {
       assert.throws(() => prepareMeuRelease({ ...args, report: { ...report, ...changed } }), /evidence/)

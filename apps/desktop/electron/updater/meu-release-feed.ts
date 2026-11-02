@@ -1,9 +1,10 @@
 import { gt, valid } from 'semver'
 
 import releasePolicy from '../../meu-release.cjs'
+import signing from '../../meu-release-signing.cjs'
 
 export interface MeuRelease {
-  schema: 1
+  schema: 1 | 2
   repository: string
   branch: string
   channel: string
@@ -14,6 +15,7 @@ export interface MeuRelease {
   size: number
   sha256: string
   sha512: string
+  signature?: string
 }
 
 interface GitHubRelease {
@@ -31,12 +33,14 @@ export function validateMeuRelease(value: unknown, version: string, publisher: s
   const r = value as MeuRelease
   if (
     !r ||
-    r.schema !== 1 ||
+    ![1, 2].includes(r.schema) ||
     r.repository !== releasePolicy.REPOSITORY ||
     r.branch !== releasePolicy.BRANCH ||
     r.channel !== releasePolicy.CHANNEL ||
     r.version !== version ||
-    r.publisherName !== publisher ||
+    (publisher.startsWith('CN=')
+      ? r.schema !== 1 || r.publisherName !== publisher
+      : r.schema !== 2 || r.publisherName !== '') ||
     !/^[a-f0-9]{40}$/.test(r.commit) ||
     r.file !== `Meu-${version}-win-x64.exe` ||
     !Number.isSafeInteger(r.size) ||
@@ -47,6 +51,7 @@ export function validateMeuRelease(value: unknown, version: string, publisher: s
   ) {
     throw new Error('Meu release metadata is invalid or belongs to another publisher, repository or branch.')
   }
+  if (!publisher.startsWith('CN=')) signing.verifyRelease(r, publisher)
   return r
 }
 

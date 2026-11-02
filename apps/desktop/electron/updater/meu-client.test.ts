@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, generateKeyPairSync } from 'node:crypto'
 import { beforeEach, expect, it, vi } from 'vitest'
 
 const { verify, native, construct, listeners, findRelease } = vi.hoisted(() => {
@@ -30,10 +30,84 @@ vi.mock('electron-updater', () => ({
 
 import { createMeuWindowsStrategy } from './meu-client'
 import type { InstallStamp } from '../install-stamp'
+import signing from '../../meu-release-signing.cjs'
 
 beforeEach(() => {
   vi.clearAllMocks()
   listeners.clear()
+})
+
+it('offers free-key updates without initializing downloads and rejects tampering before stopping active work', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-free-client-'))
+  try {
+    const file = path.join(root, 'fixture.exe')
+    const bytes = Buffer.from('nonexecutable cached installer fixture')
+    fs.writeFileSync(file, bytes)
+    const keys = generateKeyPairSync('ed25519')
+    const publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).toString('base64')
+    const release = signing.signRelease(
+      {
+        schema: 2,
+        repository: 'rodos4312/Meu-Agent',
+        branch: 'dev/meu-foundation',
+        channel: 'meu-preview',
+        publisherName: '',
+        version: '0.1.0-dev.9',
+        commit: 'a'.repeat(40),
+        file: 'Meu-0.1.0-dev.9-win-x64.exe',
+        size: bytes.length,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        sha512: createHash('sha512').update(bytes).digest('base64')
+      },
+      keys.privateKey,
+      publicKey
+    )
+    findRelease.mockResolvedValue(release)
+    native.checkForUpdates.mockResolvedValue({
+      isUpdateAvailable: true,
+      updateInfo: {
+        version: release.version,
+        files: [{ url: release.file, sha512: release.sha512, size: release.size }]
+      }
+    })
+    native.downloadUpdate.mockResolvedValue([file])
+    const teardown = vi.fn()
+    const strategy = await createMeuWindowsStrategy({
+      stamp: {
+        meuUpdates: { repository: release.repository, branch: release.branch, channel: release.channel, publicKey }
+      } as InstallStamp,
+      currentVersion: '0.1.0-dev.8',
+      executable: 'unused.exe',
+      recoveryDirectory: path.join(root, 'retained'),
+      prepare: vi.fn(),
+      teardown,
+      restore: vi.fn(),
+      emitProgress: vi.fn(),
+      log: vi.fn()
+    })
+    await expect(strategy.check()).resolves.toMatchObject({ supported: true, updateAvailable: true })
+    expect(construct).not.toHaveBeenCalled()
+    expect(native.downloadUpdate).not.toHaveBeenCalled()
+    await expect(strategy.apply()).resolves.toMatchObject({ ok: true, handedOff: true })
+    expect(native).toMatchObject({
+      autoDownload: false,
+      autoInstallOnAppQuit: false,
+      disableDifferentialDownload: true
+    })
+    expect(verify).not.toHaveBeenCalled()
+    teardown.mockClear()
+    native.quitAndInstall.mockClear()
+    findRelease.mockResolvedValue({ ...release, signature: Buffer.alloc(64).toString('base64') })
+    await expect(strategy.apply()).rejects.toThrow('signature')
+    expect(teardown).not.toHaveBeenCalled()
+    expect(native.quitAndInstall).not.toHaveBeenCalled()
+    findRelease.mockResolvedValue(release)
+    fs.writeFileSync(file, Buffer.alloc(bytes.length))
+    await expect(strategy.apply()).rejects.toThrow('digest')
+    expect(teardown).not.toHaveBeenCalled()
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
 })
 
 it('unsigned builds never initialize a native updater or check a remote feed', async () => {

@@ -9,7 +9,8 @@ export async function retainMeuInstaller(
   directory: string,
   file: string,
   release: MeuRelease,
-  currentVersion: string
+  currentVersion: string,
+  authority: string = release.publisherName
 ): Promise<void> {
   await mkdir(directory, { recursive: true })
   const destination = path.join(directory, release.file)
@@ -27,7 +28,7 @@ export async function retainMeuInstaller(
   const rollback =
     [previous?.target, previous?.rollback].find(candidate => candidate?.version === currentVersion) ?? null
   if (rollback) {
-    validateMeuRelease(rollback, currentVersion, release.publisherName)
+    validateMeuRelease(rollback, currentVersion, authority)
     await verifyPinnedArtifact(path.join(directory, rollback.file), {
       url: '',
       sha256: rollback.sha256,

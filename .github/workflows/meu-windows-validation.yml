@@ -34,8 +34,8 @@ on:
       - 'package-lock.json'
   workflow_dispatch:
     inputs:
-      prepare_signed_release:
-        description: 'Build a signed Meu release draft (requires dedicated Meu certificate secrets)'
+      prepare_release:
+        description: 'Build a Meu release draft using our free update key (no paid certificate)'
         required: false
         type: boolean
         default: false
@@ -44,7 +44,7 @@ permissions:
   contents: read
 
 env:
-  MEU_RELEASE_REQUEST: ${{ inputs.prepare_signed_release || startsWith(github.ref, 'refs/tags/meu-release-request-') }}
+  MEU_RELEASE_REQUEST: ${{ inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') }}
 
 jobs:
   coordinator-compatibility:
@@ -101,7 +101,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           $env:HERMES_DESKTOP_PYTHON = $env:HERMES_PYTHON
-          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-auto.spec.ts --reporter=list --workers=1
+          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts --reporter=list --workers=1
       - name: Preserve navigation screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -222,7 +222,7 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/scan-meu-package.ps1')) {
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
@@ -239,7 +239,10 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx src/components/boot-failure-overlay.test.tsx src/lib/desktop-backend-wait.test.ts src/lib/with-timeout.test.ts src/app/gateway/hooks/use-gateway-boot.bootstrap.test.tsx src/app/gateway/hooks/use-gateway-boot.test.tsx
       - name: Verify Meu release origin, signatures and update recovery
         working-directory: apps/desktop
-        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs
+        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs
+      - name: Verify update notifications require an explicit install choice
+        working-directory: apps/desktop
+        run: npx vitest run --project ui --maxWorkers 2 src/store/meu-updates.test.ts src/store/updates.test.ts src/components/update-status.test.tsx src/app/updates-overlay.manual.test.tsx src/lib/update-notes.test.ts
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/store/desktop-metrics.test.ts src/store/shared-metrics.test.ts src/app/settings/shared-metrics-settings.test.tsx src/components/shared-metrics/consent-dialog.test.tsx src/components/shared-metrics/consent-strip.test.tsx src/app/gateway/report-startup-latency.test.ts
@@ -257,35 +260,20 @@ jobs:
         run: npm run typecheck
       - name: Build Meu desktop renderer and backend shell
         working-directory: apps/desktop
-        env:
-          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
-          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
         run: npm run build
       - name: Package Meu Windows application
         working-directory: apps/desktop
-        env:
-          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
-          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
-          WIN_CSC_LINK: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_LINK || '' }}
-          WIN_CSC_KEY_PASSWORD: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_KEY_PASSWORD || '' }}
         run: npm run builder -- --win --x64 --dir
       - name: Package Meu Windows installer
         working-directory: apps/desktop
-        env:
-          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
-          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
-          WIN_CSC_LINK: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_LINK || '' }}
-          WIN_CSC_KEY_PASSWORD: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_KEY_PASSWORD || '' }}
         run: npm run builder -- --win nsis --x64
       - name: Scan Meu installer and unpacked application before upload
         shell: pwsh
         working-directory: apps/desktop
-        env:
-          MEU_EXPECTED_PUBLISHER: ${{ env.MEU_RELEASE_REQUEST == 'true' && vars.MEU_WINDOWS_PUBLISHER || '' }}
         run: |
           $installer = Get-ChildItem -LiteralPath release -Filter 'Meu-*-win-x64.exe' -File
           if (@($installer).Count -ne 1) { throw 'Expected exactly one Meu installer.' }
-          ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security -UnpackedPath release/win-unpacked -ExpectedPublisher $env:MEU_EXPECTED_PUBLISHER
+          ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security -UnpackedPath release/win-unpacked
       - name: Prove an unsigned preview cannot pass the signed-release gate
         if: env.MEU_RELEASE_REQUEST != 'true'
         shell: pwsh
@@ -312,7 +300,7 @@ jobs:
       - name: Upload Meu installer for manual Windows testing
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.MEU_RELEASE_REQUEST == 'true' && 'Meu-Windows-x64-installer-signed-candidate' || 'Meu-Windows-x64-installer-unsigned-preview' }}
+          name: Meu-Windows-x64-installer-unsigned-preview
           path: apps/desktop/release/Meu-*-win-x64.exe
           if-no-files-found: error
           retention-days: 7
@@ -320,15 +308,17 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop
         run: ./scripts/test-meu-installer.ps1
-      - name: Prepare signed Meu release candidate
+      - name: Prepare Meu release with free update signature
         if: env.MEU_RELEASE_REQUEST == 'true'
         working-directory: apps/desktop
+        env:
+          MEU_RELEASE_PRIVATE_KEY: ${{ secrets.MEU_RELEASE_PRIVATE_KEY }}
         run: node scripts/prepare-meu-release.mjs
-      - name: Upload signed Meu release candidate
+      - name: Upload Meu release candidate
         if: env.MEU_RELEASE_REQUEST == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: Meu-signed-release-candidate
+          name: Meu-release-candidate
           path: apps/desktop/release/meu-release-candidate/
           if-no-files-found: error
           retention-days: 30
@@ -348,9 +338,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  signed-release-draft:
+  release-draft:
     name: Prepare a draft in Meu GitHub Releases
-    if: (inputs.prepare_signed_release || startsWith(github.ref, 'refs/tags/meu-release-request-')) && github.repository == 'rodos4312/Meu-Agent'
+    if: (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-')) && github.repository == 'rodos4312/Meu-Agent'
     needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
     runs-on: ubuntu-latest
     permissions:
@@ -358,7 +348,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: Meu-signed-release-candidate
+          name: Meu-release-candidate
           path: candidate
       - name: Create reviewable release draft, never publish automatically
         env:
@@ -370,4 +360,4 @@ jobs:
           commit=$(jq -er '.commit' candidate/meu-release.json)
           test "$commit" = "$MEU_COMMIT"
           tag="meu-v$version"
-          gh release create "$tag" candidate/* --draft --prerelease --target "$MEU_COMMIT" --title "Meu $version" --notes 'Signed Meu Windows candidate. All required CI checks and package scans passed. Awaiting signed upgrade/recovery rehearsal before publication.'
+          gh release create "$tag" candidate/* --draft --prerelease --target "$MEU_COMMIT" --title "Meu $version" --notes 'Meu Windows candidate verified with our free update key. All required CI checks and package scans passed. Awaiting upgrade/recovery rehearsal before publication. No commercial Windows certificate.'

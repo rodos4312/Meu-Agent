@@ -209,10 +209,10 @@ function main() {
  * The PM bundle builder supplies launch paths only for bundled artifacts.
  */
 export function buildStampPayload(stamp, env = process.env, platform = process.platform, payload = null) {
-  const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' ? meuRelease.meuReleasePolicy(env) : null
+  const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' && !env.HERMES_BUILD_COMMIT && !channelBuildRequest(env) ? meuRelease.meuReleasePolicy(env) : null
   if (meuPolicy && stamp.branch !== meuPolicy.branch &&
     !(stamp.source === 'ci' && env.GITHUB_REPOSITORY === meuPolicy.repository && env.GITHUB_SHA === stamp.commit && env.GITHUB_REF_NAME?.startsWith('meu-release-request-'))) {
-    throw new Error('Signed Meu artifacts must be built from the admitted development branch or a verified release request.')
+    throw new Error('Meu update-enabled artifacts must be built from the admitted development branch or a verified release request.')
   }
   const variant = (env.HERMES_DESKTOP_VARIANT || "").trim()
   const channelBuild = channelBuildRequest(env)

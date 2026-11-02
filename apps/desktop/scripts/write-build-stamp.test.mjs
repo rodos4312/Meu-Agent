@@ -88,7 +88,7 @@ import { buildStampPayload } from './write-build-stamp.mjs'
 
 const baseStamp = {
   commit: 'c'.repeat(40),
-  branch: 'main',
+  branch: 'dev/meu-foundation',
   builtAt: '2026-08-14T00:00:00Z',
   dirty: false,
   source: 'ci'

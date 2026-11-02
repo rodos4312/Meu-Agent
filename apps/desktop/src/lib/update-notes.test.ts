@@ -1,8 +1,33 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { extractReleaseHighlights, latestMergedPrTitles, updateNotesSource } from './update-notes'
+import {
+  extractReleaseHighlights,
+  fetchUpdateNoteItems,
+  latestMergedPrTitles,
+  updateNotesSource,
+  updateNotesUrl
+} from './update-notes'
 
 describe('update notes', () => {
+  it('shows Meu release notes from our repository without requesting the upstream service', async () => {
+    const status = { channel: 'meu-preview', latestTag: 'meu-v0.1.0-dev.9' }
+    const source = updateNotesSource(status)!
+    expect(source).toEqual({ kind: 'release', tag: status.latestTag })
+    expect(updateNotesUrl(source, status)).toBe('https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.9')
+    const fetchMock = vi.fn(
+      async (_url: string) => new Response(JSON.stringify({ body: '- Update notifications with your choice' }))
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      await expect(fetchUpdateNoteItems(source, status)).resolves.toEqual(['Update notifications with your choice'])
+      expect(fetchMock).toHaveBeenCalledOnce()
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.github.com/repos/rodos4312/Meu-Agent/releases/tags/meu-v0.1.0-dev.9'
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
   it('summarizes a release as its highlight headlines, and falls back to the first bullet list', () => {
     const major = [
       '# Hermes Agent v0.22.0',

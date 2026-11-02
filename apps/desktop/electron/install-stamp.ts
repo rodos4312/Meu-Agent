@@ -61,7 +61,7 @@ export interface ChannelBuildRequest {
 /** Mirrors the build stamp with the PM builder's completed launch contract. */
 export interface InstallStamp {
   /** Present only in deliberately signed Meu Windows release builds. */
-  meuUpdates?: { repository: string; branch: string; channel: string; publisherName: string }
+  meuUpdates?: { repository: string; branch: string; channel: string; publisherName?: string; publicKey?: string }
   schemaVersion: number
   commit: string | null
   commitDate: number | null

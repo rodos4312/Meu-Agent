@@ -14,7 +14,7 @@ export interface MeuWindowsDeps {
     downloadUpdate: () => Promise<string[]>
     quitAndInstall: () => void
   }
-  verifySignature: (file: string, version: string) => Promise<void>
+  verifySignature: (file: string, release: MeuRelease) => Promise<void>
   retain: (file: string, release: MeuRelease) => Promise<void>
   prepare: () => Promise<void>
   teardown: () => Promise<void>
@@ -49,7 +49,7 @@ export class MeuWindowsStrategy implements UpdaterStrategy {
         supported: false,
         mechanism: this.mechanism,
         reason: 'meu-signing-not-configured',
-        message: 'Meu automatic installation is disabled until a signed Meu release is available.',
+        message: 'This Meu build has no trusted update key. Install a current Meu build to enable updates.',
         fetchedAt: Date.now()
       }
     }
@@ -78,12 +78,12 @@ export class MeuWindowsStrategy implements UpdaterStrategy {
         const result = await native.checkForUpdates()
         if (!result?.isUpdateAvailable) throw new Error('Native updater did not admit the selected Meu release.')
         verifyMeuNativeFeed(result.updateInfo, release)
-        this.deps.emitProgress({ stage: 'fetch', message: 'Downloading the signed Meu release.', percent: null })
+        this.deps.emitProgress({ stage: 'fetch', message: 'Downloading the verified Meu release.', percent: null })
         const files = await native.downloadUpdate()
         if (files.length !== 1) throw new Error('Expected exactly one Meu update installer.')
         const file = files[0]
         await verifyPinnedArtifact(file, { url: '', sha256: release.sha256, size: release.size, format: 'exe' })
-        await this.deps.verifySignature(file, release.version)
+        await this.deps.verifySignature(file, release)
         await this.deps.retain(file, release)
         this.deps.emitProgress({
           stage: 'prepare',

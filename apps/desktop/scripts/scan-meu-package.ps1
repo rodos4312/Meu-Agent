@@ -11,6 +11,7 @@ $report = [IO.Path]::GetFullPath($ReportDirectory)
 New-Item -ItemType Directory -Path $report -Force | Out-Null
 $result = [ordered]@{
   schema=1; file=$package.Name; bytes=$package.Length
+  productVersion=$package.VersionInfo.ProductVersion
   sha256=(Get-FileHash -LiteralPath $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   sha512=[Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($package.FullName)))
   status='incomplete'; engine=$null; signature=$null; scans=@(); completedAt=$null
