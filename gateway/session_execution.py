@@ -157,8 +157,9 @@ class GatewaySessionAgentMixin:
         from gateway.session_authorities import active_authority
         from gateway.session_policy import policy_for_source
         from gateway.session_worker_construct import session_prefill
+        from gateway.session_model_mode import bind_agent_mode
         policy = policy_for_source(runner, src)
-        return ctx.AIAgent(
+        return bind_agent_mode(ctx.AIAgent(
             model=turn_route["model"], **turn_route["runtime"], **_checkpoint_agent_kwargs(ctx.user_config),
             max_iterations=max_iterations, quiet_mode=not bool(policy and policy.verbose), verbose_logging=False,
             enabled_toolsets=ctx.enabled_toolsets, disabled_toolsets=ctx.disabled_toolsets,
@@ -186,7 +187,7 @@ class GatewaySessionAgentMixin:
             # A local session's frozen budget (`--run-budget` / its profile's agent.run_budget_seconds);
             # None leaves the agent reading the owner's config, as before.
             run_budget_seconds=policy.run_budget_seconds if policy else None,
-        )
+        ), policy, active_authority(runner))
 
     def _resolve_turn_agent(self, turn_route, platform_key, combined_ephemeral, max_iterations, reasoning_config, pr):
         """Reuse this session's cached AIAgent (frozen system prompt + tool schemas → prompt cache

@@ -331,9 +331,17 @@ async def _project_result(authority, ref, live, params, result, editor_servers, 
         if operation == 'rewind' and owns_projection:
             authority.runner._evict_cached_agent(live.route)
         if applied:
-            live.event_stream.publish(ref.session_id, result, event_type='session.updated')
+            live.event_stream.publish(ref.session_id, result, event_type='session.updated',
+                                      execution=_committed_execution(authority, result))
             from gateway.session_local_mcp import announce_tools_changed
             announce_tools_changed(live, ref.session_id, result)
+
+
+def _committed_execution(authority, result):
+    # A policy edit advances the generation while the stream may still carry
+    # the previous turn's stamp. Viewers must not discard the committed edit.
+    generation = result.get('execution_generation')
+    return {'authority_epoch': authority.epoch, 'execution_generation': generation} if isinstance(generation, int) else None
 
 
 def _project_committed(authority, ref, operation, result):
@@ -356,7 +364,8 @@ def _project_committed(authority, ref, operation, result):
         # as main's _emit_session_info did after the live change.
         from gateway.session_local import local_session_info
         authority.sessions[ref.session_id].event_stream.publish(
-            ref.session_id, local_session_info(authority, ref), event_type='session.info')
+            ref.session_id, local_session_info(authority, ref), event_type='session.info',
+            execution=_committed_execution(authority, result))
     if operation == 'branch':
         from gateway.session_local_recovery import restore_local_session
         restore_local_session(authority, result['branched_session_id'])

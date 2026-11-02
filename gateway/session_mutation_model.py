@@ -48,6 +48,12 @@ async def prepare_model(authority, live, payload, prepared):
     from hermes_cli.model_switch import apply_model_selection, switch_model
     from hermes_cli.config import get_compatible_custom_providers
     old = restore_policy(prepared['snapshot']['receipt']['policy'])
+    from gateway.session_model_mode import AUTO_MODEL, BASE_MODEL, apply_selection
+    selected_model = payload['model']
+    if selected_model == AUTO_MODEL:
+        if payload.get('provider') != 'deepseek':
+            raise RuntimeStoreError('invalid_params')
+        payload = {**payload, 'model': BASE_MODEL}
     config, current = _current_route(authority, live, old)
     reset = is_model_reset(payload)
     if reset:
@@ -98,6 +104,11 @@ async def prepare_model(authority, live, payload, prepared):
     # and the endpoint-bound credential fields (inline key, key_env/api_key_env) drop on a route change.
     # Off-loop: the context-pin check can do cold-start disk I/O.
     frozen['model'] = await asyncio.to_thread(apply_model_selection, frozen.get('model'), result)
+    if reset:
+        from gateway.session_model_mode import profile_auto_policy
+        frozen['smart_model_routing'] = profile_auto_policy(authority)
+    else:
+        apply_selection(selected_model, result.target_provider, frozen)
     if 'reasoning' in payload:
         # The level picked with the model lands in the same commit (as prepare_reasoning writes it).
         from gateway.session_policy import pin_reasoning_effort
@@ -184,10 +195,13 @@ def _reset_payload(authority, old, current):
     ``noop`` report when the session already runs that model. A safe-mode session never read the
     profile, so it has no configured default to return to."""
     from agent.i18n import t
+    from gateway.session_model_mode import profile_auto_policy
     model, provider = ('', '') if old.ignore_user_config else configured_default(authority)
     if not model:
         raise RuntimeStoreError('invalid_params', field='payload.model', detail=t('cli.model.reset_no_default'))
-    if model == current.model and provider in ('', current.provider):
+    mode = (old.config(authority, secrets=False).get('smart_model_routing') or {}).get('enabled') is True
+    default_mode = profile_auto_policy(authority).get('enabled') is True
+    if model == current.model and provider in ('', current.provider) and mode == default_mode:
         return {'status': 'noop', 'model': model, 'note': t('cli.model.reset_none', model=model)}
     return {'model': model, **({'provider': provider} if provider else {})}
 

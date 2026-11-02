@@ -231,6 +231,9 @@ async def model_options(connection, ref, params):
                 from hermes_cli.runtime_provider import canonical_custom_identity
                 selected = canonical_custom_identity(base_url=base_url, config_provider=ctx.current_provider, model=model,
                                                      requested=getattr(agent, 'requested_provider', None)) or selected
-            return build_model_options_payload(ctx.with_overrides(current_provider=selected,
-                current_model=model, current_base_url=base_url), **{k: params[k] for k in flags & params.keys()})
+            from gateway.session_model_mode import decorate_options
+            from hermes_cli.config import load_config
+            return decorate_options(build_model_options_payload(ctx.with_overrides(current_provider=selected,
+                current_model=model, current_base_url=base_url), **{k: params[k] for k in flags & params.keys()}),
+                policy.config(connection.authority, secrets=False) if policy else load_config())
     return await asyncio.to_thread(discover)

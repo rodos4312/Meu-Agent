@@ -112,7 +112,8 @@ def _side_agent(authority, policy, live, task_id, **overrides):
         load_soul_identity=not policy.ignore_rules, skip_memory=policy.ignore_rules,
         side_agent=True)
     kwargs.update(overrides)
-    return AIAgent(**kwargs)
+    from gateway.session_model_mode import bind_agent_mode
+    return bind_agent_mode(AIAgent(**kwargs), policy, authority)
 
 
 def _abandoned(holder):

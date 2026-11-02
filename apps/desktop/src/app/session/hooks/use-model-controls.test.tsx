@@ -88,6 +88,21 @@ function Harness({
 }
 
 describe('useModelControls', () => {
+  it('shows Auto on a fresh draft when the owning profile enables routing', async () => {
+    $activeSessionId.set(null)
+    setCurrentModel('')
+    setCurrentProvider('')
+    setCurrentModelSource('')
+    vi.mocked(getGlobalModelInfo).mockResolvedValue({
+      model: 'deepseek-v4-pro',
+      provider: 'deepseek',
+      automatic_routing: true
+    })
+    const { result } = renderHook(() => useModelControls({ queryClient: new QueryClient(), requestGateway: vi.fn() }))
+    await act(() => result.current.refreshCurrentModel())
+    expect($currentModel.get()).toBe('deepseek-auto')
+    expect($currentProvider.get()).toBe('deepseek')
+  })
   beforeEach(() => {
     confirmMock.mockReset()
     notifyError.mockReset()
@@ -316,7 +331,9 @@ describe('useModelControls', () => {
     setCurrentModel('old')
     setCurrentProvider('xai')
     const refusal = Object.assign(new Error('model_resolution_failed'), { data: { reason: 'model_resolution_failed' } })
-    const requestGateway = vi.fn(async () => { throw refusal })
+    const requestGateway = vi.fn(async () => {
+      throw refusal
+    })
     let controls!: Controls
 
     render(<Harness onReady={value => (controls = value)} requestGateway={requestGateway} />)

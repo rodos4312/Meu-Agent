@@ -464,6 +464,10 @@ def local_session_info(authority, ref):
         if warning := ' '.join(filter(None, notices)):
             info['config_warning'] = warning
     info.update(_classic_cli_fields(authority, ref, live, agent, policy))
+    if policy:
+        from gateway.session_model_mode import display_model
+        cfg = policy.config(authority, secrets=False)
+        info['model'] = display_model(info['model'], (cfg.get('model') or {}).get('provider'), cfg)
     return info
 
 

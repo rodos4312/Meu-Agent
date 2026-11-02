@@ -6,6 +6,7 @@ import type { ModelSelection } from '@/app/shell/model-menu-panel'
 import { getGlobalModelInfo } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { isBusySessionModelSwitch } from '@/lib/gateway-rpc'
+import { defaultModelSelection } from '@/lib/model-status-label'
 import { surfaceModelSwitchConfirm } from '@/lib/guarded-model-switch'
 import {
   customDefaultSupersedesPick,
@@ -212,7 +213,7 @@ export function useModelControls({
         }
 
         if (typeof result.model === 'string') {
-          setCurrentModel(result.model)
+          setCurrentModel(defaultModelSelection(result.model, result.provider, result.automatic_routing))
         }
 
         if (typeof result.provider === 'string') {

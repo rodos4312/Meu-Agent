@@ -540,6 +540,7 @@ export interface HermesConfig {
 export type HermesConfigRecord = Record<string, unknown>
 
 export interface ModelInfoResponse {
+  automatic_routing?: boolean
   auto_context_length?: number
   capabilities?: Record<string, unknown>
   config_context_length?: number

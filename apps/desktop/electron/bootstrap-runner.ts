@@ -856,6 +856,11 @@ function openRunLog(logRoot) {
 // Public entrypoint
 // ---------------------------------------------------------------------------
 
+function bootstrapPinPolicy(existingCheckout, opts) {
+  const pinCommit = !existingCheckout || opts.pinExistingCheckout === true
+  return { pinCommit, logUnpinned: existingCheckout && !pinCommit && opts.installStamp?.commit }
+}
+
 async function runBootstrap(opts) {
   const {
     installStamp,
@@ -916,9 +921,9 @@ async function runBootstrap(opts) {
 
   try {
     const existingCheckout = hasExistingGitCheckout(activeRoot)
-    const pinCommit = !existingCheckout
+    const { pinCommit, logUnpinned } = bootstrapPinPolicy(existingCheckout, opts)
 
-    if (existingCheckout && installStamp && installStamp.commit) {
+    if (logUnpinned) {
       emit({
         type: 'log',
         line:

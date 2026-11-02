@@ -3,6 +3,14 @@
  *  `model.options` response. During initial hydration (or pre-session startup),
  *  options remain the fallback. Pick one complete pair before mixing fields so
  *  a model is never shown under a different provider. */
+export function defaultModelSelection(
+  model: string,
+  provider: string | undefined,
+  automatic: boolean | undefined
+): string {
+  return provider === 'deepseek' && automatic === true ? 'deepseek-auto' : model
+}
+
 export function currentPickerSelection(
   store: { model: string; provider: string },
   options?: { model?: string; provider?: string }
@@ -179,6 +187,9 @@ function splitTrailingTags(base: string): { base: string; variant: string; quant
 /** Split a model id into a clean display name plus an optional grayed variant
  *  tag, so distinct ids (e.g. `…-4.8` vs `…-4.8-fast`) don't collapse. */
 export function modelDisplayParts(model: string): { name: string; tag: string } {
+  if (model === 'deepseek-auto') {
+    return { name: 'Auto · Flash / Pro', tag: '' }
+  }
   let { base, variant, quant } = splitTrailingTags(modelBaseId(model))
 
   const tags = [variant, quant].filter(Boolean)

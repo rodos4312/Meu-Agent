@@ -946,6 +946,36 @@ function Confirm-StableUnreachable([string]$What) {
     Fail "$What$(Get-NativeDetail). Rerun the installer to retry, or pass -Channel main to install main's tip" git_fetch_failed
 }
 
+function Update-MeuPinnedCheckout {
+    # Desktop upgrades pair one tested artifact with exactly its backend commit.
+    # Never stash, reset, switch branches, or advance to a newer untested branch tip.
+    if ($Branch -cne 'dev/meu-foundation' -or $Commit -cnotmatch '^[a-f0-9]{40}$') {
+        Fail 'Meu upgrade requires a pinned development build' commit_not_on_branch
+    }
+    $current = (Invoke-Native { git -C $InstallDir rev-parse HEAD }).Trim()
+    if ($current -ceq $Commit) { return }
+    $activeBranch = (Invoke-Native { git -C $InstallDir branch --show-current }).Trim()
+    $origin = (Invoke-Native { git -C $InstallDir config --get remote.origin.url }).Trim()
+    if (($activeBranch -and $activeBranch -cne $Branch) -or $origin -cne 'https://github.com/rodos4312/Meu-Agent.git') {
+        Fail 'Meu backend uses another branch or repository; upgrade stopped' commit_not_on_branch
+    }
+    if (Invoke-Native { git -C $InstallDir status --porcelain }) {
+        Fail 'Meu backend has local changes; upgrade stopped without changing them' local_changes_blocked
+    }
+    Invoke-Logged "Fetching Meu $Branch" { git -C $InstallDir fetch --no-tags origin "+refs/heads/${Branch}:refs/remotes/origin/${Branch}" }
+    if ($LASTEXITCODE) { Fail 'Could not fetch the Meu backend' git_fetch_failed }
+    Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit HEAD } | Out-Null
+    if (-not $LASTEXITCODE) { return } # No downgrade, including an older installer.
+    Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit "origin/$Branch" } | Out-Null
+    if ($LASTEXITCODE) { Fail 'The packaged commit is not on the Meu development branch' commit_not_on_branch }
+    Invoke-Native { git -C $InstallDir merge-base --is-ancestor HEAD $Commit } | Out-Null
+    if ($LASTEXITCODE) { Fail 'Meu backend history differs; upgrade stopped' commit_not_on_branch }
+    # Existing lifecycle checks refuse to interrupt active agent work.
+    Invoke-InstalledHermes @('gateway', 'stop')
+    Invoke-Logged "Updating Meu backend to $Commit" { git -C $InstallDir merge --ff-only --no-stat $Commit }
+    if ($LASTEXITCODE) { Fail 'Could not advance the Meu backend' git_checkout_failed }
+}
+
 function Stage-Repository {
     $pinned = $false
     # Not $channel: variables are case-insensitive, and the helpers below read the -Channel
@@ -978,6 +1008,10 @@ function Stage-Repository {
         }
     }
     if (Test-Path (Join-Path $InstallDir ".git")) {
+        if ($env:MEU_AGENT_MODE -eq '1' -and $Commit) {
+            Update-MeuPinnedCheckout
+            return
+        }
         # A chosen channel (stable, a preview) owns where this checkout sits: `hermes update`
         # moves it. Switching it to the installer's branch would leave it on main while its
         # channel still says otherwise, and the next check would offer the release as an update.

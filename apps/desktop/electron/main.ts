@@ -563,6 +563,7 @@ import {
 import { ensureLoginShellPath } from './shell-path'
 import { removeStaleSingletonLock } from './singleton-lock'
 import { createSourcePythonBackend, resolveSourceInstallationBackend, type SourceBackend } from './source-backend'
+import { resolveMeuBackendVersion, type ResolvedHermesBackend } from './meu-runtime-upgrade'
 import { resolveSourcePython } from './source-python'
 import { registerSpellcheckDictionaryIpc } from './spellcheck-dictionary-ipc'
 import { resolveSshBinary } from './ssh-binary'
@@ -4992,7 +4993,10 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
       )
     }
 
-    return activeBackend
+    return resolveMeuBackendVersion(activeBackend, {
+      appId: PRODUCT_IDENTITY.appId, isPackaged: IS_PACKAGED, git: resolveGitBinary(),
+      root: ACTIVE_HERMES_ROOT, args: backendArgs, stamp: INSTALL_STAMP
+    })
   }
 
   if (bootstrapRepairRequested) {
@@ -5049,25 +5053,6 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
   }
 }
 
-interface ResolvedHermesBackend {
-  kind: string
-  label: string
-  command: string | null
-  args: string[]
-  env: NodeJS.ProcessEnv
-  bootstrap: boolean
-  shell: boolean
-  local?: string
-  root?: string
-  ticketCommand?: string
-  ticketEnv?: NodeJS.ProcessEnv
-  installStamp?: Readonly<InstallStamp> | null
-  activeRoot?: string
-  isPackaged?: boolean
-  platform?: NodeJS.Platform
-  readyFile?: boolean
-}
-
 async function ensureRuntime(
   backend: ResolvedHermesBackend,
   assertStillOwned: () => void
@@ -5108,7 +5093,7 @@ async function ensureRuntime(
   if (backend.kind === 'bootstrap-needed') {
     rememberLog('[bootstrap] no Meu install found; starting first-launch bootstrap')
 
-    if (await handOffWindowsBootstrapRecovery('bootstrap-needed')) {
+    if (!backend.upgrade && await handOffWindowsBootstrapRecovery('bootstrap-needed')) {
       const handoffError: Error & { isBootstrapFailure?: boolean; bootstrapHandedOff?: boolean } = new Error(
         'Meu recovery was handed off to Meu Setup. The desktop will restart when recovery completes.'
       )
@@ -5150,6 +5135,7 @@ async function ensureRuntime(
       try {
         return await runBootstrap({
       installStamp: backend.installStamp,
+      pinExistingCheckout: backend.upgrade === true,
       activeRoot: backend.activeRoot,
       sourceRepoRoot: SOURCE_REPO_ROOT,
       hermesHome: HERMES_HOME,

@@ -34,16 +34,17 @@ def test_model_commit_republishes_session_info(monkeypatch):
     published = []
     authority = SimpleNamespace(
         sessions={"session": SimpleNamespace(event_stream=SimpleNamespace(
-            publish=lambda sid, payload, *, event_type: published.append((sid, payload, event_type))))},
+            publish=lambda sid, payload, *, event_type, execution: published.append((sid, payload, event_type, execution))))},
         runner=SimpleNamespace(_set_session_reasoning_override=lambda *_args: None),
-        _schedule=lambda _ref: None,
+        _schedule=lambda _ref: None, epoch=1,
     )
     monkeypatch.setattr(session_local, "publish_local_policy", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(session_local, "local_session_info", lambda *_args: {"model": "switched"})
 
-    _project_committed(authority, SessionRef("profile", "session"), "model", {})
+    _project_committed(authority, SessionRef("profile", "session"), "model", {'execution_generation': 2})
 
-    assert published == [("session", {"model": "switched"}, "session.info")]
+    assert published == [("session", {"model": "switched"}, "session.info",
+                          {'authority_epoch': 1, 'execution_generation': 2})]
 
 
 @pytest.mark.platforms("linux")

@@ -455,6 +455,8 @@ def build_policy(params, config, *, private_secrets=None, profile_terminal=True,
         # supersedes it. Without it the first turn's followed route replaces the pick.
         config.setdefault('model', {})['selection_profile'] = list(profile_target(config))
     _apply_launch_overrides(params, config)
+    from gateway.session_model_mode import apply_selection
+    model = apply_selection(model, params.get('provider'), config)
     # The posture is opt-in (``session.create`` only) and needs a folder the client named: the daemon's own
     # directory (the fallback above) is no workspace, and ``tool`` is a third-party integration. An explicit
     # pick wins anyway; skipping it here also spares the probe.

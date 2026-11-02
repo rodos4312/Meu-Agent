@@ -93,7 +93,8 @@ def get_model_info(profile: Optional[str] = None):
     context length (so the UI can show "Auto-detected: 200K" beside the
     override) plus models.dev capabilities when available."""
     try:
-        model_cfg = _load_config_scoped(profile).get("model", "")
+        profile_config = _load_config_scoped(profile)
+        model_cfg = profile_config.get("model", "")
         model_name, provider = _main_model_fields(model_cfg)
         base_url = model_cfg.get("base_url", "") if isinstance(model_cfg, dict) else ""
         config_ctx = model_cfg.get("context_length") if isinstance(model_cfg, dict) else None
@@ -125,6 +126,8 @@ def get_model_info(profile: Optional[str] = None):
             "config_context_length": config_ctx_int,
             "effective_context_length": config_ctx_int or auto_ctx,  # what the agent actually uses
             "capabilities": caps,
+            "automatic_routing": provider == "deepseek" and (
+                profile_config.get("smart_model_routing") or {}).get("enabled") is True,
         }
     except HTTPException:
         # Unknown/invalid profile must surface as 404, not degrade into a

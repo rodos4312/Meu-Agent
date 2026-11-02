@@ -129,7 +129,13 @@ export function ModelPicker({ bot = null, value, onChange, placeholderModel }: M
   // Declaring them after a return trips React error #310.
   const NONE = '__default__'
   const CUSTOM = '__custom__'
-  const providers = (data?.providers || []).filter(p => p && p.slug)
+  // Auto is a session policy selector; this editor saves concrete profile models.
+  const providers = (data?.providers || [])
+    .filter(p => p && p.slug)
+    .map(p => ({
+      ...p,
+      models: p.models?.filter(m => (typeof m === 'string' ? m : m.id) !== 'deepseek-auto')
+    }))
 
   const isKnown =
     !value.provider || value.provider === NONE || providers.some(p => catalogProviderMatches(p, value.provider))
