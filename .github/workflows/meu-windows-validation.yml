@@ -415,11 +415,11 @@ jobs:
           extras: '[]'
       - name: Install locked rehearsal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Download the previously verified dev.8 baseline
+      - name: Download the signed dev.11 rehearsal baseline
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: Meu-release-candidate
-          run-id: 41477576171
+          run-id: 41505525208
           github-token: ${{ github.token }}
           repository: rodos4312/Meu-Agent
           path: ${{ runner.temp }}/meu-baseline-candidate

@@ -99,13 +99,20 @@ else:
 
 async function launch() {
   const app = await _electron.launch({ executablePath: executable, args: ['--disable-gpu'], env, timeout: 60_000 })
-  const page = await app.firstWindow()
-  app.process().stdout?.on('data', bytes => fs.appendFileSync(path.join(scratch, 'meu-native-app.log'), bytes))
-  app.process().stderr?.on('data', bytes => fs.appendFileSync(path.join(scratch, 'meu-native-app.log'), bytes))
-  await expect(page.getByText('Set up Meu', { exact: true })).toBeVisible({ timeout: 60_000 })
-  const actual = await app.evaluate(({ app }) => ({ version: app.getVersion(), data: app.getPath('userData') }))
-  assert.equal(path.resolve(actual.data), path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
-  return { app, page, version: actual.version }
+  try {
+    const page = await app.firstWindow()
+    const record = bytes =>
+      fs.appendFileSync(path.join(scratch, 'meu-native-app.log'), `[${new Date().toISOString()}] ${bytes}`)
+    app.process().stdout?.on('data', record)
+    app.process().stderr?.on('data', record)
+    await expect(page.getByText('Set up Meu', { exact: true })).toBeVisible({ timeout: 60_000 })
+    const actual = await app.evaluate(({ app }) => ({ version: app.getVersion(), data: app.getPath('userData') }))
+    assert.equal(path.resolve(actual.data), path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
+    return { app, page, version: actual.version }
+  } catch (error) {
+    await bounded('failed launch cleanup', app.close(), 15_000).catch(() => app.process().kill())
+    throw error
+  }
 }
 
 async function installTransport(app) {
@@ -180,13 +187,28 @@ function powershell(script) {
   return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
     windowsHide: true,
+    timeout: 15_000,
     env: { ...env, MEU_REHEARSAL_EXE: executable }
   }).trim()
 }
 
+async function bounded(label, work, milliseconds = 120_000) {
+  let timer
+  try {
+    return await Promise.race([
+      work,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Native rehearsal timed out: ${label}`)), milliseconds)
+      })
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 const running = () =>
   Number(
-    powershell(`@(Get-CimInstance Win32_Process -Filter "Name = 'Meu.exe'" | Where-Object {
+    powershell(`@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 -Filter "Name = 'Meu.exe'" | Where-Object {
   $_.ExecutablePath -eq $env:MEU_REHEARSAL_EXE -and $_.CommandLine -notmatch '--type='
 }).Count`)
   )
@@ -195,6 +217,7 @@ profile('seed')
 fs.mkdirSync(env.HERMES_DESKTOP_USER_DATA_DIR, { recursive: true })
 fs.writeFileSync(path.join(env.HERMES_DESKTOP_USER_DATA_DIR, 'zoom-state.json'), JSON.stringify({ zoomLevel: 0.25 }))
 let current
+let phase = 'launch baseline'
 try {
   current = await launch()
   assert.equal(current.version, baseline.version)
@@ -204,7 +227,11 @@ try {
     )
     .toBe(0.25)
   await installTransport(current.app)
-  const refused = await current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  phase = 'reject forged metadata'
+  const refused = await bounded(
+    phase,
+    current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  )
   assert.equal(refused.ok, false)
   assert.match(refused.message, /signature/i)
   assert.equal(await current.app.evaluate(() => globalThis.meuNativeRehearsal.requests.length), 0)
@@ -213,7 +240,11 @@ try {
   console.log('[PASS] Real installed Meu refuses forged metadata before download')
 
   await selectMode(current.app, 'tampered')
-  const badBytes = await current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  phase = 'reject tampered download'
+  const badBytes = await bounded(
+    phase,
+    current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  )
   assert.equal(badBytes.ok, false)
   assert.match(badBytes.message, /checksum|digest|sha512/i)
   assert.equal(await current.app.evaluate(({ app }) => app.getVersion()), baseline.version)
@@ -221,24 +252,38 @@ try {
   console.log('[PASS] Real native downloader refuses altered installer bytes and keeps the old app usable')
 
   await selectMode(current.app, 'valid')
-  const available = await current.page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
+  phase = 'check valid candidate'
+  const available = await bounded(
+    phase,
+    current.page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
+  )
   assert.equal(available.updateAvailable, true)
   assert.equal(available.latestTag, `meu-v${release.version}`)
-  const closed = current.app.waitForEvent('close', { timeout: 240_000 })
-  const applied = await current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  const closed = current.app.waitForEvent('close', { timeout: 120_000 })
+  void closed.catch(() => {})
+  phase = 'native download and handoff'
+  console.log('[REHEARSAL] Applying the valid update through the real native client')
+  const applied = await bounded(
+    phase,
+    current.page.evaluate(() => window.hermesDesktop.updates.apply())
+  )
   assert.equal(applied.ok, true)
   assert.equal(applied.handedOff, true)
-  await closed
+  console.log('[REHEARSAL] Native apply acknowledged the installer handoff')
+  phase = 'old process exit'
+  await bounded(phase, closed)
   current = null
+  console.log('[REHEARSAL] Old app process exited without forcing it')
 
-  // The legacy dev.8 installer has a wizard. The disposable-CI driver advances it.
-  // New releases use a silent installer only after the explicit Update now choice.
+  phase = 'installed executable version'
   await expect
     .poll(() => powershell('(Get-Item -LiteralPath $env:MEU_REHEARSAL_EXE).VersionInfo.FileVersion'), {
       timeout: 240_000,
       intervals: [1000]
     })
     .toBe(release.version)
+  console.log('[REHEARSAL] Installed executable reports the target version')
+  phase = 'installer automatic relaunch'
   await expect.poll(running, { timeout: 60_000, intervals: [1000] }).toBe(1)
   console.log('[PASS] Native NSIS handoff installed the new version and relaunched Meu')
   // Reattach deterministically after proving the installer's automatic relaunch.
@@ -246,6 +291,7 @@ try {
     'Get-Process -Name Meu -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $env:MEU_REHEARSAL_EXE } | Stop-Process -Force'
   )
   await expect.poll(running, { timeout: 30_000, intervals: [500] }).toBe(0)
+  phase = 'reopen target and verify data'
   current = await launch()
   assert.equal(current.version, release.version)
   await expect
@@ -276,7 +322,12 @@ try {
     )
   )
   console.log('[PASS] Updated renderer reopened; real SessionDB conversation, settings, key, memory and skill survived')
+} catch (error) {
+  fs.writeFileSync(
+    path.join(scratch, 'meu-native-upgrade-failure.json'),
+    JSON.stringify({ phase, error: error.message }, null, 2)
+  )
+  throw error
 } finally {
-  if (current) await current.app.close().catch(() => {})
-  fs.writeFileSync(path.join(scratch, '.native-upgrade-done'), '')
+  if (current) await bounded('fixture shutdown', current.app.close(), 15_000).catch(() => current.app.process().kill())
 }
