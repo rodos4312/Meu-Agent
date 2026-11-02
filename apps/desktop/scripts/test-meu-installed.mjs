@@ -48,7 +48,10 @@ for (const launch of [1, 2]) {
       const status = await page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
       assert.equal(status.supported, false)
       assert.equal(status.reason, 'meu-signing-not-configured')
-      await assert.rejects(page.evaluate(() => window.hermesDesktop.updates.apply()), /signing is not configured/)
+      const refused = await page.evaluate(() => window.hermesDesktop.updates.apply())
+      assert.equal(refused.ok, false)
+      assert.equal(refused.error, 'apply-failed')
+      assert.match(refused.message, /signing is not configured/)
       console.log('[PASS] Packaged unsigned Meu refuses updater check/download/install')
     }
     assert(!errors.some(error => /Cannot find module|Failed to fetch dynamically imported module|is not defined/.test(error)), errors.join('\n'))

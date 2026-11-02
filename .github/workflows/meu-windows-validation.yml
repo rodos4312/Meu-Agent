@@ -193,7 +193,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: ${{ env.MEU_RELEASE_REQUEST == 'true' && '0' || '1' }}
       - name: Verify signed release source ancestry and requested version
         if: env.MEU_RELEASE_REQUEST == 'true'
         shell: pwsh
