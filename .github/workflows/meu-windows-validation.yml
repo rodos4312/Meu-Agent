@@ -139,6 +139,9 @@ jobs:
           tests/agent/test_declared_conversation_scope.py
           tests/agent/transports/test_chat_completions.py
           tests/plugins/model_providers/test_brokered_oauth_refresh.py
+          tests/hermes_cli/test_codex_device_login_transient_retry.py
+          tests/hermes_cli/test_codex_device_login_ssl_hint.py
+          tests/hermes_cli/web_routers/test_codex_device_login_transient_retry.py
           tests/tui_gateway/test_meu_privacy_rpc.py
           tests/scripts/install/test_meu_installer_privacy.py
           tests/agent/test_meu_deepseek_privacy.py

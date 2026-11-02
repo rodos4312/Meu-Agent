@@ -320,11 +320,9 @@ def _codex_full_login_worker(session_id: str) -> None:
             sess["status"] = "approved"
         _log.info("oauth/device: openai-codex login completed (session=%s)", session_id)
     except Exception as e:
-        from hermes_cli.observability.shared_metrics_setup import note_oauth_failure
         _log.warning("codex device-code worker failed (session=%s): %s", session_id, e)
         with _oauth_sessions_lock:
             s = _oauth_sessions.get(session_id)
-            note_oauth_failure(s, e)
             if s:
                 s["status"] = "error"
                 s["error_message"] = str(e)
@@ -418,10 +416,7 @@ async def _start_codex_device_code(profile: Optional[str]) -> dict[str, Any]:
     with _oauth_sessions_lock:
         s = _oauth_sessions.get(sid, {})
     if s.get("status") == "error":
-        from hermes_cli.observability.shared_metrics_setup import _OAUTH_FAILURE_KEY
-        err = HTTPException(status_code=500, detail=s.get("error_message") or "device-auth failed")
-        err.setup_failure_class = s.get(_OAUTH_FAILURE_KEY) or "other"  # the worker's class, not "500"
-        raise err
+        raise HTTPException(status_code=500, detail=s.get("error_message") or "device-auth failed")
     if not s.get("user_code"):
         raise HTTPException(status_code=504, detail="device-auth timed out before returning a user code")
     return {
