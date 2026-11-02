@@ -50,7 +50,7 @@ from tools.delegate_tool_registry import (
 from tools.delegate_tool_tasks import (
     _MAX_TASK_IMAGES, _coerce_task_images, _coerce_task_schemas, _normalize_task_images, _normalize_task_list,
 )
-from tools.delegate_tool_tuning import pin_child_service_tier
+from tools.delegate_tool_tuning import pin_child_model, pin_child_service_tier
 from tools.delegate_tool_toolsets import (
     DELEGATE_BLOCKED_TOOLS, _expand_parent_toolsets, _resolve_child_toolsets, _strip_blocked_tools,
 )
@@ -320,6 +320,7 @@ def _build_child_agent(
             rt["provider"], None if profile_home is not None else parent_agent, rt["base_url"],
             effective_requested_provider=rt.get("requested_provider"),
         )
+    pin_child_model(child, model, pin_model=profile_home is None)
     child._print_fn = getattr(parent_agent, "_print_fn", None)
     _apply_child_cache_ttl(child)
     if child_session_db is not None:
@@ -458,16 +459,14 @@ def _build_children(
     """Build every child on the main thread (construction is not thread-safe), each on its task's route;
     ``(children, None)`` or ``([], error)`` on an explicit-pin preflight failure."""
     from tools.delegation_live_log import wrap_progress_callback
-    from tools.delegation_output_schema import append_output_contract
+    from tools.delegate_tool_routes import child_task_context
     children = []
     for i, t in enumerate(task_list):
         route = routes[i]
         if route.error:
             continue  # refused by its backend: no child; its result entry is the refusal
         _task_schema = task_schemas[i] if i < len(task_schemas) else None
-        _child_context = t.get("context")
-        if _task_schema is not None:
-            _child_context = append_output_contract(_child_context, _task_schema)
+        _child_context = child_task_context(t, route, _task_schema)
         try:
             child = _build_child_preserving_parent_tools(
                 task_index=i, goal=t["goal"], context=_child_context,

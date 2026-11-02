@@ -39,6 +39,7 @@ class TaskRoute:
     label: Optional[str] = None
     backend: str = "default"
     error: Optional[str] = None
+    instructions: Optional[str] = None
 
     def report(self) -> Optional[dict[str, Any]]:
         """The ``route`` a backend-routed task's result carries (None for the default backend's unlabelled route)."""
@@ -244,12 +245,24 @@ def _resolve_route(route: dict[str, Any], parent_agent: Any, backend: str) -> Ta
 def _route_to_task_route(route: dict[str, Any], parent_agent: Any, cache: dict[str, TaskRoute],
                          config: Optional[Mapping[str, Any]] = None, backend: str = "default") -> TaskRoute:
     label = route.get("label") if isinstance(route.get("label"), str) else None
+    instructions = route.get("instructions")
+    if instructions is not None and not isinstance(instructions, str):
+        raise DelegationRouteError("Route instructions must be text.")
     route = _with_inherited_fallback(route, config or {})
     # The label is display-only: two labels on one route (or one profile) resolve once.
-    key = json.dumps({k: v for k, v in route.items() if k != "label"}, sort_keys=True, default=str)
+    key = json.dumps({k: v for k, v in route.items() if k not in {"label", "instructions"}}, sort_keys=True, default=str)
     if key not in cache:
         cache[key] = _resolve_route(route, parent_agent, backend)
-    return replace(cache[key], label=label)
+    return replace(cache[key], label=label, instructions=instructions)
+
+
+def child_task_context(task: Mapping[str, Any], route: TaskRoute, schema: Optional[dict]) -> Optional[str]:
+    """Freeze route instructions and the output contract in a NEW child's initial context."""
+    from tools.delegation_output_schema import append_output_contract
+    context = task.get("context")
+    if route.instructions:
+        context = f"{context or ''}\n\n{route.instructions}".strip()
+    return append_output_contract(context, schema) if schema is not None else context
 
 
 def _check_backend_effort(index: int, route: Mapping[str, Any], config: Mapping[str, Any]) -> None:
@@ -320,6 +333,13 @@ def resolve_task_routes(task_list: list[dict[str, Any]], config: Mapping[str, An
     except DelegationRouteError as exc:
         return [], str(exc)
     declared = _declared_parameters(provider, config)
+    try:
+        provider.validate_tasks(task_list, config)
+    except DelegationRouteError as exc:
+        return [], str(exc)
+    except Exception as exc:
+        logger.warning("delegation provider %s.validate_tasks() raised", provider.name, exc_info=True)
+        return [], f"Delegation backend '{provider.name}' could not validate the plan: {exc}"
     cache: dict[str, TaskRoute] = {}
     routes: list[TaskRoute] = []
     for i, task in enumerate(task_list):

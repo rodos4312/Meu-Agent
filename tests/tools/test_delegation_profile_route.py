@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 import hermes_yaml as yaml
 import pytest
 
+from agent.delegation_provider import DelegationProvider
+
 
 def _write_profile(home, *, host, model, key, secret, effort, soul=None):
     # A hosted (non-loopback) endpoint: the key must come from the profile's own secrets.
@@ -256,7 +258,7 @@ def test_profile_scope_that_fails_to_enter_leaves_the_parent_in_its_own_profile(
     assert (_snapshot(), current_secret_scope_home(), is_multiplex_active()) == before
 
 
-class _ProfileProvider:
+class _ProfileProvider(DelegationProvider):
     """A backend that routes every task to the ``coder`` profile."""
     name = "profile_routes"
 

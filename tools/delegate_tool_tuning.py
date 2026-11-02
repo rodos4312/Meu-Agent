@@ -72,9 +72,14 @@ def task_service_tier(word: str, creds: dict[str, Any], parent_agent) -> dict[st
             "task_tier_overrides": fast}
 
 
+def pin_child_model(child, model: Optional[str], *, pin_model: bool = True) -> None:
+    """An explicit task model beats Auto; inherited/profile routes keep their own policy."""
+    if pin_model and model:
+        child._model_routing_config = {**getattr(child, "_model_routing_config", {}), "enabled": False}
+
+
 def pin_child_service_tier(child, creds: dict[str, Any]) -> None:
-    """Re-apply a task's speed tier to the built child: construction can merge a custom provider's ``extra_body``
-    (and its tier) back into ``request_overrides``. No-op for tasks that set no tier."""
+    """Re-apply a task speed tier after construction merges provider request overrides."""
     fast = creds.get("task_tier_overrides")
     if fast is None:
         return

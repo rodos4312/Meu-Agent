@@ -23,6 +23,10 @@ class Hosted(DelegationProvider):
     def task_parameters(self, config):
         return {"option": {"type": "string", "enum": ["a", "b"], "description": f"pid {os.getpid()}"}}
 
+    def validate_tasks(self, tasks, config):
+        if any(t.get("goal") == "invalid parallel plan" for t in tasks):
+            raise DelegationRouteError("host refused the parallel plan")
+
     def route_task(self, task, config):
         if task.get("option") == "b":
             raise DelegationRouteError("b is closed")
@@ -78,6 +82,8 @@ def test_hosted_delegation_provider_extends_schema_and_routes_from_the_host(tmp_
         assert (routes[0].creds["model"], routes[0].label) == (f"model-a-{host_pid}", "a")
         refused, err = resolve_task_routes([{"goal": "refused by the hosted plugin", "option": "b"}], config, None)
         assert err is None and "b is closed" in refused[0].error
+        blocked, err = resolve_task_routes([{"goal": "invalid parallel plan", "option": "a"}], config, None)
+        assert blocked == [] and "host refused the parallel plan" in err
         assert json.dumps(params) == json.dumps(schema_extension(config)[0])
 
         # The /delegation seam acts on THIS process (ctx.delegation_backends is a host remote facade): its
@@ -87,7 +93,7 @@ def test_hosted_delegation_provider_extends_schema_and_routes_from_the_host(tmp_
         out = invoke_plugin_command(plugins_mod.get_plugin_command_handler("deleg-switch"), "default",
                                     session_key="chat-a")
         pid, listed = out.split(" ", 1)
-        assert int(pid) != os.getpid() and listed == "default,hosted-map"
+        assert int(pid) != os.getpid() and {"default", "hosted-map"} <= set(listed.split(","))
         assert yaml.safe_load((home / "config.yaml").read_text())["delegation"]["backend"] == "default"
         assert delegation_backends._rebuild_requests == {"chat-a"}
         delegation_backends._rebuild_requests.clear()

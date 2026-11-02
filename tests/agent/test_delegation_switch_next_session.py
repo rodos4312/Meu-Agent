@@ -9,6 +9,7 @@ task with no choice routes on.
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,7 @@ def options_backend(monkeypatch):
     (plugin_dir / "__init__.py").write_text(PROBE_PLUGIN)
     bundled = home.parent / "bundled"
     bundled.mkdir()
-    (bundled / "delegation").symlink_to(REPO_PLUGINS / "delegation", target_is_directory=True)
+    shutil.copytree(REPO_PLUGINS / "delegation", bundled / "delegation", ignore=shutil.ignore_patterns("__pycache__"))
     monkeypatch.setattr(plugins_mod, "get_bundled_plugins_dir", lambda: bundled)
     srv = FakeLLMServer([]).__enter__()
     extra = yaml.safe_dump({"plugins": {"enabled": ["probe-options"]}, "delegation": {

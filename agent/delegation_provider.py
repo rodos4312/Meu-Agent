@@ -27,6 +27,8 @@ Route vocabulary (:meth:`DelegationProvider.route_task` returns a dict with any 
   scope helpers a multiplexed gateway uses for a routed turn. A profile route ignores the other
   route keys; the profile's own config decides them.
 * ``label`` - short text shown with the child's progress and result (e.g. the option title).
+* ``instructions`` - task-specific instructions appended to the child's initial context;
+  never changes a running parent's prompt or previous messages.
 
 A backend's own settings live under ``delegation.backends.<backend name>`` (:meth:`DelegationProvider.settings`),
 never beside the core ``delegation`` keys.
@@ -50,7 +52,7 @@ RESERVED_TASK_PARAMETERS = frozenset({
 #: Keys a route may carry; anything else in a provider's answer is ignored.
 ROUTE_KEYS = frozenset({
     "model", "provider", "base_url", "api_key", "api_mode", "request_overrides",
-    "reasoning_effort", "service_tier", "fallback_providers", "profile", "label",
+    "reasoning_effort", "service_tier", "fallback_providers", "profile", "label", "instructions",
 })
 
 
@@ -99,6 +101,14 @@ class DelegationProvider(ProviderBase):
         """Optional guidance appended to the ``delegate_task`` description (same caching rule
         as :meth:`task_parameters`)."""
         return ""
+
+    def validate_tasks(self, tasks: list[dict[str, Any]], config: Mapping[str, Any]) -> None:
+        """Optional read-only batch preflight, before any credentials or children are built.
+
+        Raise DelegationRouteError to refuse the batch with replanning instructions.
+        Existing providers retain per-task routing/refusals through the default no-op.
+        This method must not mutate tasks or config, perform model calls, or start work.
+        """
 
     @abc.abstractmethod
     def route_task(self, task: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:

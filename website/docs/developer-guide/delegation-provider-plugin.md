@@ -95,6 +95,7 @@ is the default route, and `self.settings(config)` is your backend's own block,
 | `route_task(task, config)` | yes | Return the route dict for one task. `task` carries `goal`, `context`, `index` and the values the model supplied for your parameters. Raise `DelegationRouteError` to refuse; its message is the tool error the model reads. |
 | `task_parameters(config)` | no | `{name: json_schema}` merged into `tasks.items.properties`. Core enforces `enum` before `route_task` runs and refuses core-owned names (`goal`, `context`, `index`, `output_schema`, `images`, `group`, `role`, `toolsets`, `provider`, `model`, `base_url`, `api_key`, `api_mode`, `acp_command`, `acp_args`). |
 | `description(config)` | no | Guidance appended to the `delegate_task` description. |
+| `validate_tasks(tasks, config)` | no | Read-only whole-batch preflight before credential resolution or child construction. Raise `DelegationRouteError` to refuse the batch with replanning instructions. No model/network calls, execution or mutation. Existing providers inherit a no-op. |
 | `is_available()` | no | No network calls. `False` fails delegation closed while your backend is selected: `delegate_task` returns a tool error naming it and the fix (`/delegation default`, or `hermes config set delegation.backend default`); it never switches to `default` on its own. |
 | `settings(config)` | inherited | `delegation.backends.<name>` as a mapping (empty when unset). Do not override. |
 
@@ -105,6 +106,8 @@ A route is a dict with any of:
 - `model`, `provider`, `base_url`, `api_key`, `api_mode`, `request_overrides`, `reasoning_effort`,
   `fallback_providers`: shaped exactly like the `delegation` section and resolved by the same
   credential resolver. An empty route inherits the parent's route; `dict(config)` is the default route.
+  An explicitly selected model on a non-profile route stays fixed in the child even when the parent uses
+  automatic request routing. An inherited model, or a profile route's own Auto setting, retains that policy.
   A `reasoning_effort` that is not a known level (`none`, `minimal`, `low`, `medium`, `high`,
   `xhigh`, ...) refuses the task with a tool error instead of falling back to the parent's level; the
   `delegation.reasoning_effort` value itself keeps its usual warn-and-inherit rule.
@@ -123,6 +126,9 @@ A route is a dict with any of:
   session database (it is the parent's work) and it keeps the parent's toolset. Other route keys are
   ignored on a profile route.
 - `label`: short text identifying the route (an option title, a profile name).
+- `instructions`: text appended to the new child's initial task context, alongside the parent's context and
+  any output contract. This never changes the parent's system prompt or previous messages. Per-task text
+  is excluded from the credential cache key, so tasks sharing a route still resolve credentials once.
 
 Unknown keys are dropped. On a profile route, `service_tier` and `reasoning_effort` are ignored too.
 
@@ -130,6 +136,9 @@ A non-profile route without `fallback_providers` of its own gets `delegation.fal
 `"fallback_providers": []` to disable fallback for a route. A profile route keeps its profile's chain.
 
 ### Refusals are per task
+
+`validate_tasks` is the exception: a rejected parallel plan refuses the whole batch before any child
+is built. It does not change the per-task behavior of providers using the default no-op preflight.
 
 A `DelegationRouteError` from `route_task`, a parameter your backend did not declare, a value outside
 your parameter's `enum`, an unknown

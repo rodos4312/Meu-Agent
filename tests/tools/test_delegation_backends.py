@@ -6,6 +6,7 @@ resolution; only child construction/run are stubbed where a test reads what they
 
 import json
 import types
+import shutil
 
 import hermes_yaml as yaml
 import pytest
@@ -67,7 +68,7 @@ def _home(tmp_path, monkeypatch, delegation: dict, plugins=("probe-options",), d
     # Bundled plugins: only the delegation category (the default strategy is a bundled plugin).
     bundled = tmp_path / "bundled"
     bundled.mkdir()
-    (bundled / "delegation").symlink_to(REPO_PLUGINS / "delegation", target_is_directory=True)
+    shutil.copytree(REPO_PLUGINS / "delegation", bundled / "delegation", ignore=shutil.ignore_patterns("__pycache__"))
     monkeypatch.setenv("HOME", str(tmp_path / "os-home"))
     monkeypatch.setenv("HERMES_HOME", str(home))
     monkeypatch.setattr(plugins_mod, "get_bundled_plugins_dir", lambda: bundled)
@@ -234,7 +235,7 @@ def test_a_saved_switch_refuses_the_previous_backends_parameter_and_names_the_fi
         from agent.delegation_backends import list_backends, set_global_backend
         from tools.delegate_tool import delegate_task
 
-        assert [b.name for b in list_backends()] == ["default", "probe-options", "probe-profiles"]
+        assert {"default", "probe-options", "probe-profiles"} <= {b.name for b in list_backends()}
         before = (home / "config.yaml").read_bytes()
         with pytest.raises(ValueError, match="'nope' is not installed"):
             set_global_backend("nope")

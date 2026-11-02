@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 CHECKS = (
@@ -58,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = {
         "schema_version": 1,
-        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_utc": datetime.now(UTC).isoformat(),
         "os": platform.system(),
         "python": platform.python_version(),
         "hermes_found": shutil.which("hermes") is not None,
