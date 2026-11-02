@@ -27,6 +27,7 @@ on:
       - 'tests/tools/test_memory_tool.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
       - 'tests/tui_gateway/test_meu_privacy_rpc.py'
+      - 'tests/tui_gateway/test_meu_removed_payments.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
       - 'tests/scripts/install/test_meu_installer_privacy.py'
       - 'scripts/install.sh'
@@ -274,7 +275,7 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/test-meu-native-upgrade.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
@@ -393,11 +394,60 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  native-upgrade:
+    name: Real Meu Windows upgrade and data preservation
+    if: >-
+      (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
+    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare locked native rehearsal tools
+        uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          extras: '[]'
+      - name: Install locked rehearsal dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Download the previously verified dev.8 baseline
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: Meu-release-candidate
+          run-id: 41477576171
+          github-token: ${{ github.token }}
+          repository: rodos4312/Meu-Agent
+          path: ${{ runner.temp }}/meu-baseline-candidate
+      - name: Download the newly signed candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: Meu-release-candidate
+          path: ${{ runner.temp }}/meu-target-candidate
+      - name: Rehearse real native refusal, download, NSIS upgrade and restart
+        shell: pwsh
+        run: ./apps/desktop/scripts/test-meu-native-upgrade.ps1
+      - name: Preserve native upgrade evidence without profile contents
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-Windows-native-upgrade-evidence
+          path: |
+            ${{ runner.temp }}/meu-native-upgrade/*.json
+            ${{ runner.temp }}/meu-native-upgrade/*.png
+            ${{ runner.temp }}/meu-native-upgrade/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
   release-draft:
     name: Prepare a draft in Meu GitHub Releases
     if: >-
       (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
-    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
+    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety, native-upgrade]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -89,6 +89,7 @@ it('offers free-key updates without initializing downloads and rejects tampering
     expect(construct).not.toHaveBeenCalled()
     expect(native.downloadUpdate).not.toHaveBeenCalled()
     await expect(strategy.apply()).resolves.toMatchObject({ ok: true, handedOff: true })
+    expect(native.quitAndInstall).toHaveBeenCalledWith(true, true)
     expect(native).toMatchObject({
       autoDownload: false,
       autoInstallOnAppQuit: false,

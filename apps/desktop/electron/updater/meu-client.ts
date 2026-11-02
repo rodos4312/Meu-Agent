@@ -84,7 +84,8 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
         quitAndInstall: () => {
           handedOff = true
           try {
-            updater.quitAndInstall(false, true)
+            // Apply is reached only after the user chooses Update now.
+            updater.quitAndInstall(true, true)
           } catch (error) {
             handedOff = false
             throw error
