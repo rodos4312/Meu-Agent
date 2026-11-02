@@ -50,7 +50,6 @@ jobs:
         with:
           extras: '[]'
           test-environment: 'true'
-          packages: git,ripgrep
       - name: Verify coordinator, hosted plugins and routing scope
         shell: bash
         run: >-
