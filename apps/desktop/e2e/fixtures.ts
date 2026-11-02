@@ -206,6 +206,9 @@ export function buildAppEnv(sandbox: Sandbox, extra: Record<string, string> = {}
 
   return {
     ...clean,
+    // Meu deliberately ignores an inherited Hermes home. Both product roots
+    // must target the sandbox, including when a real Meu gateway is running.
+    MEU_HOME: sandbox.hermesHome,
     HERMES_HOME: sandbox.hermesHome,
     HERMES_DESKTOP_USER_DATA_DIR: sandbox.userDataDir,
     HERMES_DESKTOP_IGNORE_EXISTING: '1',

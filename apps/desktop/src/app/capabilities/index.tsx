@@ -1,9 +1,11 @@
 import './ui/page.css'
 
+import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { PageLoader } from '@/components/page-loader'
+import { $narrowViewport, $paneVisible } from '@/components/pane-shell/tree/store'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { queryClient } from '@/lib/query-client'
@@ -71,6 +73,9 @@ export function CapabilitiesView({
   const routeTab = useRouteEnumParam('tab', CAPABILITY_MODES, 'skills')
   const localTab = useState<CapabilityMode>('skills')
   const [mode, setMode] = embedded ? localTab : routeTab
+  const sidebarVisible = useStore($paneVisible('sessions'))
+  const narrow = useStore($narrowViewport)
+  const sidebarNavigation = !embedded && sidebarVisible && !narrow
   const gateway = useStoreSelector($gateway, g => (mode === 'connectors' ? g : null))
 
   const [query, setQuery] = useState('')
@@ -162,7 +167,14 @@ export function CapabilitiesView({
       />
     ),
     toolsets: () => (
-      <ToolsetsTab hints={toolsetHints} key={`toolsets-${scope.key}`} onQueryChange={setQuery} profile={scope.profile} query={query} toolsets={toolsets ?? []} />
+      <ToolsetsTab
+        hints={toolsetHints}
+        key={`toolsets-${scope.key}`}
+        onQueryChange={setQuery}
+        profile={scope.profile}
+        query={query}
+        toolsets={toolsets ?? []}
+      />
     )
   } satisfies Record<CapabilityMode, () => React.ReactNode>
 
@@ -170,15 +182,33 @@ export function CapabilitiesView({
     <PageSearchShell
       {...props}
       activeTab={mode}
+      filters={
+        !embedded && (
+          <h1 className="meu-capability-heading">
+            {
+              {
+                skills: t.skills.tabSkills,
+                plugins: t.skills.tabPlugins,
+                connectors: t.connectorsPage.title,
+                toolsets: t.skills.tabToolsets
+              }[mode]
+            }
+          </h1>
+        )
+      }
       onTabChange={id => setMode(id as CapabilityMode)}
       // Every tab renders the shared CapabilitySearch beside its own results.
       searchHidden
-      tabs={[
-        { id: 'skills', label: t.skills.tabSkills, meta: skills?.length ?? null },
-        { id: 'plugins', label: t.skills.tabPlugins },
-        { id: 'connectors', label: t.connectorsPage.title },
-        { id: 'toolsets', label: t.skills.tabToolsets, meta: toolsets ? visibleToolsetCount(toolsets) : null }
-      ]}
+      tabs={
+        sidebarNavigation
+          ? []
+          : [
+              { id: 'skills', label: t.skills.tabSkills, meta: skills?.length ?? null },
+              { id: 'plugins', label: t.skills.tabPlugins },
+              { id: 'connectors', label: t.connectorsPage.title },
+              { id: 'toolsets', label: t.skills.tabToolsets, meta: toolsets ? visibleToolsetCount(toolsets) : null }
+            ]
+      }
       tabsAlign="start"
     >
       <div className="flex h-full flex-col">

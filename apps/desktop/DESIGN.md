@@ -45,6 +45,13 @@ one-off at the call site.
 
 ## Information architecture
 
+- **Meu navigation stays visible.** A compact rail opens Home, Scheduled jobs,
+  Plugins, Skills, and Settings through the existing routes. Home returns to the
+  last chat without creating a session. Route overlays leave this rail reachable;
+  modal decisions still block it. Capabilities uses a contextual sidebar, with
+  top tabs retained when the sidebar is hidden or the view is embedded. The
+  `Button` variant `navigation` supplies the shared hover and `aria-current`
+  selection treatment for both navigation surfaces.
 - **Chat is the home surface.** The transcript and composer stay primary; tools,
   previews, files, review, and terminal complement the conversation.
 - **Pages are durable destinations.** Chat, Skills, Messaging, and Artifacts

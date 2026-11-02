@@ -1,3 +1,4 @@
+import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
@@ -28,6 +29,7 @@ import { jaThemePicker } from './ja_theme_picker'
 import { jaUpdateChannel } from './ja_update_channel'
 
 export const jaOverrides = {
+  meuShell: meuShellCopy['ja'],
   catalog: jaCatalog,
   connectors: jaConnectors.connectors,
   externalOpenFailed: {

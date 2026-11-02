@@ -1,3 +1,4 @@
+import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
@@ -28,6 +29,7 @@ import { esUpdateChannel } from './es_update_channel'
 import { introEs } from './intro-es'
 
 export const esOverrides = {
+  meuShell: meuShellCopy['es'],
   sharedMetrics: esSharedMetrics,
   firstRun: esFirstRun,
   intro: introEs,

@@ -16,6 +16,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        navigation: 'rounded-xl text-(--ui-text-secondary) hover:bg-(--chrome-action-hover) hover:text-foreground aria-[current=page]:bg-(--ui-control-active-background) aria-[current=page]:text-foreground',
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         destructive:
           'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',

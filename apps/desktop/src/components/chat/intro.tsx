@@ -176,9 +176,10 @@ export function Intro({ personality, seed }: IntroProps) {
       data-slot="aui_intro"
     >
       <div className="w-full min-w-0">
-        <Wordmark className="mb-1" text={WORDMARK} />
+        <Wordmark className="mb-5" fitMin="1.25rem" text={WORDMARK} width="4.5rem" />
+        <h1 className="mb-3 text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">{t.meuShell.welcome}</h1>
 
-        <p className="m-0 text-center leading-normal tracking-tight">{body}</p>
+        <p className="mx-auto my-0 max-w-lg text-pretty text-center text-sm leading-relaxed">{body}</p>
       </div>
     </div>
   )
