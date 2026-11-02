@@ -9,6 +9,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import { resolve, join, relative, posix } from "path"
 import productIdentity from "../product-identity.cjs"
+import meuRelease from "../meu-release.cjs"
 import { channelBuildRequest } from "../../../scripts/msix-shared.mjs"
 import { validateBundleEnvironment } from "./bundle-env.mjs"
 import { execFileSync } from "child_process"
@@ -208,6 +209,11 @@ function main() {
  * The PM bundle builder supplies launch paths only for bundled artifacts.
  */
 export function buildStampPayload(stamp, env = process.env, platform = process.platform, payload = null) {
+  const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' ? meuRelease.meuReleasePolicy(env) : null
+  if (meuPolicy && stamp.branch !== meuPolicy.branch &&
+    !(stamp.source === 'ci' && env.GITHUB_REPOSITORY === meuPolicy.repository && env.GITHUB_SHA === stamp.commit && env.GITHUB_REF_NAME?.startsWith('meu-release-request-'))) {
+    throw new Error('Signed Meu artifacts must be built from the admitted development branch or a verified release request.')
+  }
   const variant = (env.HERMES_DESKTOP_VARIANT || "").trim()
   const channelBuild = channelBuildRequest(env)
   if (channelBuild && (stamp.commit !== channelBuild.commit || stamp.dirty)) throw new Error('Channel build identity does not match stamp')
@@ -263,6 +269,7 @@ export function buildStampPayload(stamp, env = process.env, platform = process.p
   }
   return {
     ...base,
+    ...(meuPolicy ? { meuUpdates: meuPolicy, branch: meuPolicy.branch } : {}),
     payload: variant === "store" ? "bundled" : variant || "bootstrap",
     distribution: "desktop-app",
 

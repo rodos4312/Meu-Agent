@@ -13,6 +13,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const feedContract = require('./update-feed.cjs')
+const meuRelease = require('./meu-release.cjs')
 const { createMacSigner } = require('./scripts/mac-sign.mjs')
 
 const {
@@ -234,6 +235,9 @@ module.exports = {
     ]
   },
   win: {
+    ...(appId === 'com.meuagent.desktop' && meuRelease.meuReleasePolicy()
+      ? { publish: [{ provider: 'github', owner: 'rodos4312', repo: 'Meu-Agent', channel: 'meu-preview', releaseType: 'draft' }] }
+      : {}),
     icon: appId === 'com.meuagent.desktop' ? 'assets/meu-icon.ico' : 'assets/icon.ico',
     executableName: windowsExecutableName,
     legalTrademarks: displayName,
@@ -356,7 +360,12 @@ function windowsSigning() {
     if (process.env.AZURE_SIGN_ENDPOINT || process.env.AZURE_CLIENT_ID) {
       throw new Error('Meu must use its own signing certificate; refusing upstream Azure signing configuration')
     }
-    return {} // Development MSIX is unsigned until Meu has an independently trusted publisher.
+    const policy = meuRelease.meuReleasePolicy()
+    if (!policy) return {}
+    if (!process.env.WIN_CSC_LINK && !process.env.CSC_LINK) {
+      throw new Error('Signed Meu release requires its own signing certificate.')
+    }
+    return { forceCodeSigning: true, sign: { publisherName: policy.publisherName } }
   }
   if (!process.env.AZURE_SIGN_ENDPOINT || !process.env.AZURE_CLIENT_ID) {
     return {}

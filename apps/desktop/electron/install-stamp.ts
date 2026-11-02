@@ -60,6 +60,8 @@ export interface ChannelBuildRequest {
 
 /** Mirrors the build stamp with the PM builder's completed launch contract. */
 export interface InstallStamp {
+  /** Present only in deliberately signed Meu Windows release builds. */
+  meuUpdates?: { repository: string; branch: string; channel: string; publisherName: string }
   schemaVersion: number
   commit: string | null
   commitDate: number | null
@@ -101,6 +103,7 @@ declare const __HERMES_INSTALL_STAMP__: InstallStamp
 
 /** The baked request is immutable as well as its containing artifact stamp. */
 function freezeStamp(stamp: InstallStamp): Readonly<InstallStamp> {
+  if (stamp.meuUpdates) Object.freeze(stamp.meuUpdates)
   if (stamp.channelBuild) {
     Object.freeze(stamp.channelBuild.identity)
     Object.freeze(stamp.channelBuild.bundleEnv)

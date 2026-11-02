@@ -82,4 +82,6 @@ test('apply ownership precedes async resolution, survives restoration, and retai
     handedOff: true
   })
   await expect(operation.apply(async () => ({ ok: true }))).rejects.toThrow('already in progress')
+  operation.recoverHandoff()
+  await expect(operation.apply(async () => ({ ok: true }))).resolves.toEqual({ ok: true })
 })

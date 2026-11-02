@@ -621,6 +621,8 @@ import {
   type UpdaterStatusWire,
   type UpdaterStrategy
 } from './updater'
+import { createMeuWindowsStrategy } from './updater/meu-client'
+import { prepareMeuUpdate } from './updater/meu-prepare'
 import {
   launcherInstallRoot,
   observeUpdaterHandoff,
@@ -3413,9 +3415,7 @@ function writeZoomState(zoomLevel) {
   }
 }
 
-// Match the backend's source resolution but bias toward a real git checkout.
-// Dev → SOURCE_REPO_ROOT. Packaged/CLI install → ACTIVE_HERMES_ROOT.
-// HERMES_DESKTOP_HERMES_ROOT always wins so devs can pin a worktree.
+// Resolve source-update ownership, respecting the explicit development override.
 function resolveUpdateRoot() {
   const candidates = [
     process.env.HERMES_DESKTOP_HERMES_ROOT && path.resolve(process.env.HERMES_DESKTOP_HERMES_ROOT),
@@ -3466,10 +3466,7 @@ let updateInFlight = false
 
 // ── bundled / App Installer helpers ─────────────────────────────────────────
 
-/**
- * Keep the native updater instance alive across check, download and install.
- * Its identity comes from the packaged app, not its optional Python payload.
- */
+/** Preserve the packaged app's native updater across check and install. */
 const updateOperation: UpdateOperation = new UpdateOperation(createPackagedUpdateStrategy)
 
 const desktopMetrics: DesktopSharedMetrics = registerDesktopSharedMetrics()
@@ -3479,6 +3476,17 @@ function resolvePackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
 }
 
 async function createPackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
+  if (IS_PACKAGED && IS_WINDOWS && PRODUCT_IDENTITY.appId === 'com.meuagent.desktop') {
+    return createMeuWindowsStrategy({
+      stamp: INSTALL_STAMP, currentVersion: app.getVersion(), executable: process.execPath,
+      recoveryDirectory: path.join(app.getPath('userData'), 'meu-updates'), log: rememberLog,
+      prepare: () => prepareMeuUpdate({ root: ACTIVE_HERMES_ROOT, home: HERMES_HOME,
+        resolveBackend: resolveHermesBackend, findPython: findPythonForRoot, log: rememberLog }),
+      teardown: teardownBundledBackend,
+      restore: async () => { await restoreBundledBackend(); updateOperation.recoverHandoff() },
+      emitProgress: emitUpdateProgress
+    })
+  }
   const mechanism = resolveUpdaterMechanism({
     platform: process.platform,
     updateMechanism: INSTALL_STAMP?.updateMechanism,
@@ -4356,16 +4364,7 @@ async function releaseBackendLock(updateRoot: string, tag: string): Promise<{ un
   return { unlocked: false }
 }
 
-// applyUpdates — hand off to the installer's --update flow, then exit.
-//
-// The desktop is a pure consumer: it does NOT git pull / pip install / rebuild
-// itself (the old open-coded git dance lived here and drifted from
-// `hermes update`). Instead we spawn the staged Hermes-Setup binary with
-// --update and quit, so it can run `hermes update` (which refuses while we
-// hold the venv shim) and rebuild the desktop with our exe already gone.
-//
-// Detection (checkUpdates / commit changelog / "N behind") stays in the UI;
-// only this apply action changed.
+// Dispatch apply to the immutable artifact owner, or the source handoff.
 async function applyUpdates(): Promise<UpdaterApplyResultWire> {
   return updateOperation.apply(async (): Promise<UpdaterApplyResultWire> => {
     updateInFlight = true

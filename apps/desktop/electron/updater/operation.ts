@@ -4,6 +4,7 @@ import type { UpdaterApplyResultWire, UpdaterStrategy } from './index'
 export class UpdateOperation {
   private strategy: Promise<UpdaterStrategy | null> | undefined
   private applying: boolean = false
+  private handedOff: boolean = false
 
   constructor(private readonly initialize: () => Promise<UpdaterStrategy | null>) {}
 
@@ -27,6 +28,7 @@ export class UpdateOperation {
     try {
       const result: UpdaterApplyResultWire = await run()
       handedOff = result.handedOff === true
+      this.handedOff = handedOff
 
       return result
     } finally {
@@ -34,5 +36,13 @@ export class UpdateOperation {
         this.applying = false
       }
     }
+  }
+
+  /** A native installer failed asynchronously after apply had handed off. */
+  recoverHandoff(): void {
+    if (!this.handedOff) return
+    this.handedOff = false
+    this.applying = false
+    this.strategy = undefined
   }
 }

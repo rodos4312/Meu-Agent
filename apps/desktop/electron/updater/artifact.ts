@@ -8,7 +8,7 @@ export interface PinnedArtifact {
   url: string
   sha256: string
   size: number
-  format: 'zip' | 'msix' | 'msixbundle'
+  format: 'zip' | 'msix' | 'msixbundle' | 'exe'
 }
 
 export async function verifyPinnedArtifact(file: string, artifact: PinnedArtifact): Promise<void> {

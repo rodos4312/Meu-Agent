@@ -8,6 +8,7 @@ import { _electron, expect } from '@playwright/test'
 const [executable, scratch] = process.argv.slice(2)
 assert(executable && scratch && path.isAbsolute(executable) && path.isAbsolute(scratch), 'Pass absolute executable and scratch paths')
 fs.mkdirSync(scratch, { recursive: true })
+const stamp = JSON.parse(fs.readFileSync(path.join(path.dirname(executable), 'resources/install-stamp.json'), 'utf8'))
 const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) =>
   value !== undefined && !/(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS|PRIVATE_KEY)$/.test(key)))
 Object.assign(env, {
@@ -28,6 +29,9 @@ for (const launch of [1, 2]) {
   const app = await _electron.launch({ executablePath: executable, args: ['--disable-gpu'], env, timeout: 60_000 })
 
   try {
+    const isolation = await app.evaluate(() => ({ meu: process.env.MEU_HOME, hermes: process.env.HERMES_HOME }))
+    assert.equal(path.resolve(isolation.meu), path.resolve(env.MEU_HOME))
+    assert.equal(path.resolve(isolation.hermes), path.resolve(env.HERMES_HOME))
     const page = await app.firstWindow()
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
@@ -40,6 +44,13 @@ for (const launch of [1, 2]) {
     const state = await app.evaluate(({ app }) => ({ name: app.getName(), version: app.getVersion(), data: app.getPath('userData') }))
     assert.equal(state.name, 'Meu')
     assert.equal(path.resolve(state.data), path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
+    if (!stamp.meuUpdates) {
+      const status = await page.evaluate(() => window.hermesDesktop.updates.check({ force: true }))
+      assert.equal(status.supported, false)
+      assert.equal(status.reason, 'meu-signing-not-configured')
+      await assert.rejects(page.evaluate(() => window.hermesDesktop.updates.apply()), /signing is not configured/)
+      console.log('[PASS] Packaged unsigned Meu refuses updater check/download/install')
+    }
     assert(!errors.some(error => /Cannot find module|Failed to fetch dynamically imported module|is not defined/.test(error)), errors.join('\n'))
     await page.screenshot({ path: path.join(scratch, `meu-launch-${launch}.png`) })
     fs.writeFileSync(path.join(scratch, `meu-launch-${launch}.json`), JSON.stringify(state, null, 2))

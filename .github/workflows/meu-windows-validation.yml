@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - dev/meu-foundation
+    tags:
+      - 'meu-release-request-*'
     paths:
       - 'apps/desktop/**'
       - 'tools/**'
@@ -31,9 +33,18 @@ on:
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
+    inputs:
+      prepare_signed_release:
+        description: 'Build a signed Meu release draft (requires dedicated Meu certificate secrets)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+env:
+  MEU_RELEASE_REQUEST: ${{ inputs.prepare_signed_release || startsWith(github.ref, 'refs/tags/meu-release-request-') }}
 
 jobs:
   coordinator-compatibility:
@@ -168,10 +179,29 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
+      - name: Admit signing only for the Meu development branch
+        if: env.MEU_RELEASE_REQUEST == 'true'
+        shell: pwsh
+        env:
+          MEU_REPOSITORY: ${{ github.repository }}
+          MEU_REF: ${{ github.ref }}
+        run: |
+          if ($env:MEU_REPOSITORY -cne 'rodos4312/Meu-Agent' -or ($env:MEU_REF -cne 'refs/heads/dev/meu-foundation' -and $env:MEU_REF -notlike 'refs/tags/meu-release-request-*')) {
+            throw 'Signed release preparation is restricted to rodos4312/Meu-Agent dev/meu-foundation.'
+          }
       - name: Checkout Meu development branch
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Verify signed release source ancestry and requested version
+        if: env.MEU_RELEASE_REQUEST == 'true'
+        shell: pwsh
+        run: |
+          git merge-base --is-ancestor $env:GITHUB_SHA origin/dev/meu-foundation
+          if ($LASTEXITCODE -ne 0) { throw 'Release commit is not admitted by dev/meu-foundation.' }
+          $version = (Get-Content -LiteralPath apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -cne "meu-release-request-$version") { throw 'Release request tag does not match package version.' }
       - name: Set up Node.js 26
         uses: actions/setup-node@v4
         with:
@@ -192,7 +222,7 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1')) {
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/scan-meu-package.ps1')) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }
@@ -207,6 +237,9 @@ jobs:
       - name: Test Meu first-run setup interface
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx src/components/boot-failure-overlay.test.tsx src/lib/desktop-backend-wait.test.ts src/lib/with-timeout.test.ts src/app/gateway/hooks/use-gateway-boot.bootstrap.test.tsx src/app/gateway/hooks/use-gateway-boot.test.tsx
+      - name: Verify Meu release origin, signatures and update recovery
+        working-directory: apps/desktop
+        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/store/desktop-metrics.test.ts src/store/shared-metrics.test.ts src/app/settings/shared-metrics-settings.test.tsx src/components/shared-metrics/consent-dialog.test.tsx src/components/shared-metrics/consent-strip.test.tsx src/app/gateway/report-startup-latency.test.ts
@@ -224,17 +257,62 @@ jobs:
         run: npm run typecheck
       - name: Build Meu desktop renderer and backend shell
         working-directory: apps/desktop
+        env:
+          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
+          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
         run: npm run build
-      - name: Package unsigned portable Meu Windows preview
+      - name: Package Meu Windows application
         working-directory: apps/desktop
+        env:
+          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
+          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
+          WIN_CSC_LINK: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_KEY_PASSWORD || '' }}
         run: npm run builder -- --win --x64 --dir
-      - name: Package unsigned Meu Windows installer
+      - name: Package Meu Windows installer
         working-directory: apps/desktop
+        env:
+          MEU_SIGNED_RELEASE: ${{ env.MEU_RELEASE_REQUEST == 'true' && '1' || '0' }}
+          MEU_WINDOWS_PUBLISHER: ${{ vars.MEU_WINDOWS_PUBLISHER }}
+          WIN_CSC_LINK: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ env.MEU_RELEASE_REQUEST == 'true' && secrets.MEU_WINDOWS_CSC_KEY_PASSWORD || '' }}
         run: npm run builder -- --win nsis --x64
+      - name: Scan Meu installer and unpacked application before upload
+        shell: pwsh
+        working-directory: apps/desktop
+        env:
+          MEU_EXPECTED_PUBLISHER: ${{ env.MEU_RELEASE_REQUEST == 'true' && vars.MEU_WINDOWS_PUBLISHER || '' }}
+        run: |
+          $installer = Get-ChildItem -LiteralPath release -Filter 'Meu-*-win-x64.exe' -File
+          if (@($installer).Count -ne 1) { throw 'Expected exactly one Meu installer.' }
+          ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security -UnpackedPath release/win-unpacked -ExpectedPublisher $env:MEU_EXPECTED_PUBLISHER
+      - name: Prove an unsigned preview cannot pass the signed-release gate
+        if: env.MEU_RELEASE_REQUEST != 'true'
+        shell: pwsh
+        working-directory: apps/desktop
+        run: |
+          $installer = Get-ChildItem -LiteralPath release -Filter 'Meu-*-win-x64.exe' -File
+          $refused = $false
+          try {
+            ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security-negative -ExpectedPublisher 'CN=Meu CI refusal fixture'
+          } catch {
+            if ($_.Exception.Message -notlike '*signature*') { throw }
+            $refused = $true
+          }
+          if (-not $refused) { throw 'Unsigned preview unexpectedly passed the release signature gate.' }
+          Write-Host '[PASS] Unsigned preview was refused by the signed-release gate.'
+      - name: Preserve package scan and checksum evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Meu-Windows-package-security-evidence
+          path: apps/desktop/release/security/
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Upload Meu installer for manual Windows testing
         uses: actions/upload-artifact@v4
         with:
-          name: Meu-Windows-x64-installer-unsigned-preview
+          name: ${{ env.MEU_RELEASE_REQUEST == 'true' && 'Meu-Windows-x64-installer-signed-candidate' || 'Meu-Windows-x64-installer-unsigned-preview' }}
           path: apps/desktop/release/Meu-*-win-x64.exe
           if-no-files-found: error
           retention-days: 7
@@ -242,6 +320,18 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop
         run: ./scripts/test-meu-installer.ps1
+      - name: Prepare signed Meu release candidate
+        if: env.MEU_RELEASE_REQUEST == 'true'
+        working-directory: apps/desktop
+        run: node scripts/prepare-meu-release.mjs
+      - name: Upload signed Meu release candidate
+        if: env.MEU_RELEASE_REQUEST == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Meu-signed-release-candidate
+          path: apps/desktop/release/meu-release-candidate/
+          if-no-files-found: error
+          retention-days: 30
       - name: Preserve packaged launch evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -257,3 +347,27 @@ jobs:
           path: apps/desktop/release/win-unpacked/
           if-no-files-found: error
           retention-days: 7
+
+  signed-release-draft:
+    name: Prepare a draft in Meu GitHub Releases
+    if: (inputs.prepare_signed_release || startsWith(github.ref, 'refs/tags/meu-release-request-')) && github.repository == 'rodos4312/Meu-Agent'
+    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: Meu-signed-release-candidate
+          path: candidate
+      - name: Create reviewable release draft, never publish automatically
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: rodos4312/Meu-Agent
+          MEU_COMMIT: ${{ github.sha }}
+        run: |
+          version=$(jq -er '.version' candidate/meu-release.json)
+          commit=$(jq -er '.commit' candidate/meu-release.json)
+          test "$commit" = "$MEU_COMMIT"
+          tag="meu-v$version"
+          gh release create "$tag" candidate/* --draft --prerelease --target "$MEU_COMMIT" --title "Meu $version" --notes 'Signed Meu Windows candidate. All required CI checks and package scans passed. Awaiting signed upgrade/recovery rehearsal before publication.'
