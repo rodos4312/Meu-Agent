@@ -16,6 +16,7 @@ import { shouldApplyPostBootProgressError } from '@/components/boot-failure-reau
 import type { DesktopBootProgress, HermesConnection, HermesWindowState } from '@/global'
 import { HermesGateway } from '@/hermes'
 import { translateNow } from '@/i18n'
+import { waitForDesktopBackend } from '@/lib/desktop-backend-wait'
 import { desktopDefaultCwd } from '@/lib/desktop-fs'
 import {
   decideLivenessForceClose,
@@ -25,7 +26,7 @@ import {
 import { resolveDesktopGatewayWsUrl } from '@/lib/gateway-ws-url'
 import { hostHas } from '@/lib/host-capabilities'
 import { browserLaunchProfile } from '@/lib/platform'
-import { BACKEND_BOOT_WAIT_TIMEOUT_MS, RECONNECT_ATTEMPT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
+import { RECONNECT_ATTEMPT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import {
   $desktopBoot,
   applyDesktopBootProgress,
@@ -301,6 +302,7 @@ export function useGatewayBoot({
 
   useEffect(() => {
     let cancelled = false
+    const backendWaitAbort = new AbortController()
     const desktop = window.hermesDesktop
 
     // Window-state IPC (fullscreen / traffic-light position) that lands while
@@ -871,15 +873,12 @@ export function useGatewayBoot({
 
         // Same override rule as boot(): a profile-pinned helper window stays
         // on its pinned profile's backend across a soft switch.
-        // Bounded for the same reason as attemptReconnect() (#93454): a wedged
-        // main-process round-trip must not latch $gatewaySwitching stuck —
-        // the `finally` below only runs once this promise settles. Uses the
-        // shared backend-boot budget rather than the reconnect budget because
-        // ensureBackend may cold-spawn a pooled helper backend here.
-        const conn = await withTimeout(
-          getWindowBackend(),
-          BACKEND_BOOT_WAIT_TIMEOUT_MS,
-          'Timed out reconnecting to Meu backend'
+        // Preparation owns its progress UI; readiness stays bounded after it.
+        const conn = await waitForDesktopBackend(
+          () => getWindowBackend(),
+          desktop,
+          'Timed out reconnecting to Meu backend',
+          backendWaitAbort.signal
         )
 
         if (!ownsSwitch()) {
@@ -1502,14 +1501,12 @@ export function useGatewayBoot({
         // A profile-pinned helper window (the HUD) dials its target profile's
         // backend directly — ensureBackend spawns/reuses it from the pool.
         // Full peers use the source/profile Electron pinned before loading.
-        // Bounded like the reconnect path (#93454): a wedged main-process
-        // round-trip must not hang "Starting Hermes…" forever. Initial boot
-        // rides out a full backend cold spawn, so it gets the shared 45s
-        // backend-boot budget, not the 20s reconnect budget.
-        const conn = await withTimeout(
-          getWindowBackend(true),
-          BACKEND_BOOT_WAIT_TIMEOUT_MS,
-          'Timed out connecting to Meu backend'
+        // Setup choice and installation precede the service readiness budget.
+        const conn = await waitForDesktopBackend(
+          () => getWindowBackend(true),
+          desktop,
+          'Timed out connecting to Meu backend',
+          backendWaitAbort.signal
         )
 
         if (cancelled) {
@@ -1729,6 +1726,7 @@ export function useGatewayBoot({
 
     return () => {
       cancelled = true
+      backendWaitAbort.abort()
       offSwitchLifecycle()
       endGatewaySwitch()
       clearReconnectTimer()
