@@ -361,7 +361,7 @@ function windowsSigning() {
       throw new Error('Meu must use its own signing certificate; refusing upstream Azure signing configuration')
     }
     const policy = meuRelease.meuReleasePolicy()
-    if (!policy?.publisherName) return { signAndEditExecutable: true }
+    if (!policy?.publisherName) return {}
     if (!process.env.WIN_CSC_LINK && !process.env.CSC_LINK) {
       throw new Error('Signed Meu release requires its own signing certificate.')
     }

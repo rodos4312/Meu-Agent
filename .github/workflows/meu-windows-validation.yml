@@ -44,7 +44,7 @@ permissions:
   contents: read
 
 env:
-  MEU_RELEASE_REQUEST: ${{ inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') }}
+  MEU_RELEASE_REQUEST: ${{ inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare ')) }}
 
 jobs:
   coordinator-compatibility:
@@ -202,6 +202,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release commit is not admitted by dev/meu-foundation.' }
           $version = (Get-Content -LiteralPath apps/desktop/package.json -Raw | ConvertFrom-Json).version
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -cne "meu-release-request-$version") { throw 'Release request tag does not match package version.' }
+          $request = git log -1 --format=%s
+          if ($request.StartsWith('release(meu): prepare ') -and $request -cne "release(meu): prepare $version") { throw 'Release request commit does not match package version.' }
       - name: Set up Node.js 26
         uses: actions/setup-node@v4
         with:
@@ -340,7 +342,7 @@ jobs:
 
   release-draft:
     name: Prepare a draft in Meu GitHub Releases
-    if: (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-')) && github.repository == 'rodos4312/Meu-Agent'
+    if: (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
     needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
     runs-on: ubuntu-latest
     permissions:

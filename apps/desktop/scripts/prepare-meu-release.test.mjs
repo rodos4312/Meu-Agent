@@ -5,10 +5,17 @@ import path from 'node:path'
 import { createHash, generateKeyPairSync } from 'node:crypto'
 import { test } from 'vitest'
 import { dump } from 'js-yaml'
+import { validateConfiguration } from 'app-builder-lib/internal'
+import { DebugLogger } from 'builder-util'
 
 import { prepareMeuRelease } from './prepare-meu-release.mjs'
 import policy from '../meu-release.cjs'
 import { buildStampPayload } from './write-build-stamp.mjs'
+import builderConfig from '../electron-builder.config.cjs'
+
+test('the free Windows release configuration passes the installed packager schema without a paid certificate', async () => {
+  await validateConfiguration(builderConfig, new DebugLogger(false))
+})
 
 test('preview builds pin a free update key; paid signing is optional and credentials never enter the stamp', () => {
   assert.ok(policy.meuReleasePolicy({}).publicKey)
