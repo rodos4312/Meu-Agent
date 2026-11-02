@@ -48,7 +48,7 @@ jobs:
       - name: Prepare locked Python tests
         uses: ./.github/actions/setup-pm
         with:
-          extras: '[]'
+          extras: '["acp"]'
           test-environment: 'true'
       - name: Verify coordinator, hosted plugins and routing scope
         shell: bash
