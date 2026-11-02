@@ -17,6 +17,9 @@ $env:HERMES_HOME = $profile
 $env:HERMES_RUNTIME_DIR = Join-Path $scratch 'tools'
 $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'never'
+# GitHub runs this driver under PowerShell 7, but desktop bootstrap uses 5.1.
+# Do not pass PS7's module directories to that child (Get-FileHash can disappear).
+$env:PSModulePath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
 # Inherited setup-pm paths must not select the CI checkout as the installed runtime.
 Remove-Item Env:PYTHONPATH, Env:VIRTUAL_ENV, Env:HERMES_PYTHON -ErrorAction SilentlyContinue
 $installer = Join-Path $env:GITHUB_WORKSPACE 'scripts/install.ps1'
