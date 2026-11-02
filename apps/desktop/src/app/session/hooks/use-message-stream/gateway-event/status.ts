@@ -72,7 +72,6 @@ export function handleStatusEvent(ctx: GatewayEventContext): boolean {
     failAssistantMessage,
     flushQueuedDeltas,
     hydrateFromStoredSession,
-    queryClient,
     sessionStateByRuntimeIdRef,
     updateSessionState
   } = deps
@@ -290,13 +289,6 @@ export function handleStatusEvent(ctx: GatewayEventContext): boolean {
 
     if (native) {
       dispatchNativeNotification(native)
-    }
-
-    // A credits crossing moves the account balance. Settings → Billing polls
-    // `billing.state` every 30s; nudge it so the page reflects the crossing
-    // immediately instead of up to 30s late.
-    if (notice?.key?.startsWith('credits.')) {
-      void queryClient.invalidateQueries({ queryKey: ['billing', 'state'] })
     }
 
     return true

@@ -1065,8 +1065,7 @@ export const esOverrides = {
       modelPricingDesc:
         'Muestra los precios de entrada, salida y lectura de caché por millón de tokens en el selector de modelos.',
       reactionsTitle: 'Reacciones a mensajes',
-      reactionsDesc:
-        'Reacciones emoji estilo iMessage — reacciona a los mensajes, y Meu puede reaccionar a los tuyos.',
+      reactionsDesc: 'Reacciones emoji estilo iMessage — reacciona a los mensajes, y Meu puede reaccionar a los tuyos.',
       tipsTitle: 'Consejos en la app',
       tipsDesc:
         'Sugerencias ocasionales de la app y de Meu. Cada consejo aparece una vez. Se desactiva automáticamente tras tus primeros 30 días; puedes volver a activarlo.',
@@ -1708,8 +1707,7 @@ export const esOverrides = {
         'Un ajuste de inicio externo a la app eligió esta conexión, así que las opciones de abajo son de solo lectura. Reinicia Meu sin ese ajuste (o pregunta a quien lo configuró) para cambiarla aquí.',
       modeTitle: 'Modo de conexión',
       localTitle: 'Gateway local',
-      localDesc:
-        'Inicia un backend privado de Meu en localhost. Es el valor predeterminado y funciona sin conexión.',
+      localDesc: 'Inicia un backend privado de Meu en localhost. Es el valor predeterminado y funciona sin conexión.',
       remoteTitle: 'Gateway remoto',
       remoteDesc: 'Conecta esta shell de escritorio a un backend remoto de Meu.',
       remoteAuthHint:
@@ -1908,309 +1906,6 @@ export const esOverrides = {
     },
     model: esModelSettings,
     localModels: esLocalModels,
-    billing: {
-      perMonth: (amount: string) => `${amount}/mes`,
-      creditsPerMonth: (amount: string) => `${amount} créditos/mes`,
-      usageLabel: (label: string) => `Uso de ${label}`,
-      freeTier: {
-        signIn: 'Iniciar sesión',
-        title: 'Estás en el plan gratuito de Nous',
-        message: 'Inicia sesión con una cuenta de Nous para desbloquear más modelos y herramientas.',
-        caption:
-          'Funciona con nous/welcome, con conectores incluidos. Al iniciar sesión conservas tus conectores y se añaden las herramientas que requieren cuenta y todos los demás modelos.',
-        name: 'Nous · plan gratuito',
-        footnote:
-          'El plan gratuito no tiene saldo ni nada que pagar. El pago y el uso aparecen al iniciar sesión con una cuenta de Nous.',
-        plan: 'Plan gratuito',
-        model: 'Modelo',
-        connectors: 'Conectores',
-        included: 'Incluidos'
-      },
-      amountValidation: {
-        reloadTo: 'Recargar hasta',
-        greaterThanThreshold: 'El importe de recarga debe ser mayor que el umbral.',
-        decimal: (label: string) => `${label}: introduce un importe en dólares con 2 decimales como máximo.`,
-        positive: (label: string) => `${label}: el importe debe ser mayor que 0 $.`,
-        minimum: (label: string, amount: string) => `${label}: el mínimo es ${amount}.`,
-        maximum: (label: string, amount: string) => `${label}: el máximo es ${amount}.`
-      },
-      stepUp: {
-        openVerification: 'Abrir la página de verificación',
-        dismiss: 'Descartar',
-        waiting: 'Esperando el enlace de verificación…',
-        verify: 'Verifica para continuar',
-        deniedTitle: 'La verificación no se aprobó',
-        deniedBody: 'La verificación terminó sin permitir el gasto remoto para este terminal.',
-        successTitle: 'Verificación completada',
-        successBody: 'El gasto remoto está permitido para este terminal.'
-      },
-      charge: {
-        added: (amount?: string) => (amount ? `Se añadieron ${amount} $.` : 'Créditos añadidos.'),
-        failedTitle: 'Falló el cargo',
-        unconfirmedTitle: 'Resultado del cargo sin confirmar',
-        unconfirmedBody: (message: string) =>
-          `${message} El resultado de tu último cargo no está confirmado: revisa tu saldo/historial antes de reintentarlo.`,
-        checkTitle: 'No se pudo comprobar el cargo',
-        checkBody: 'No se pudo comprobar el cargo.',
-        untrackedTitle: 'No se pudo seguir el cargo',
-        untrackedBody: 'El servicio de facturación aceptó la solicitud, pero no devolvió un ID de cargo.',
-        timeoutTitle: 'Sigue procesándose tras 5 minutos',
-        timeoutBody: 'Es posible que el cargo todavía se complete. Revisa el portal antes de reintentarlo.',
-        authenticationRequired:
-          'Tu banco requiere verificación (3DS). Complétala en el portal para terminar esta compra.',
-        expired: 'Tu tarjeta ha caducado. Actualízala en el portal.',
-        declined: 'Tu tarjeta fue rechazada. Prueba otra tarjeta en el portal.',
-        failedBody: (reason: string) => `El cargo no se completó (${reason}).`
-      },
-      title: 'Facturación',
-      preview: 'vista previa',
-      summary: {
-        balance: 'Saldo',
-        plan: 'Plan',
-        autoRefill: 'Recarga automática'
-      },
-      sections: {
-        invoices: 'Facturas',
-        plan: 'Plan',
-        paymentAndCredits: 'Pago y créditos',
-        usage: 'Uso'
-      },
-      usage: {
-        title: 'Uso'
-      },
-      buyCredits: {
-        customAmount: 'Importe de créditos personalizado',
-        title: 'Comprar créditos ahora',
-        buyButton: 'Comprar',
-        processing: 'Procesando… comprobando la liquidación',
-        added: (amount: string) => `Se añadieron ${amount}. El saldo se está actualizando.`,
-        retry: 'Reintentar',
-        openPortal: 'Abrir el portal'
-      },
-      plan: {
-        title: 'Planes',
-        changePlan: 'Cambiar de plan',
-        viewPlans: 'Ver planes',
-        backAria: 'Volver a facturación',
-        current: 'Plan actual',
-        scheduled: 'Programado',
-        empty: 'Ahora mismo no hay planes disponibles a los que cambiar.',
-        undo: 'Deshacer',
-        undoing: 'Deshaciendo…',
-        downgrade: 'Bajar de plan',
-        confirmDowngrade: 'Confirmar el cambio a un plan inferior',
-        tryAgain: 'Volver a intentarlo',
-        checkingChange: 'Comprobando este cambio…',
-        cannotChange: 'Ese cambio no se puede hacer aquí.',
-        alreadyOn: (name: string) => `Ya tienes el plan ${name}; no hay nada que cambiar.`,
-        notScheduleable: 'Este cambio no se puede programar aquí.',
-        scheduling: 'Programando…',
-        cancel: 'Cancelar',
-        effectScheduled: (targetName: string, effectiveAt: string, creditsDelta?: string) =>
-          `Cambio a ${targetName}: entra en vigor ${effectiveAt}. No se cobra nada ahora; conservas tu plan actual hasta entonces.${creditsDelta ? ` Cambio de créditos mensuales: ${creditsDelta}.` : ''}`
-      },
-      keepGoingOnCredits: {
-        title: 'Seguir con créditos',
-        description: 'Usa tus créditos cuando se agote el uso incluido. Desactivado: Meu espera al reinicio.',
-        approveInBrowser: 'Aprueba Remote Spending en tu navegador para cambiar esto. Se aplica en cuanto lo apruebes.',
-        openAgain: 'Abrir de nuevo',
-        cancel: 'Cancelar',
-        approvedRetry: 'Remote Spending está aprobado, pero el cambio no se guardó.',
-        tryAgain: 'Reintentar'
-      },
-      autoReload: {
-        threshold: 'Umbral',
-        thresholdAria: 'Umbral de recarga automática',
-        reloadTo: 'Recargar hasta',
-        reloadToAria: 'Importe objetivo de la recarga automática',
-        turnOffConfirm: '¿Desactivar la recarga automática?',
-        turnOff: 'Desactivar',
-        disable: 'Desactivar',
-        updated: 'Recarga automática actualizada.',
-        turnedOff: 'Recarga automática desactivada.',
-        manage: 'Gestionar',
-        save: 'Guardar',
-        saving: 'Guardando…',
-        cancel: 'Cancelar'
-      },
-      state: {
-        notice: {
-          loggedOut: {
-            title: 'Conecta tu cuenta de Nous',
-            message: 'Inicia sesión con tu cuenta de Nous para ver aquí tu saldo, plan y uso.',
-            action: 'Iniciar sesión'
-          },
-          openPortal: 'Abrir el portal ↗',
-          noCard: {
-            title: 'No hay ningún método de pago registrado',
-            message:
-              'La compra de créditos y la recarga automática siguen desactivadas hasta que registres una tarjeta. Añade una en el portal.',
-            action: 'Añadir tarjeta ↗'
-          }
-        },
-        paymentMethod: {
-          title: 'Método de pago',
-          description: 'Gestiona la tarjeta que se usa para recargas y renovaciones de la suscripción.',
-          addAction: 'Añadir método de pago',
-          updateAction: 'Actualizar',
-          provenance: {
-            autoRefill: 'tarjeta de recarga automática',
-            customerDefault: 'predeterminada del cliente',
-            subPin: 'tarjeta de la suscripción',
-            suffix: (label: string) => ` - ${label}`
-          }
-        },
-        buyCredits: {
-          description: 'Un único cargo en tu tarjeta que se añade hoy a tu saldo.'
-        },
-        autoRefill: {
-          title: 'Recargar cuando quede poco saldo',
-          genericDescription: 'Mantén tu saldo recargado cuando baje de tu umbral.',
-          offPill: 'Desactivada',
-          enabledPill: 'Activada',
-          notAvailablePill: '—',
-          manageCaption: 'Gestiona la recarga automática desde el portal.',
-          turnOnCaption: 'Activa la recarga automática desde el portal',
-          chargesDescription: (reloadTo: string, threshold: string) =>
-            `Cobra ${reloadTo} automáticamente cuando tu saldo baja de ${threshold}.`,
-          distinctCardCaption: (cardLabel: string) =>
-            `La recarga automática cobra a ${cardLabel}: concílialo en el portal`,
-          distinctCardFallback: 'otra tarjeta',
-          reconcileAction: 'Conciliar ↗'
-        },
-        usage: {
-          subscriptionCredits: {
-            title: 'Créditos de la suscripción',
-            barLabel: 'Créditos de la suscripción restantes',
-            captionResets: (date: string) => `Se restablece ${date}`,
-            valueOf: (remaining: string, monthly: string) => `Quedan ${remaining} de ${monthly}`,
-            valueOver: (remaining: string, monthly: string, over: string) =>
-              `Quedan ${remaining} de ${monthly} · ${over} de exceso`
-          },
-          topupCredits: {
-            title: 'Créditos de recarga',
-            caption: 'No caducan'
-          },
-          monthlyCap: {
-            title: 'Límite de gasto mensual',
-            barLabel: 'Límite de gasto mensual usado',
-            captionDefault: 'Límite predeterminado',
-            captionSpending: 'Gasto remoto mensual',
-            valueUsed: (spent: string, limit: string) => `${spent} de ${limit} usados`
-          },
-          window: {
-            today: 'Hoy',
-            week: 'Esta semana',
-            month: 'Este mes',
-            topTier: 'Modelos grandes (mensual)',
-            barLabel: (title: string) => `${title}: uso incluido consumido`,
-            captionPaused: 'En pausa: falló el pago de la suscripción',
-            captionPausedOther: 'En pausa: consulta Facturación en el Portal',
-            captionTopTierUsedUp: 'Cuota mensual agotada, los créditos cubren el resto',
-            captionTopTierUsedUpKeepGoingOff: 'Cuota mensual agotada, los demás modelos incluidos siguen funcionando',
-            captionResetsIn: (duration: string) => `Se restablece en ${duration}`,
-            captionIncluded: 'Uso incluido',
-            valueUsed: (percent: string) => `${percent} usado`
-          }
-        },
-        planCard: {
-          freeTier: 'Gratis',
-          chooseAction: 'Elegir ↗',
-          adjustPlanAction: 'Ajustar plan ↗',
-          unavailableCaption: 'Los detalles de la suscripción no están disponibles; aún puedes abrir el portal.',
-          downgradeCaption: (tierName: string, when: string) => `Cambia a ${tierName} el ${when}.`,
-          cancellationCaption: (when: string) => `Se cancela el ${when}.`,
-          renewsCaption: (date: string) => `Se renueva ${date}`,
-          noSubscriptionCaption: 'No hay suscripción activa: los modelos de pago consumen créditos de recarga.'
-        }
-      },
-      errors: {
-        consentRequired: {
-          title: 'Hace falta confirmar la tarjeta',
-          message: 'Confirma esta tarjeta para los cargos del terminal en el portal'
-        },
-        insufficientScope: {
-          title: 'El gasto remoto necesita aprobación',
-          message: 'Esto requiere permitir el gasto remoto. Inicia una recarga para permitirlo y vuelve a intentarlo.'
-        },
-        remoteSpendingRevoked: {
-          title: 'Se detuvo el gasto remoto',
-          messageByAdmin: 'Un administrador detuvo el gasto remoto para este terminal.',
-          messageBySelf: 'Detuviste el gasto remoto para este terminal.'
-        },
-        remoteSpendingReconnect: (who: string) =>
-          `${who} Vuelve a conectarte desde Configuración -> Gateway para autorizar de nuevo este dispositivo.`,
-        sessionRevoked: {
-          title: 'Sesión cerrada',
-          message: 'Se cerró tu sesión. Vuelve a iniciar sesión desde Configuración → Gateway.'
-        },
-        cliBillingDisabled: {
-          title: 'El gasto remoto está desactivado',
-          message:
-            'El gasto remoto está desactivado para esta cuenta; un administrador de facturación puede activarlo desde la página de Meu Agent del portal.'
-        },
-        roleRequired: {
-          title: 'Se requiere rol de administrador',
-          message:
-            'Para añadir fondos hace falta un administrador o propietario de la organización. Pide ayuda a un administrador o gestiónalo en el portal.'
-        },
-        idempotencyConflict: {
-          title: 'Inicia una nueva recarga',
-          message: '🔴 Esa clave de cargo ya se usó para otro importe. Inicia una nueva recarga.'
-        },
-        noPaymentMethod: {
-          title: 'No hay tarjeta guardada',
-          message:
-            '💳 Todavía no hay una tarjeta guardada para cargos del terminal. Configura una en el portal ' +
-            '(las compras únicas de créditos no guardan una tarjeta reutilizable).'
-        },
-        orgAccessDenied: {
-          title: 'Acceso a la organización denegado',
-          message: 'Este token no está vinculado a una organización que puedas gestionar'
-        },
-        monthlyCapExceeded: {
-          title: 'Se alcanzó el límite de gasto mensual',
-          messageReached: '🔴 Se alcanzó el límite de gasto mensual.',
-          messageHeadroom: (remaining: string) =>
-            `🔴 Se alcanzó el límite de gasto mensual: quedan ${remaining} $ de margen.`
-        },
-        rateLimited: {
-          title: 'Demasiados cargos ahora mismo',
-          message: (mins: number) =>
-            mins > 0
-              ? `🟡 Demasiados cargos ahora mismo (reinténtalo en ~${mins} min). No es un fallo de pago.`
-              : '🟡 Demasiados cargos ahora mismo. No es un fallo de pago.'
-        },
-        stripeUnavailable: {
-          title: 'Stripe tiene problemas',
-          message: (mins: number) =>
-            mins > 0
-              ? `Stripe tiene problemas: reinténtalo en ~${mins} min`
-              : 'Stripe tiene problemas: reinténtalo en breve'
-        },
-        upgradeCapExceeded: {
-          title: 'Se alcanzó el límite diario de cambios de plan',
-          message: 'Se alcanzó el límite diario de cambios de plan: reinténtalo mañana'
-        },
-        endpointUnavailable: {
-          title: 'Endpoint de facturación no disponible',
-          message:
-            'El endpoint de facturación devolvió una respuesta que no es JSON (puede que no esté disponible en este despliegue).'
-        },
-        timeout: {
-          title: 'Se agotó el tiempo de la solicitud de facturación',
-          message: 'Se agotó el tiempo de la solicitud de facturación.'
-        },
-        transport: {
-          title: 'Falló la conexión de facturación',
-          message: 'La solicitud de facturación falló antes de llegar al gateway.'
-        },
-        default: {
-          title: 'Falló la solicitud de facturación',
-          message: 'Falló la solicitud de facturación.'
-        }
-      }
-    },
     providers: {
       connectAccount: 'Conectar una cuenta',
       haveApiKey: '¿Tienes una clave API?',
@@ -2236,8 +1931,7 @@ export const esOverrides = {
       noKeysMatch: 'Ningún proveedor coincide con tu búsqueda.',
       localEndpoint: {
         title: 'Endpoint local o personalizado',
-        description:
-          'Conecta Meu con cualquier endpoint compatible con OpenAI (Zyphra, vLLM, llama.cpp, Ollama, etc.).'
+        description: 'Conecta Meu con cualquier endpoint compatible con OpenAI (Zyphra, vLLM, llama.cpp, Ollama, etc.).'
       },
       loading: 'Cargando proveedores...'
     },
@@ -3639,8 +3333,7 @@ export const esOverrides = {
       title: 'La base de datos de sesiones está dañada',
       body: (profiles: string) =>
         `Meu no puede leer todo el historial de sesiones de ${profiles}. Los chats que faltan en esta lista no se eliminaron; el archivo donde se guardan está dañado.`,
-      action:
-        'Sal de Meu en este perfil y luego inspecciona el archivo sin modificarlo, o restaura una instantánea:',
+      action: 'Sal de Meu en este perfil y luego inspecciona el archivo sin modificarlo, o restaura una instantánea:',
       guide: 'Guía de recuperación'
     },
     noFilterMatches: 'Ninguna sesión coincide con estos filtros',
@@ -3846,8 +3539,6 @@ export const esOverrides = {
       '/palette': 'Abrir la paleta de comandos aproximada (también Ctrl+P)',
       '/usage':
         'Mostrar el uso de tokens y los límites de frecuencia; `reset` canjea un restablecimiento de límite de Codex acumulado',
-      '/subscription': 'Ver tu plan de Nous y cambiarlo en el navegador',
-      '/topup': 'Mostrar tu saldo de Nous y gestionar la facturación en el portal',
       '/platform': 'Pausar, reanudar o listar una plataforma del gateway que falla',
       '/version': 'Mostrar la versión de Meu Agent',
       '/debug': 'Subir un informe de depuración (información del sistema + registros) y obtener enlaces para compartir',
@@ -4194,8 +3885,7 @@ export const esOverrides = {
     availableTitle: 'Nueva actualización disponible',
     availableBody: 'Hay una nueva versión de Meu lista para instalar.',
     availableTitleBackend: 'Actualización del backend disponible',
-    availableBodyBackend:
-      'Hay una versión más reciente del backend de Meu al que estás conectado lista para instalar.',
+    availableBodyBackend: 'Hay una versión más reciente del backend de Meu al que estás conectado lista para instalar.',
     availableBodyNoChangelog:
       'Hay una versión más reciente lista. Las notas de la versión no están disponibles para este tipo de instalación.',
     updateNow: 'Actualizar ahora',
@@ -4215,8 +3905,7 @@ export const esOverrides = {
     copy: 'Copiar',
     copied: 'Copiado',
     done: 'Listo',
-    applyingBody:
-      'El actualizador de Meu tomará el control en su propia ventana y volverá a abrir Meu al terminar.',
+    applyingBody: 'El actualizador de Meu tomará el control en su propia ventana y volverá a abrir Meu al terminar.',
     applyingBodyBackend:
       'El backend remoto está aplicando la actualización y se reiniciará. Meu se reconectará automáticamente cuando vuelva a estar disponible.',
     applyingClose: 'Meu se cerrará para aplicar la actualización.',
@@ -4876,8 +4565,7 @@ export const esOverrides = {
         },
         timeout: {
           title: (provider: string) => `Sin conexión con ${provider}`,
-          body: (provider: string) =>
-            `Meu no pudo conectar con ${provider}. Revisa tu conexión y vuelve a intentarlo.`
+          body: (provider: string) => `Meu no pudo conectar con ${provider}. Revisa tu conexión y vuelve a intentarlo.`
         },
         no_reply: {
           title: 'La respuesta no llegó',

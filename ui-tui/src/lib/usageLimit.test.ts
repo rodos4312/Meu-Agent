@@ -98,7 +98,7 @@ describe('blockingGauge / planBlocks (the one rule, agent/plan_limits.py twin)',
     expect(usageTag(dayFull, 'a/low')).toBeNull()
   })
 
-  it("subscription-billed rows: never dimmed, no Free tag", () => {
+  it('subscription-billed rows: never dimmed, no Free tag', () => {
     const subscribed: Provider = {
       ...dayFull,
       plan_usage: { ...dayFull.plan_usage!, subscription_model_ids: ['a/zero'] }
@@ -131,31 +131,31 @@ describe('usageLimitDialog', () => {
     suggestions: [{ label: 'Model Free', model: 'example/model-free:free', note: 'free', provider: 'nous' }]
   }
 
-  it('offers the recommended model for this session and names the credits way on', () => {
+  it('offers the recommended model without an account-spending action', () => {
     const dialog = usageLimitDialog(limit as never)
 
     expect(dialog.title).toBe('Limit reached')
     expect(dialog.confirmLabel).toBe('Switch to Model Free (free)')
     expect(dialog.switchValue).toBe('example/model-free:free --provider nous --session')
-    expect(dialog.detail).toBe("You've hit your daily limit · resets 15:56\nOr add credits with /topup.")
+    expect(dialog.detail).toBe("You've hit your daily limit · resets 15:56")
   })
 
-  it('names the Keep going setting when a balance is waiting', () => {
+  it('ignores obsolete spend-balance metadata', () => {
     const dialog = usageLimitDialog({ ...limit, credits: { action: 'use_credits' } } as never)
 
-    expect(dialog.detail.endsWith('Or turn on Keep going in /topup to use your credits.')).toBe(true)
+    expect(dialog.detail).toBe(limit.message)
   })
 
-  it('names both steps when Keep going is off and there is no balance', () => {
+  it('ignores obsolete purchase-and-spend metadata', () => {
     const dialog = usageLimitDialog({ ...limit, credits: { action: 'add_credits_and_keep_going' } } as never)
 
-    expect(dialog.detail.endsWith('Or add credits and turn on Keep going in /topup.')).toBe(true)
+    expect(dialog.detail).toBe(limit.message)
   })
 
-  it('without a model to offer, the confirm opens /topup', () => {
+  it('without a model to offer, the confirm opens model selection', () => {
     const dialog = usageLimitDialog({ ...limit, suggestions: [] } as never)
 
-    expect(dialog.confirmLabel).toBe('Open /topup')
+    expect(dialog.confirmLabel).toBe('Switch provider')
     expect(dialog.switchValue).toBeNull()
   })
 })

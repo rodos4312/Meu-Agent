@@ -33,8 +33,7 @@ def _call(server, profile_id, method, params):
     return reply if reply is not None else (done.wait(10) and written[0])
 
 
-def test_secondary_ticket_runs_connectors_and_billing_in_its_own_profile(homes, monkeypatch):
-    import hermes_cli.nous_billing
+def test_secondary_ticket_runs_connectors_in_its_own_profile(homes, monkeypatch):
     import tools.connectors
     import tools.connectors.managed
     import tools.managed_tool_gateway
@@ -49,20 +48,19 @@ def test_secondary_ticket_runs_connectors_and_billing_in_its_own_profile(homes, 
     monkeypatch.setattr(tools.managed_tool_gateway, 'read_nous_access_token', lambda: 'token')
     monkeypatch.setattr(tools.connectors.managed, 'managed_client',
                         lambda **_: types.SimpleNamespace(list_connectors=lambda: rec('list') or []))
-    monkeypatch.setattr(hermes_cli.nous_billing, 'post_charge', lambda **k: rec('charge') or {'chargeId': 'c'})
-    for method, params in (('connectors.list', {'owner': {'type': 'account'}}), ('billing.charge', {'amount_usd': 5})):
+    for method, params in (('connectors.list', {'owner': {'type': 'account'}}),):
         _call(server, bee, method, params)
-    assert {label for label, _ in seen} == {'list', 'charge'}, seen
+    assert {label for label, _ in seen} == {'list'}, seen
     assert {home for _, home in seen} == {bee.resolve()}, seen
 
     # The launch profile's own ticket is unchanged.
     seen.clear()
-    _call(server, launch, 'billing.charge', {'amount_usd': 5})
+    _call(server, launch, 'connectors.list', {'owner': {'type': 'account'}})
     assert [home for _, home in seen] == [launch.resolve()]
 
 
 def test_ticket_whose_home_vanished_is_refused_not_the_launch_profile(homes):
     server, _launch, bee = homes
     gone = bee.parent / 'gone'
-    reply = _call(server, gone, 'billing.charge', {'amount_usd': 5})
+    reply = _call(server, gone, 'connectors.list', {'owner': {'type': 'account'}})
     assert reply['error']['code'] == 4064, reply

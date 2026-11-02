@@ -504,13 +504,8 @@ class SessionUsageParams(SessionParams):
     pass
 
 
-class SessionUsageResult(Usage):
-    credits_lines: list[str] | None = None
-    credits_usage_window: bool | None = None
-
-
-method("session.usage", params=SessionUsageParams, result=SessionUsageResult,
-       doc="Token / context / cost counters for the session (+ Nous credit lines when available).")
+method("session.usage", params=SessionUsageParams, result=Usage,
+       doc="Token / context / cost counters for the session.")
 
 
 class SessionContextBreakdownParams(SessionParams):

@@ -61,7 +61,7 @@ from hermes_cli.auth_nous import (
     _token_fingerprint, _try_import_shared_nous_state, _validate_nous_inference_url_from_network,
     _write_shared_nous_state, fetch_nous_models, get_nous_auth_status_local,
     get_nous_session_validity, persist_nous_credentials, refresh_nous_oauth_from_state,
-    resolve_nous_runtime_credentials, step_up_nous_billing_scope)
+    resolve_nous_runtime_credentials)
 from hermes_cli.auth_minimax import (
     _MINIMAX_OAUTH_ERROR_BODY_LIMIT, _login_minimax_oauth, _minimax_oauth_login, _minimax_pkce_pair,
     _minimax_poll_token, _minimax_post_form, _minimax_request_user_code,

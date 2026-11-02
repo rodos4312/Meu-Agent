@@ -14,16 +14,15 @@ import threading
 import time
 import uuid
 from contextlib import contextmanager, suppress
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, FrozenSet, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 from urllib.parse import urlparse
 from hermes_cli.auth_codex import _pool_entries
 from hermes_cli.auth_constants import (
     _decode_jwt_claims, AUTH_LOCK_TIMEOUT_SECONDS, AuthError, DEFAULT_NOUS_CLIENT_ID,
     DEFAULT_NOUS_INFERENCE_URL, DEFAULT_NOUS_PORTAL_URL, DEFAULT_NOUS_SCOPE, DEFAULT_NOUS_WELCOME_URL,
-    DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS, NOUS_AUTH_PATH_INVOKE_JWT, NOUS_BILLING_MANAGE_SCOPE,
-    NOUS_DEVICE_CODE_SOURCE, NOUS_INFERENCE_INVOKE_SCOPE, NOUS_INVOKE_JWT_MIN_TTL_SECONDS,
+    DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS, NOUS_AUTH_PATH_INVOKE_JWT, NOUS_DEVICE_CODE_SOURCE, NOUS_INFERENCE_INVOKE_SCOPE, NOUS_INVOKE_JWT_MIN_TTL_SECONDS,
     WELCOME_CLAIM_FLAG, _nous_err, httpx)
 from hermes_cli.guest_handoff import drain, note_replacement, result_lines
 
@@ -1490,45 +1489,6 @@ def _mirror_nous_state_best_effort(auth_state: dict[str, Any]) -> None:
         _sync_nous_pool_from_auth_store()
 
 
-def step_up_nous_billing_scope(
-    *, open_browser: bool = True, timeout_seconds: float = 15.0,
-    on_verification: Optional[Callable[[str, str], None]] = None) -> bool:
-    """Re-run the device flow requesting ``billing:manage`` (step-up on 403 insufficient_scope).
-
-    The user must be ADMIN/OWNER and select "Allow Remote Spending" in the portal, else the
-    server silently downscopes and this returns False. Persists like ``_login_nous`` minus the
-    model picker.
-    """
-    from hermes_cli.auth import (
-        PROVIDER_REGISTRY, _nous_device_code_login, _save_active_provider_state,
-        get_provider_auth_state)
-    prior = get_provider_auth_state("nous") or {}
-    pconfig = PROVIDER_REGISTRY["nous"]
-    # Step-up scope: existing scopes (if any) + billing:manage, deduped, order-stable. Falls back
-    # to the standard inference+billing set.
-    _raw_scope = prior.get("scope")
-    prior_scope = _raw_scope.split() if isinstance(_raw_scope, str) else []
-    requested = list(dict.fromkeys([
-        *(prior_scope or [NOUS_INFERENCE_INVOKE_SCOPE]), NOUS_BILLING_MANAGE_SCOPE]))
-    auth_state = _nous_device_code_login(
-        portal_base_url=prior.get("portal_base_url") or None,
-        inference_base_url=prior.get("inference_base_url") or None,
-        client_id=prior.get("client_id") or pconfig.client_id, scope=" ".join(requested),
-        open_browser=open_browser, timeout_seconds=timeout_seconds, on_verification=on_verification)
-    _save_active_provider_state("nous", auth_state)
-    _mirror_nous_state_best_effort(auth_state)
-    drain()  # a step-up that replaced the free tier hands its apps over
-    # Every caller replays the refused billing action next: drop the billing client's 30s token cache
-    # here (not per caller) so that replay sends the new token, not the pre-approval one (403 again).
-    try:
-        from hermes_cli.nous_billing import invalidate_cached_token
-        invalidate_cached_token()
-    except Exception:
-        logger.debug("Billing token cache invalidation failed", exc_info=True)
-    from hermes_cli.anon_auth import settle_after_upgrade
-    settle_after_upgrade(auth_state)  # a step-up that replaced the free tier moves its config too
-    granted = auth_state.get("scope")
-    return isinstance(granted, str) and NOUS_BILLING_MANAGE_SCOPE in granted.split()
 
 
 def _pick_nous_model_after_login(

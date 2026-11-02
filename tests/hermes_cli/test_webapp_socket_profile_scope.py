@@ -16,7 +16,6 @@ import asyncio
 import base64
 import io
 import json
-import logging
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -53,7 +52,7 @@ def gateway(tmp_path, monkeypatch):
     from gateway.config import GatewayConfig
     from gateway.session import SessionStore
     from gateway.session_authority import SessionAuthority
-    from hermes_cli import auth, nous_account, nous_billing
+    from hermes_cli import auth, nous_account
     from hermes_state import SessionDB
     from hermes_state_runtime import begin_runtime_epoch
     from tui_gateway import launch_profile_policy, server
@@ -71,7 +70,6 @@ def gateway(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "_hermes_home", str(launch))
     monkeypatch.setattr(server, "_served_profile_homes", set())
     monkeypatch.setattr(auth, "_RESOLVE_TOKEN_CACHE", {})
-    monkeypatch.setattr(nous_billing, "_token_cache", {})
     nous_account.reset_nous_portal_account_info_cache()
     previous = secret_scope.is_multiplex_active()
     launch_profile_policy.activate_multi_profile_hosting()
@@ -163,14 +161,11 @@ def _billing_state_over_socket(gateway, ticket_home):
     return ws.reply("bill"), list(gateway.portal_hits)
 
 
-def test_billing_state_on_a_webapp_socket_reaches_its_tickets_profile_portal(gateway, caplog):
-    with caplog.at_level(logging.WARNING):
-        seen = [_billing_state_over_socket(gateway, home) for home in (gateway.b, gateway.launch, gateway.b)]
-
-    for (reply, hits), label in zip(seen, ("b", "launch", "b")):
-        assert reply["result"]["logged_in"] is True, reply
-        assert hits and set(hits) == {f"{label}-portal.invalid"}, (label, hits)
-    assert "no profile secret scope" not in caplog.text
+def test_removed_billing_route_never_contacts_a_portal_on_any_profile_ticket(gateway):
+    seen = [_billing_state_over_socket(gateway, home) for home in (gateway.b, gateway.launch, gateway.b)]
+    for reply, hits in seen:
+        assert reply["error"]["code"] == -32601
+        assert hits == []
 
 
 def test_a_profile_ticket_with_no_authority_bound_is_refused_not_served_as_the_launch_profile(gateway):

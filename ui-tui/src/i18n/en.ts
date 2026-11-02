@@ -10,7 +10,6 @@
 // `locales/_keys.tui.json` is generated from this object by `npm run i18n:keys`.
 
 import { appEn } from './en/app.js'
-import { billingEn } from './en/billing.js'
 import { canonicalEn } from './en/canonical.js'
 import { chatBitsEn } from './en/chatBits.js'
 import { chromeEn } from './en/chrome.js'
@@ -27,7 +26,6 @@ import { secureEn } from './en/secure.js'
 import { sessionEn } from './en/session.js'
 import { slashEn } from './en/slash.js'
 import { slashCmdEn } from './en/slashCmd.js'
-import { subscriptionEn } from './en/subscription.js'
 import { userMessagesEn } from './en/userMessages.js'
 
 export const en = {
@@ -46,8 +44,6 @@ export const en = {
   ...secureEn,
   ...contentEn,
   ...chatBitsEn,
-  ...billingEn,
-  ...subscriptionEn,
   ...connectionEn,
   ...canonicalEn,
   ...connectorsEn
@@ -70,8 +66,6 @@ export const EN_SIBLINGS: readonly Record<string, unknown>[] = [
   secureEn,
   contentEn,
   chatBitsEn,
-  billingEn,
-  subscriptionEn,
   connectionEn,
   canonicalEn,
   connectorsEn

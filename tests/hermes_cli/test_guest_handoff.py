@@ -114,19 +114,6 @@ def _persist(account):
     guest_handoff.drain()
 
 
-def _step_up(account, monkeypatch):
-    from hermes_cli import auth
-    monkeypatch.setattr(auth, "_nous_device_code_login", lambda **_kw: account)
-    auth.step_up_nous_billing_scope(open_browser=False)
-
-
-def _login_nous(account, monkeypatch):
-    from hermes_cli import auth, auth_nous
-    monkeypatch.setattr(auth, "_nous_device_code_login", lambda **_kw: account)
-    monkeypatch.setattr(auth_nous, "_pick_nous_model_after_login", lambda *_a: None)
-    auth_nous._login_nous(SimpleNamespace(), auth.PROVIDER_REGISTRY["nous"])
-
-
 def _subscription_login(account, monkeypatch):
     from hermes_cli import auth, nous_subscription
     monkeypatch.setattr(auth, "_nous_device_code_login", lambda **_kw: account)
@@ -148,8 +135,6 @@ def _sibling_adoption(account, monkeypatch, tmp_path):
 
 WRITERS = {
     "persist_nous_credentials": lambda a, mp, tp: _persist(a),
-    "step_up_nous_billing_scope": lambda a, mp, tp: _step_up(a, mp),
-    "_login_nous": lambda a, mp, tp: _login_nous(a, mp),
     "nous_subscription_login": lambda a, mp, tp: _subscription_login(a, mp),
     "shared_store_adoption": _sibling_adoption,
 }

@@ -11,7 +11,9 @@ export function capturePromptResponseGuard<K extends 'approval' | 'clarify' | 's
   const destination = captureDestination()
   const info = $uiState.get().info
 
-  return () => Boolean(prompt) && isCurrentDestination(destination) &&
+  return () =>
+    Boolean(prompt) &&
+    isCurrentDestination(destination) &&
     $uiState.get().info?.execution_epoch === info?.execution_epoch &&
     $uiState.get().info?.execution_generation === info?.execution_generation &&
     $overlayState.get()[key] === prompt
@@ -21,7 +23,6 @@ const buildOverlayState = (): OverlayState => ({
   agents: false,
   agentsInitialHistoryIndex: 0,
   approval: null,
-  billing: null,
   clarify: null,
   confirm: null,
   connection: null,
@@ -39,7 +40,6 @@ const buildOverlayState = (): OverlayState => ({
   vaultUnlock: null,
   sessions: false,
   skillsHub: false,
-  subscription: null,
   sudo: null
 })
 
@@ -49,7 +49,6 @@ export const $overlayState = atom<OverlayState>(buildOverlayState())
 const BLOCKING_KEYS = [
   'agents',
   'approval',
-  'billing',
   'clarify',
   'confirm',
   'connection',
@@ -62,7 +61,6 @@ const BLOCKING_KEYS = [
   'secret',
   'sessions',
   'skillsHub',
-  'subscription',
   'sudo',
   'vaultCode',
   'vaultSaveLogin',
@@ -95,7 +93,7 @@ export const $isBlocked = computed($overlayState, overlay => BLOCKING_KEYS.some(
  *
  * NOT occluding (deliberately excluded):
  *
- * - The PromptZone flow states — `approval`, `billing`, `subscription`,
+ * - The PromptZone flow states — `approval`,
  *   `confirm`, `clarify`, `sudo`, `secret` (`appOverlays.tsx:58-162`).  They
  *   render in NORMAL FLOW above ComposerPane (`appLayout.tsx:553-568`): they
  *   push content down, they do not cover it.  The rule stays on screen and

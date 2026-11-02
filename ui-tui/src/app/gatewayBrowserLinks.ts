@@ -1,4 +1,4 @@
-import type { BillingStepUpVerificationPayload, FreeTierChallengePayload } from '@hermes/shared/gateway-events'
+import type { FreeTierChallengePayload } from '@hermes/shared/gateway-events'
 
 import { t } from '../i18n/runtime.js'
 
@@ -7,33 +7,6 @@ import { t } from '../i18n/runtime.js'
 
 type Sys = (text: string) => void
 type OpenUrl = (url: string) => unknown
-
-/**
- * `billing.step_up.verification`: the billing step-up device flow. The event arrives while the
- * billing.step_up RPC is still polling (and may outlive its 120s timeout), so the link, not the
- * RPC result, is the source of truth.
- */
-export function createBillingVerificationPresenter(
-  sys: Sys,
-  openExternalUrl: OpenUrl
-): (payload: BillingStepUpVerificationPayload | undefined) => void {
-  return payload => {
-    const url = payload?.verification_url
-
-    if (!url) {
-      return
-    }
-
-    sys(t('gatewayMsg.billing.openLinkRemoteSpending'))
-    sys(url)
-
-    if (payload.user_code) {
-      sys(t('gatewayMsg.billing.enterCode', payload.user_code))
-    }
-
-    void openExternalUrl(url)
-  }
-}
 
 /**
  * `free_tier.challenge`: the account service wants a browser check before it

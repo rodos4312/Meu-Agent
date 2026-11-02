@@ -273,7 +273,10 @@ export function useInputHandlers(ctx: InputHandlerContext): InputHandlerResult {
       // legacy server→client request resolves its response frame locally.
       if (overlay.approval.sharedControl) {
         return gateway
-          .rpc<SharedControlRespondResponse>('approval.respond', { choice: 'deny', ...sharedControlParams(overlay.approval) })
+          .rpc<SharedControlRespondResponse>('approval.respond', {
+            choice: 'deny',
+            ...sharedControlParams(overlay.approval)
+          })
           .then(r => r && fresh() && settle())
       }
 
@@ -310,14 +313,6 @@ export function useInputHandlers(ctx: InputHandlerContext): InputHandlerResult {
 
     if (overlay.petPicker) {
       return patchOverlayState({ petPicker: false })
-    }
-
-    if (overlay.billing) {
-      return patchOverlayState({ billing: null })
-    }
-
-    if (overlay.subscription) {
-      return patchOverlayState({ subscription: null })
     }
 
     if (overlay.skillsHub) {
@@ -507,13 +502,7 @@ export function useInputHandlers(ctx: InputHandlerContext): InputHandlerResult {
       // answering felt like the prompt had locked the entire UI.  Explicitly
       // skip the prompt-overlay early-return for scroll keys so they fall
       // through to the wheel / PageUp / Shift+arrow handlers below.
-      const promptOverlay =
-        overlay.approval ||
-        overlay.billing ||
-        overlay.clarify ||
-        overlay.confirm ||
-        overlay.connection ||
-        overlay.subscription
+      const promptOverlay = overlay.approval || overlay.clarify || overlay.confirm || overlay.connection
 
       const fallThroughForScroll = promptOverlay && shouldFallThroughForScroll(key)
 

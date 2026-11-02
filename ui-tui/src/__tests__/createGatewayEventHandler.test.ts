@@ -331,7 +331,7 @@ describe('createGatewayEventHandler', () => {
     expect(getTurnState().todos).toEqual([])
   })
 
-  it('opens a billing confirm dialog routing Nous to /topup', () => {
+  it('an archived Nous billing error offers another model', () => {
     const appended: Msg[] = []
     const ctx = buildCtx(appended)
     const onEvent = createGatewayEventHandler(ctx)
@@ -354,7 +354,7 @@ describe('createGatewayEventHandler', () => {
     const { confirm } = getOverlayState()
 
     confirm!.onConfirm()
-    expect(ctx.submission.submitRef.current).toHaveBeenCalledWith('/topup')
+    expect(ctx.submission.submitRef.current).toHaveBeenCalledWith('/model')
   })
 
   it('deep-links a third-party provider billing page from the confirm dialog', () => {

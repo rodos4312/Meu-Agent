@@ -6,9 +6,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./ansi": "./src/ansi.ts",
-    "./billing": "./src/billing-types.ts",
-    "./billing-policy": "./src/billing-policy.ts",
-    "./charge-settlement": "./src/charge-settlement.ts",
     "./color": "./src/color.ts",
     "./format": "./src/format.ts",
     "./fuzzy": "./src/fuzzy.ts",

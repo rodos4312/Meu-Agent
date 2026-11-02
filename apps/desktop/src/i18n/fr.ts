@@ -1920,314 +1920,6 @@ export const frOverrides = {
     },
     model: frModelSettings,
     localModels: frLocalModels,
-    billing: {
-      perMonth: (amount: string) => `${amount}/mois`,
-      creditsPerMonth: (amount: string) => `${amount} crédits/mois`,
-      usageLabel: (label: string) => `Utilisation ${label}`,
-      freeTier: {
-        signIn: 'Se connecter',
-        title: 'Vous utilisez l’offre gratuite Nous',
-        message: 'Connectez-vous avec un compte Nous pour débloquer davantage de modèles et d’outils.',
-        caption:
-          'Fonctionne avec nous/welcome, connecteurs inclus. La connexion conserve vos connecteurs et ajoute les outils qui nécessitent un compte ainsi que tous les autres modèles.',
-        name: 'Nous · offre gratuite',
-        footnote:
-          'L’offre gratuite n’a ni solde ni rien à payer. Le paiement et l’utilisation apparaissent une fois connecté avec un compte Nous.',
-        plan: 'Offre gratuite',
-        model: 'Modèle',
-        connectors: 'Connecteurs',
-        included: 'Inclus'
-      },
-      amountValidation: {
-        reloadTo: 'Recharger jusqu’à',
-        greaterThanThreshold: 'Le montant de recharge doit être supérieur au seuil.',
-        decimal: (label: string) => `${label} : saisissez un montant en dollars avec au plus 2 décimales.`,
-        positive: (label: string) => `${label} : le montant doit être supérieur à 0 $.`,
-        minimum: (label: string, amount: string) => `${label} : le minimum est de ${amount}.`,
-        maximum: (label: string, amount: string) => `${label} : le maximum est de ${amount}.`
-      },
-      stepUp: {
-        openVerification: 'Ouvrir la page de vérification',
-        dismiss: 'Ignorer',
-        waiting: 'En attente du lien de vérification…',
-        verify: 'Vérifier pour continuer',
-        deniedTitle: 'La vérification n’a pas été approuvée',
-        deniedBody: 'La vérification s’est terminée sans autoriser les dépenses à distance pour ce terminal.',
-        successTitle: 'Vérification terminée',
-        successBody: 'Les dépenses à distance sont autorisées pour ce terminal.'
-      },
-      charge: {
-        added: (amount?: string) => (amount ? `${amount} $ ajoutés.` : 'Crédits ajoutés.'),
-        failedTitle: 'Échec du paiement',
-        unconfirmedTitle: 'Résultat du paiement non confirmé',
-        unconfirmedBody: (message: string) =>
-          `${message} Le résultat de votre dernier paiement n’est pas confirmé - vérifiez votre solde/historique avant de réessayer.`,
-        checkTitle: 'Impossible de vérifier le paiement',
-        checkBody: 'Impossible de vérifier le paiement.',
-        untrackedTitle: 'Le paiement n’a pas pu être suivi',
-        untrackedBody: 'Le service de facturation a accepté la demande mais n’a renvoyé aucun identifiant de paiement.',
-        timeoutTitle: 'Toujours en cours après 5 minutes',
-        timeoutBody: 'Le paiement peut encore aboutir. Consultez le portail avant de réessayer.',
-        authenticationRequired:
-          'Votre banque exige une vérification (3DS). Terminez-la sur le portail pour finaliser cet achat.',
-        expired: 'Votre carte a expiré. Mettez-la à jour sur le portail.',
-        declined: 'Votre carte a été refusée. Essayez une autre carte sur le portail.',
-        failedBody: (reason: string) => `Le paiement n’a pas abouti (${reason}).`
-      },
-      title: 'Facturation',
-      preview: 'aperçu',
-      summary: {
-        balance: 'Solde',
-        plan: 'Forfait',
-        autoRefill: 'Recharge auto'
-      },
-      sections: {
-        invoices: 'Factures',
-        plan: 'Forfait',
-        paymentAndCredits: 'Paiement et crédits',
-        usage: 'Utilisation'
-      },
-      usage: {
-        title: 'Utilisation'
-      },
-      buyCredits: {
-        customAmount: 'Montant de crédits personnalisé',
-        title: 'Acheter des crédits maintenant',
-        buyButton: 'Acheter',
-        processing: 'Traitement… vérification du règlement',
-        added: (amount: string) => `${amount} ajoutés. Actualisation du solde.`,
-        retry: 'Réessayer',
-        openPortal: 'Ouvrir le portail'
-      },
-      plan: {
-        title: 'Forfaits',
-        changePlan: 'Changer de forfait',
-        viewPlans: 'Voir les forfaits',
-        backAria: 'Retour à la facturation',
-        current: 'Forfait actuel',
-        scheduled: 'Planifié',
-        empty: 'Aucun forfait n’est disponible pour le moment.',
-        undo: 'Annuler',
-        undoing: 'Annulation…',
-        downgrade: 'Rétrograder',
-        confirmDowngrade: 'Confirmer la rétrogradation',
-        tryAgain: 'Réessayer',
-        checkingChange: 'Vérification de ce changement…',
-        cannotChange: 'Ce changement ne peut pas être effectué ici.',
-        alreadyOn: (name: string) => `Vous avez déjà le forfait ${name} — rien à changer.`,
-        notScheduleable: 'Ce changement ne peut pas être planifié ici.',
-        scheduling: 'Planification…',
-        cancel: 'Annuler',
-        effectScheduled: (targetName: string, effectiveAt: string, creditsDelta?: string) =>
-          `Passage à ${targetName} — effectif ${effectiveAt}. Aucun débit maintenant ; vous conservez votre forfait actuel jusque-là.${creditsDelta ? ` Variation des crédits mensuels : ${creditsDelta}.` : ''}`
-      },
-      keepGoingOnCredits: {
-        title: 'Continuer avec les crédits',
-        description:
-          'Utilise vos crédits quand l’usage inclus est épuisé. Désactivé : Meu attend la réinitialisation.',
-        approveInBrowser:
-          "Approuvez Remote Spending dans votre navigateur pour modifier ce réglage. Il s'applique dès votre approbation.",
-        openAgain: 'Rouvrir',
-        cancel: 'Annuler',
-        approvedRetry: "Remote Spending est approuvé, mais la modification n'a pas été enregistrée.",
-        tryAgain: 'Réessayer'
-      },
-      autoReload: {
-        threshold: 'Seuil',
-        thresholdAria: 'Seuil de recharge automatique',
-        reloadTo: 'Recharger jusqu’à',
-        reloadToAria: 'Montant cible de la recharge automatique',
-        turnOffConfirm: 'Désactiver la recharge automatique ?',
-        turnOff: 'Désactiver',
-        disable: 'Désactiver',
-        updated: 'Recharge automatique mise à jour.',
-        turnedOff: 'Recharge automatique désactivée.',
-        manage: 'Gérer',
-        save: 'Enregistrer',
-        saving: 'Enregistrement…',
-        cancel: 'Annuler'
-      },
-      state: {
-        notice: {
-          loggedOut: {
-            title: 'Connectez votre compte Nous',
-            message:
-              'Connectez-vous avec votre compte Nous pour voir ici votre solde, votre offre et votre utilisation.',
-            action: 'Se connecter'
-          },
-          openPortal: 'Ouvrir le portail ↗',
-          noCard: {
-            title: 'Aucun moyen de paiement enregistré',
-            message:
-              'L’achat de crédits et la recharge automatique restent désactivés tant qu’aucune carte n’est enregistrée. Ajoutez-en une sur le portail.',
-            action: 'Ajouter une carte ↗'
-          }
-        },
-        paymentMethod: {
-          title: 'Moyen de paiement',
-          description: 'Gérez la carte utilisée pour les recharges et les renouvellements d’abonnement.',
-          addAction: 'Ajouter un moyen de paiement',
-          updateAction: 'Mettre à jour',
-          provenance: {
-            autoRefill: 'carte de recharge automatique',
-            customerDefault: 'carte client par défaut',
-            subPin: 'carte d’abonnement',
-            suffix: (label: string) => ` - ${label}`
-          }
-        },
-        buyCredits: {
-          description: 'Un débit unique sur votre carte, ajouté à votre solde dès aujourd’hui.'
-        },
-        autoRefill: {
-          title: 'Recharger quand le solde est bas',
-          genericDescription: 'Maintenez votre solde approvisionné lorsqu’il passe sous votre seuil.',
-          offPill: 'Désactivée',
-          enabledPill: 'Activée',
-          notAvailablePill: '—',
-          manageCaption: 'Gérez la recharge automatique depuis le portail.',
-          turnOnCaption: 'Activez la recharge automatique depuis le portail',
-          chargesDescription: (reloadTo: string, threshold: string) =>
-            `Débite automatiquement ${reloadTo} lorsque votre solde passe sous ${threshold}.`,
-          distinctCardCaption: (cardLabel: string) =>
-            `La recharge automatique débite ${cardLabel} — harmonisez sur le portail`,
-          distinctCardFallback: 'une autre carte',
-          reconcileAction: 'Harmoniser ↗'
-        },
-        usage: {
-          subscriptionCredits: {
-            title: 'Crédits d’abonnement',
-            barLabel: 'Crédits d’abonnement restants',
-            captionResets: (date: string) => `Réinitialisation ${date}`,
-            valueOf: (remaining: string, monthly: string) => `${remaining} sur ${monthly} restants`,
-            valueOver: (remaining: string, monthly: string, over: string) =>
-              `${remaining} sur ${monthly} restants · ${over} de dépassement`
-          },
-          topupCredits: {
-            title: 'Crédits rechargés',
-            caption: 'N’expirent pas'
-          },
-          monthlyCap: {
-            title: 'Plafond de dépenses mensuel',
-            barLabel: 'Plafond de dépenses mensuel utilisé',
-            captionDefault: 'Plafond par défaut',
-            captionSpending: 'Dépenses mensuelles à distance',
-            valueUsed: (spent: string, limit: string) => `${spent} sur ${limit} utilisés`
-          },
-          window: {
-            today: "Aujourd'hui",
-            week: 'Cette semaine',
-            month: 'Ce mois-ci',
-            topTier: 'Grands modèles (mensuel)',
-            barLabel: (title: string) => `${title} : usage inclus consommé`,
-            captionPaused: "En pause : échec du paiement de l'abonnement",
-            captionPausedOther: 'En pause : voir Facturation dans le Portail',
-            captionTopTierUsedUp: 'Quota mensuel épuisé, les crédits couvrent le reste',
-            captionTopTierUsedUpKeepGoingOff: 'Quota mensuel épuisé, les autres modèles inclus fonctionnent toujours',
-            captionResetsIn: (duration: string) => `Réinitialisation dans ${duration}`,
-            captionIncluded: 'Usage inclus',
-            valueUsed: (percent: string) => `${percent} utilisé`
-          }
-        },
-        planCard: {
-          freeTier: 'Gratuit',
-          chooseAction: 'Choisir ↗',
-          adjustPlanAction: 'Ajuster le forfait ↗',
-          unavailableCaption:
-            'Les détails de l’abonnement sont indisponibles ; vous pouvez toujours ouvrir le portail.',
-          downgradeCaption: (tierName: string, when: string) => `Passe à ${tierName} le ${when}.`,
-          cancellationCaption: (when: string) => `Résiliation le ${when}.`,
-          renewsCaption: (date: string) => `Renouvellement ${date}`,
-          noSubscriptionCaption: 'Aucun abonnement actif — les modèles payants consomment les crédits rechargés.'
-        }
-      },
-      errors: {
-        consentRequired: {
-          title: 'Confirmation de la carte requise',
-          message: 'Confirmez cette carte pour les débits du terminal dans le portail'
-        },
-        insufficientScope: {
-          title: 'Les dépenses à distance doivent être approuvées',
-          message:
-            'Cette action nécessite l’autorisation des dépenses à distance. Lancez une recharge pour l’autoriser, puis réessayez.'
-        },
-        remoteSpendingRevoked: {
-          title: 'Les dépenses à distance ont été arrêtées',
-          messageByAdmin: 'Un administrateur a arrêté les dépenses à distance pour ce terminal.',
-          messageBySelf: 'Vous avez arrêté les dépenses à distance pour ce terminal.'
-        },
-        remoteSpendingReconnect: (who: string) =>
-          `${who} Reconnectez-vous depuis Paramètres -> Gateway pour réautoriser cet appareil.`,
-        sessionRevoked: {
-          title: 'Session déconnectée',
-          message: 'Votre session a été déconnectée. Reconnectez-vous depuis Paramètres → Gateway.'
-        },
-        cliBillingDisabled: {
-          title: 'Les dépenses à distance sont désactivées',
-          message:
-            'Les dépenses à distance sont désactivées pour ce compte — un administrateur de facturation peut les activer depuis la page Meu Agent du portail.'
-        },
-        roleRequired: {
-          title: 'Rôle administrateur requis',
-          message:
-            'L’ajout de fonds nécessite un administrateur ou propriétaire de l’organisation. Demandez à un administrateur, ou gérez-le sur le portail.'
-        },
-        idempotencyConflict: {
-          title: 'Lancez une nouvelle recharge',
-          message: '🔴 Cette clé de paiement a déjà été utilisée pour un autre montant. Lancez une nouvelle recharge.'
-        },
-        noPaymentMethod: {
-          title: 'Aucune carte enregistrée',
-          message:
-            '💳 Aucune carte enregistrée pour les débits du terminal. Configurez-en une sur le portail ' +
-            '(les achats ponctuels de crédits n’enregistrent pas de carte réutilisable).'
-        },
-        orgAccessDenied: {
-          title: 'Accès à l’organisation refusé',
-          message: 'Ce jeton n’est lié à aucune organisation que vous pouvez gérer'
-        },
-        monthlyCapExceeded: {
-          title: 'Plafond de dépenses mensuel atteint',
-          messageReached: '🔴 Plafond de dépenses mensuel atteint.',
-          messageHeadroom: (remaining: string) =>
-            `🔴 Plafond de dépenses mensuel atteint — marge restante : ${remaining} $.`
-        },
-        rateLimited: {
-          title: 'Trop de paiements pour le moment',
-          message: (mins: number) =>
-            mins > 0
-              ? `🟡 Trop de paiements pour le moment (réessayez dans ~${mins} min). Il ne s’agit pas d’un échec de paiement.`
-              : '🟡 Trop de paiements pour le moment. Il ne s’agit pas d’un échec de paiement.'
-        },
-        stripeUnavailable: {
-          title: 'Stripe rencontre des difficultés',
-          message: (mins: number) =>
-            mins > 0
-              ? `Stripe rencontre des difficultés — réessayez dans ~${mins} min`
-              : 'Stripe rencontre des difficultés — réessayez sous peu'
-        },
-        upgradeCapExceeded: {
-          title: 'Limite quotidienne de changements de forfait atteinte',
-          message: 'Limite quotidienne de changements de forfait atteinte — réessayez demain'
-        },
-        endpointUnavailable: {
-          title: 'Point de terminaison de facturation indisponible',
-          message:
-            'Le point de terminaison de facturation a renvoyé une réponse non JSON (il n’est peut-être pas disponible sur ce déploiement).'
-        },
-        timeout: {
-          title: 'Délai de la requête de facturation dépassé',
-          message: 'Délai de la requête de facturation dépassé.'
-        },
-        transport: {
-          title: 'Échec de la connexion de facturation',
-          message: 'La requête de facturation a échoué avant d’atteindre le gateway.'
-        },
-        default: {
-          title: 'Échec de la requête de facturation',
-          message: 'La requête de facturation a échoué.'
-        }
-      }
-    },
     providers: {
       connectAccount: 'Connecter un compte',
       haveApiKey: 'Vous avez une clé API ?',
@@ -2517,8 +2209,7 @@ export const frOverrides = {
         unknown: 'état inconnu'
       },
       alreadyInstalled: (name: string) => `${name} est déjà installé dans ce profil.`,
-      catalogProvenance: (sha: string) =>
-        `Installé depuis le catalogue Meu${sha ? ` au commit épinglé ${sha}` : ''}.`,
+      catalogProvenance: (sha: string) => `Installé depuis le catalogue Meu${sha ? ` au commit épinglé ${sha}` : ''}.`,
       pinnedProvenance: (sha: string) =>
         `Épinglé au commit ${sha}. Les mises à jour sont refusées tant qu’il n’est pas réinstallé avec un nouvel épinglage.`,
       pinnedBadge: (sha: string) => `épinglé @ ${sha}`,
@@ -3824,8 +3515,7 @@ export const frOverrides = {
       '/queue':
         'Mettre un prompt en file pour le prochain tour, ou lister/modifier/supprimer/déplacer/vider les prompts en file',
       '/steer': 'Injecter un message après le prochain appel d’outil sans interrompre',
-      '/goal':
-        'Définir un objectif permanent sur lequel Meu travaille au fil des tours jusqu’à ce qu’il soit atteint',
+      '/goal': 'Définir un objectif permanent sur lequel Meu travaille au fil des tours jusqu’à ce qu’il soit atteint',
       '/heartbeat': 'Définir un prompt récurrent qui revient dans cette session lorsqu’elle est inactive',
       '/refine': 'Passer en revue cette conversation maintenant et enregistrer les leçons en mémoire/skills',
       '/review': 'Lancer un sous-agent indépendant pour relire le travail qui vient d’être discuté (PR, code, docs)',
@@ -3864,8 +3554,6 @@ export const frOverrides = {
       '/palette': 'Ouvrir la palette de commandes floue (aussi Ctrl+P)',
       '/usage':
         'Afficher l’utilisation des jetons et les limites de débit ; `reset` utilise une réinitialisation de limite Codex en réserve',
-      '/subscription': 'Voir votre forfait Nous et le modifier dans le navigateur',
-      '/topup': 'Afficher votre solde Nous et gérer la facturation sur le portail',
       '/platform': 'Suspendre, reprendre ou lister une plateforme de gateway en échec',
       '/version': 'Afficher la version de Meu Agent',
       '/debug': 'Téléverser un rapport de débogage (infos système + journaux) et obtenir des liens partageables',
@@ -4225,8 +3913,7 @@ export const frOverrides = {
     manualBody:
       "Vous avez installé Meu depuis la ligne de commande, les mises à jour s'y effectuent donc aussi. Collez ceci dans votre terminal :",
     manualPickedUp: 'Meu prendra en compte la nouvelle version au prochain lancement.',
-    manualBodyBackend:
-      'Le backend Meu est géré en dehors de cette app. Exécutez ceci sur le serveur qui l’héberge :',
+    manualBodyBackend: 'Le backend Meu est géré en dehors de cette app. Exécutez ceci sur le serveur qui l’héberge :',
     manualPickedUpBackend: 'Le backend chargera la nouvelle version une fois la mise à jour terminée.',
     guiSkewTitle: "Mettre à jour l'application de bureau",
     guiSkewBody:

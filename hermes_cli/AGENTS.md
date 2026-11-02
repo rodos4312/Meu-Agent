@@ -6,7 +6,7 @@ Applies on top of the root `AGENTS.md`. Long-form: `website/docs/developer-guide
 
 `cli.py` holds `HermesCLI` (REPL loop, config, slash dispatch); behaviour lives in mixins
 `hermes_cli/cli_commands_mixin.py`, `cli_stream_mixin.py`, `cli_status_bar_mixin.py`,
-`cli_billing_mixin.py`, `cli_tui_mixin.py` (widgets, keybindings, panels), `cli_tui_runtime_mixin.py`
+`cli_tui_mixin.py` (widgets, keybindings, panels), `cli_tui_runtime_mixin.py`
 (run-loop phases: input dispatch, startup, signals, shutdown), `cli_init_mixin.py` (the `__init__`
 phases), ... Module-level helpers live in topical siblings that `cli.py` re-exports:
 `cli_config_load.py` (defaults + YAML merge, env mirroring), `cli_render.py` (ANSI/skin colours,

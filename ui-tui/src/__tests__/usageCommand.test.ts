@@ -1,158 +1,77 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { sessionCommands } from '../app/slash/commands/session.js'
-import type { SessionUsageResponse } from '../gatewayTypes.js'
 import { applyLocale, resetLocale, t } from '../i18n/runtime.js'
 
-const USAGE_CTA = 'Run /subscription to change plan · /topup to add to your balance'
+const usageCommand = sessionCommands.find(command => command.name === 'usage')!
 
-const usageCommand = sessionCommands.find(cmd => cmd.name === 'usage')!
-
-const guarded =
-  <T>(fn: (r: T) => void) =>
-  (r: null | T) => {
-    if (r) {
-      fn(r)
-    }
-  }
-
-/** Build a ctx whose rpc routes by method name to a supplied map of results. */
-const buildCtx = (results: Record<string, unknown>) => {
+function harness(usage: Record<string, unknown>) {
   const sys = vi.fn()
   const panel = vi.fn()
-
-  const rpc = vi.fn((method: string, _params: unknown) => Promise.resolve(results[method]))
-
-  const ctx = {
-    gateway: { rpc },
-    guarded,
-    guardedErr: vi.fn(),
-    sid: 'sid-1',
-    stale: () => false,
-    transcript: { page: vi.fn(), panel, sys }
-  }
-
-  const run = async (arg: string) => {
-    usageCommand.run(arg, ctx as any, 'usage')
+  const rpc = vi.fn(async () => usage)
+  const run = async () => {
+    usageCommand.run(
+      '',
+      {
+        gateway: { rpc },
+        sid: 'session',
+        stale: () => false,
+        transcript: { page: vi.fn(), panel, sys }
+      } as never,
+      'usage'
+    )
     await rpc.mock.results[0]?.value
     await Promise.resolve()
-    await Promise.resolve()
   }
-
-  return { ctx, panel, run, sys }
+  return { panel, rpc, run, sys }
 }
 
-const baseUsage = (overrides: Partial<SessionUsageResponse> = {}): SessionUsageResponse =>
-  ({ calls: 0, input: 0, output: 0, total: 0, ...overrides }) as SessionUsageResponse
+beforeEach(() => vi.clearAllMocks())
+afterEach(() => resetLocale())
 
-const printed = (sys: ReturnType<typeof vi.fn>) => sys.mock.calls.map(c => c[0]).join('\n')
-
-const balancePanel = (panel: ReturnType<typeof vi.fn>) => {
-  const sections = panel.mock.calls.find(c => c[0] === t('slashCmd.session.usage.balanceTitle'))?.[1] as
-    { text?: string }[] | undefined
-
-  return (sections ?? []).map(s => s.text ?? '').join('\n')
-}
-
-describe('/usage slash command', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('resolves the CTA at run time, so a locale pack applied after import is observed', async () => {
+describe('/usage without Nous payments', () => {
+  it('uses the current locale for the empty-session message without a subscription promotion', async () => {
     applyLocale('xx', {
       lang: 'xx',
-      messages: { 'slashCmd.session.usage.cta': 'ZZ-CTA', 'slashCmd.session.usage.noCalls': 'ZZ-NOCALLS' },
-      surface: 'tui'
+      surface: 'tui',
+      messages: {
+        'slashCmd.session.usage.noCalls': 'LOCAL-NO-CALLS',
+        'slashCmd.session.usage.cta': 'OBSOLETE-PAYMENT-PROMOTION'
+      }
     })
-
-    try {
-      const { run, sys } = buildCtx({ 'session.usage': baseUsage({ calls: 0, credits_lines: [] }) })
-      await run('')
-      expect(printed(sys)).toContain('ZZ-CTA')
-      expect(printed(sys)).toContain('ZZ-NOCALLS')
-    } finally {
-      resetLocale()
-    }
+    const { rpc, run, sys } = harness({ calls: 0 })
+    await run()
+    expect(sys.mock.calls).toEqual([['LOCAL-NO-CALLS']])
+    expect(rpc.mock.calls).toEqual([['session.usage', { session_id: 'session' }]])
   })
 
-  it('always shows the CTA; "no API calls yet" only when there is no balance', async () => {
-    const empty = buildCtx({ 'session.usage': baseUsage({ calls: 0, credits_lines: [] }) })
-    await empty.run('')
-    expect(printed(empty.sys)).toContain(t('slashCmd.session.usage.noCalls'))
-
-    const withBalance = buildCtx({ 'session.usage': baseUsage({ calls: 0, credits_lines: ['$50.00 remaining'] }) })
-    await withBalance.run('')
-    expect(printed(withBalance.sys)).not.toContain(t('slashCmd.session.usage.noCalls'))
-  })
-
-  it('prints window usage one stripped line at a time', async () => {
-    const { panel, run, sys } = buildCtx({
-      'session.usage': baseUsage({
-        calls: 0,
-        credits_usage_window: true,
-        credits_lines: [
-          'Window Plan',
-          '\u001b[32mToday      [          ]  0% used  ·  resets in 23h\u001b[0m',
-          'This week  [          ]  0% used  ·  resets in 6d 23h'
+  it('shows local model and token totals without an additional account request', async () => {
+    const { panel, rpc, run, sys } = harness({ calls: 2, input: 120, output: 30, total: 150, model: 'personal-model' })
+    await run()
+    expect(panel).toHaveBeenCalledWith(t('slashCmd.session.usage.usageTitle'), [
+      {
+        rows: [
+          ['Model', 'personal-model'],
+          ['Input tokens', '120'],
+          ['Output tokens', '30'],
+          ['Total tokens', '150'],
+          ['API calls', '2']
         ]
-      })
-    })
-    await run('')
-    expect(panel).not.toHaveBeenCalled()
-    expect(sys.mock.calls.map(c => c[0])).toEqual([
-      'Window Plan',
-      'Today      [          ]  0% used  ·  resets in 23h',
-      'This week  [          ]  0% used  ·  resets in 6d 23h',
-      USAGE_CTA
+      }
     ])
+    expect(rpc.mock.calls).toEqual([['session.usage', { session_id: 'session' }]])
+    expect(sys).not.toHaveBeenCalled()
   })
 
-  it('keeps the non-window balance panel text verbatim (blank lines included)', async () => {
-    const lines = ['Nous balance: $50.00', '', 'Top up: https://portal.example/billing?topup=open']
-    const { panel, run } = buildCtx({ 'session.usage': baseUsage({ calls: 0, credits_lines: lines }) })
-    await run('')
-    expect(panel).toHaveBeenCalledWith('Nous balance', [{ text: lines.join('\n') }])
-  })
-
-  it('renders the dollar two-bar model (no "credits" wording) when available', async () => {
-    const { panel, run } = buildCtx({
-      'session.usage': baseUsage({
-        usage: {
-          available: true,
-          status: 'healthy',
-          plan_name: 'Plus',
-          renews_display: 'Jul 1, 2026',
-          total_spendable_display: '$26.00',
-          has_topup: true,
-          plan_bar: {
-            kind: 'plan',
-            remaining_display: '$14.00',
-            total_display: '$20.00',
-            spent_display: '$6.00',
-            pct_used: 30,
-            fill_fraction: 0.7
-          },
-          topup_bar: {
-            kind: 'topup',
-            remaining_display: '$12.00',
-            total_display: '$12.00',
-            spent_display: '$0.00',
-            pct_used: null,
-            fill_fraction: 1
-          }
-        }
-      })
+  it('ignores an older backend payment block while retaining its local usage result', async () => {
+    const { panel, run, sys } = harness({
+      calls: 0,
+      credits_lines: ['OLD-NOUS-BALANCE'],
+      credits_usage_window: true,
+      usage: { available: true, plan_name: 'OLD-NOUS-PLAN' }
     })
-
-    await run('')
-
-    const body = balancePanel(panel)
-    expect(body).toContain('Plus')
-    expect(body).toContain('$14.00 left of $20.00')
-    expect(body).toContain('30% used')
-    expect(body).toContain('top-up')
-    expect(body).toContain('$12.00')
-    expect(body.toLowerCase()).not.toContain('credits')
+    await run()
+    expect(panel).not.toHaveBeenCalled()
+    expect(sys.mock.calls).toEqual([[t('slashCmd.session.usage.noCalls')]])
   })
 })

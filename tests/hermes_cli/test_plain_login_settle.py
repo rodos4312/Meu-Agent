@@ -7,7 +7,6 @@ locks are released. Driven against the fake portal ``hermes auth upgrade`` is te
 
 from __future__ import annotations
 
-import argparse
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -29,20 +28,9 @@ def _account() -> dict:
             "expires_at": (datetime.now(UTC) + timedelta(minutes=15)).isoformat()}
 
 
-def _terminal_login(monkeypatch):
-    monkeypatch.setattr(auth_nous, "_offer_shared_nous_import", lambda timeout: None)
-    monkeypatch.setattr(auth_nous, "_pick_nous_model_after_login", lambda *a: None)
-    from hermes_cli.auth import PROVIDER_REGISTRY
-    auth_nous._login_nous(argparse.Namespace(no_browser=True, timeout=15.0), PROVIDER_REGISTRY["nous"])
-
-
 def _auth_add(monkeypatch):
     from hermes_cli import auth_commands
     auth_commands._add_nous_oauth_credential(SimpleNamespace(label=None, timeout=None, no_browser=True), "nous")
-
-
-def _step_up(monkeypatch):
-    auth_nous.step_up_nous_billing_scope(open_browser=False)
 
 
 def _tool_login(monkeypatch):
@@ -51,8 +39,8 @@ def _tool_login(monkeypatch):
     assert nous_subscription._run_nous_portal_login_only(capability="Web search") is True
 
 
-@pytest.mark.parametrize("surface", [_terminal_login, _auth_add, _step_up, _tool_login],
-                         ids=["hermes model / login", "auth add nous", "billing step-up", "tool setup login"])
+@pytest.mark.parametrize("surface", [_auth_add, _tool_login],
+                         ids=["auth add nous", "tool setup login"])
 def test_the_sign_in_settles_the_config_once_after_its_locks_are_released(
         portal, free_account, monkeypatch, surface):
     from hermes_cli import auth
@@ -76,8 +64,8 @@ def test_the_sign_in_settles_the_config_once_after_its_locks_are_released(
     assert model_cfg["base_url"] == INFERENCE.rstrip("/")
 
 
-@pytest.mark.parametrize("surface", [_terminal_login, _auth_add, _tool_login],
-                         ids=["hermes model / login", "auth add nous", "tool setup login"])
+@pytest.mark.parametrize("surface", [_auth_add, _tool_login],
+                         ids=["auth add nous", "tool setup login"])
 def test_the_terminal_sign_in_prints_what_moved(portal, free_account, monkeypatch, capsys, surface):
     from hermes_cli import auth
     anon_auth.ensure_portal_identity(explicit=True)

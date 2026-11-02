@@ -107,6 +107,26 @@ class TestUsageCachedAgent:
 class TestUsageAccountSection:
     """Account-limits section appended to /usage output (PR #2486)."""
 
+    @pytest.mark.asyncio
+    async def test_empty_deepseek_session_reports_no_data_without_network(self, monkeypatch):
+        import socket
+
+        from agent.i18n import t
+
+        runner = _make_runner(SK)
+        runner._session_db = AsyncSessionDB(MagicMock())
+        runner._session_db._db.get_session.return_value = {}
+        runner._session_db._db.get_recent_session_model_route.return_value = None
+        runner.session_store.get_or_create_session.return_value = MagicMock(session_id="fresh-deepseek")
+        runner.session_store.load_transcript.return_value = []
+        monkeypatch.setattr("gateway.run._load_gateway_config", lambda: {"model": {"provider": "deepseek"}})
+
+        def connect(_socket, address):
+            raise AssertionError(f"Empty local usage must not connect to {address}")
+
+        monkeypatch.setattr(socket.socket, "connect", connect)
+        assert await runner._handle_usage_command(MagicMock()) == t("gateway.usage.no_data")
+
 
     @pytest.mark.asyncio
     async def test_usage_command_uses_persisted_provider_when_agent_not_running(self, monkeypatch):
@@ -126,10 +146,7 @@ class TestUsageAccountSection:
         calls = []
 
         async def _fake_to_thread(fn, *args, **kwargs):
-            # /usage dispatches BOTH the account fetch (fetch_account_usage, called
-            # with the provider positionally) and the Nous credits fetch
-            # (nous_credits_lines, markdown-only) through to_thread — record every
-            # call rather than last-wins so we can pick out the account fetch.
+            # Record off-thread provider reads and context-breakdown work.
             calls.append({"args": args, "kwargs": kwargs})
             return fn(*args, **kwargs)
 
@@ -145,9 +162,6 @@ class TestUsageAccountSection:
                 "Provider: openai-codex (Pro)",
             ],
         )
-        # The credits block routes through the shared nous_credits_lines() helper;
-        # stub it so this account-section test stays hermetic (no portal/auth lookup).
-        monkeypatch.setattr("agent.account_usage.nous_credits_lines", lambda **_kw: [])
 
         event = MagicMock()
         result = await runner._handle_usage_command(event)
@@ -186,7 +200,6 @@ class TestUsageAccountSection:
             lambda snapshot, markdown=False: ["📈 **Account limits**", "Provider: openai-codex (Plus)",
                                               "Weekly: 91% remaining (9% used)"],
         )
-        monkeypatch.setattr("agent.account_usage.nous_credits_lines", lambda **_kw: [])
 
         result = await runner._handle_usage_command(MagicMock())
 
@@ -224,7 +237,6 @@ class TestUsageAccountSection:
             "gateway.slash_commands_status.render_account_usage_lines",
             lambda snapshot, markdown=False: ["account limits"],
         )
-        monkeypatch.setattr("agent.account_usage.nous_credits_lines", lambda **_kw: [])
 
         await runner._handle_usage_command(MagicMock())
 

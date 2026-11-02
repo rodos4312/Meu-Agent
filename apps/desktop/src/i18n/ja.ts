@@ -249,36 +249,6 @@ export const jaOverrides = {
 
   settings: {
     memoryLayers: jaMemoryLayers,
-    // Window plans (Nous subscription with included usage). Other billing strings: overlay-gaps.json.
-    billing: {
-      keepGoingOnCredits: {
-        title: 'クレジットで続行',
-        description: '含まれる利用量を使い切ったらクレジットを使います。オフ: Meu はリセットを待ちます。',
-        approveInBrowser: '変更するにはブラウザでリモート支出を承認してください。承認するとすぐに適用されます。',
-        openAgain: 'もう一度開く',
-        cancel: 'キャンセル',
-        approvedRetry: 'リモート支出は承認されましたが、変更を保存できませんでした。',
-        tryAgain: '再試行'
-      },
-      state: {
-        usage: {
-          window: {
-            today: '今日',
-            week: '今週',
-            month: '今月',
-            topTier: '大型モデル（月間）',
-            barLabel: title => `${title}の含まれる利用量の使用率`,
-            captionPaused: '一時停止中: サブスクリプションの支払いに失敗しました',
-            captionPausedOther: '一時停止中: ポータルの請求をご確認ください',
-            captionTopTierUsedUp: '月間の枠を使い切りました。残りはクレジットで支払われます',
-            captionTopTierUsedUpKeepGoingOff: '月間の枠を使い切りました。他の含まれるモデルは引き続き使えます',
-            captionResetsIn: duration => `${duration}後にリセット`,
-            captionIncluded: '含まれる利用量',
-            valueUsed: percent => `${percent} 使用`
-          }
-        }
-      }
-    },
     uninstallSection: {
       dangerZone: '危険ゾーン',
       checkingInstalled: 'インストール内容を確認中…',
@@ -2381,8 +2351,6 @@ export const jaOverrides = {
       '/browser': 'エージェントのブラウザーを管理 [connect|disconnect|status]',
       '/palette': 'コマンドパレットを開く',
       '/usage': 'このセッションのトークン使用量を表示',
-      '/subscription': 'Nous のプランを確認し、ブラウザーで変更',
-      '/topup': 'Nous の残高を表示し、請求を管理',
       '/platform': '問題のあるゲートウェイプラットフォームを一時停止、再開、一覧表示',
       '/version': 'Meu Agent のバージョンを表示',
       '/debug': 'デバッグレポートを作成',
@@ -2794,8 +2762,7 @@ export const jaOverrides = {
       'セッショントークンまたはブラウザーサインインでリモートバックエンドを使用します。ローカルインストールは開始されません。',
     installLocalTitle: 'Meu をローカルにインストール',
     installLocalDesc: 'Meu をダウンロードし、Python 環境を作成して、このコンピューターでバックエンドを実行します。',
-    localStartUnavailable:
-      'ローカルインストールを開始できません。Meu Desktop を再起動して、もう一度お試しください。',
+    localStartUnavailable: 'ローカルインストールを開始できません。Meu Desktop を再起動して、もう一度お試しください。',
     remoteSetupTitle: '既存の Meu に接続',
     remoteSetupDesc:
       'ゲートウェイ URL を入力してください。Meu Desktop がトークンとブラウザーサインインのどちらが必要かを検出します。',
@@ -3160,8 +3127,7 @@ export const jaOverrides = {
       'シンプルモードで設定されています。ここでの変更はこのセッション中のみ有効です。自分の設定にするには詳細モードに切り替えてください。',
     simple: {
       label: 'シンプル',
-      description:
-        'Meu と話すための表示。サイドバーとチャットのみ。ターミナル、ファイル、差分のペインは表示しません。'
+      description: 'Meu と話すための表示。サイドバーとチャットのみ。ターミナル、ファイル、差分のペインは表示しません。'
     },
     advanced: {
       label: '詳細',

@@ -261,7 +261,7 @@ it("/usage renders main's session totals from session.stats and /tools lists the
         ['API calls', '2']
       ]
     },
-    { text: expect.stringContaining('100 / 128,000 (0%)') }
+    { text: expect.stringContaining(`100 / ${(128000).toLocaleString()} (0%)`) }
   ])
   expect(sys.mock.calls.some(([line]) => /not available on the shared gateway/.test(line))).toBe(false)
   expect(getUiState().usage).toMatchObject({ calls: 2, total: 240, context_max: 128000 })

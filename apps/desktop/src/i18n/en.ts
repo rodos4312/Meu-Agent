@@ -3,7 +3,6 @@ import { meuShellCopy } from './meu-shell'
 import { FIELD_DESCRIPTIONS, FIELD_LABELS } from '@/app/settings/constants'
 
 import { enAppTour } from './en_app_tour'
-import { enBilling } from './en_billing'
 import { enBoot } from './en_boot'
 import { enCatalog } from './en_catalog'
 import { enCatalogInstall } from './en_catalog_install'
@@ -440,8 +439,7 @@ export const en: Translations = {
       microphonePermission: 'Microphone permission was denied.',
       openaiRejectedApiKey: "OpenAI didn't accept your API key. Update it in Settings → Keys, then try again.",
       openaiTtsNeedsKey: 'Voice needs an OpenAI key. Add one in Settings → Keys.',
-      codeSkewRestartRequired:
-        'Meu was updated but is still running the old version. Restart it to finish the update.',
+      codeSkewRestartRequired: 'Meu was updated but is still running the old version. Restart it to finish the update.',
       rpcOutOfSync: 'The app and the backend are on different versions. Update both.',
       restartHermesFailed: "Couldn't restart Meu"
     },
@@ -498,7 +496,13 @@ export const en: Translations = {
 
   ...enNotices,
 
-  ...enBilling,
+  billingBlock: {
+    titleProvider: provider => `Out of credits — ${provider}`,
+    fallbackMessage: 'Your account is out of credits. Add credits to keep going.',
+    openBilling: 'Open billing',
+    addCredits: 'Add credits',
+    dismiss: 'Dismiss'
+  },
 
   sendDiagnostics: {
     title: 'Send diagnostics to Nous',
@@ -1219,8 +1223,7 @@ export const en: Translations = {
         'Allow Meu in System Settings → Privacy & Security → Input Monitoring, then retry. This gesture does not record keystrokes or capture your screen.',
       unavailable:
         'The HUD gesture helper could not start or stopped unexpectedly. Retry, or restart Meu. The existing HUD shortcut still works inside Meu.',
-      missingHelper:
-        'This Meu installation is missing the HUD gesture helper. Update or reinstall Meu, then retry.',
+      missingHelper: 'This Meu installation is missing the HUD gesture helper. Update or reinstall Meu, then retry.',
       unsupportedSession:
         'This desktop session does not support global modifier taps. Linux requires X11; Wayland is not supported.'
     },
@@ -1566,304 +1569,6 @@ export const en: Translations = {
     },
     model: enModelSettings,
     localModels: enLocalModels,
-    billing: {
-      perMonth: amount => `${amount}/mo`,
-      creditsPerMonth: amount => `${amount} credits/mo`,
-      usageLabel: label => `${label} usage`,
-      freeTier: {
-        signIn: 'Sign in',
-        title: "You're on the Nous free tier",
-        message: 'Sign in with a Nous account to unlock more models and tools.',
-        caption:
-          'Runs on nous/welcome with connectors included. Signing in keeps your connectors and adds the tools that need an account and every other model.',
-        name: 'Nous · free tier',
-        footnote:
-          'The free tier has no balance and nothing to pay. Payment and usage appear when you sign in with a Nous account.',
-        plan: 'Free tier',
-        model: 'Model',
-        connectors: 'Connectors',
-        included: 'Included'
-      },
-      amountValidation: {
-        reloadTo: 'Reload-to',
-        greaterThanThreshold: 'Reload-to amount must be greater than the threshold.',
-        decimal: label => `${label}: enter a dollar amount with at most 2 decimal places.`,
-        positive: label => `${label}: amount must be greater than $0.`,
-        minimum: (label, amount) => `${label}: minimum is ${amount}.`,
-        maximum: (label, amount) => `${label}: maximum is ${amount}.`
-      },
-      stepUp: {
-        openVerification: 'Open verification page',
-        dismiss: 'Dismiss',
-        waiting: 'Waiting for verification link…',
-        verify: 'Verify to continue',
-        deniedTitle: 'Verification was not approved',
-        deniedBody: 'Verification finished without allowing Remote Spending for this terminal.',
-        successTitle: 'Verification complete',
-        successBody: 'Remote Spending is allowed for this terminal.'
-      },
-      charge: {
-        added: amount => (amount ? `$${amount} added.` : 'Credits added.'),
-        failedTitle: 'Charge failed',
-        unconfirmedTitle: 'Charge outcome unconfirmed',
-        unconfirmedBody: message =>
-          `${message} Your last charge's outcome is unconfirmed - check your balance/history before retrying.`,
-        checkTitle: 'Could not check charge',
-        checkBody: 'Could not check the charge.',
-        untrackedTitle: 'Charge could not be tracked',
-        untrackedBody: 'The billing service accepted the request but did not return a charge id.',
-        timeoutTitle: 'Still processing after 5 minutes',
-        timeoutBody: 'Charge may still settle. Check the portal before retrying.',
-        authenticationRequired:
-          'Your bank requires verification (3DS). Complete it on the portal to finish this purchase.',
-        expired: 'Your card has expired. Update it on the portal.',
-        declined: 'Your card was declined. Try another card on the portal.',
-        failedBody: reason => `The charge didn't go through (${reason}).`
-      },
-      title: 'Billing',
-      preview: 'preview',
-      summary: {
-        balance: 'Balance',
-        plan: 'Plan',
-        autoRefill: 'Auto-refill'
-      },
-      sections: {
-        invoices: 'Invoices',
-
-        plan: 'Plan',
-        paymentAndCredits: 'Payment & credits',
-        usage: 'Usage'
-      },
-      usage: {
-        title: 'Usage'
-      },
-      buyCredits: {
-        customAmount: 'Custom credit amount',
-        title: 'Buy credits now',
-        buyButton: 'Buy',
-        processing: 'Processing… checking settlement',
-        added: amount => `${amount} added. Balance is refreshing.`,
-        retry: 'Retry',
-        openPortal: 'Open portal'
-      },
-      plan: {
-        title: 'Plans',
-        changePlan: 'Change plan',
-        viewPlans: 'View plans',
-        backAria: 'Back to billing',
-        current: 'Current plan',
-        scheduled: 'Scheduled',
-        empty: 'No plans are available to change to right now.',
-        undo: 'Undo',
-        undoing: 'Undoing…',
-        downgrade: 'Downgrade',
-        confirmDowngrade: 'Confirm downgrade',
-        tryAgain: 'Try again',
-        checkingChange: 'Checking this change…',
-        cannotChange: 'That change cannot be made here.',
-        alreadyOn: name => `You are already on ${name} — nothing to change.`,
-        notScheduleable: 'This change cannot be scheduled here.',
-        scheduling: 'Scheduling…',
-        cancel: 'Cancel',
-        effectScheduled: (targetName, effectiveAt, creditsDelta) =>
-          `Change to ${targetName} — takes effect ${effectiveAt}. No charge now; you keep your current plan until then.${creditsDelta ? ` Monthly credits change: ${creditsDelta}.` : ''}`
-      },
-      keepGoingOnCredits: {
-        title: 'Keep going on credits',
-        description: 'Use your credits when included usage runs out. Off: Meu waits for the reset.',
-        approveInBrowser: 'Approve Remote Spending in your browser to change this. It applies as soon as you approve.',
-        openAgain: 'Open again',
-        cancel: 'Cancel',
-        approvedRetry: "Remote Spending is approved, but the change didn't save.",
-        tryAgain: 'Try again'
-      },
-      autoReload: {
-        threshold: 'Threshold',
-        thresholdAria: 'Auto-refill threshold',
-        reloadTo: 'Reload to',
-        reloadToAria: 'Auto-refill reload-to amount',
-        turnOffConfirm: 'Turn off auto-refill?',
-        turnOff: 'Turn off',
-        disable: 'Disable',
-        updated: 'Auto-refill updated.',
-        turnedOff: 'Auto-refill turned off.',
-        manage: 'Manage',
-        save: 'Save',
-        saving: 'Saving…',
-        cancel: 'Cancel'
-      },
-      state: {
-        notice: {
-          loggedOut: {
-            title: 'Connect your Nous account',
-            message: 'Sign in with your Nous account to see your balance, plan and usage here.',
-            action: 'Sign in'
-          },
-          openPortal: 'Open portal ↗',
-          noCard: {
-            title: 'No payment method on file',
-            message:
-              'Buying top-up credits and auto-refill stay disabled until a card is on file. Add one on the portal.',
-            action: 'Add card ↗'
-          }
-        },
-        paymentMethod: {
-          title: 'Payment method',
-          description: 'Manage the card used for top-ups and subscription renewals.',
-          addAction: 'Add payment method',
-          updateAction: 'Update',
-          provenance: {
-            autoRefill: 'auto-refill card',
-            customerDefault: 'customer default',
-            subPin: 'subscription card',
-            suffix: label => ` - ${label}`
-          }
-        },
-        buyCredits: {
-          description: 'A single charge on your card, added to your balance today.'
-        },
-        autoRefill: {
-          title: 'Refill when low',
-          genericDescription: 'Keep your balance topped up when it drops below your threshold.',
-          offPill: 'Off',
-          enabledPill: 'Enabled',
-          notAvailablePill: '—',
-          manageCaption: 'Manage auto-refill from the portal.',
-          turnOnCaption: 'Turn on auto-refill from the portal',
-          chargesDescription: (reloadTo, threshold) =>
-            `Charges ${reloadTo} automatically when your balance falls below ${threshold}.`,
-          distinctCardCaption: cardLabel => `Auto-refill charges ${cardLabel} — reconcile on the portal`,
-          distinctCardFallback: 'a different card',
-          reconcileAction: 'Reconcile ↗'
-        },
-        usage: {
-          subscriptionCredits: {
-            title: 'Subscription credits',
-            barLabel: 'Subscription credits remaining',
-            captionResets: date => `Resets ${date}`,
-            valueOf: (remaining, monthly) => `${remaining} of ${monthly} left`,
-            valueOver: (remaining, monthly, over) => `${remaining} of ${monthly} left · ${over} over`
-          },
-          topupCredits: {
-            title: 'Top-up credits',
-            caption: 'Does not expire'
-          },
-          monthlyCap: {
-            title: 'Monthly spend cap',
-            barLabel: 'Monthly spend cap used',
-            captionDefault: 'Default ceiling',
-            captionSpending: 'Monthly remote spending',
-            valueUsed: (spent, limit) => `${spent} of ${limit} used`
-          },
-          window: {
-            today: 'Today',
-            week: 'This week',
-            month: 'This month',
-            topTier: 'Large models (monthly)',
-            barLabel: title => `${title} included usage used`,
-            captionPaused: 'Paused: subscription payment failed',
-            captionPausedOther: 'Paused: see Billing in the Portal',
-            captionTopTierUsedUp: 'Monthly allowance used up, credits cover the rest',
-            captionTopTierUsedUpKeepGoingOff: 'Monthly allowance used up, other included models still work',
-            captionResetsIn: duration => `Resets in ${duration}`,
-            captionIncluded: 'Included usage',
-            valueUsed: percent => `${percent} used`
-          }
-        },
-        planCard: {
-          freeTier: 'Free',
-          chooseAction: 'Choose ↗',
-          adjustPlanAction: 'Adjust plan ↗',
-          unavailableCaption: 'Subscription details are unavailable; opening the portal is still available.',
-          downgradeCaption: (tierName, when) => `Changes to ${tierName} on ${when}.`,
-          cancellationCaption: when => `Cancels on ${when}.`,
-          renewsCaption: date => `Renews ${date}`,
-          noSubscriptionCaption: 'No active subscription — paid models draw down top-up credits.'
-        }
-      },
-      errors: {
-        consentRequired: {
-          title: 'Card confirmation needed',
-          message: 'Confirm this card for terminal charges in the portal'
-        },
-        insufficientScope: {
-          title: 'Remote Spending needs approval',
-          message: 'This needs Remote Spending allowed. Start a top-up to allow it, then retry.'
-        },
-        remoteSpendingRevoked: {
-          title: 'Remote spending was stopped',
-          messageByAdmin: 'An admin stopped remote spending for this terminal.',
-          messageBySelf: 'You stopped remote spending for this terminal.'
-        },
-        remoteSpendingReconnect: who => `${who} Reconnect from Settings -> Gateway to re-authorize this device.`,
-        sessionRevoked: {
-          title: 'Session logged out',
-          message: 'Your session was logged out. Sign in again from Settings → Gateway.'
-        },
-        cliBillingDisabled: {
-          title: 'Remote spending is off',
-          message:
-            "Remote spending is off for this account — a billing admin can turn it on from the portal's Meu Agent page."
-        },
-        roleRequired: {
-          title: 'Admin role required',
-          message: 'Adding funds needs an org admin/owner. Ask an admin, or manage on the portal.'
-        },
-        idempotencyConflict: {
-          title: 'Start a fresh top-up',
-          message: '🔴 That charge key was already used for a different amount. Start a fresh top-up.'
-        },
-        noPaymentMethod: {
-          title: 'No saved card',
-          message:
-            '💳 No saved card for terminal charges yet. Set one up on the portal ' +
-            "(one-time credit buys don't save a reusable card)."
-        },
-        orgAccessDenied: {
-          title: 'Org access denied',
-          message: "This token isn't bound to an org you can manage"
-        },
-        monthlyCapExceeded: {
-          title: 'Monthly spend cap reached',
-          messageReached: '🔴 Monthly spend cap reached.',
-          messageHeadroom: remaining => `🔴 Monthly spend cap reached — $${remaining} headroom left.`
-        },
-        rateLimited: {
-          title: 'Too many charges right now',
-          message: mins =>
-            mins > 0
-              ? `🟡 Too many charges right now (try again in ~${mins} min). This isn't a payment failure.`
-              : "🟡 Too many charges right now. This isn't a payment failure."
-        },
-        stripeUnavailable: {
-          title: 'Stripe is having trouble',
-          message: mins =>
-            mins > 0
-              ? `Stripe is having trouble — try again in ~${mins} min`
-              : 'Stripe is having trouble — try again shortly'
-        },
-        upgradeCapExceeded: {
-          title: 'Daily plan-change limit reached',
-          message: 'Daily plan-change limit reached — try again tomorrow'
-        },
-        endpointUnavailable: {
-          title: 'Billing endpoint unavailable',
-          message: 'Billing endpoint returned a non-JSON response (it may not be available on this deployment).'
-        },
-        timeout: {
-          title: 'Billing request timed out',
-          message: 'Billing request timed out.'
-        },
-        transport: {
-          title: 'Billing connection failed',
-          message: 'Billing request failed before reaching the gateway.'
-        },
-        default: {
-          title: 'Billing request failed',
-          message: 'Billing request failed.'
-        }
-      }
-    },
     providers: {
       connectAccount: 'Connect an account',
       haveApiKey: 'Have an API key instead?',
@@ -3418,8 +3123,6 @@ export const en: Translations = {
       '/browser': 'Manage the agent browser [connect|disconnect|status]',
       '/palette': 'Open the fuzzy command palette (also Ctrl+P)',
       '/usage': 'Show token usage and rate limits; `reset` redeems a banked Codex limit reset',
-      '/subscription': 'View your Nous plan and change it in the browser',
-      '/topup': 'Show your Nous balance and manage billing on the portal',
       '/platform': 'Pause, resume, or list a failing gateway platform',
       '/version': 'Show Meu Agent version',
       '/debug': 'Upload debug report (system info + logs) and get shareable links',
@@ -3676,8 +3379,7 @@ export const en: Translations = {
 
   updates: {
     discontinuedTitle: 'This build of Meu is no longer supported',
-    discontinuedBody:
-      'This build of Meu is no longer supported and may break — uninstall it. Your data stays on disk.',
+    discontinuedBody: 'This build of Meu is no longer supported and may break — uninstall it. Your data stays on disk.',
     channels: { stable: 'Stable', canary: 'Canary' },
     bundleSwapPending: 'Restart to finish the update',
     bundleSwapPendingDesc:
@@ -3747,8 +3449,7 @@ export const en: Translations = {
     errorTitle: 'Update didn’t finish',
     errorBody: 'No worries — nothing was lost. You can try again now.',
     blockerTitle: 'Close local previews to update Meu?',
-    blockerBody:
-      'Meu needs to stop these local previews before updating. This will not modify or delete your files.',
+    blockerBody: 'Meu needs to stop these local previews before updating. This will not modify or delete your files.',
     foreignBlockerTitle: 'Close other processes to update Meu',
     foreignBlockerBody:
       'Meu can’t safely close these processes automatically. Close the app, terminal, or service that owns each one, then try the update again.',
@@ -3851,8 +3552,7 @@ export const en: Translations = {
     installTo: 'Will install to',
     retryAfterRun: 'I’ve run it -- retry',
     setupChoiceTitle: 'Set up Meu',
-    setupChoiceDesc:
-      'Connect Meu to a compatible gateway you already run, or install Meu locally on this computer.',
+    setupChoiceDesc: 'Connect Meu to a compatible gateway you already run, or install Meu locally on this computer.',
     setupChoiceDescLocal: 'Install Meu on this computer, or connect to a gateway you already run.',
     connectExistingTitle: 'Connect to an existing gateway',
     connectExistingShort: 'Connect existing',
@@ -3979,8 +3679,7 @@ export const en: Translations = {
       powRequired:
         "The Nous server asked for a proof of work, but that isn't implemented in your Agent yet. Sign in or create a free Nous account to continue.",
       locked: "This session can't continue without signing in. Sign in or create a free Nous account to keep going.",
-      generic:
-        "Meu couldn't set up free access without signing in. Signing in is free, or connect another provider.",
+      generic: "Meu couldn't set up free access without signing in. Signing in is free, or connect another provider.",
       signInBelow: 'Signing in is free. Pick Nous below.',
       tryAgain: 'Try again',
       retrying: 'Trying again…'

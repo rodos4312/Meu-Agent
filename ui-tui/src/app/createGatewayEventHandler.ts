@@ -32,7 +32,7 @@ import type { Msg, SessionInfo, SubagentProgress } from '../types.js'
 
 import { applyConnectionRequest, applyConnectionUpdate } from './connectionOperationStore.js'
 import { applyDelegationStatus, getDelegationState } from './delegationStore.js'
-import { createBillingVerificationPresenter, createFreeTierChallengePresenter } from './gatewayBrowserLinks.js'
+import { createFreeTierChallengePresenter } from './gatewayBrowserLinks.js'
 import {
   fenceLifecycleEvent,
   isGenericErrorEvent,
@@ -609,10 +609,18 @@ function applyDeferredPickOutcome(
     const info = getUiState().info
 
     if (info && typeof update.model === 'string' && update.model) {
-      patchUiState({ info: { ...info, model: update.model, ...(typeof update.provider === 'string' ? { provider: update.provider } : {}) } })
+      patchUiState({
+        info: {
+          ...info,
+          model: update.model,
+          ...(typeof update.provider === 'string' ? { provider: update.provider } : {})
+        }
+      })
     }
 
-    sys(t('slashCmd.session.model.deferredRefused', String(update.target_model ?? ''), String(update.reason ?? 'refused')))
+    sys(
+      t('slashCmd.session.model.deferredRefused', String(update.target_model ?? ''), String(update.reason ?? 'refused'))
+    )
 
     return
   }
@@ -622,17 +630,20 @@ function applyDeferredPickOutcome(
     // The confirmed resend is the same selection: its level commits with the model.
     const arg = `${pick.model ?? ''}${pick.provider ? ` --provider ${pick.provider}` : ''}${pick.reasoning ? ` --reasoning ${pick.reasoning}` : ''}`
 
-    openModelConfirmation(update.confirm_message as string | undefined, String(update.target_model ?? pick.model ?? ''), () =>
-      void mutateCanonicalSession(gw, sid, 'model', arg, undefined, update.confirm as string).then(
-        mutation => {
-          // Refused again (a queued turn or another pick moved the session first): say so once,
-          // never re-ask in a loop.
-          if (mutation?.result.status === 'confirmation_required') {
-            sys(t('slashCmd.session.model.confirmStale'))
-          }
-        },
-        (error: unknown) => sys(`error: ${error instanceof Error ? error.message : String(error)}`)
-      )
+    openModelConfirmation(
+      update.confirm_message as string | undefined,
+      String(update.target_model ?? pick.model ?? ''),
+      () =>
+        void mutateCanonicalSession(gw, sid, 'model', arg, undefined, update.confirm as string).then(
+          mutation => {
+            // Refused again (a queued turn or another pick moved the session first): say so once,
+            // never re-ask in a loop.
+            if (mutation?.result.status === 'confirmation_required') {
+              sys(t('slashCmd.session.model.confirmStale'))
+            }
+          },
+          (error: unknown) => sys(`error: ${error instanceof Error ? error.message : String(error)}`)
+        )
     )
   }
 }
@@ -728,9 +739,7 @@ function confirmBillingWall(
       confirmLabel: copy.confirmLabel,
       detail: copy.detail,
       onConfirm: () => {
-        if (block.is_nous) {
-          submitRef.current('/topup')
-        } else if (block.billing_url) {
+        if (block.billing_url) {
           openExternalUrl(block.billing_url)
         } else {
           submitRef.current('/model')
@@ -756,7 +765,7 @@ function confirmUsageLimit(usageLimit: UsageLimit, ctx: GatewayEventHandlerConte
       detail: dialog.detail,
       onConfirm: () => {
         if (!dialog.switchValue) {
-          submitRef.current('/topup')
+          submitRef.current('/model')
 
           return
         }
@@ -831,7 +840,6 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
   // paths can't both persist the same prompt twice.
   const persistedAbandonedClarify = new Set<string>()
   const showChallenge = createFreeTierChallengePresenter(sys, openExternalUrl)
-  const showBillingVerification = createBillingVerificationPresenter(sys, openExternalUrl)
 
   // When a clarify prompt is dismissed without an answer (the backend request
   // timed out and returned no answer), the live ClarifyPrompt overlay is
@@ -1363,10 +1371,6 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
 
         return
 
-      case 'billing.step_up.verification':
-        showBillingVerification(ev.payload)
-
-        return
       case 'gateway.stderr': {
         // Every raw line is already in the /logs buffer (gatewayClient.pushLog).
         // Only failure-looking lines earn an activity row, and a traceback's

@@ -85,18 +85,6 @@ def test_window_outcomes_are_scoped_and_do_not_grant_auth(guest, tmp_path):
     assert _call("free_tier.status")["challenge"]["url"] == a.url
 
 
-def test_billing_state_answers_the_free_tier_locally(guest, monkeypatch):
-    import agent.billing_view as bv
-    monkeypatch.setattr(bv, "build_billing_state", lambda *a, **kw: pytest.fail("free tier must not call the portal"))
-    res = _call("billing.state")
-    assert res["ok"] is True and res["logged_in"] is False
-    assert res["free_tier_account"] is True and res["free_tier_model"] == "nous/welcome"
-    assert res["usage"] == {"available": False}
-
-    _set_guest_off()
-    monkeypatch.setattr(bv, "build_billing_state", lambda *a, **kw: bv.BillingState(logged_in=False))
-    res = _call("billing.state")
-    assert res["free_tier_account"] is False and res["free_tier_model"] is None
 
 
 def test_status_without_an_identity_is_a_pure_read(nas):

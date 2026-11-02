@@ -7,305 +7,6 @@
 export interface ProfileParams {
   profile?: string | null
 }
-/** ``_serialize_usage_model`` — also embedded as ``usage`` in the billing / subscription states, where the fail-open form is a bare ``{available: false}`` (no ``ok``). */
-export interface UsageModel {
-  ok?: boolean | null
-  available: boolean
-  status?: string | null
-  plan_name?: string | null
-  renews_at?: string | null
-  renews_display?: string | null
-  subscription_remaining_display?: string | null
-  topup_remaining_display?: string | null
-  total_spendable_display?: string | null
-  has_topup?: boolean | null
-  plan_bar?: UsageBar | null
-  topup_bar?: UsageBar | null
-}
-/** ``_serialize_usage_bar``: one bar, magnitudes pre-formatted; ``pct_used`` only for ``plan``. */
-export interface UsageBar {
-  kind: UsageBarKind
-  remaining_display: string
-  total_display: string
-  spent_display: string
-  pct_used?: number | null
-  fill_fraction: number
-}
-export type UsageBarKind = 'plan' | 'topup'
-/** ``_serialize_billing_state`` (money as strings); the ``except`` fallback emits only ``ok / logged_in / free_tier_account / error``, so everything else is optional. */
-export interface BillingStateResult {
-  ok: boolean
-  logged_in: boolean
-  free_tier_account?: boolean
-  free_tier_model?: string | null
-  org_name?: string | null
-  org_slug?: string | null
-  role?: string | null
-  is_admin?: boolean | null
-  can_change_plan?: boolean | null
-  can_charge?: boolean | null
-  balance_usd?: string | null
-  balance_display?: string | null
-  cli_billing_enabled?: boolean | null
-  charge_presets?: string[] | null
-  charge_presets_display?: string[] | null
-  min_usd?: string | null
-  max_usd?: string | null
-  card?: BillingCardInfo | null
-  payment_method?: BillingPaymentMethod | null
-  monthly_cap?: BillingMonthlyCap | null
-  auto_reload?: BillingAutoReload | null
-  keep_going_on_credits?: boolean | null
-  portal_url?: string | null
-  error?: string | null
-  usage?: UsageModel | null
-  plan_usage?: PlanUsage | null
-}
-export interface BillingCardInfo {
-  brand: string
-  last4: string
-  masked: string
-  display?: string | null
-  resolved_via?: string | null
-}
-/** ``_serialize_payment_method``: each kind emits only its own fields (a ``card`` never carries ``email``; ``unknown`` carries what the server called it in ``raw_kind``). */
-export interface BillingPaymentMethod {
-  kind: PaymentMethodKind
-  brand?: string | null
-  last4?: string | null
-  wallet?: string | null
-  email?: string | null
-  raw_kind?: string | null
-  resolved_via?: string | null
-}
-export type PaymentMethodKind = 'card' | 'link' | 'unknown'
-export interface BillingMonthlyCap {
-  limit_usd?: string | null
-  limit_display: string
-  spent_this_month_usd?: string | null
-  spent_display: string
-  is_default_ceiling: boolean
-}
-export interface BillingAutoReload {
-  enabled: boolean
-  threshold_usd?: string | null
-  threshold_display: string
-  reload_to_usd?: string | null
-  reload_to_display: string
-  card?: BillingAutoReloadCard | null
-}
-/** Only ``distinct`` carries the payment-method identity. */
-export interface BillingAutoReloadCard {
-  kind: AutoReloadCardKind
-  payment_method_id?: string | null
-  brand?: string | null
-  last4?: string | null
-}
-export type AutoReloadCardKind = 'canonical' | 'distinct' | 'none'
-/** ``hermes_cli/model_picker_usage.py::PickerUsage.to_payload`` — usage-window plan chrome. */
-export interface PlanUsage {
-  kind: string
-  plan?: string | null
-  gauges?: PlanUsageGauge[]
-  top_tier_model_ids?: string[]
-  subscription_model_ids?: string[]
-  featured_model_ids?: string[]
-  paused_reason?: string | null
-  credits_pay?: boolean | null
-}
-/** One server allowance on ``ModelOptionProvider.plan_usage``, in the server's order. ``label`` is the server's id (``day`` / ``week`` / ``month`` / ``top_tier`` have client words; any other id shows ``title``). ``scope``: which models a full one stops (``all`` / ``top_tier``). */
-export interface PlanUsageGauge {
-  label: string
-  left_fraction: number
-  style: string
-  resets_at_ms?: number | null
-  scope?: string
-  title?: string
-}
-/** ``_serialize_subscription_state``; the view's fallback emits only ``ok / logged_in / error``. */
-export interface SubscriptionStateResult {
-  ok: boolean
-  logged_in: boolean
-  is_admin?: boolean | null
-  can_change_plan?: boolean | null
-  org_name?: string | null
-  org_id?: string | null
-  role?: string | null
-  context?: SubscriptionContext | null
-  current?: CurrentSubscription | null
-  tiers?: SubscriptionTierOption[] | null
-  portal_url?: string | null
-  error?: string | null
-  usage?: UsageModel | null
-  plan_usage?: PlanUsage | null
-}
-export type SubscriptionContext = 'personal' | 'team'
-export interface CurrentSubscription {
-  tier_id?: string | null
-  tier_name?: string | null
-  monthly_credits?: string | null
-  credits_remaining?: string | null
-  cycle_ends_at?: string | null
-  pending_downgrade_tier_name?: string | null
-  pending_downgrade_at?: string | null
-  pending_downgrade_display?: string | null
-  cancel_at_period_end: boolean
-  cancellation_effective_at?: string | null
-  cancellation_effective_display?: string | null
-}
-export interface SubscriptionTierOption {
-  tier_id: string
-  name: string
-  tier_order: number
-  dollars_per_month_display: string
-  monthly_credits?: string | null
-  is_current: boolean
-  is_enabled: boolean
-}
-export interface SubscriptionPreviewParams {
-  profile?: string | null
-  subscription_type_id?: string | null
-}
-/** ``_serialize_subscription_preview`` on success; ``effect`` drives the confirm copy. */
-export interface SubscriptionPreviewResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-  effect?: SubscriptionChangeEffect | null
-  reason?: string | null
-  current_tier_id?: string | null
-  current_tier_name?: string | null
-  target_tier_id?: string | null
-  target_tier_name?: string | null
-  monthly_credits_delta?: string | null
-  amount_due_now_cents?: number | null
-  effective_at?: string | null
-}
-export type SubscriptionChangeEffect = 'charge_now' | 'scheduled' | 'no_op' | 'blocked'
-/** Either a target tier (downgrade / same-price change) or ``cancel`` (period-end cancellation). */
-export interface SubscriptionChangeParams {
-  profile?: string | null
-  subscription_type_id?: string | null
-  cancel?: boolean
-}
-/** ``_billing_pending_change``: ``message`` + the raw NAS body in ``payload`` on success. */
-export interface BillingPendingChangeResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-}
-export interface SubscriptionUpgradeParams {
-  profile?: string | null
-  subscription_type_id?: string | null
-  idempotency_key?: string | null
-}
-/** The money route: ``status`` separates a completed upgrade from an SCA / decline that must finish in the portal at ``recovery_url``; ``idempotency_key`` is echoed (also on error) so a retry reuses it. */
-export interface SubscriptionUpgradeResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-  status?: string | null
-  target_tier_name?: string | null
-  recovery_url?: string | null
-  reason?: string | null
-  idempotency_key?: string | null
-}
-export interface BillingChargeParams {
-  profile?: string | null
-  amount_usd?: number | string | null
-  idempotency_key?: string | null
-}
-/** ``202 {chargeId}`` — money is not confirmed yet; poll ``billing.charge_status``. */
-export interface BillingChargeResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-  charge_id?: string | null
-  idempotency_key?: string | null
-}
-export interface BillingChargeStatusParams {
-  profile?: string | null
-  charge_id?: string | null
-}
-/** Single status read (pending | settled | failed); the caller drives the poll cadence. */
-export interface BillingChargeStatusResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-  status?: string | null
-  amount_usd?: string | number | null
-  settled_at?: string | null
-  reason?: string | null
-}
-export interface BillingAutoReloadParams {
-  profile?: string | null
-  enabled?: boolean
-  threshold?: number | string | null
-  top_up_amount?: number | string | null
-}
-/** A write with no success payload beyond ``ok``. */
-export interface BillingMutationResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-}
-export interface BillingKeepGoingOnCreditsParams {
-  profile?: string | null
-  enabled?: boolean
-}
-export interface BillingStepUpParams {
-  profile?: string | null
-  session_id?: string | null
-}
-/** ``granted`` false when the server downscopes (also on every error envelope). */
-export interface BillingStepUpResult {
-  ok: boolean
-  error?: string | null
-  message?: string | null
-  portal_url?: string | null
-  retry_after?: number | null
-  payload?: Record<string, unknown> | null
-  actor?: string | null
-  code?: string | null
-  recovery?: string | null
-  granted?: boolean | null
-}
 export interface DelegationStatusResult {
   active: ActiveSubagent[]
   paused: boolean
@@ -870,6 +571,26 @@ export interface ModelPricing {
   discount_percent?: number | null
   was_input?: string | null
   was_output?: string | null
+}
+/** ``hermes_cli/model_picker_usage.py::PickerUsage.to_payload`` — usage-window plan chrome. */
+export interface PlanUsage {
+  kind: string
+  plan?: string | null
+  gauges?: PlanUsageGauge[]
+  top_tier_model_ids?: string[]
+  subscription_model_ids?: string[]
+  featured_model_ids?: string[]
+  paused_reason?: string | null
+  credits_pay?: boolean | null
+}
+/** One server allowance on ``ModelOptionProvider.plan_usage``, in the server's order. ``label`` is the server's id (``day`` / ``week`` / ``month`` / ``top_tier`` have client words; any other id shows ``title``). ``scope``: which models a full one stops (``all`` / ``top_tier``). */
+export interface PlanUsageGauge {
+  label: string
+  left_fraction: number
+  style: string
+  resets_at_ms?: number | null
+  scope?: string
+  title?: string
 }
 /** ``hermes_cli/inventory.py::_apply_limits`` — ``account``: the whole login is rate-limited until ``resets_at`` (ISO, absent when unknown); ``models``: only these models are, each until its time. */
 export interface ProviderLimit {
@@ -3489,35 +3210,6 @@ export interface SessionUsageParams {
   session_id: string
   profile?: string | null
 }
-export interface SessionUsageResult {
-  model?: string
-  input?: number
-  output?: number
-  reasoning?: number
-  prompt?: number
-  completion?: number
-  total?: number
-  calls?: number
-  compressions?: number | null
-  context_used?: number | null
-  context_max?: number | null
-  context_percent?: number | null
-  context_source?: string | null
-  context_estimated?: boolean | null
-  cache_hit_pct?: number | null
-  cache_read?: number | null
-  cache_write?: number | null
-  avg_latency_s?: number | null
-  avg_tps?: number | null
-  active_subagents?: number | null
-  dev_credits_spent_micros?: number | null
-  cost_usd?: number | null
-  cost_status?: string | null
-  plan_gauge?: PlanGauge | null
-  credits_lines?: string[] | null
-  credits_usage_window?: boolean | null
-  [key: string]: unknown
-}
 export interface SessionContextBreakdownParams {
   session_id: string
   profile?: string | null
@@ -5892,11 +5584,6 @@ export interface ApprovalCancelledPayload {
 export interface SessionControlUpdatePayload {
   control: SessionControlSnapshot
 }
-/** ``methods_session`` billing.step_up on_verification. */
-export interface BillingStepUpVerificationPayload {
-  verification_url: string
-  user_code: string
-}
 /** ``methods_prompt._spawn_side_agent``: ``{task_id, **extra, text}``; btw adds ``question``. */
 export interface SideAgentCompletePayload {
   task_id: string
@@ -6057,18 +5744,6 @@ export interface RpcMethods {
   'approval.received': { params: ApprovalReceivedParams; result: ApprovalReceivedResult }
   /** Deliver the user's decision on a dangerous command (falls back to durable identity on a stale sid). */
   'approval.respond': { params: ApprovalRespondParams; result: ApprovalRespondResult }
-  /** Enable/disable auto top-up with its threshold and reload amount (billing:manage). */
-  'billing.auto_reload': { params: BillingAutoReloadParams; result: BillingMutationResult }
-  /** Start a one-off top-up charge (billing:manage, idempotent). */
-  'billing.charge': { params: BillingChargeParams; result: BillingChargeResult }
-  /** Poll one charge by id. */
-  'billing.charge_status': { params: BillingChargeStatusParams; result: BillingChargeStatusResult }
-  /** Window plans: turn 'Keep going on credits' on/off (billing:manage). */
-  'billing.keep_going_on_credits': { params: BillingKeepGoingOnCreditsParams; result: BillingMutationResult }
-  /** Read-only billing view (no scope); the Nous free tier is answered locally without a portal call. */
-  'billing.state': { params: ProfileParams; result: BillingStateResult }
-  /** Run the billing:manage device flow; the URL/code arrive via billing.step_up.verification. */
-  'billing.step_up': { params: BillingStepUpParams; result: BillingStepUpResult }
   /** Deliver a relayed DM into a Bot Chat on this gateway and return the one-turn reply (blocking). */
   'bot_relay.deliver': { params: BotRelayDeliverParams; result: BotRelayDeliverResult }
   /** Atomically claim every pending cross-connection envelope queued on this gateway. */
@@ -6455,8 +6130,8 @@ export interface RpcMethods {
   'session.title': { params: SessionTitleParams; result: SessionTitleResult }
   /** Drop the last user turn (and everything after it) from an idle session. */
   'session.undo': { params: SessionUndoParams; result: SessionUndoResult }
-  /** Token / context / cost counters for the session (+ Nous credit lines when available). */
-  'session.usage': { params: SessionUsageParams; result: SessionUsageResult }
+  /** Token / context / cost counters for the session. */
+  'session.usage': { params: SessionUsageParams; result: Usage }
   /** Re-home a stored session's workspace; git identity is replaced and a live agent follows. */
   'session.workspace.move': { params: SessionWorkspaceMoveParams; result: SessionWorkspaceMoveResult }
   /** Strict provider check through the same runtime resolution the agent uses on session creation. */
@@ -6507,16 +6182,6 @@ export interface RpcMethods {
   'subagent.steer': { params: SubagentSteerParams; result: SubagentSteerResult }
   /** Last 16KB of an owned child's live transcript. */
   'subagent.tail': { params: SubagentIdParams; result: SubagentTailResult }
-  /** Schedule a downgrade / same-price change or a period-end cancellation. */
-  'subscription.change': { params: SubscriptionChangeParams; result: BillingPendingChangeResult }
-  /** Chargeless quote of what a plan change would do (billing:manage). */
-  'subscription.preview': { params: SubscriptionPreviewParams; result: SubscriptionPreviewResult }
-  /** Clear a scheduled downgrade / cancellation (re-enables recurring spend). */
-  'subscription.resume': { params: ProfileParams; result: BillingPendingChangeResult }
-  /** Current plan, tier catalog and usage for the picker; fail-open when logged out. */
-  'subscription.state': { params: ProfileParams; result: SubscriptionStateResult }
-  /** Prorate, charge and flip the plan (billing:manage, idempotent). */
-  'subscription.upgrade': { params: SubscriptionUpgradeParams; result: SubscriptionUpgradeResult }
   /** Host battery for the status bar; always resolves, ``available: false`` when unreadable. */
   'system.battery': { params: SystemBatteryParams; result: SystemBatteryResult }
   /** Record the client's column width for server-side rendering. */
@@ -6529,8 +6194,6 @@ export interface RpcMethods {
   'tools.show': { params: _SessionScoped; result: ToolsShowResult }
   /** Toolset summaries (no tool names) for the desktop Toolsets tab. */
   'toolsets.list': { params: _SessionScoped; result: ToolsetsListResult }
-  /** Two-bar dollar usage view shared by /usage, /topup and /subscription; fail-open to unavailable. */
-  'usage.bars': { params: ProfileParams; result: UsageModel }
   /** Add a login / payment / address item to the local vault. */
   'vault.add': { params: VaultAddParams; result: VaultAddResult }
   /** Metadata-only listing across the local vault and every unlocked password manager. */
@@ -6572,12 +6235,6 @@ export const RPC_METHODS = [
   'approval.pending',
   'approval.received',
   'approval.respond',
-  'billing.auto_reload',
-  'billing.charge',
-  'billing.charge_status',
-  'billing.keep_going_on_credits',
-  'billing.state',
-  'billing.step_up',
   'bot_relay.deliver',
   'bot_relay.outbox.drain',
   'bot_relay.reply',
@@ -6797,18 +6454,12 @@ export const RPC_METHODS = [
   'subagent.roster',
   'subagent.steer',
   'subagent.tail',
-  'subscription.change',
-  'subscription.preview',
-  'subscription.resume',
-  'subscription.state',
-  'subscription.upgrade',
   'system.battery',
   'terminal.resize',
   'tools.configure',
   'tools.list',
   'tools.show',
   'toolsets.list',
-  'usage.bars',
   'vault.add',
   'vault.list',
   'vault.lock',
@@ -7026,8 +6677,6 @@ export interface BackendGatewayEventMap {
   'approval.cancelled': ApprovalCancelledPayload
   /** A /background side agent finished. */
   'background.complete': SideAgentCompletePayload
-  /** Device-flow URL + code for the billing scope step-up; the client opens the browser. */
-  'billing.step_up.verification': BillingStepUpVerificationPayload
   /** A bot-relay outbox envelope is queued; drain it. */
   'bot_relay.outbox.pending': ChangeSignalPayload
   /** Browser (CDP) connect / install progress line. */
@@ -7181,7 +6830,6 @@ export const GATEWAY_EVENT_TYPES = [
   'agent.terminal.output',
   'approval.cancelled',
   'background.complete',
-  'billing.step_up.verification',
   'bot_relay.outbox.pending',
   'browser.progress',
   'btw.complete',

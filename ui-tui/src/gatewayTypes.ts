@@ -1,4 +1,4 @@
-import type { UsageModelData } from '@hermes/shared/billing'
+export type { BillingBlock } from '@hermes/shared/gateway-events'
 import type {
   ConnectionRequestPayload,
   GatewayEvent,
@@ -89,27 +89,6 @@ export interface SlashExecResponse {
   output?: string
   warning?: string
 }
-
-// ── Remote Spending (Phase 2b) ───────────────────────────────────────
-
-// Wire shapes now live in @hermes/shared for reuse by TypeScript clients.
-export type {
-  BillingAutoReload,
-  BillingBlock,
-  BillingCardInfo,
-  BillingChargeResponse,
-  BillingChargeStatusResponse,
-  BillingErrorPayload,
-  BillingMonthlyCap,
-  BillingMutationResponse,
-  BillingStateResponse,
-  SubscriptionPreviewResponse,
-  SubscriptionStateResponse,
-  SubscriptionTierOption,
-  SubscriptionUpgradeResponse,
-  UsageBarData,
-  UsageModelData
-} from '@hermes/shared/billing'
 
 // ── Config ───────────────────────────────────────────────────────────
 
@@ -311,15 +290,10 @@ export interface SessionUsageResponse {
   context_used?: number
   cost_status?: 'estimated' | 'exact'
   cost_usd?: number
-  credits_lines?: string[]
-  credits_usage_window?: boolean
   input?: number
   model?: string
   output?: number
   total?: number
-  // Shared dollar usage model (two-bar view) so /usage renders the same bars
-  // as /subscription. Dollars only — never "credits".
-  usage?: UsageModelData
 }
 
 export interface SessionStatusResponse {

@@ -9,7 +9,6 @@ import { $uiSessionId, $uiTheme } from '../app/uiStore.js'
 
 import { ActiveSessionSwitcher } from './activeSessionSwitcher.js'
 import { FloatBox } from './appChrome.js'
-import { BillingOverlay } from './billingOverlay.js'
 import { ConnectionSetupOverlay } from './connectionSetupOverlay.js'
 import { ConnectorsOverlay } from './connectorsOverlay.js'
 import { SecretPrompt, SudoPrompt, VaultCodePrompt, VaultSaveLoginPrompt, VaultUnlockPrompt } from './maskedPrompt.js'
@@ -20,7 +19,6 @@ import { PetPicker } from './petPicker.js'
 import { PluginsHub } from './pluginsHub.js'
 import { ApprovalPrompt, ClarifyPrompt, ConfirmPrompt } from './prompts.js'
 import { SkillsHub } from './skillsHub.js'
-import { SubscriptionOverlay } from './subscriptionOverlay.js'
 import { WidgetGrid, type WidgetGridWidget } from './widgetGrid.js'
 
 const COMPLETION_WINDOW = 16
@@ -86,63 +84,6 @@ export function PromptZone({
     return (
       <PromptCell cols={cols} id="approval">
         <ApprovalPrompt cols={cols} onChoice={onApprovalChoice} req={overlay.approval} t={theme} />
-      </PromptCell>
-    )
-  }
-
-  if (overlay.billing) {
-    const current = overlay.billing
-
-    const onPatch = (next: Partial<typeof current>) =>
-      patchOverlayState(prev => (prev.billing ? { ...prev, billing: { ...prev.billing, ...next } } : prev))
-
-    const onClose = () => patchOverlayState({ billing: null })
-
-    return (
-      <PromptCell cols={cols} id="billing">
-        <BillingOverlay onClose={onClose} onPatch={onPatch} overlay={current} t={theme} />
-      </PromptCell>
-    )
-  }
-
-  if (overlay.subscription) {
-    const current = overlay.subscription
-
-    const onPatch = (next: Partial<typeof current>) =>
-      patchOverlayState(prev =>
-        prev.subscription ? { ...prev, subscription: { ...prev.subscription, ...next } } : prev
-      )
-
-    const onClose = () => patchOverlayState({ subscription: null })
-
-    return (
-      <PromptCell cols={cols} id="subscription">
-        <SubscriptionOverlay onClose={onClose} onPatch={onPatch} overlay={current} t={theme} />
-      </PromptCell>
-    )
-  }
-
-  if (overlay.connection) {
-    return (
-      <PromptCell cols={cols} id="connection">
-        <ConnectionSetupOverlay cols={cols} t={theme} />
-      </PromptCell>
-    )
-  }
-
-  if (overlay.confirm) {
-    const req = overlay.confirm
-
-    const onConfirm = () => {
-      patchOverlayState({ confirm: null })
-      req.onConfirm()
-    }
-
-    const onCancel = () => patchOverlayState({ confirm: null })
-
-    return (
-      <PromptCell cols={cols} id="confirm">
-        <ConfirmPrompt onCancel={onCancel} onConfirm={onConfirm} req={req} t={theme} />
       </PromptCell>
     )
   }

@@ -8,6 +8,9 @@ on:
       - 'meu-release-request-*'
     paths:
       - 'apps/desktop/**'
+      - 'apps/shared/**'
+      - 'ui-tui/**'
+      - 'locales/**'
       - 'tools/**'
       - 'scripts/install.ps1'
       - 'agent/**'
@@ -60,6 +63,7 @@ jobs:
       - name: Prepare locked Python tests
         uses: ./.github/actions/setup-pm
         with:
+          toolchain: all
           extras: '["acp"]'
           test-environment: 'true'
       - name: Verify coordinator, hosted plugins and routing scope
@@ -76,6 +80,16 @@ jobs:
           tests/gateway/test_meu_session_auto.py
           tests/gateway/test_session_mutation_model.py
           -- --override-ini=addopts= -q
+      - name: Install locked terminal dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build the terminal renderer
+        run: npm run build:ink --prefix ui-tui
+      - name: Verify terminal types on Linux
+        working-directory: ui-tui
+        run: npm run typecheck
+      - name: Verify terminal behavior on Linux
+        working-directory: ui-tui
+        run: npm test -- --maxWorkers 2
 
   windows-navigation:
     name: Meu navigation with an isolated Windows backend
@@ -133,6 +147,17 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
           tests/hermes_cli/test_meu_nous_routes.py
+          tests/tui_gateway/test_meu_removed_payments.py
+          tests/agent/test_account_usage_fetch.py
+          tests/agent/test_billing_links.py
+          tests/agent/test_credits_usage_window.py
+          tests/tui_gateway/test_session_usage_account_lines.py
+          tests/tui_gateway/test_free_tier_rpc.py
+          tests/tui_gateway/test_legacy_fallback_ticket_profile_verbs.py
+          tests/hermes_cli/test_webapp_socket_profile_scope.py
+          tests/hermes_cli/test_guest_handoff.py
+          tests/hermes_cli/test_plain_login_settle.py
+          tests/gateway/test_usage_command.py
           tests/hermes_cli/test_provider_catalog.py
           tests/providers/test_provider_profiles.py
           tests/providers/test_transport_parity.py
@@ -184,6 +209,12 @@ jobs:
           tests/tools/test_approval_mode_parity.py
           tests/tools/test_computer_use_approval_isolation.py
           -- --override-ini=addopts= -q
+      - name: Verify gateway usage counters
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 1
+          tests/tui_gateway/test_tui_gateway_server.py
+          -- --override-ini=addopts= -q -k usage
 
   windows-identity-and-safety:
     name: Meu identity and isolation on Windows
@@ -222,6 +253,14 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build the terminal renderer
+        run: npm run build:ink --prefix ui-tui
+      - name: Verify terminal types on Windows
+        working-directory: ui-tui
+        run: npm run typecheck
+      - name: Verify terminal behavior on Windows
+        working-directory: ui-tui
+        run: npm test -- --maxWorkers 2
       - name: Set up Python for backend syntax checks
         uses: actions/setup-python@v5
         with:
@@ -258,7 +297,7 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/store/meu-updates.test.ts src/store/updates.test.ts src/components/update-status.test.tsx src/app/updates-overlay.manual.test.tsx src/lib/update-notes.test.ts
       - name: Verify removed Nous surfaces and provider credential recovery
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts src/app/session/hooks/use-message-stream/gateway-event/status.test.ts
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/store/desktop-metrics.test.ts src/store/shared-metrics.test.ts src/app/settings/shared-metrics-settings.test.tsx src/components/shared-metrics/consent-dialog.test.tsx src/components/shared-metrics/consent-strip.test.tsx src/app/gateway/report-startup-latency.test.ts

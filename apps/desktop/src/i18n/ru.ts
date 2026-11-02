@@ -337,37 +337,6 @@ export const ruOverrides = {
   },
   settings: {
     memoryLayers: ruMemoryLayers,
-    // Window plans (Nous subscription with included usage). Other billing strings: overlay-gaps.json.
-    billing: {
-      keepGoingOnCredits: {
-        title: 'Продолжать за кредиты',
-        description: 'Тратить кредиты, когда включённый объём закончится. Выключено: Meu ждёт сброса.',
-        approveInBrowser:
-          'Чтобы изменить это, одобрите удалённые траты в браузере. Изменение применится сразу после одобрения.',
-        openAgain: 'Открыть снова',
-        cancel: 'Отмена',
-        approvedRetry: 'Удалённые траты одобрены, но изменение не сохранилось.',
-        tryAgain: 'Повторить'
-      },
-      state: {
-        usage: {
-          window: {
-            today: 'Сегодня',
-            week: 'Эта неделя',
-            month: 'Этот месяц',
-            topTier: 'Крупные модели (месяц)',
-            barLabel: title => `${title}: использовано включённого объёма`,
-            captionPaused: 'Приостановлено: платёж по подписке не прошёл',
-            captionPausedOther: 'Приостановлено: см. раздел «Оплата» на портале',
-            captionTopTierUsedUp: 'Месячный лимит исчерпан, остальное оплачивается кредитами',
-            captionTopTierUsedUpKeepGoingOff: 'Месячный лимит исчерпан, другие включённые модели работают',
-            captionResetsIn: duration => `Сброс через ${duration}`,
-            captionIncluded: 'Включённый объём',
-            valueUsed: percent => `использовано ${percent}`
-          }
-        }
-      }
-    },
     subpages: {
       appearanceTheme: 'Тема',
       appearanceTypography: 'Шрифты и масштаб',
@@ -1876,8 +1845,7 @@ export const ruOverrides = {
     restartFailedManual: 'Не удалось перезапустить шлюз — перезапустите его вручную и проверьте журналы.',
     telegramQr: {
       title: 'Выберите способ подключения Telegram-бота',
-      subtitle:
-        'Оба способа подключают бота под вашим контролем и сохраняют его данные только в этой установке Meu.',
+      subtitle: 'Оба способа подключают бота под вашим контролем и сохраняют его данные только в этой установке Meu.',
       quickSetup: 'Быстрая настройка',
       recommended: 'Рекомендуется',
       quickHelp:
@@ -2637,8 +2605,6 @@ export const ruOverrides = {
       '/browser': 'Управлять браузером агента [connect|disconnect|status]',
       '/palette': 'Открыть палитру команд',
       '/usage': 'Показать расход токенов и лимиты; reset использует накопленный сброс лимита Codex',
-      '/subscription': 'Показать план Nous и изменить его в браузере',
-      '/topup': 'Показать баланс Nous и управлять оплатой',
       '/platform': 'Приостановить, возобновить или перечислить сбоящие платформы шлюза',
       '/version': 'Показать версию Meu Agent',
       '/debug': 'Загрузить отчёт отладки с данными системы и журналами и получить ссылку',
@@ -2934,8 +2900,7 @@ export const ruOverrides = {
     copyFullLog: 'Скопировать полный список изменений',
     manualTitle: 'Обновление из терминала',
     manualUnavailableTitle: 'Обновление здесь недоступно',
-    manualBody:
-      'Meu установлен из командной строки, поэтому обновления тоже выполняются там. Вставьте это в терминал:',
+    manualBody: 'Meu установлен из командной строки, поэтому обновления тоже выполняются там. Вставьте это в терминал:',
     manualPickedUp: 'Meu подхватит новую версию при следующем запуске.',
     manualBodyBackend: 'Бэкенд Meu управляется вне этого приложения. Выполните это на сервере, где он размещён:',
     manualPickedUpBackend: 'Бэкенд загрузит новую версию после завершения обновления.',

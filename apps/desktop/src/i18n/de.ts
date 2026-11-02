@@ -230,8 +230,7 @@ export const deOverrides = {
       needsAuthBody: 'Die Anmeldung bleibt auf diesem Computer. Nichts verlässt ihn.',
       retry: 'Erneut versuchen',
       goneTitle: (name: string) => `${name} ist nicht mehr im Katalog.`,
-      goneBody:
-        'Meu kann ihn nicht mehr aufrufen. Die Zeile bleibt, bis Sie sie entfernen, damit nichts verschwindet.',
+      goneBody: 'Meu kann ihn nicht mehr aufrufen. Die Zeile bleibt, bis Sie sie entfernen, damit nichts verschwindet.',
       remove: 'Entfernen',
       offTitle: (name: string) => `${name} ist aus.`,
       offBody: 'Schalten Sie ihn mit dem Schalter oben ein, um seine Tools zu laden.',
@@ -1438,16 +1437,14 @@ export const deOverrides = {
       options: {
         gui: {
           title: 'Nur die Chat-Oberfläche deinstallieren',
-          description:
-            'Entfernt diese Desktop-App. Der Meu-Agent, Ihre Konfiguration und Ihre Chats bleiben erhalten.',
+          description: 'Entfernt diese Desktop-App. Der Meu-Agent, Ihre Konfiguration und Ihre Chats bleiben erhalten.',
           consequence: 'die Desktop-Chat-Oberfläche (diese App und ihre Daten)'
         },
         lite: {
           title: 'Oberfläche + Agent deinstallieren, Daten behalten',
           description:
             'Entfernt die App und den Meu-Agent, behält aber Konfiguration, Chats und Geheimnisse für eine spätere Neuinstallation.',
-          consequence:
-            'die Chat-Oberfläche und den Meu-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
+          consequence: 'die Chat-Oberfläche und den Meu-Agent (Konfiguration, Chats und Geheimnisse bleiben erhalten)'
         },
         full: {
           title: 'Alles deinstallieren',
@@ -1915,315 +1912,6 @@ export const deOverrides = {
     },
     model: deModelSettings,
     localModels: deLocalModels,
-    billing: {
-      perMonth: (amount: string) => `${amount}/Monat`,
-      creditsPerMonth: (amount: string) => `${amount} Credits/Monat`,
-      usageLabel: (label: string) => `${label}-Nutzung`,
-      freeTier: {
-        signIn: 'Anmelden',
-        title: 'Sie nutzen den kostenlosen Nous-Tarif',
-        message: 'Melden Sie sich mit einem Nous-Konto an, um weitere Modelle und Tools freizuschalten.',
-        caption:
-          'Läuft mit nous/welcome, Konnektoren inklusive. Nach der Anmeldung bleiben Ihre Konnektoren erhalten, und Sie erhalten die kontopflichtigen Tools sowie alle weiteren Modelle.',
-        name: 'Nous · kostenloser Tarif',
-        footnote:
-          'Der kostenlose Tarif hat kein Guthaben und nichts zu bezahlen. Zahlung und Nutzung werden angezeigt, sobald Sie sich mit einem Nous-Konto anmelden.',
-        plan: 'Kostenloser Tarif',
-        model: 'Modell',
-        connectors: 'Konnektoren',
-        included: 'Inklusive'
-      },
-      amountValidation: {
-        reloadTo: 'Aufladen auf',
-        greaterThanThreshold: 'Der Aufladebetrag muss größer als der Schwellenwert sein.',
-        decimal: (label: string) => `${label}: Geben Sie einen Dollarbetrag mit höchstens 2 Nachkommastellen ein.`,
-        positive: (label: string) => `${label}: Der Betrag muss größer als 0 $ sein.`,
-        minimum: (label: string, amount: string) => `${label}: Minimum ist ${amount}.`,
-        maximum: (label: string, amount: string) => `${label}: Maximum ist ${amount}.`
-      },
-      stepUp: {
-        openVerification: 'Verifizierungsseite öffnen',
-        dismiss: 'Schließen',
-        waiting: 'Warten auf Verifizierungslink…',
-        verify: 'Zum Fortfahren verifizieren',
-        deniedTitle: 'Die Verifizierung wurde nicht genehmigt',
-        deniedBody: 'Die Verifizierung wurde abgeschlossen, ohne Remote-Ausgaben für dieses Terminal zu erlauben.',
-        successTitle: 'Verifizierung abgeschlossen',
-        successBody: 'Remote-Ausgaben sind für dieses Terminal erlaubt.'
-      },
-      charge: {
-        added: (amount?: string) => (amount ? `${amount} $ hinzugefügt.` : 'Credits hinzugefügt.'),
-        failedTitle: 'Abbuchung fehlgeschlagen',
-        unconfirmedTitle: 'Ergebnis der Abbuchung unbestätigt',
-        unconfirmedBody: (message: string) =>
-          `${message} Das Ergebnis Ihrer letzten Abbuchung ist unbestätigt - prüfen Sie Guthaben/Verlauf, bevor Sie es erneut versuchen.`,
-        checkTitle: 'Abbuchung konnte nicht geprüft werden',
-        checkBody: 'Die Abbuchung konnte nicht geprüft werden.',
-        untrackedTitle: 'Abbuchung konnte nicht verfolgt werden',
-        untrackedBody: 'Der Abrechnungsdienst hat die Anfrage angenommen, aber keine Abbuchungs-ID zurückgegeben.',
-        timeoutTitle: 'Nach 5 Minuten noch in Bearbeitung',
-        timeoutBody:
-          'Die Abbuchung kann noch abgeschlossen werden. Prüfen Sie das Portal, bevor Sie es erneut versuchen.',
-        authenticationRequired:
-          'Ihre Bank verlangt eine Verifizierung (3DS). Schließen Sie sie im Portal ab, um diesen Kauf abzuschließen.',
-        expired: 'Ihre Karte ist abgelaufen. Aktualisieren Sie sie im Portal.',
-        declined: 'Ihre Karte wurde abgelehnt. Versuchen Sie im Portal eine andere Karte.',
-        failedBody: (reason: string) => `Die Abbuchung ist nicht durchgegangen (${reason}).`
-      },
-      title: 'Abrechnung',
-      preview: 'Vorschau',
-      summary: {
-        balance: 'Guthaben',
-        plan: 'Tarif',
-        autoRefill: 'Automatisch aufladen'
-      },
-      sections: {
-        invoices: 'Rechnungen',
-        plan: 'Tarif',
-        paymentAndCredits: 'Zahlung & Credits',
-        usage: 'Nutzung'
-      },
-      usage: {
-        title: 'Nutzung'
-      },
-      buyCredits: {
-        customAmount: 'Eigener Credit-Betrag',
-        title: 'Jetzt Credits kaufen',
-        buyButton: 'Kaufen',
-        processing: 'Wird verarbeitet… Abrechnung wird geprüft',
-        added: (amount: string) => `${amount} hinzugefügt. Guthaben wird aktualisiert.`,
-        retry: 'Erneut versuchen',
-        openPortal: 'Portal öffnen'
-      },
-      plan: {
-        title: 'Tarife',
-        changePlan: 'Tarif ändern',
-        viewPlans: 'Tarife ansehen',
-        backAria: 'Zurück zur Abrechnung',
-        current: 'Aktueller Tarif',
-        scheduled: 'Geplant',
-        empty: 'Derzeit sind keine Tarife zum Wechseln verfügbar.',
-        undo: 'Rückgängig',
-        undoing: 'Wird rückgängig gemacht…',
-        downgrade: 'Herabstufen',
-        confirmDowngrade: 'Herabstufung bestätigen',
-        tryAgain: 'Erneut versuchen',
-        checkingChange: 'Änderung wird geprüft…',
-        cannotChange: 'Diese Änderung ist hier nicht möglich.',
-        alreadyOn: (name: string) => `Sie nutzen bereits ${name} – nichts zu ändern.`,
-        notScheduleable: 'Diese Änderung kann hier nicht geplant werden.',
-        scheduling: 'Wird geplant…',
-        cancel: 'Abbrechen',
-        effectScheduled: (targetName: string, effectiveAt: string, creditsDelta?: string) =>
-          `Wechsel zu ${targetName} – wirksam ${effectiveAt}. Jetzt keine Abbuchung; bis dahin behalten Sie Ihren aktuellen Tarif.${creditsDelta ? ` Änderung der monatlichen Credits: ${creditsDelta}.` : ''}`
-      },
-      keepGoingOnCredits: {
-        title: 'Mit Credits weitermachen',
-        description:
-          'Nutzt Ihre Credits, wenn die enthaltene Nutzung aufgebraucht ist. Aus: Meu wartet auf das Zurücksetzen.',
-        approveInBrowser:
-          'Bestätige Remote Spending im Browser, um das zu ändern. Es wird übernommen, sobald du bestätigst.',
-        openAgain: 'Erneut öffnen',
-        cancel: 'Abbrechen',
-        approvedRetry: 'Remote Spending ist bestätigt, aber die Änderung wurde nicht gespeichert.',
-        tryAgain: 'Erneut versuchen'
-      },
-      autoReload: {
-        threshold: 'Schwellenwert',
-        thresholdAria: 'Schwellenwert für automatisches Aufladen',
-        reloadTo: 'Aufladen auf',
-        reloadToAria: 'Zielbetrag für automatisches Aufladen',
-        turnOffConfirm: 'Automatisches Aufladen deaktivieren?',
-        turnOff: 'Ausschalten',
-        disable: 'Deaktivieren',
-        updated: 'Automatisches Aufladen aktualisiert.',
-        turnedOff: 'Automatisches Aufladen deaktiviert.',
-        manage: 'Verwalten',
-        save: 'Speichern',
-        saving: 'Wird gespeichert…',
-        cancel: 'Abbrechen'
-      },
-      state: {
-        notice: {
-          loggedOut: {
-            title: 'Nous-Konto verbinden',
-            message: 'Melden Sie sich mit Ihrem Nous-Konto an, um hier Guthaben, Tarif und Nutzung zu sehen.',
-            action: 'Anmelden'
-          },
-          openPortal: 'Portal öffnen ↗',
-          noCard: {
-            title: 'Keine Zahlungsmethode hinterlegt',
-            message:
-              'Der Kauf von Credits und das automatische Aufladen bleiben deaktiviert, bis eine Karte hinterlegt ist. Fügen Sie im Portal eine hinzu.',
-            action: 'Karte hinzufügen ↗'
-          }
-        },
-        paymentMethod: {
-          title: 'Zahlungsmethode',
-          description: 'Verwalten Sie die Karte für Aufladungen und Abo-Verlängerungen.',
-          addAction: 'Zahlungsmethode hinzufügen',
-          updateAction: 'Aktualisieren',
-          provenance: {
-            autoRefill: 'Karte für automatisches Aufladen',
-            customerDefault: 'Standardkarte des Kunden',
-            subPin: 'Abo-Karte',
-            suffix: (label: string) => ` - ${label}`
-          }
-        },
-        buyCredits: {
-          description: 'Eine einmalige Abbuchung von Ihrer Karte, die noch heute Ihrem Guthaben gutgeschrieben wird.'
-        },
-        autoRefill: {
-          title: 'Bei niedrigem Guthaben aufladen',
-          genericDescription: 'Hält Ihr Guthaben aufgeladen, wenn es unter Ihren Schwellenwert fällt.',
-          offPill: 'Aus',
-          enabledPill: 'Aktiviert',
-          notAvailablePill: '—',
-          manageCaption: 'Automatisches Aufladen im Portal verwalten.',
-          turnOnCaption: 'Automatisches Aufladen im Portal aktivieren',
-          chargesDescription: (reloadTo: string, threshold: string) =>
-            `Bucht automatisch ${reloadTo} ab, wenn Ihr Guthaben unter ${threshold} fällt.`,
-          distinctCardCaption: (cardLabel: string) =>
-            `Automatisches Aufladen belastet ${cardLabel} – im Portal abgleichen`,
-          distinctCardFallback: 'eine andere Karte',
-          reconcileAction: 'Abgleichen ↗'
-        },
-        usage: {
-          subscriptionCredits: {
-            title: 'Abo-Credits',
-            barLabel: 'Verbleibende Abo-Credits',
-            captionResets: (date: string) => `Wird zurückgesetzt: ${date}`,
-            valueOf: (remaining: string, monthly: string) => `${remaining} von ${monthly} übrig`,
-            valueOver: (remaining: string, monthly: string, over: string) =>
-              `${remaining} von ${monthly} übrig · ${over} darüber`
-          },
-          topupCredits: {
-            title: 'Aufgeladene Credits',
-            caption: 'Verfallen nicht'
-          },
-          monthlyCap: {
-            title: 'Monatliches Ausgabenlimit',
-            barLabel: 'Genutztes monatliches Ausgabenlimit',
-            captionDefault: 'Standardobergrenze',
-            captionSpending: 'Monatliche Remote-Ausgaben',
-            valueUsed: (spent: string, limit: string) => `${spent} von ${limit} genutzt`
-          },
-          window: {
-            today: 'Heute',
-            week: 'Diese Woche',
-            month: 'Dieser Monat',
-            topTier: 'Große Modelle (monatlich)',
-            barLabel: (title: string) => `${title}: genutztes Inklusivvolumen`,
-            captionPaused: 'Pausiert: Abo-Zahlung fehlgeschlagen',
-            captionPausedOther: 'Pausiert: siehe Abrechnung im Portal',
-            captionTopTierUsedUp: 'Monatskontingent aufgebraucht, Credits decken den Rest',
-            captionTopTierUsedUpKeepGoingOff:
-              'Monatskontingent aufgebraucht, andere enthaltene Modelle funktionieren weiter',
-            captionResetsIn: (duration: string) => `Wird in ${duration} zurückgesetzt`,
-            captionIncluded: 'Inklusivvolumen',
-            valueUsed: (percent: string) => `${percent} genutzt`
-          }
-        },
-        planCard: {
-          freeTier: 'Kostenlos',
-          chooseAction: 'Auswählen ↗',
-          adjustPlanAction: 'Tarif anpassen ↗',
-          unavailableCaption: 'Abo-Details sind nicht verfügbar; das Portal kann weiterhin geöffnet werden.',
-          downgradeCaption: (tierName: string, when: string) => `Wechselt am ${when} zu ${tierName}.`,
-          cancellationCaption: (when: string) => `Endet am ${when}.`,
-          renewsCaption: (date: string) => `Verlängert sich ${date}`,
-          noSubscriptionCaption: 'Kein aktives Abo – kostenpflichtige Modelle verbrauchen aufgeladene Credits.'
-        }
-      },
-      errors: {
-        consentRequired: {
-          title: 'Kartenbestätigung erforderlich',
-          message: 'Bestätigen Sie diese Karte im Portal für Terminal-Abbuchungen'
-        },
-        insufficientScope: {
-          title: 'Remote-Ausgaben müssen genehmigt werden',
-          message:
-            'Dafür müssen Remote-Ausgaben erlaubt sein. Starten Sie eine Aufladung, um sie zu erlauben, und versuchen Sie es erneut.'
-        },
-        remoteSpendingRevoked: {
-          title: 'Remote-Ausgaben wurden gestoppt',
-          messageByAdmin: 'Ein Administrator hat Remote-Ausgaben für dieses Terminal gestoppt.',
-          messageBySelf: 'Sie haben Remote-Ausgaben für dieses Terminal gestoppt.'
-        },
-        remoteSpendingReconnect: (who: string) =>
-          `${who} Verbinden Sie sich unter Einstellungen -> Gateway erneut, um dieses Gerät neu zu autorisieren.`,
-        sessionRevoked: {
-          title: 'Session abgemeldet',
-          message: 'Ihre Session wurde abgemeldet. Melden Sie sich unter Einstellungen → Gateway erneut an.'
-        },
-        cliBillingDisabled: {
-          title: 'Remote-Ausgaben sind deaktiviert',
-          message:
-            'Remote-Ausgaben sind für dieses Konto deaktiviert – ein Abrechnungsadministrator kann sie auf der Meu-Agent-Seite des Portals aktivieren.'
-        },
-        roleRequired: {
-          title: 'Administratorrolle erforderlich',
-          message:
-            'Zum Aufladen ist ein Org-Administrator oder -Inhaber nötig. Fragen Sie einen Administrator oder verwalten Sie es im Portal.'
-        },
-        idempotencyConflict: {
-          title: 'Neue Aufladung starten',
-          message:
-            '🔴 Dieser Abbuchungsschlüssel wurde bereits für einen anderen Betrag verwendet. Starten Sie eine neue Aufladung.'
-        },
-        noPaymentMethod: {
-          title: 'Keine gespeicherte Karte',
-          message:
-            '💳 Noch keine gespeicherte Karte für Terminal-Abbuchungen. Richten Sie im Portal eine ein ' +
-            '(einmalige Credit-Käufe speichern keine wiederverwendbare Karte).'
-        },
-        orgAccessDenied: {
-          title: 'Org-Zugriff verweigert',
-          message: 'Dieses Token ist an keine Organisation gebunden, die Sie verwalten können'
-        },
-        monthlyCapExceeded: {
-          title: 'Monatliches Ausgabenlimit erreicht',
-          messageReached: '🔴 Monatliches Ausgabenlimit erreicht.',
-          messageHeadroom: (remaining: string) =>
-            `🔴 Monatliches Ausgabenlimit erreicht – ${remaining} $ Spielraum übrig.`
-        },
-        rateLimited: {
-          title: 'Zu viele Abbuchungen im Moment',
-          message: (mins: number) =>
-            mins > 0
-              ? `🟡 Zu viele Abbuchungen im Moment (erneut versuchen in ~${mins} Min.). Das ist kein Zahlungsfehler.`
-              : '🟡 Zu viele Abbuchungen im Moment. Das ist kein Zahlungsfehler.'
-        },
-        stripeUnavailable: {
-          title: 'Stripe hat Probleme',
-          message: (mins: number) =>
-            mins > 0
-              ? `Stripe hat Probleme – erneut versuchen in ~${mins} Min.`
-              : 'Stripe hat Probleme – versuchen Sie es gleich erneut'
-        },
-        upgradeCapExceeded: {
-          title: 'Tägliches Limit für Tarifwechsel erreicht',
-          message: 'Tägliches Limit für Tarifwechsel erreicht – versuchen Sie es morgen erneut'
-        },
-        endpointUnavailable: {
-          title: 'Abrechnungs-Endpunkt nicht verfügbar',
-          message:
-            'Der Abrechnungs-Endpunkt hat eine Nicht-JSON-Antwort zurückgegeben (er ist in diesem Deployment möglicherweise nicht verfügbar).'
-        },
-        timeout: {
-          title: 'Zeitüberschreitung bei der Abrechnungsanfrage',
-          message: 'Zeitüberschreitung bei der Abrechnungsanfrage.'
-        },
-        transport: {
-          title: 'Abrechnungsverbindung fehlgeschlagen',
-          message: 'Die Abrechnungsanfrage ist fehlgeschlagen, bevor sie das Gateway erreicht hat.'
-        },
-        default: {
-          title: 'Abrechnungsanfrage fehlgeschlagen',
-          message: 'Die Abrechnungsanfrage ist fehlgeschlagen.'
-        }
-      }
-    },
     providers: {
       connectAccount: 'Ein Konto verbinden',
       haveApiKey: 'Haben Sie stattdessen einen API-Key?',
@@ -3856,8 +3544,6 @@ export const deOverrides = {
       '/browser': 'Browser des Agenten verwalten [connect|disconnect|status]',
       '/palette': 'Die unscharfe Befehlspalette öffnen (auch Strg+P)',
       '/usage': 'Token-Nutzung und Ratenlimits anzeigen; `reset` löst ein angespartes Codex-Limit-Reset ein',
-      '/subscription': 'Ihren Nous-Tarif ansehen und im Browser ändern',
-      '/topup': 'Ihr Nous-Guthaben anzeigen und die Abrechnung im Portal verwalten',
       '/platform': 'Eine fehlerhafte Gateway-Plattform pausieren, fortsetzen oder auflisten',
       '/version': 'Meu-Agent-Version anzeigen',
       '/debug': 'Debug-Bericht (Systeminfos + Logs) hochladen und teilbare Links erhalten',
