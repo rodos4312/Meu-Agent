@@ -8,7 +8,7 @@ PRO = "deepseek-v4-pro"
 _MODELS = {FLASH, PRO, "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
 _COMPLEX = re.compile(
     r"\b(debug|refactor|implement|architecture|algorithm|prove|proof|audit|optimiz\w*|analy[sz]\w*|"
-    r"design|investigat\w*|complex|security|"
+    r"design|code|coding|program\w*|build|develop\w*|investigat\w*|complex|security|"
     r"αναλυσ\w*|σχεδιασ\w*|αρχιτεκτον\w*|αλγοριθμ\w*|αποδει\w*|κωδικ\w*|"
     r"κωδικα|διορθω\w*|υλοποι\w*|ασφαλει\w*|debugging|κωδικας|"
     r"analysi|analise|kodika|kwdika|diorthose|ylopoiise)\b", re.IGNORECASE)

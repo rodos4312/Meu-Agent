@@ -22,6 +22,8 @@ def profile():
     ("Διόρθωσε τον κώδικα και κάνε ανάλυση του σφάλματος", "deepseek-v4-pro"),
     ("Implement an algorithm and prove it terminates", "deepseek-v4-pro"),
     ("Analyze and compare these approaches", "deepseek-v4-pro"),
+    ("Write Python code to process this file", "deepseek-v4-pro"),
+    ("Build a Python application", "deepseek-v4-pro"),
     ("diorthose ton kodika", "deepseek-v4-pro"),
     ("A long request. " * 80, "deepseek-v4-pro"),
 ])
