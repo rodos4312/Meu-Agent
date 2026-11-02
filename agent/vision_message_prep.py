@@ -130,14 +130,14 @@ class VisionMessagePrepMixin:
         self._anthropic_image_fallback_cache[cache_key] = note
         return note
 
-    def _model_supports_vision(self) -> bool:
+    def _model_supports_vision(self, *, model: str | None = None) -> bool:
         """True if the active provider+model reports native vision (config override
         > models.dev; see ``image_routing._supports_vision_override``)."""
         try:
             from hermes_cli.config import load_config
             from agent.image_routing import _lookup_supports_vision
             provider = (getattr(self, "provider", "") or "").strip()
-            model = (getattr(self, "model", "") or "").strip()
+            model = (model if model is not None else getattr(self, "model", "") or "").strip()
             return _lookup_supports_vision(provider, model, load_config()) is True
         except Exception:
             return False
@@ -185,12 +185,15 @@ class VisionMessagePrepMixin:
             cache[mode] = get_transport(mode)
         return cache[mode]
 
-    def _prepare_messages_for_non_vision_model(self, api_messages: list) -> list:
+    def _prepare_messages_for_non_vision_model(self, api_messages: list, *, model: str | None = None) -> list:
         """Replace native image parts with cached vision_analyze text when the active model lacks vision;
         vision-capable models pass through unchanged (the provider adapter handles image parts natively)."""
         if not any(
             isinstance(msg, dict) and self._content_has_image_parts(msg.get("content")) for msg in api_messages
-        ) or self._model_supports_vision():
+        ):
+            return api_messages
+        supports_vision = self._model_supports_vision() if model is None else self._model_supports_vision(model=model)
+        if supports_vision:
             return api_messages
 
         transformed = copy.deepcopy(api_messages)

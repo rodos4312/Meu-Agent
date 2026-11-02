@@ -5,6 +5,15 @@ import { esDelegationRouting } from './es_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const esModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: 'Este backend necesita una actualización para usar Auto. Tu modelo manual sigue funcionando.',
+  updateBackend: 'Comprobar backend de nuevo',
+  apiKey: 'Clave API',
+  apiKeySaved: 'Clave API guardada',
+  addKeyHint: 'Guarda aquí la clave del proveedor para elegir un modelo.',
+  replaceKeyHint: 'Ya hay una clave configurada. Pega otra para reemplazarla; la clave guardada nunca se muestra.',
+  autoMode: 'Auto · Flash / Pro',
+  autoModeDesc:
+    'Para chats nuevos: Flash para solicitudes sencillas; Pro para solicitudes largas, código y análisis. Las imágenes usan Flash. La selección es local, sin solicitudes de pago adicionales. Desactiva Auto para usar el modelo elegido arriba.',
   setupProviderFallback: 'proveedor',
   setUpProvider: name => `Configurar ${name}`,
   staleAuxBefore: (count, names) =>

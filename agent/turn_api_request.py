@@ -86,7 +86,7 @@ def _fire_pre_api_request_hook(
                 user_message=original_user_message,
                 conversation_history=list(messages),
                 platform=agent.platform or "",
-                model=agent.model,
+                model=api_kwargs.get("model") or agent.model,
                 provider=agent.provider,
                 base_url=agent.base_url,
                 api_mode=agent.api_mode,

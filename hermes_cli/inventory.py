@@ -839,7 +839,17 @@ def _raw_config_has_enabled_moa_preset() -> bool:
 
 def _apply_picker_hints(rows: list[dict]) -> None:
     """Add ``authenticated``/``auth_type``/``key_env``/``warning`` per row."""
+    from hermes_cli.auth import PROVIDER_REGISTRY
+    from providers import get_provider_profile
+    from providers.base import ProviderProfile
+
     for row in rows:
+        profile = get_provider_profile(row["slug"])
+        row["automatic_routing"] = bool(profile and type(profile).resolve_request_model is not ProviderProfile.resolve_request_model)
+        if not row.get("is_user_defined") or row.get("slug") in PROVIDER_REGISTRY:
+            auth_type, key_env = _provider_auth_hint(row["slug"])
+            row.setdefault("auth_type", auth_type)
+            row.setdefault("key_env", key_env)
         if "authenticated" in row:
             continue
         # Skeleton rows (_append_unconfigured_rows) have empty `models` AND source="canonical".

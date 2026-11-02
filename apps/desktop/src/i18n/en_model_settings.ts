@@ -3,6 +3,15 @@ import { enDelegationRouting } from './en_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const enModelSettings: ModelSettingsTranslations = {
+  apiKey: 'API key',
+  apiKeySaved: 'API key saved',
+  addKeyHint: 'Save your provider key here to choose a model.',
+  replaceKeyHint: 'A key is configured. Paste a new key here to replace it; the saved key is never displayed.',
+  autoMode: 'Auto · Flash / Pro',
+  autoUnavailable: 'This backend needs an update before Auto can work. Your manual model continues to work.',
+  updateBackend: 'Check backend again',
+  autoModeDesc:
+    'For new chats: simple requests use Flash; longer requests, coding and analysis use Pro. Images use Flash. Selection is local and makes no extra paid request. Turn off Auto to use the model selected above.',
   setupProviderFallback: 'provider',
   setUpProvider: name => `Set up ${name}`,
   staleAuxBefore: (count, names) => `${count} auxiliary task${count === 1 ? '' : 's'} (${names}) still run on `,

@@ -14,7 +14,6 @@ import {
   getGlobalModelInfo,
   getGlobalModelOptions,
   getMoaModels,
-  getRecommendedDefaultModel,
   saveHermesConfig,
   saveMoaModels,
   setEnvVar,
@@ -31,7 +30,6 @@ import type {
 import { useI18n } from '@/i18n'
 import { isCodeSkewRestartRequired } from '@/lib/code-skew-error'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
-import { isSubmitEnter } from '@/lib/ime'
 import { catalogProviderMatches, findCatalogProvider } from '@/lib/model-options'
 import { composerServiceTier } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
@@ -39,7 +37,6 @@ import { showLargeModelNotice } from '@/store/agent-notices'
 import { $customModels, withCustomModels } from '@/store/custom-models'
 import { setMainModelAssignment } from '@/store/model-assignment'
 import { notify, notifyError, readableError } from '@/store/notifications'
-import { startManualLocalEndpoint, startManualOnboarding, startManualProviderOAuth } from '@/store/onboarding'
 
 import { hermesConfigCacheWriter, invalidateHermesConfig, useHermesConfigRecord } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
@@ -54,6 +51,13 @@ import {
 } from './aux-task-rows'
 import { CONTROL_TEXT } from './constants'
 import { getNested, setNested } from './helpers'
+import {
+  loadProviderAfterKeySave,
+  MainModelAutoMode,
+  MainProviderKey,
+  MainProviderPicker,
+  startMainProviderSetup
+} from './main-provider-key'
 import { ModelSelect, withActive } from './model-select'
 import { ListRow, ListRowSkeleton, Pill, SectionHeading, SectionHeadingSkeleton } from './primitives'
 import { dismissStaleAux, readStaleAuxDismissal, staleAuxFingerprint } from './stale-aux-dismissal'
@@ -103,7 +107,7 @@ type SpeedTier = 'fast' | 'normal' | 'ultrafast'
 // provider), so unconfigured providers come back with `authenticated:false`
 // and an empty `models` list — those need a setup step before a model exists.
 function isProviderReady(p?: ModelOptionProvider): boolean {
-  return !!p && (p.authenticated !== false || (p.models?.length ?? 0) > 0)
+  return !!p && p.authenticated !== false
 }
 
 const NO_PROVIDERS: readonly ModelOptionProvider[] = [{ name: '—', slug: '', models: [] }]
@@ -423,6 +427,8 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
   // so a request in flight when the user switches profiles can't paint profile
   // A's models/providers into profile B (or fire onMainModelChanged for A).
   const profileEpoch = useRef(0)
+  const selectedProviderRef = useRef(selectedProvider)
+  selectedProviderRef.current = selectedProvider
 
   const setCaughtError = useCallback(
     (err: unknown, fallback: string) => {
@@ -570,7 +576,11 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
   // models to choose. `api_key` providers can be activated inline (paste key);
   // OAuth / external flows hand off to the onboarding sign-in.
   const needsSetup = !!selectedProvider && !isProviderReady(selectedProviderRow)
-  const setupIsApiKey = needsSetup && selectedProviderRow?.auth_type === 'api_key' && !!selectedProviderRow?.key_env
+  // Older backends omit auth hints on connected DeepSeek rows. Retain its existing key writer.
+  const selectedKeyEnv = selectedProviderRow?.key_env || (selectedProvider === 'deepseek' ? 'DEEPSEEK_API_KEY' : '')
+
+  const setupIsApiKey =
+    !!selectedKeyEnv && (selectedProviderRow?.auth_type === 'api_key' || selectedProvider === 'deepseek')
 
   // Clear any half-typed key when switching provider so it can't leak across.
   useEffect(() => {
@@ -807,7 +817,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
   // refresh so the now-authenticated provider's models populate. Auto-selects
   // the recommended default model so the user can Apply in one more click.
   const activateApiKeyProvider = useCallback(async () => {
-    const keyEnv = selectedProviderRow?.key_env
+    const keyEnv = selectedKeyEnv
     const slug = selectedProviderRow?.slug
 
     if (!keyEnv || !slug || !apiKeyDraft.trim()) {
@@ -820,62 +830,39 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
 
     try {
       await setEnvVar(keyEnv, apiKeyDraft.trim(), scopeProfile, { providerSetup: true })
-      setApiKeyDraft('')
 
-      // Pick a sensible default for the freshly-activated provider (mirrors
-      // `hermes model` curation). Best-effort — fall through to the refreshed
-      // model list if it fails.
-      let nextModel = ''
-
-      try {
-        const rec = await getRecommendedDefaultModel(slug, scopeProfile)
-        nextModel = rec.model || ''
-      } catch {
-        nextModel = ''
-      }
-
-      const options = await getGlobalModelOptions(undefined, scopeProfile)
-
-      if (profileEpoch.current !== epoch) {
+      if (profileEpoch.current !== epoch || selectedProviderRef.current !== slug) {
         return
       }
 
-      setCatalogProviders(options.providers || [])
-      const refreshedRow = options.providers?.find(p => p.slug === slug)
-      const fallbackModel = refreshedRow?.models?.[0] ?? ''
-      setSelectedModel(nextModel || fallbackModel)
+      setApiKeyDraft('')
+
+      const options = await loadProviderAfterKeySave(slug, scopeProfile)
+
+      if (profileEpoch.current !== epoch || selectedProviderRef.current !== slug) {
+        return
+      }
+
+      setCatalogProviders(options.providers)
+      setSelectedModel(current => (!needsSetup && current) || options.model)
+      notify({ kind: 'success', title: m.apiKeySaved, message: selectedProviderRow?.name ?? slug })
     } catch (err) {
       setCaughtError(err, m.loadFailed)
     } finally {
       setActivating(false)
     }
-  }, [apiKeyDraft, m.loadFailed, scopeProfile, selectedProviderRow, setCaughtError])
+  }, [
+    apiKeyDraft,
+    m.apiKeySaved,
+    m.loadFailed,
+    needsSetup,
+    scopeProfile,
+    selectedKeyEnv,
+    selectedProviderRow,
+    setCaughtError
+  ])
 
-  // OAuth / external providers can't be activated with a pasted key — hand off
-  // to the shared onboarding flow scoped to this provider's real sign-in. The
-  // custom / local endpoint is NOT an OAuth provider, so it gets the dedicated
-  // local-endpoint form (URL + optional API key) instead of being dead-ended
-  // on the OAuth picker (the original "booted back to the first screen" loop).
-  const startProviderSetup = () => {
-    const rowSlug = selectedProviderRow?.slug.trim() ?? ''
-    const slug = rowSlug || selectedProvider.trim()
-
-    if (!slug) {
-      return
-    }
-
-    const lower = slug.toLowerCase()
-
-    if (lower === 'custom' || lower === 'local' || lower.startsWith('custom:')) {
-      startManualLocalEndpoint(null, scopeProfile)
-    } else if (rowSlug) {
-      startManualProviderOAuth(rowSlug, scopeProfile)
-    } else {
-      // An absent row has no trustworthy auth metadata. Open the generic
-      // provider picker instead of deep-linking an unknown or stale slug.
-      startManualOnboarding(undefined, scopeProfile)
-    }
-  }
+  const startProviderSetup = () => startMainProviderSetup(selectedProviderRow, selectedProvider, scopeProfile)
 
   const applyMainModel = useCallback(async () => {
     if (!selectedProvider || !selectedModel) {
@@ -907,6 +894,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
       if (result.notice) {
         showLargeModelNotice(result.notice)
       }
+
       setSwitchStaleAux(result.stale_aux ?? [])
       notify({ kind: 'success', title: m.mainAppliedTitle, message: m.mainAppliedMessage(model) })
 
@@ -1082,56 +1070,26 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
         <section>
           <p className="mb-3 text-xs text-muted-foreground">{m.appliesDesc}</p>
           <div className="grid gap-1">
-            <ListRow
-              action={
-                <Select onValueChange={switchProvider} value={selectedProviderRow?.slug ?? selectedProvider}>
-                  <SelectTrigger
-                    aria-label={m.provider}
-                    className={cn(
-                      'w-full min-w-0 max-w-full @2xl:w-72 [&_[data-slot=select-value]]:truncate',
-                      CONTROL_TEXT
-                    )}
-                  >
-                    <SelectValue placeholder={m.provider} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mainProviderOptions.map(provider => (
-                      <SelectItem key={provider.slug || 'none'} value={provider.slug || 'none'}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              }
-              title={m.provider}
+            <MainProviderPicker
+              onChange={switchProvider}
+              providers={mainProviderOptions}
+              value={selectedProviderRow?.slug ?? selectedProvider}
             />
+            {setupIsApiKey && (
+              <MainProviderKey
+                busy={activating}
+                draft={apiKeyDraft}
+                onChange={setApiKeyDraft}
+                onSave={() => void activateApiKeyProvider()}
+                provider={selectedProviderRow?.name ?? selectedProvider}
+                ready={!needsSetup}
+              />
+            )}
             <ListRow
               action={
                 needsSetup ? (
                   setupIsApiKey ? (
-                    <div className="grid w-full min-w-0 max-w-full @2xl:w-72 justify-items-end gap-2">
-                      <Input
-                        autoComplete="off"
-                        className={cn('min-w-0', CONTROL_TEXT)}
-                        onChange={event => setApiKeyDraft(event.target.value)}
-                        onKeyDown={event => {
-                          if (isSubmitEnter(event)) {
-                            void activateApiKeyProvider()
-                          }
-                        }}
-                        placeholder={`Paste ${selectedProviderRow?.key_env ?? 'API key'}`}
-                        type="password"
-                        value={apiKeyDraft}
-                      />
-                      <Button
-                        disabled={!apiKeyDraft.trim() || activating}
-                        onClick={() => void activateApiKeyProvider()}
-                        size="sm"
-                      >
-                        {activating && <Loader2 className="size-3.5 animate-spin" />}
-                        {activating ? 'Activating...' : 'Activate'}
-                      </Button>
-                    </div>
+                    <span className="text-xs text-muted-foreground">{m.addKeyHint}</span>
                   ) : (
                     <Button onClick={startProviderSetup} size="sm" variant="textStrong">
                       {m.setUpProvider(selectedProviderRow?.name ?? m.setupProviderFallback)}
@@ -1171,6 +1129,13 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
                 : `${selectedProviderRow?.name} signs in through your browser — Meu runs the flow for you.`}
             </p>
           )}
+          <MainModelAutoMode
+            config={config}
+            onChange={writeAgentDefault}
+            onRefresh={() => void refresh()}
+            provider={selectedProvider}
+            supported={selectedProviderRow?.automatic_routing === true}
+          />
           {config && mainModel && (reasoningSupported || fastSupported || ultrafastSupported) && (
             <MainModelDefaults
               effortValue={effortValue}

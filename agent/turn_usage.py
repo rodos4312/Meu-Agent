@@ -77,6 +77,9 @@ def record_response_usage(
     """Fold ``response.usage`` into compressor, anchors, session counters, state.db
     and the API-call log line (see module docstring). No-usage responses only
     consume a pending compaction verdict. Returns the loop-visible outcome."""
+    from agent.request_routing import active_request_model
+
+    request_model = active_request_model(agent)
     rearmed = False
     compressor = agent.context_compressor
     # Count every completed provider attempt, including providers that omit usage.
@@ -94,7 +97,7 @@ def record_response_usage(
             _note_usage_less()
         logger.info(
             "API call #%d: model=%s provider=%s in=? out=? total=? latency=%.1fs usage=unavailable",
-            agent.session_api_calls, agent.model, agent.provider or "unknown", api_duration,
+            agent.session_api_calls, request_model, agent.provider or "unknown", api_duration,
         )
         return ResponseUsageOutcome(compression_attempts=compression_attempts, rearmed=rearmed)
 
@@ -211,7 +214,7 @@ def record_response_usage(
         _ident += f" upstream={_upstream}"
     logger.info(
         "API call #%d: model=%s provider=%s in=%d out=%d total=%d latency=%.1fs%s%s",
-        agent.session_api_calls, agent.model, agent.provider or "unknown",
+        agent.session_api_calls, request_model, agent.provider or "unknown",
         prompt_tokens, completion_tokens, total_tokens,
         api_duration, _cache_pct, _ident,
     )
@@ -223,7 +226,7 @@ def record_response_usage(
 
     # MoA: agent.model/provider are the virtual preset/"moa" with no pricing entry, silently
     # dropping aggregator spend. Price at the REAL model/provider from the aggregator slot.
-    _agg_cost_model, _agg_cost_provider, _agg_cost_base_url = agent.model, agent.provider, agent.base_url
+    _agg_cost_model, _agg_cost_provider, _agg_cost_base_url = request_model, agent.provider, agent.base_url
     _agg_slot = getattr(_moa_client, "last_aggregator_slot", None) if _moa_client is not None else None
     if _agg_slot and _agg_slot.get("model"):
         _agg_cost_model = _agg_slot["model"]
@@ -276,7 +279,7 @@ def record_response_usage(
                 billing_base_url=agent.base_url,
                 billing_mode="subscription_included"
                 if cost_result.status == "included" else None,
-                model=agent.model,
+                model=request_model,
                 api_call_count=1,
                 task=getattr(agent, "_turn_route_task", "") or "",
             )

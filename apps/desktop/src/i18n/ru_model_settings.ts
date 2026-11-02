@@ -5,6 +5,15 @@ import { ruDelegationRouting } from './ru_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const ruModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: 'Для режима Авто необходимо обновить сервер Meu. Выбранная вручную модель продолжает работать.',
+  updateBackend: 'Проверить сервер снова',
+  apiKey: 'API-ключ',
+  apiKeySaved: 'API-ключ сохранён',
+  addKeyHint: 'Сохраните здесь ключ провайдера, чтобы выбрать модель.',
+  replaceKeyHint: 'Ключ уже настроен. Вставьте новый для замены; сохранённый ключ никогда не отображается.',
+  autoMode: 'Авто · Flash / Pro',
+  autoModeDesc:
+    'Для новых чатов: Flash для простых запросов; Pro для длинных запросов, кода и анализа. Изображения используют Flash. Выбор локальный, без дополнительного платного запроса. Отключите Авто для использования выбранной выше модели.',
   moaPreset: 'Пресет',
   moaDescription:
     'Настройте именованные пресеты, которые появятся как модели провайдера Mixture of Agents. Модель-агрегатор выполняет каждый шаг цикла инструментов; почти вся стоимость запуска списывается у её провайдера. По умолчанию референсные модели дают совет один раз на сообщение пользователя.',

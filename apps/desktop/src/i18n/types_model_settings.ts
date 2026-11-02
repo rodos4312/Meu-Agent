@@ -3,6 +3,14 @@ import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 // Settings → Model; `Translations.settings.model`.
 export interface ModelSettingsTranslations {
+  apiKey: string
+  apiKeySaved: string
+  addKeyHint: string
+  replaceKeyHint: string
+  autoMode: string
+  autoModeDesc: string
+  autoUnavailable: string
+  updateBackend: string
   setupProviderFallback: string
   setUpProvider: (name: string) => string
   staleAuxBefore: (count: number, names: string) => string

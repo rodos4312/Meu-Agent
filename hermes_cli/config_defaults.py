@@ -5,6 +5,7 @@ docs of config.yaml.
 """
 
 from hermes_cli.config_defaults_auxiliary import _aux
+from hermes_cli.config_defaults_routing import ROUTING_DEFAULTS
 
 #: Image every container terminal backend (docker/modal/daytona, the singularity plugin) uses unless the
 #: user pins one. LEGACY_SANDBOX_IMAGES are the plain defaults that preceded the desktop stack
@@ -21,11 +22,7 @@ LEGACY_VERCEL_RUNTIME = "node24"  # the seeded pre-49 default, never a user choi
 DEFAULT_CONFIG = {
     "model": "",
     "providers": {},
-    "fallback_providers": [],
-    # min_switch_reset_seconds: opt-in (0 = off). When a rate-limited primary declares a reset
-    # sooner than this many seconds, stay on it (the retry backoff rides out the window) instead
-    # of switching the turn to a fallback model.
-    "fallback": {"min_switch_reset_seconds": 0},
+    **ROUTING_DEFAULTS,
     "credential_pool_strategies": {},
     "toolsets": ["hermes-cli"],
     # journal_mode: SQLite journal mode for every Hermes DB. "wal" default; use "delete" on

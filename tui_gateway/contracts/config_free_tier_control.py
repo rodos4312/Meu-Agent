@@ -551,6 +551,7 @@ class ModelOptionProvider(OpenModel):
     auth_type: str | None = None
     authenticated: bool | None = None
     key_env: str | None = None
+    automatic_routing: bool | None = None
     warning: str | None = None
     featured_models: list[str] | None = None
     capabilities: dict[str, ModelCapabilities] | None = None

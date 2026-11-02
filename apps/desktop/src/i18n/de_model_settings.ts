@@ -5,6 +5,16 @@ import { deDelegationRouting } from './de_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const deModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: 'Dieses Backend benötigt ein Update für Auto. Die manuelle Modellwahl funktioniert weiter.',
+  updateBackend: 'Backend erneut prüfen',
+  apiKey: 'API-Schlüssel',
+  apiKeySaved: 'API-Schlüssel gespeichert',
+  addKeyHint: 'Speichere hier deinen Anbieterschlüssel, um ein Modell auszuwählen.',
+  replaceKeyHint:
+    'Ein Schlüssel ist eingerichtet. Füge einen neuen Schlüssel ein, um ihn zu ersetzen. Der gespeicherte Schlüssel wird nie angezeigt.',
+  autoMode: 'Auto · Flash / Pro',
+  autoModeDesc:
+    'Für neue Chats: einfache Anfragen nutzen Flash; längere Anfragen, Code und Analysen nutzen Pro. Bilder nutzen Flash. Die lokale Auswahl benötigt keine zusätzliche kostenpflichtige Anfrage. Auto ausschalten, um das oben gewählte Modell zu verwenden.',
   setupProviderFallback: 'Anbieter',
   setUpProvider: name => `${name} einrichten`,
   staleAuxBefore: (count, names) =>

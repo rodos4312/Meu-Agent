@@ -5,6 +5,15 @@ import { jaDelegationRouting } from './ja_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const jaModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: '自動を使うにはバックエンドの更新が必要です。手動で選んだモデルは引き続き使用できます。',
+  updateBackend: 'バックエンドを再確認',
+  apiKey: 'API キー',
+  apiKeySaved: 'API キーを保存しました',
+  addKeyHint: 'モデルを選ぶには、ここにプロバイダーのキーを保存してください。',
+  replaceKeyHint: 'キーは設定済みです。新しいキーを貼り付けると置き換えます。保存済みのキーは表示しません。',
+  autoMode: '自動 · Flash / Pro',
+  autoModeDesc:
+    '新しいチャットでは、簡単な依頼に Flash、長い依頼・コード・分析に Pro を使用します。画像には Flash を使用します。選択はローカルで行い、追加の有料リクエストはありません。上で選んだモデルを使うには自動をオフにしてください。',
   moaTitle: 'エージェント混合（Mixture of Agents）',
   moaPreset: 'プリセット',
   moaDescription:

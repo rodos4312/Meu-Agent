@@ -338,6 +338,15 @@ class ProviderProfile:
         """
         return {}
 
+    def resolve_request_model(self, model: str, *, messages: list, policy: dict) -> str:
+        """Choose a wire model from an explicit, frozen routing policy without changing history.
+
+        The default preserves manual selection. Provider implementations must keep a
+        tool round on one model and respect the input modalities in the transcript.
+        This hook performs no I/O and never changes the configured main/auxiliary model.
+        """
+        return model
+
     def default_reasoning_config(self, model: str | None = None) -> dict | None:
         """Reasoning config the main loop sends when ``agent.reasoning_effort`` is unset.
 

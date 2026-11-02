@@ -25,6 +25,11 @@ _THINKING_CAPABLE_IDS: frozenset[str] = frozenset({"deepseek-flash"})
 class DeepSeekProfile(ProviderProfile):
     """DeepSeek — extra_body.thinking + top-level reasoning_effort."""
 
+    def resolve_request_model(self, model: str, *, messages: list, policy: dict) -> str:
+        from .auto_routing import choose_model
+
+        return choose_model(model, messages) if policy.get("enabled") is True else model
+
     def build_api_kwargs_extras(
         self, *, reasoning_config: dict | None = None, model: str | None = None, **context
     ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -56,6 +61,7 @@ deepseek = DeepSeekProfile(
     description="DeepSeek — native DeepSeek API", signup_url="https://platform.deepseek.com/",
     fallback_models=("deepseek-v4-pro", "deepseek-flash"), base_url="https://api.deepseek.com/v1",
     default_aux_model="deepseek-flash",
+    model_capabilities={"deepseek-flash": {"supports_vision": True}, "deepseek-v4-pro": {"supports_vision": False}},
     # Native API implements only ``json_object`` (https://api-docs.deepseek.com/guides/json_mode);
     # ``json_schema`` is a guaranteed HTTP 400 "This response_format type is unavailable now".
     unsupported_response_formats=("json_schema",),

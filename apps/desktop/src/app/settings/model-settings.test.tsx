@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type * as ConfigApi from '@/api/config'
 import { I18nProvider, TRANSLATIONS } from '@/i18n'
+import { queryClient as appQueryClient } from '@/lib/query-client'
 import { $notifications, clearNotifications } from '@/store/notifications'
 
 import { ModelSettings } from './model-settings'
@@ -46,7 +47,7 @@ vi.mock('@/hermes', async () => ({
   setModelAssignment: (body: unknown) => setModelAssignment(body),
   getRecommendedDefaultModel: (slug: string) => getRecommendedDefaultModel(slug),
   saveMoaModels: (body: unknown) => saveMoaModels(body),
-  setEnvVar: (key: string, value: string) => setEnvVar(key, value),
+  setEnvVar: (...args: unknown[]) => setEnvVar(...args),
   getHermesConfigRecord: () => getHermesConfigRecord(),
   saveHermesConfig: (config: unknown) => saveHermesConfig(config),
   setApiRequestProfile: () => {}
@@ -98,9 +99,10 @@ afterEach(() => {
   profileSwitchHandler = null
 })
 
-function renderModelSettings(scopeProfile?: string) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-
+function renderModelSettings(
+  scopeProfile?: string,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+) {
   return render(
     // The aux-task deep-link highlight reads useSearchParams, so the page
     // needs a router context in tests (the app provides HashRouter at root).
@@ -1055,5 +1057,88 @@ describe('ModelSettings code-skew 503', () => {
 
     await waitFor(() => expect(recycleBackend).toHaveBeenCalledWith(undefined))
     await waitFor(() => expect(getGlobalModelOptions.mock.calls.length).toBeGreaterThan(1))
+  })
+})
+
+describe('Meu credentials and automatic model selection', () => {
+  beforeEach(() => appQueryClient.clear())
+
+  const deepseek = (authenticated = true) => ({
+    name: 'DeepSeek',
+    slug: 'deepseek',
+    models: ['deepseek-v4-pro', 'deepseek-flash'],
+    authenticated,
+    auth_type: 'api_key',
+    key_env: 'DEEPSEEK_API_KEY',
+    automatic_routing: true
+  })
+
+  function selectDeepseek(authenticated = true) {
+    getGlobalModelInfo.mockResolvedValue({ provider: 'deepseek', model: 'deepseek-v4-pro' })
+    getGlobalModelOptions.mockResolvedValue({ providers: [deepseek(authenticated)] })
+    getRecommendedDefaultModel.mockResolvedValue({ provider: 'deepseek', model: 'deepseek-flash' })
+  }
+
+  it('keeps key entry visible when an unauthenticated saved provider still has models', async () => {
+    selectDeepseek(false)
+    renderModelSettings('research', appQueryClient)
+    const input = await screen.findByLabelText('API key')
+
+    expect(input.getAttribute('type')).toBe('password')
+    expect(screen.queryByRole('combobox', { name: 'Model' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.change(input, { target: { value: 'test-only-key' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'test-only-key', 'research', { providerSetup: true })
+    )
+  })
+
+  it('lets a connected provider replace its key without changing its selected model', async () => {
+    selectDeepseek()
+    renderModelSettings(undefined, appQueryClient)
+    const input = (await screen.findByLabelText('API key')) as HTMLInputElement
+
+    expect(input.value).toBe('')
+    fireEvent.change(input, { target: { value: 'replacement-test-key' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(setEnvVar).toHaveBeenCalled())
+    await waitFor(() => expect(input.value).toBe(''))
+    expect(screen.getByRole('combobox', { name: 'Model' }).textContent).toContain('deepseek-v4-pro')
+    expect(setModelAssignment).not.toHaveBeenCalled()
+  })
+
+  it('saves Auto as a profile preference without sending a fictitious model ID', async () => {
+    selectDeepseek()
+    renderModelSettings('research', appQueryClient)
+    const toggle = await screen.findByRole('switch', { name: 'Auto · Flash / Pro' })
+
+    fireEvent.click(toggle)
+    await waitFor(() => expect(saveHermesConfig).toHaveBeenCalledWith({ smart_model_routing: { enabled: true } }))
+    expect(setModelAssignment).not.toHaveBeenCalled()
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('keeps key replacement usable on an older backend and offers its update for Auto', async () => {
+    getGlobalModelInfo.mockResolvedValue({ provider: 'deepseek', model: 'deepseek-v4-pro' })
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [{ name: 'DeepSeek', slug: 'deepseek', models: ['deepseek-v4-pro'], authenticated: true }]
+    })
+    renderModelSettings(undefined, appQueryClient)
+
+    expect(await screen.findByLabelText('API key')).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: 'Auto · Flash / Pro' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Check backend again' })).toBeTruthy()
+  })
+
+  it('rolls Auto back visibly if saving fails', async () => {
+    selectDeepseek()
+    saveHermesConfig.mockRejectedValueOnce(new Error('not saved'))
+    renderModelSettings(undefined, appQueryClient)
+    const toggle = await screen.findByRole('switch', { name: 'Auto · Flash / Pro' })
+
+    fireEvent.click(toggle)
+    await waitFor(() => expect(saveHermesConfig).toHaveBeenCalled())
+    await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'))
   })
 })

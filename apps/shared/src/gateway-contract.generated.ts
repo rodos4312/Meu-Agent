@@ -838,6 +838,7 @@ export interface ModelOptionProvider {
   auth_type?: string | null
   authenticated?: boolean | null
   key_env?: string | null
+  automatic_routing?: boolean | null
   warning?: string | null
   featured_models?: string[] | null
   capabilities?: Record<string, ModelCapabilities> | null

@@ -5,6 +5,15 @@ import { zhAuxTasks } from './zh_aux_tasks'
 import { zhDelegationRouting } from './zh_delegation_routing'
 
 export const zhModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: '此后端需要更新才能使用自动模式。手动选择的模型仍然可用。',
+  updateBackend: '重新检查后端',
+  apiKey: 'API 密钥',
+  apiKeySaved: 'API 密钥已保存',
+  addKeyHint: '在此保存提供方密钥，即可选择模型。',
+  replaceKeyHint: '已配置密钥。粘贴新密钥即可替换；已保存的密钥不会显示。',
+  autoMode: '自动 · Flash / Pro',
+  autoModeDesc:
+    '适用于新聊天：简单请求使用 Flash；较长请求、代码和分析使用 Pro。图片使用 Flash。在本地选择，不产生额外付费请求。关闭自动以使用上方选定的模型。',
   setupProviderFallback: '提供方',
   setUpProvider: name => `设置 ${name}`,
   staleAuxBefore: (count, names) => `${count} 个辅助任务（${names}）仍由 `,

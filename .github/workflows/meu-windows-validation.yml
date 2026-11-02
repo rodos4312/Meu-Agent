@@ -8,7 +8,9 @@ on:
       - 'apps/desktop/**'
       - 'tools/**'
       - 'scripts/install.ps1'
-      - 'agent/subagent_lifecycle.py'
+      - 'agent/**'
+      - 'providers/**'
+      - 'plugins/model-providers/deepseek/**'
       - 'hermes_cli/**'
       - 'tui_gateway/**'
       - 'gateway/**'
@@ -53,6 +55,14 @@ jobs:
           tests/tui_gateway/test_meu_privacy_rpc.py
           tests/scripts/install/test_meu_installer_privacy.py
           tests/agent/test_meu_deepseek_privacy.py
+          tests/agent/test_meu_auto_routing.py
+          tests/hermes_cli/test_meu_model_credentials.py
+          tests/hermes_cli/test_inventory.py
+          tests/agent/test_vision_aware_preprocessing.py
+          tests/agent/test_turn_usage_log_line.py
+          tests/agent/test_usage_pricing.py
+          tests/agent/test_turn_response_intake_relay.py
+          tests/tui_gateway/contracts/test_generated.py
           tests/agent/test_deepseek_reasoning_content_echo.py
           tests/plugins/model_providers/test_deepseek_profile.py
           tests/hermes_cli/test_shared_metrics_consent_windows.py
@@ -119,6 +129,9 @@ jobs:
       - name: Verify localization and memory command usability
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/i18n src/lib/desktop-slash-commands.test.ts
+      - name: Verify model credentials and Auto behavior
+        working-directory: apps/desktop
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck

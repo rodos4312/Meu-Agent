@@ -5,6 +5,16 @@ import { frDelegationRouting } from './fr_delegation_routing'
 import type { ModelSettingsTranslations } from './types_model_settings'
 
 export const frModelSettings: TranslationOverride<ModelSettingsTranslations> = {
+  autoUnavailable: 'Ce backend nécessite une mise à jour pour Auto. Votre modèle manuel continue de fonctionner.',
+  updateBackend: 'Revérifier le backend',
+  apiKey: 'Clé API',
+  apiKeySaved: 'Clé API enregistrée',
+  addKeyHint: 'Enregistrez ici la clé du fournisseur pour choisir un modèle.',
+  replaceKeyHint:
+    'Une clé est configurée. Collez une nouvelle clé pour la remplacer ; la clé enregistrée ne sera jamais affichée.',
+  autoMode: 'Auto · Flash / Pro',
+  autoModeDesc:
+    'Pour les nouveaux chats : Flash pour les demandes simples ; Pro pour les demandes longues, le code et les analyses. Les images utilisent Flash. La sélection est locale, sans requête payante supplémentaire. Désactivez Auto pour utiliser le modèle choisi ci-dessus.',
   setupProviderFallback: 'fournisseur',
   setUpProvider: name => `Configurer ${name}`,
   staleAuxBefore: (count, names) =>

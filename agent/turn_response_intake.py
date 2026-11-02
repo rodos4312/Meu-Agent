@@ -69,6 +69,7 @@ def _fire_post_api_request_hook(
     effective_task_id: Any, turn_id: Any,
 ) -> None:
     from agent.conversation_loop import _moa_reference_metrics_for_hook
+    from agent.request_routing import active_request_model
 
     try:
         from hermes_cli.lifecycle import has_hook, invoke_hook as _invoke_hook
@@ -80,7 +81,7 @@ def _fire_post_api_request_hook(
                 api_request_id=api_request_id,
                 session_id=agent.session_id or "",
                 platform=agent.platform or "",
-                model=agent.model,
+                model=active_request_model(agent),
                 provider=agent.provider,
                 base_url=agent.base_url,
                 api_mode=agent.api_mode,

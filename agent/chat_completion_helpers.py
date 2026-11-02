@@ -1444,14 +1444,8 @@ def _build_chat_completions_kwargs(agent, api_messages, tools_for_api, reasoning
     _is_lmstudio = (agent.provider or "").strip().lower() == "lmstudio"
     _profile_endpoint = agent._reasoning_endpoint_profile() is not None
 
-    # _fixed_temperature_for_model may return the OMIT_TEMPERATURE sentinel
-    # (temperature omitted entirely), a numeric override, or None.
-    _omit_temp, _fixed_temp = False, None
-    with contextlib.suppress(Exception):
-        from agent.auxiliary_client import _fixed_temperature_for_model, OMIT_TEMPERATURE
-        _ft = _fixed_temperature_for_model(agent.model, agent.base_url)
-        _omit_temp = _ft is OMIT_TEMPERATURE
-        _fixed_temp = None if _omit_temp else _ft
+    from agent.request_routing import prepare_routed_request, request_temperature
+    _omit_temp, _fixed_temp = request_temperature(agent)
 
     _prefs = _provider_preferences_for_agent(agent)
 
@@ -1466,7 +1460,8 @@ def _build_chat_completions_kwargs(agent, api_messages, tools_for_api, reasoning
     api_messages = shape_wire_carriers(api_messages, model=agent.model, base_url=agent.base_url, scope=agent)
     # Strip image parts for non-vision models on BOTH paths (registered
     # providers with profiles used to bypass it).
-    _common = dict(model=agent.model, messages=agent._prepare_messages_for_non_vision_model(api_messages),
+    request_model, request_messages = prepare_routed_request(agent, _profile, api_messages)
+    _common = dict(model=request_model, messages=request_messages,
         tools=tools_for_api, base_url=agent.base_url, timeout=agent._resolved_api_call_timeout(),
         max_tokens=agent.max_tokens, ephemeral_max_output_tokens=_ephemeral_out,
         max_tokens_param_fn=agent._max_tokens_param, reasoning_config=reasoning_config,
