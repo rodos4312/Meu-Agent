@@ -41,6 +41,12 @@ def handle_pending_subcommand(
     or None when the args are not a write-approval subcommand so the caller falls through to its
     other handling (e.g. /skills search).
     """
+    if subsystem == wa.MEMORY:
+        from hermes_cli.memory_history_commands import handle_memory_history
+
+        history = handle_memory_history(args, memory_store)
+        if history is not None:
+            return history
     if not args:
         return f"{_fmt_state(subsystem)}\n\n" + _fmt_pending_list(subsystem)
     sub, rest = args[0].lower(), args[1:]

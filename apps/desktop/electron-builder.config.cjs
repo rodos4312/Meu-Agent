@@ -125,6 +125,7 @@ module.exports = {
   afterPack: 'scripts/after-pack.mjs',
   ...(process.platform === 'darwin' ? { afterSign: 'scripts/notarize.mjs' } : {}),
   extraResources: [
+    { from: '../../LICENSE', to: 'open-source-notices/Hermes-LICENSE.txt' },
     {
       from: 'build/install-stamp.json',
       to: 'install-stamp.json'
@@ -252,7 +253,8 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: displayName,
-    uninstallDisplayName: displayName
+    uninstallDisplayName: displayName,
+    deleteAppDataOnUninstall: false
   },
   msix: {
     // A store build uses the Partner Center packaging identity (the Store

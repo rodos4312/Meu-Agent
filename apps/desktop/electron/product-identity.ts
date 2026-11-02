@@ -33,13 +33,16 @@ export function applyDesktopIdentity(
     setPath(name: 'userData', value: string): void
     setName(name: string): void
   },
-  identity: Readonly<ProductIdentity> = PRODUCT_IDENTITY
+  identity: Readonly<ProductIdentity> = PRODUCT_IDENTITY,
+  env: Record<string, string | undefined> = process.env
 ): string | null {
   if (identity.appId !== 'com.meuagent.desktop' && !identity.token && identity.appNamePascal === identity.artifactNamePascal) {
     return null
   }
 
-  const userData: string = path.join(app.getPath('appData'), identity.appNamePascal)
+  const userData: string = env.HERMES_DESKTOP_USER_DATA_DIR
+    ? path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR)
+    : path.join(app.getPath('appData'), identity.appNamePascal)
   mkdirSync(userData, { recursive: true })
   app.setPath('userData', userData)
   app.setName(identity.displayName)

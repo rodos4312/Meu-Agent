@@ -387,11 +387,14 @@ class MemoryStore:
                     if bak.endswith(_BACKUP_FAILED):  # no copy, no delete of possibly glued text
                         return _drift_error(path, bak)
                     extra_fields["drift_backup"] = bak
-            self._set_entries(target, result[0])
             from hermes_constants import mkdir_under_hermes_home
 
             mkdir_under_hermes_home(path.parent)
-            self._write_file(path, result[0])
+            try:
+                self._write_file(path, result[0])
+            except RuntimeError as exc:
+                return _error(f"Memory was not saved; the previous entries remain unchanged: {exc}", "other")
+            self._set_entries(target, result[0])
             return self._success_response(target, result[1], **extra_fields)
 
     def add(self, target: str, content: str) -> dict[str, Any]:
@@ -709,7 +712,11 @@ class MemoryStore:
         hold ``_file_lock`` (via ``_mutate``): a bare write from an earlier snapshot
         drops concurrent entries (#119668)."""
         try:
-            atomic_write_text(path, ENTRY_DELIMITER.join(entries), tmp_prefix=".mem_")
+            from tools.memory_history import save_previous_memory
+
+            content = ENTRY_DELIMITER.join(entries)
+            save_previous_memory(path, content)
+            atomic_write_text(path, content, tmp_prefix=".mem_")
         except OSError as e:
             raise RuntimeError(f"Failed to write memory file {path}: {e}")
 

@@ -758,7 +758,7 @@ const isPrimaryInstance: boolean = acquireSingleInstanceLock()
 const relauncher = createAppRelauncher(app)
 
 if (!isPrimaryInstance) {
-  console.error('[hermes] another Hermes Desktop instance holds the single-instance lock; exiting')
+  console.error('[hermes] another Meu Desktop instance holds the single-instance lock; exiting')
   app.exit(0)
 }
 
@@ -1406,7 +1406,7 @@ const BOOT_FAKE_STEP_MS = (() => {
   return Math.max(120, raw)
 })()
 
-const APP_NAME: string = IDENTITY_APP_NAME || process.env.HERMES_DESKTOP_APP_NAME || 'Hermes'
+const APP_NAME: string = IDENTITY_APP_NAME || process.env.HERMES_DESKTOP_APP_NAME || 'Meu'
 const HUD_WINDOW_TITLE = `${APP_NAME} HUD`
 const TITLEBAR_HEIGHT = 34
 const MACOS_TRAFFIC_LIGHTS_HEIGHT = 14
@@ -1825,7 +1825,7 @@ if (IS_WINDOWS) {
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
   applicationVersion: nativeAboutVersion(appVersionInfo(INSTALL_STAMP, '', app.getVersion())),
-  copyright: 'Copyright © 2026 Nous Research'
+  copyright: 'Meu Agent — open-source notices are included with this app'
 })
 
 // Custom scheme for streaming audio/video into the renderer. Local paths read
@@ -1952,7 +1952,7 @@ let desktopLogFlushPromise = Promise.resolve()
 // Land a spawn failure in desktop.log.
 function logPoolSpawnFailure(label: string, error: unknown): void {
   rememberLog(
-    `Hermes backend for profile ${label} failed to start: ${error instanceof Error ? error.message : String(error)}`
+    `Meu backend for profile ${label} failed to start: ${error instanceof Error ? error.message : String(error)}`
   )
 }
 
@@ -2017,7 +2017,7 @@ let bootProgressState = {
   error: null,
   fakeMode: BOOT_FAKE_MODE,
   isCloudBackendDown: false,
-  message: 'Waiting to start Hermes backend',
+  message: 'Waiting to start Meu backend',
   phase: 'idle',
   progress: 0,
   retryable: false,
@@ -2825,7 +2825,7 @@ async function waitForUpdateToFinish() {
 
         await advanceBootProgress(
           'backend.update-wait',
-          'An update is still running — Hermes will start automatically when it finishes. Its progress is in logs/update.log.',
+          'An update is still running — Meu will start automatically when it finishes. Its progress is in logs/update.log.',
           12
         )
 
@@ -2834,7 +2834,7 @@ async function waitForUpdateToFinish() {
 
       await advanceBootProgress(
         'backend.update-wait',
-        'An update is finishing — Hermes will start automatically when it completes…',
+        'An update is finishing — Meu will start automatically when it completes…',
         12
       )
     },
@@ -2879,7 +2879,7 @@ async function waitForUpdateToFinish() {
       log: rememberLog
     })
   ) {
-    await advanceBootProgress('backend.update-restart', 'Restarting Hermes to load the updated app…', 14)
+    await advanceBootProgress('backend.update-restart', 'Restarting Meu to load the updated app…', 14)
     // Park while the scheduled exit lands so this stale build never starts a
     // backend; the failsafe below only runs if the exit somehow does not.
     await new Promise(resolve => setTimeout(resolve, BUNDLE_SWAP_RELAUNCH_FAILSAFE_MS))
@@ -3856,7 +3856,7 @@ function killHermesOwnedVenvDaemons(updateRoot) {
     const pid = Number(holder?.ProcessId)
 
     if (Number.isInteger(pid) && pid > 0) {
-      rememberLog(`[updates] stopping Hermes-owned venv daemon (hindsight) PID ${pid} before hand-off`)
+      rememberLog(`[updates] stopping Meu-owned venv daemon (hindsight) PID ${pid} before hand-off`)
 
       try {
         forceKillProcessTree(pid)
@@ -3901,7 +3901,7 @@ function killExternalVenvHolders(updateRoot) {
 
     if (Number.isInteger(pid) && pid > 0) {
       rememberLog(
-        `[updates] stopping external Hermes venv holder (autostart gateway/dashboard) PID ${pid} before hand-off`
+        `[updates] stopping external Meu venv holder (autostart gateway/dashboard) PID ${pid} before hand-off`
       )
 
       try {
@@ -4930,12 +4930,12 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
     } else if (!isWindowsBinaryPathInWsl(hermesOverride, { isWsl: IS_WSL })) {
       hermesCommand = hermesOverride
     } else {
-      rememberLog(`Ignoring Windows Hermes override under WSL: ${hermesOverride}`)
+      rememberLog(`Ignoring Windows Meu override under WSL: ${hermesOverride}`)
     }
 
     if (hermesCommand) {
       if (looksLikeDesktopAppBinary(hermesCommand)) {
-        rememberLog(`Ignoring desktop app executable on PATH while resolving Hermes CLI: ${hermesCommand}`)
+        rememberLog(`Ignoring desktop app executable on PATH while resolving Meu CLI: ${hermesCommand}`)
         hermesCommand = null
       } else {
         const unwrapped: Awaited<ReturnType<typeof unwrapWindowsVenvHermesCommand>> =
@@ -4952,7 +4952,7 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
           (await verifyHermesCli(hermesCommand, { shell: shellForProbe }))
         ) {
           return {
-            label: `existing Hermes CLI at ${hermesCommand}`,
+            label: `existing Meu CLI at ${hermesCommand}`,
             command: hermesCommand,
             args: backendArgs,
             bootstrap: false,
@@ -4964,7 +4964,7 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
         }
 
         rememberLog(
-          `Ignoring existing Hermes CLI at ${hermesCommand}: --version probe failed; falling through to bootstrap.`
+          `Ignoring existing Meu CLI at ${hermesCommand}: --version probe failed; falling through to bootstrap.`
         )
       }
     }
@@ -4988,7 +4988,7 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
   if (activeBackend && !bootstrapRepairRequested) {
     if (!activeRuntime.hasValidMarker) {
       rememberLog(
-        `[bootstrap] Active Hermes runtime at ${ACTIVE_HERMES_ROOT} is usable but the bootstrap marker is missing or stale; skipping first-run bootstrap.`
+        `[bootstrap] Active Meu runtime at ${ACTIVE_HERMES_ROOT} is usable but the bootstrap marker is missing or stale; skipping first-run bootstrap.`
       )
     }
 
@@ -5011,14 +5011,14 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
       )
 
       if (userBackend) {
-        rememberLog(`[boot] Using Hermes install at ${userInstall.root} (published launcher ${userInstall.launcher})`)
+        rememberLog(`[boot] Using Meu install at ${userInstall.root} (published launcher ${userInstall.launcher})`)
 
         return userBackend
       }
 
-      rememberLog(`[bootstrap] Hermes install at ${userInstall.root} (from ${userInstall.launcher}) is not usable`)
+      rememberLog(`[bootstrap] Meu install at ${userInstall.root} (from ${userInstall.launcher}) is not usable`)
     } else {
-      rememberLog(`[bootstrap] no usable Hermes install at ${ACTIVE_HERMES_ROOT} and no published user-bin launcher`)
+      rememberLog(`[bootstrap] no usable Meu install at ${ACTIVE_HERMES_ROOT} and no published user-bin launcher`)
     }
   }
 
@@ -5034,7 +5034,7 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
   //    is a recoverable state the GUI can drive through.
   return {
     kind: 'bootstrap-needed',
-    label: 'Hermes Agent not installed yet; bootstrap required',
+    label: 'Meu Agent not installed yet; bootstrap required',
     command: null,
     args: backendArgs,
     bootstrap: true,
@@ -5097,7 +5097,7 @@ async function ensureRuntime(
     rememberLog('[bootstrap] REFUSING installer on a bundled install; payload missing or damaged — reinstall the app')
 
     const bundledError: Error & { isBootstrapFailure?: boolean } = new Error(
-      'This app bundles its own Hermes runtime, but the runtime files are missing or damaged. Reinstall Hermes Desktop to restore it.'
+      'This app bundles its own Meu runtime, but the runtime files are missing or damaged. Reinstall Meu Desktop to restore it.'
     )
 
     bundledError.isBootstrapFailure = true
@@ -5106,11 +5106,11 @@ async function ensureRuntime(
   }
 
   if (backend.kind === 'bootstrap-needed') {
-    rememberLog('[bootstrap] no Hermes install found; starting first-launch bootstrap')
+    rememberLog('[bootstrap] no Meu install found; starting first-launch bootstrap')
 
     if (await handOffWindowsBootstrapRecovery('bootstrap-needed')) {
       const handoffError: Error & { isBootstrapFailure?: boolean; bootstrapHandedOff?: boolean } = new Error(
-        'Hermes recovery was handed off to Hermes Setup. The desktop will restart when recovery completes.'
+        'Meu recovery was handed off to Meu Setup. The desktop will restart when recovery completes.'
       )
 
       handoffError.isBootstrapFailure = true
@@ -5183,7 +5183,7 @@ async function ensureRuntime(
     })
 
     if (bootstrapResult.cancelled) {
-      const cancelledError = new Error('Hermes install was cancelled.') as any
+      const cancelledError = new Error('Meu install was cancelled.') as any
       cancelledError.isBootstrapFailure = true
       cancelledError.bootstrapCancelled = true
       bootstrapFailure = cancelledError
@@ -5263,7 +5263,7 @@ function fetchJson(url, token, options: any = {}) {
         const timeoutMs = resolveTimeoutMs(options.timeoutMs, DEFAULT_FETCH_TIMEOUT_MS)
 
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          reject(new Error(`Unsupported Hermes backend URL protocol: ${parsed.protocol}`))
+          reject(new Error(`Unsupported Meu backend URL protocol: ${parsed.protocol}`))
 
           return
         }
@@ -5339,7 +5339,7 @@ function fetchJson(url, token, options: any = {}) {
 
         req.on('error', reject)
         req.setTimeout(timeoutMs, () => {
-          req.destroy(new Error(`Timed out connecting to Hermes backend after ${timeoutMs}ms`))
+          req.destroy(new Error(`Timed out connecting to Meu backend after ${timeoutMs}ms`))
         })
 
         // From here the request goes on the wire: a later transport error can no
@@ -5383,7 +5383,7 @@ function fetchPublicJson(url, options: any = {}) {
         const timeoutMs = resolveTimeoutMs(options.timeoutMs, DEFAULT_FETCH_TIMEOUT_MS)
 
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-          reject(new Error(`Unsupported Hermes backend URL protocol: ${parsed.protocol}`))
+          reject(new Error(`Unsupported Meu backend URL protocol: ${parsed.protocol}`))
 
           return
         }
@@ -5444,7 +5444,7 @@ function fetchPublicJson(url, options: any = {}) {
 
         req.on('error', reject)
         req.setTimeout(timeoutMs, () => {
-          req.destroy(new Error(`Timed out connecting to Hermes backend after ${timeoutMs}ms`))
+          req.destroy(new Error(`Timed out connecting to Meu backend after ${timeoutMs}ms`))
         })
 
         // Past this point the request is on the wire — see fetchJson.
@@ -7262,7 +7262,7 @@ function fetchJsonViaOauthSession(url, options: any = {}) {
       }
 
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        reject(new Error(`Unsupported Hermes backend URL protocol: ${parsed.protocol}`))
+        reject(new Error(`Unsupported Meu backend URL protocol: ${parsed.protocol}`))
 
         return
       }
@@ -7305,7 +7305,7 @@ function fetchJsonViaOauthSession(url, options: any = {}) {
           // already finished
         }
 
-        reject(new Error(`Timed out connecting to Hermes backend after ${timeoutMs}ms`))
+        reject(new Error(`Timed out connecting to Meu backend after ${timeoutMs}ms`))
       }, timeoutMs)
 
       request.on('response', (res: Electron.IncomingMessage): void => {
@@ -9188,7 +9188,7 @@ async function buildRemoteConnection(
 
   if (!token) {
     throw new Error(
-      'Remote Hermes gateway is selected, but no session token is saved. ' +
+      'Remote Meu gateway is selected, but no session token is saved. ' +
         'Open Settings → Gateway and save a token, or switch back to Local.'
     )
   }
@@ -10284,7 +10284,7 @@ async function testDesktopConnectionConfig(input: any = {}) {
             return {
               reachable: false,
               sshError: 'update-required',
-              error: 'Update Hermes on the remote host before connecting with Desktop SSH.'
+              error: 'Update Meu on the remote host before connecting with Desktop SSH.'
             }
           }
 
@@ -11789,7 +11789,7 @@ async function startHermes(requestedProfile?: string) {
   // otherwise SIGTERMs the running instance's live backend (#87295).
   if (!isPrimaryInstance) {
     rememberLog('[boot] non-primary instance: skipping backend machinery')
-    throw new Error('Hermes Desktop is already running in another window.')
+    throw new Error('Meu Desktop is already running in another window.')
   }
 
   await reapOrphanedBackendsOnce()
@@ -11819,7 +11819,7 @@ async function startHermes(requestedProfile?: string) {
   // E2E: simulate a boot failure without breaking the real backend. The boot
   // progresses a few steps, then fails with the given error message.
   if (BOOT_FAKE_ERROR) {
-    await advanceBootProgress('backend.resolve', 'Resolving Hermes backend', 8)
+    await advanceBootProgress('backend.resolve', 'Resolving Meu backend', 8)
     const error = new Error(BOOT_FAKE_ERROR) as any
     error.isBootstrapFailure = true
     bootstrapFailure = error
@@ -11872,7 +11872,7 @@ async function startHermes(requestedProfile?: string) {
       // remotes and Apply invalidated this attempt), bail before probing.
       backendConnectionState.assertCurrentAttempt(connectionAttempt)
 
-      await advanceBootProgress('backend.remote', `Connecting to remote Hermes backend at ${remote.baseUrl}`, 24)
+      await advanceBootProgress('backend.remote', `Connecting to remote Meu backend at ${remote.baseUrl}`, 24)
       await waitForRemoteHermes(remote)
 
       // Second async boundary: the health probe itself can outlive the
@@ -11881,7 +11881,7 @@ async function startHermes(requestedProfile?: string) {
 
       updateBootProgress({
         phase: 'backend.ready',
-        message: 'Remote Hermes backend is ready',
+        message: 'Remote Meu backend is ready',
         progress: 94,
         running: true,
         error: null
@@ -11890,7 +11890,7 @@ async function startHermes(requestedProfile?: string) {
       return createPrimaryRemoteConnection(remote, hermesLog.slice(-80), getWindowState())
     }
 
-    await advanceBootProgress('backend.resolve', 'Resolving Hermes backend', 8)
+    await advanceBootProgress('backend.resolve', 'Resolving Meu backend', 8)
     // Resolve for the desktop's primary profile so a per-profile remote
     // override on the active profile is honored (falls back to env / global).
 
@@ -11930,7 +11930,7 @@ async function startHermes(requestedProfile?: string) {
       ensureLocalRuntime: backend =>
         ensureRuntime(backend, () => backendConnectionState.assertCurrentAttempt(connectionAttempt)),
       prepareLocalBackend: async () => {
-        await advanceBootProgress('backend.runtime', 'Resolving Hermes runtime', 28)
+        await advanceBootProgress('backend.runtime', 'Resolving Meu runtime', 28)
 
         return resolveHermesBackend(backendArgs)
       },
@@ -11988,8 +11988,8 @@ async function startHermes(requestedProfile?: string) {
     backendConnectionState.assertCurrentAttempt(connectionAttempt)
 
     backendStartFailure = null
-    rememberLog('[backend] Hermes gateway is ready')
-    updateBootProgress({ phase: 'backend.ready', message: 'Hermes gateway is ready', progress: 94, running: true, error: null })
+    rememberLog('[backend] Meu gateway is ready')
+    updateBootProgress({ phase: 'backend.ready', message: 'Meu gateway is ready', progress: 94, running: true, error: null })
     bootstrapRepairAttempt = 0
 
     // The primary descriptor names its own profile: a profile-less descriptor
@@ -12331,7 +12331,7 @@ function spawnSecondaryWindow({
     height: SESSION_WINDOW_MIN_HEIGHT,
     minWidth: SESSION_WINDOW_MIN_WIDTH,
     minHeight: SESSION_WINDOW_MIN_HEIGHT,
-    title: 'Hermes',
+    title: 'Meu',
     titleBarStyle: 'hidden',
     titleBarOverlay: getTitleBarOverlayOptions(),
     trafficLightPosition: IS_MAC ? WINDOW_BUTTON_POSITION : undefined,
@@ -12436,7 +12436,7 @@ function spawnBrowserWindow(tabId) {
     height: BROWSER_WINDOW_HEIGHT,
     minWidth: BROWSER_WINDOW_MIN_WIDTH,
     minHeight: BROWSER_WINDOW_MIN_HEIGHT,
-    title: 'Hermes',
+    title: 'Meu',
     titleBarStyle: 'hidden',
     titleBarOverlay: getTitleBarOverlayOptions(),
     trafficLightPosition: IS_MAC ? WINDOW_BUTTON_POSITION : undefined,
@@ -12548,7 +12548,7 @@ function createInstanceWindow(
     ...nextInstanceBounds(source),
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
-    title: 'Hermes',
+    title: 'Meu',
     titleBarStyle: 'hidden',
     titleBarOverlay: getTitleBarOverlayOptions(),
     trafficLightPosition: IS_MAC ? WINDOW_BUTTON_POSITION : undefined,
@@ -13633,7 +13633,7 @@ function createWindow() {
     ),
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
-    title: 'Hermes',
+    title: 'Meu',
     // Frameless title bar on every platform so the renderer can paint the
     // "hide sidebar" button (and other left-side titlebar tools) flush with
     // the top edge — matching the macOS layout where the traffic lights sit
@@ -13998,7 +13998,7 @@ function createWindow() {
         const exit = details?.exitCode === undefined ? '' : `, exit code ${String(details.exitCode)}`
         rememberLog(`[renderer:main] renderer terminated while live (reason=${reason}${exit}); surfacing recovery page`)
         void loadRendererLoadErrorPage(mainWindow, {
-          title: 'Hermes desktop UI was terminated',
+          title: 'Meu desktop UI was terminated',
           errorDescription:
             `The desktop UI process was terminated unexpectedly (reason: ${reason}${exit}). ` +
             'Your sessions and the background gateway are unaffected — reload to continue.',
@@ -14327,7 +14327,7 @@ ipcMain.handle('hermes:window:openInTerminal', async (_event, sessionId, opts) =
     const backend = await resolveHermesBackend(tuiResumeArgs(sessionId.trim(), profile || undefined))
 
     if (!backend.command) {
-      return { ok: false, error: 'Hermes is not installed yet' }
+      return { ok: false, error: 'Meu is not installed yet' }
     }
 
     const { cwd } = sanitizeWorkspaceCwd(opts?.cwd)
@@ -16900,7 +16900,7 @@ ipcMain.handle('hermes:quick-entry:submit', (event, payload) => {
   }
 
   if (!mainWindow || mainWindow.isDestroyed()) {
-    return { code: 'no-primary', message: 'The primary Hermes window is unavailable.', ok: false, retryable: true }
+    return { code: 'no-primary', message: 'The primary Meu window is unavailable.', ok: false, retryable: true }
   }
 
   const target =
@@ -17228,7 +17228,7 @@ function showAboutPanelFresh(): void {
     app.setAboutPanelOptions({
       applicationName: APP_NAME,
       applicationVersion: skew.outOfSync ? `${display} — app build out of date, update the desktop app` : display,
-      copyright: 'Copyright © 2026 Nous Research'
+      copyright: 'Meu Agent — open-source notices are included with this app'
     })
     app.showAboutPanel()
   })
@@ -17488,7 +17488,7 @@ async function runDesktopUninstall(mode: string): Promise<DesktopUninstallResult
     return {
       ok: false,
       error: 'agent-missing',
-      message: `Can't run the uninstaller: no Hermes agent venv at ${VENV_ROOT}.`
+      message: `Can't run the uninstaller: no Meu agent venv at ${VENV_ROOT}.`
     }
   }
 

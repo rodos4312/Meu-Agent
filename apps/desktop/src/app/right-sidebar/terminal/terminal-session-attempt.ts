@@ -17,7 +17,7 @@ const TERMINAL_EXIT_MESSAGES: Record<string, string> = {
   superseded: 'Terminal is attached in another window. Press Enter to take it back.',
   denied: 'Terminal access denied. Check your sign-in and profile, then press Enter to retry.',
   capacity: 'Terminal capacity reached. Close another terminal, then press Enter to retry.',
-  'signed-out': 'Signed out of Hermes. Sign this browser in again, then press Enter to reconnect.'
+  'signed-out': 'Signed out of Meu. Sign this browser in again, then press Enter to reconnect.'
 }
 
 // True once the page/app is tearing down (Cmd+Q, Alt+F4, window close, reload).

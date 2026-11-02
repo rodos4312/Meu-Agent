@@ -92,7 +92,7 @@ def _first_word(arg):
 _READ_ARGUMENTS = {
     'skills': lambda arg: _first_word(arg) in {'', 'pending', 'diff'},
     'usage': lambda arg: not arg.strip(),
-    'memory': lambda arg: _first_word(arg) in {'', 'pending'},
+    'memory': lambda arg: _first_word(arg) in {'', 'pending', 'show', 'history', 'diff'},
     'suggestions': lambda arg: not arg.strip(),
     'kanban': lambda arg: _first_token(arg) in _KANBAN_READS,
 }
@@ -103,7 +103,7 @@ _READ_ARGUMENTS = {
 # `approval` updates their config.yaml switch, as main's CLI wrote it).
 _CONTROL_ARGUMENTS = {
     'skills': lambda arg: _first_word(arg) in {'approve', 'apply', 'reject', 'deny', 'drop', 'approval', 'mode'},
-    'memory': lambda arg: _first_word(arg) in {'approve', 'apply', 'reject', 'deny', 'drop', 'approval', 'mode'},
+    'memory': lambda arg: _first_word(arg) in {'approve', 'apply', 'reject', 'deny', 'drop', 'approval', 'mode', 'restore'},
 }
 
 

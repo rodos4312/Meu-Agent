@@ -10,10 +10,26 @@ function makeDesktopRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-exe-identity-'))
   fs.mkdirSync(path.join(root, 'assets'))
   fs.writeFileSync(path.join(root, 'assets', 'icon.ico'), 'icon')
+  fs.writeFileSync(path.join(root, 'assets', 'meu-icon.ico'), 'meu icon')
   const exe = path.join(root, 'Hermes.exe')
   fs.writeFileSync(exe, 'exe')
   return { exe, root }
 }
+
+test('stamps the actual Meu executable resources with its own product and icon', async () => {
+  const { exe, root } = makeDesktopRoot()
+  let options
+
+  try {
+    await stampExeIdentity(exe, root, { rcedit: async (_exe, value) => { options = value } })
+    assert.equal(options['version-string'].ProductName, 'Meu')
+    assert.equal(options['version-string'].FileDescription, 'Meu')
+    assert.equal(options['version-string'].CompanyName, 'Meu Agent')
+    assert.equal(options.icon, path.join(root, 'assets', 'meu-icon.ico'))
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
 
 test('retries transient rcedit commit failures with bounded backoff', async () => {
   const { exe, root } = makeDesktopRoot()

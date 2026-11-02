@@ -11,6 +11,9 @@ on:
       - 'agent/subagent_lifecycle.py'
       - 'hermes_cli/**'
       - 'tui_gateway/**'
+      - 'gateway/**'
+      - 'tests/gateway/test_meu_memory_commands.py'
+      - 'tests/tools/test_memory_tool.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
       - 'tests/tui_gateway/test_meu_privacy_rpc.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
@@ -28,7 +31,7 @@ permissions:
 
 jobs:
   windows-privacy:
-    name: Meu privacy and DeepSeek on Windows
+    name: Meu privacy, memory and DeepSeek on Windows
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -55,6 +58,15 @@ jobs:
           tests/hermes_cli/test_shared_metrics_consent_windows.py
           tests/hermes_cli/test_shared_metrics_send_migration.py
           tests/agent/test_retry_delay_parsers_shared.py
+          tests/tools/test_meu_memory_lifecycle.py
+          tests/tools/test_memory_tool.py
+          tests/tools/test_memory_patch_action.py
+          tests/gateway/test_meu_memory_commands.py
+          tests/hermes_cli/test_desktop_slash_registry.py
+          tests/agent/test_redact.py
+          tests/agent/test_secret_scope.py
+          tests/tools/test_approval_mode_parity.py
+          tests/tools/test_computer_use_approval_isolation.py
           -- --override-ini=addopts= -q
 
   windows-identity-and-safety:
@@ -97,13 +109,16 @@ jobs:
         run: node apps/desktop/scripts/test-meu-isolation.mjs
       - name: Run relevant native desktop regression tests
         working-directory: apps/desktop
-        run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts electron/bootstrap-single-flight.test.ts electron/desktop-shared-metrics.test.ts
+        run: npx vitest run --project electron electron/product-identity.test.ts electron/data-paths.test.ts electron/bootstrap-single-flight.test.ts electron/desktop-shared-metrics.test.ts scripts/set-exe-identity.test.mjs scripts/after-extract.test.mjs electron/external-open.test.ts electron/preview-guest-escape.test.ts
       - name: Test Meu first-run setup interface
         working-directory: apps/desktop
         run: npx vitest run --project ui src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/store/desktop-metrics.test.ts src/store/shared-metrics.test.ts src/app/settings/shared-metrics-settings.test.tsx src/components/shared-metrics/consent-dialog.test.tsx src/components/shared-metrics/consent-strip.test.tsx src/app/gateway/report-startup-latency.test.ts
+      - name: Verify localization and memory command usability
+        working-directory: apps/desktop
+        run: npx vitest run --project ui --maxWorkers 2 src/i18n src/lib/desktop-slash-commands.test.ts
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
@@ -127,6 +142,14 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop
         run: ./scripts/test-meu-installer.ps1
+      - name: Preserve packaged launch evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Meu-Windows-renderer-launch-evidence
+          path: ${{ runner.temp }}/meu-renderer-smoke/meu-launch-*
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload unpacked preview for review only
         uses: actions/upload-artifact@v4
         with:

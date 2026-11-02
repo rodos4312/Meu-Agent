@@ -39,6 +39,7 @@ import { resolve, join } from 'node:path'
 import { existsSync } from 'node:fs'
 
 import { rcedit } from 'rcedit'
+import identity from '../product-identity.cjs'
 
 import { isMain } from './utils.mjs'
 
@@ -75,7 +76,8 @@ async function stampExeIdentity(
   }
 
   // Icon lives at apps/desktop/assets/icon.ico
-  const icon = join(desktopRoot, 'assets', 'icon.ico')
+  const meu = identity.appId === 'com.meuagent.desktop'
+  const icon = join(desktopRoot, 'assets', meu ? 'meu-icon.ico' : 'icon.ico')
   if (!existsSync(icon)) {
     throw new Error(`icon not found: ${icon}`)
   }
@@ -86,9 +88,9 @@ async function stampExeIdentity(
   const options = {
     icon,
     'version-string': {
-      ProductName: 'Hermes',
-      FileDescription: 'Hermes',
-      CompanyName: 'Nous Research',
+      ProductName: identity.displayName,
+      FileDescription: identity.displayName,
+      CompanyName: meu ? 'Meu Agent' : 'Nous Research',
       LegalCopyright: 'Copyright (c) 2026 Nous Research'
     }
   }
@@ -107,7 +109,7 @@ async function stampExeIdentity(
     }
   }
 
-  console.log('[set-exe-identity] done — Hermes icon + identity stamped')
+  console.log(`[set-exe-identity] done — ${identity.displayName} icon + identity stamped`)
 }
 
 export { RCEDIT_COMMIT_RETRY_DELAYS_MS, stampExeIdentity }

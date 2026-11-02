@@ -117,6 +117,24 @@ test('nonstable runtime pins userData before the app name can change', async ():
   }
 })
 
+test('Meu rehearsal pins its own userData before touching the ordinary app folder', async () => {
+  const identity = await identityForVariant(undefined)
+  const { applyDesktopIdentity } = await import('./product-identity')
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-userdata-isolation-'))
+  const isolated = path.join(root, 'isolated')
+  const setPath = vi.fn()
+  const getPath = vi.fn(() => { throw new Error('The ordinary application-data path must not be accessed') })
+
+  try {
+    applyDesktopIdentity({ getPath, setPath, setName: vi.fn() }, identity, { HERMES_DESKTOP_USER_DATA_DIR: isolated })
+    assert.deepEqual(setPath.mock.calls, [['userData', isolated]])
+    assert(fs.existsSync(isolated))
+    assert.equal(getPath.mock.calls.length, 0)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test.each([undefined, 'bundled'] as const)('Meu %s uses an independent product identity', async (variant): Promise<void> => {
   const current = await identityForVariant(variant)
   assert.equal(current.displayName, 'Meu')
