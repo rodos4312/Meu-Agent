@@ -954,7 +954,9 @@ function Update-MeuPinnedCheckout {
     }
     $current = (Invoke-Native { git -C $InstallDir rev-parse HEAD }).Trim()
     if ($current -ceq $Commit) { return }
-    $activeBranch = (Invoke-Native { git -C $InstallDir branch --show-current }).Trim()
+    # A commit-pinned installation has a detached HEAD: PowerShell represents
+    # git's empty branch output as $null, not an empty string.
+    $activeBranch = "$(Invoke-Native { git -C $InstallDir branch --show-current })".Trim()
     $origin = (Invoke-Native { git -C $InstallDir config --get remote.origin.url }).Trim()
     if (($activeBranch -and $activeBranch -cne $Branch) -or $origin -cne 'https://github.com/rodos4312/Meu-Agent.git') {
         Fail 'Meu backend uses another branch or repository; upgrade stopped' commit_not_on_branch

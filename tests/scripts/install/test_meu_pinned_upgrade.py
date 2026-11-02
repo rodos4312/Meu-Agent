@@ -9,7 +9,8 @@ from hermes_platform.resolver import locate_command
 
 
 @pytest.mark.platforms('windows')
-def test_existing_backend_updates_to_exact_pin_and_preserves_user_state(tmp_path):
+@pytest.mark.parametrize('detached', [False, True])
+def test_existing_backend_updates_to_exact_pin_and_preserves_user_state(tmp_path, detached):
     root, remote, home = (tmp_path / p for p in ('installed', 'remote', 'home'))
     remote.mkdir()
     home.mkdir()
@@ -30,6 +31,8 @@ def test_existing_backend_updates_to_exact_pin_and_preserves_user_state(tmp_path
     git(root, 'remote', 'set-url', 'origin', official)
     git(root, 'config', f'url.{remote.as_uri()}.insteadOf', official)
     git(root, 'reset', '--hard', pins[0])
+    if detached:
+        git(root, 'checkout', '--detach', pins[0])
     state = home / 'state.db'
     state.write_bytes(b'untouched fixture state')
     installer = Path(__file__).resolve().parents[3] / 'scripts' / 'install.ps1'
@@ -54,7 +57,7 @@ Update-MeuPinnedCheckout
     result = upgrade(pins[1])
     assert result.returncode == 0, result.stdout + result.stderr
     assert git(root, 'rev-parse', 'HEAD') == pins[1]  # remote has a newer, untested tip
-    assert git(root, 'branch', '--show-current') == 'dev/meu-foundation'
+    assert git(root, 'branch', '--show-current') == ('' if detached else 'dev/meu-foundation')
     assert state.read_bytes() == b'untouched fixture state'
     assert upgrade(pins[0]).returncode == 0  # older installer never downgrades
     assert git(root, 'rev-parse', 'HEAD') == pins[1]

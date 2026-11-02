@@ -30,6 +30,7 @@ on:
       - 'tests/tui_gateway/test_meu_removed_payments.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
       - 'tests/scripts/install/test_meu_installer_privacy.py'
+      - 'tests/scripts/install/test_meu_pinned_upgrade.py'
       - 'scripts/install.sh'
       - 'tests/tools/test_meu_*.py'
       - '.github/workflows/meu-windows-validation.yml'
