@@ -394,6 +394,28 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  backend-upgrade:
+    name: Real pinned Meu backend upgrade on Windows
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Rehearse installed backend and canonical gateway transition
+        shell: pwsh
+        run: ./apps/desktop/scripts/test-meu-backend-upgrade.ps1
+      - name: Preserve backend upgrade evidence without profile contents
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-Windows-backend-upgrade-evidence
+          path: |
+            ${{ runner.temp }}/meu-backend-upgrade/*.log
+            ${{ runner.temp }}/meu-backend-upgrade/result.json
+          if-no-files-found: ignore
+          retention-days: 30
+
   native-upgrade:
     name: Real Meu Windows upgrade and data preservation
     if: >-
@@ -447,7 +469,7 @@ jobs:
     name: Prepare a draft in Meu GitHub Releases
     if: >-
       (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
-    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety, native-upgrade]
+    needs: [coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety, native-upgrade, backend-upgrade]
     runs-on: ubuntu-latest
     permissions:
       contents: write
