@@ -295,6 +295,9 @@ jobs:
           tests/hermes_cli/test_source_release_channels.py
           tests/hermes_cli/test_update_target_identity.py
           tests/hermes_cli/test_meu_update_recovery.py
+          tests/hermes_cli/test_meu_backup_runtime.py
+          tests/hermes_cli/test_backup.py
+          tests/hermes_cli/test_backup_all_profiles.py
           tests/tools/test_plugin_guard.py
           -- --override-ini=addopts= -q
       - name: Verify gateway usage counters

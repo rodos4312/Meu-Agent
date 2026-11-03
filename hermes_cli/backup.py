@@ -74,8 +74,8 @@ def _snapshot_recovery_hint() -> str:
 # file-by-file balloons a backup to hundreds of thousands of entries ("backup stuck for days").
 # Mostly mirrors ``agent.skill_utils.EXCLUDED_SKILL_DIRS``; ``.cache`` is backup-only. ``.archive``
 # is deliberately NOT excluded: the curator's ``skills/.archive/`` holds restorable user skills.
+_MANAGED_CHECKOUT_DIRS = frozenset({"hermes-agent", "meu-agent"})
 _EXCLUDED_DIRS = {
-    "hermes-agent",     # the codebase repo — re-clone instead
     "__pycache__",      # bytecode caches — regenerated on import
     ".git",             # nested git dirs (profiles shouldn't have these, but safety)
     "node_modules",     # js deps — reinstalled on demand
@@ -101,7 +101,7 @@ _EXCLUDED_ROOT_DIRS = LOCAL_RUNTIME_ROOT_DIRS | (PM_RUNTIME_ROOT_DIRS - {"cache"
 # Browser Use CLI profile dir (browser.backend: browser-use): Chromium user-data with Login Data / Cookies;
 # the secret caches and Photon sidecar token. Root-scoped like models/ — a skill's own browser_profiles/ is
 # user data. Backup-only: do not fold into LOCAL_RUNTIME_ROOT_DIRS (clone-all identity contract).
-_EXCLUDED_BACKUP_ROOT_DIRS = frozenset({"browser_profiles", *SECRET_CACHE_FILES})
+_EXCLUDED_BACKUP_ROOT_DIRS = frozenset({"browser_profiles", *SECRET_CACHE_FILES, *_MANAGED_CHECKOUT_DIRS})
 
 # ``cache/`` at those same roots mixes regenerable state (model/plugin catalogs, stamps, browser
 # profiles with locked SQLite, tool-output spill) with durable artifacts nothing can rebuild: media
@@ -320,8 +320,7 @@ def _should_exclude(rel_path: Path) -> bool:
     parts = rel_path.parts
     if _in_excluded_root_dir(rel_path):
         return True
-    # ``hermes-agent`` only matches at the root level; nested same-named dirs are preserved.
-    if any(p in _EXCLUDED_DIRS and (p != "hermes-agent" or p == parts[0]) for p in parts):
+    if any(p in _EXCLUDED_DIRS for p in parts):
         return True
     name = rel_path.name
     return name in _EXCLUDED_NAMES or name.startswith(_EXCLUDED_PREFIXES) or name.endswith(_EXCLUDED_SUFFIXES)
@@ -331,15 +330,14 @@ def _iter_backup_files(hermes_root: Path, out_path: Path, skipped_dirs: Optional
     """Yield ``(abs_path, rel_path)`` for every file a full backup should hold.
 
     The one owner of the walk policy (directory pruning so os.walk never descends a multi-GB
-    excluded tree, the root-only ``hermes-agent`` carve-out, root runtime trees, per-file rules),
+    excluded tree, root-only managed checkouts, root runtime trees, per-file rules),
     shared by ``hermes backup`` and the pre-update path so they can never drift.
     """
     for dirpath, dirnames, filenames in os.walk(hermes_root, followlinks=False):
         rel_dir = Path(dirpath).relative_to(hermes_root)
-        is_root = rel_dir == Path(".")
         kept = [
             d for d in dirnames
-            if (d not in _EXCLUDED_DIRS or (d == "hermes-agent" and not is_root))
+            if d not in _EXCLUDED_DIRS
             and not _in_excluded_root_dir(rel_dir / d)]
         if skipped_dirs is not None:
             skipped_dirs.update(str(rel_dir / d) for d in set(dirnames) - set(kept))
@@ -718,6 +716,7 @@ def _import_skipped(rel: str) -> bool:
     except ValueError:
         return False  # A rejected traversal is still reported by the import itself.
     return (parts[-1] in _IMPORT_SKIP_NAMES or
+            profile_root_entry(parts) in _MANAGED_CHECKOUT_DIRS or
             profile_root_entry(parts) in PM_RUNTIME_ROOT_DIRS or
             rel.endswith(_SQLITE_SIDECAR_SUFFIXES))
 
@@ -1010,29 +1009,10 @@ def _import_members_exclusive(
             errors.append(f"  {rel}: path traversal blocked")
             continue
 
-        # Never overwrite volatile gateway/process runtime state. These are
-        # namespaced to the machine/container the backup was taken on;
-        # clobbering them (especially gateway_state.json) breaks the gateway
-        # reconciler on the target and disconnects hosted instances from the
-        # Nous portal. Matched by basename so both the root profile and
-        # named profiles (profiles/<name>/gateway_state.json) are covered.
-        if parts[-1] in _IMPORT_SKIP_NAMES:
-            skipped_runtime.append(rel)
-            continue
-
-        # Older archives may contain PM selections pointing at another machine.
-        # Match their home-root paths; a plugin's own facts.json is user data.
-        if profile_root_entry(parts) in PM_RUNTIME_ROOT_DIRS:
-            skipped_runtime.append(rel)
-            continue
-
-        # A ``.db`` member is page-restored into the live file below; a
-        # WAL/SHM/journal member from the archive describes a different
-        # database image, and installing it beside the restored file (over
-        # a live sidecar, via os.replace) would replay a foreign WAL on
-        # the next open. Current backups never ship these
-        # (_EXCLUDED_SUFFIXES); older or hand-built archives might.
-        if rel.endswith(_SQLITE_SIDECAR_SUFFIXES):
+        # Use the same ownership policy as archive integrity preflight. Old
+        # archives must not restore managed code, PM selections, volatile
+        # gateway state or foreign SQLite sidecars alongside profile data.
+        if _import_skipped(rel):
             skipped_runtime.append(rel)
             continue
 

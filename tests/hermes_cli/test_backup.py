@@ -1413,8 +1413,8 @@ class TestProfileRestoration:
         run_import(args)
 
         # Only valid profile should get a wrapper
-        assert (wrapper_dir / "valid").exists()
-        assert not (wrapper_dir / "empty").exists()
+        assert any(path.stem == "valid" for path in wrapper_dir.iterdir())
+        assert not any(path.stem == "empty" for path in wrapper_dir.iterdir())
 
 
 # ---------------------------------------------------------------------------
@@ -1483,13 +1483,16 @@ class TestSafeCopyDb:
             return next(connections)
 
         monkeypatch.setattr(backup_mod.sqlite3, "connect", fake_connect)
-        monkeypatch.setattr(backup_mod.time, "monotonic", lambda: next(clock))
+        from types import SimpleNamespace
+        from hermes_cli import backup_sqlite
+        # Keep the fake clock local to the SQLite owner, not asyncio/pytest.
+        monkeypatch.setattr(backup_sqlite, "time", SimpleNamespace(
+            monotonic=lambda: next(clock, 101.1)))
         monkeypatch.setattr(Path, "unlink", assert_closed_before_unlink)
 
         assert backup_mod._safe_copy_db(src, dst, timeout_seconds=1.0) is False
         assert connect_calls[0][1]["timeout"] == 0.0
         assert not dst.exists()
-
 
 
 
@@ -1527,7 +1530,6 @@ class TestQuickSnapshot:
         conn.commit()
         conn.close()
         return home
-
 
 
     def test_state_db_safely_copied(self, hermes_home):
@@ -1603,9 +1605,6 @@ class TestQuickSnapshot:
 
 
 
-
-
-
     def test_snapshot_includes_pairing_directories(self, hermes_home):
         """Pairing JSONs live outside state.db — snapshot must capture them
         recursively (generic + per-platform) so approved-user lists survive
@@ -1648,7 +1647,6 @@ class TestQuickSnapshot:
         assert "feishu_comment_pairing.json" in files
 
 
-
 # ---------------------------------------------------------------------------
 # Pre-update backup (hermes update safety net)
 # ---------------------------------------------------------------------------
@@ -1659,7 +1657,6 @@ class TestQuickSnapshot:
     # rel paths inside the manifest (the per-file selector). Both surfaces
     # need explicit regression tests because they validate independent
     # traversal vectors.
-
 
 
     def test_oversized_db_suppresses_pruning(self, hermes_home, capsys):
@@ -1736,7 +1733,6 @@ class TestQuickSnapshotProjectsKanban:
         return home
 
 
-
     def test_non_default_kanban_board_snapshotted(self, hermes_home):
         """#52889 completeness: non-default boards live at
         <root>/kanban/boards/<slug>/kanban.db, not <root>/kanban.db. The
@@ -1772,7 +1768,6 @@ class TestQuickSnapshotProjectsKanban:
         assert rows == [("w1", "ship")]
 
 
-
     def test_board_db_copied_wal_safely(self, hermes_home, monkeypatch):
         """#52889 W2: a non-default board's .db (dir-branch) must go through the
         WAL-safe _safe_copy_db, not a raw shutil.copy2, so an open WAL doesn't
@@ -1799,7 +1794,7 @@ class TestQuickSnapshotProjectsKanban:
         monkeypatch.setattr(bk, "_safe_copy_db", _spy)
         snap_id = create_quick_snapshot(hermes_home=hermes_home)
         # The board db was copied via _safe_copy_db (not raw copy).
-        assert any(s.endswith("boards/work/kanban.db") for s in called["db"]), called["db"]
+        assert any(Path(s).parts[-3:] == ("boards", "work", "kanban.db") for s in called["db"]), called["db"]
         copy = hermes_home / "state-snapshots" / snap_id / "kanban" / "boards" / "work" / "kanban.db"
         rows = sqlite3.connect(str(copy)).execute("SELECT * FROM tasks").fetchall()
         assert rows == [("w1", "ship")]
@@ -1837,7 +1832,7 @@ class TestFailedZipMemberRecovery:
         assert b"flaky.bin" not in salvage.read_bytes()
         with zipfile.ZipFile(salvage) as zf:
             assert "flaky.bin" not in zf.namelist()
-            assert zf.read("config.yaml") == b"model: test\n"
+            assert zf.read("config.yaml") == (hermes_home / "config.yaml").read_bytes()
             assert zf.testzip() is None
 
     def test_incomplete_pre_update_backup_does_not_rotate_last_complete(self, tmp_path, monkeypatch):
@@ -1863,7 +1858,7 @@ class TestFailedZipMemberRecovery:
         assert len(salvages) == 1, "repeated incomplete runs must not pile up"
         with zipfile.ZipFile(salvages[0]) as zf:
             assert "flaky.bin" not in zf.namelist()
-            assert zf.read("config.yaml") == b"model: test\n"
+            assert zf.read("config.yaml") == (hermes_home / "config.yaml").read_bytes()
             assert zf.testzip() is None
 
         # Salvage archives must not count toward retention on the next complete run.
@@ -1959,7 +1954,6 @@ class TestPreUpdateBackup:
 
 
 
-
     def test_skips_symlinked_files(self, hermes_home, tmp_path):
         """Pre-update backups must not dereference symlinks outside HERMES_HOME."""
         from hermes_cli.backup import create_pre_update_backup
@@ -2015,7 +2009,6 @@ class TestRunPreUpdateBackup:
 
 
 
-
     def test_config_off_disables_everything_silently(self, hermes_home, capsys):
         """pre_update_backup: off — an explicit opt-out disables the quick
         snapshot too (it previously ran unconditionally), with no output."""
@@ -2029,14 +2022,12 @@ class TestRunPreUpdateBackup:
         assert not self._zips(hermes_home)
 
 
-
     def test_config_full_mode(self, hermes_home, capsys):
         self._set_mode(hermes_home, "full")
         from hermes_cli.update_cmd import _run_pre_update_backup
         snap_id = _run_pre_update_backup(Namespace(no_backup=False, backup=False))
         assert snap_id is not None
         assert len(self._zips(hermes_home)) == 1
-
 
 
 
@@ -2508,7 +2499,8 @@ class TestMemoryProviderExternalPaths:
         (outside / "leak.json").unlink()
         outside.rmdir()
 
-    def test_import_restores_external_to_home_relative_location(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("check_mode", [False, pytest.param(True, marks=pytest.mark.platforms("posix"))])
+    def test_import_restores_external_to_home_relative_location(self, tmp_path, monkeypatch, check_mode):
         """_external/ members restore to ~/<relpath>, not under HERMES_HOME,
         and credential-shaped files get 0600."""
         dst_home = tmp_path / "dst"
@@ -2533,7 +2525,8 @@ class TestMemoryProviderExternalPaths:
         assert restored.exists()
         assert restored.read_text() == '{"peer":"bob"}'
         # Credential-shaped file tightened.
-        assert (restored.stat().st_mode & 0o777) == 0o600
+        if check_mode:
+            assert (restored.stat().st_mode & 0o777) == 0o600
         # External state did NOT leak into HERMES_HOME.
         assert not (hermes_home / "_external").exists()
 
