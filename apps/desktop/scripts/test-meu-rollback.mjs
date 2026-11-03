@@ -146,13 +146,22 @@ try {
   })
   phase = 'native handoff with armed recovery'
   console.log('[Meu rollback] native handoff with armed recovery')
-  const closed = app.waitForEvent('close', { timeout: 180_000 })
-  void closed.catch(() => {})
+  // Playwright's application close waits for inherited stdio to drain too.
+  // The detached guardian deliberately outlives this process. Observe the
+  // owned OS process's actual exit, then require the full recovery proof.
+  const parent = app.process()
+  const exited = new Promise((resolve, reject) => {
+    const done = (code, signal) => code === 0 ? resolve() : reject(new Error(`Old Meu exited with ${code}/${signal}`))
+    if (parent.exitCode !== null || parent.signalCode !== null) done(parent.exitCode, parent.signalCode)
+    else parent.once('exit', done)
+  })
+  void exited.catch(() => {})
   const result = await bounded(page.evaluate(() => window.hermesDesktop.updates.apply()), 180_000,
     'Fixture update preparation did not finish within three minutes')
   assert.equal(result.ok, true, result.message)
   assert.equal(result.handedOff, true)
-  await closed
+  await bounded(exited, 180_000, 'Old Meu process did not exit')
+  console.log('[Meu rollback] old OS process exited without forcing it')
   app = null
   phase = 'automatic package and database recovery'
   console.log('[Meu rollback] wait for automatic package and database recovery')
@@ -211,7 +220,8 @@ try {
   const record = transaction()
   fs.writeFileSync(
     path.join(scratch, 'failure.json'),
-    JSON.stringify({ phase, error: error.message, recoveryState: record?.state, recoveryError: record?.error }, null, 2)
+    JSON.stringify({ phase, error: error.message, recoveryState: record?.state, recoveryError: record?.error,
+      parentExitCode: app?.process().exitCode, parentSignalCode: app?.process().signalCode }, null, 2)
   )
   if (record)
     for (const name of ['watch.log']) {
