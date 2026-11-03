@@ -13,7 +13,7 @@ $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'never'
 $env:PSModulePath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
 Remove-Item Env:PYTHONPATH, Env:VIRTUAL_ENV, Env:HERMES_PYTHON, Env:HERMES_RUNTIME_DIR -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $env:MEU_HOME -Force | Out-Null
+New-Item -ItemType Directory -Path $scratch, $env:MEU_HOME -Force | Out-Null
 $checkout = Join-Path $env:MEU_HOME 'meu-agent'
 $baseline = Join-Path $env:RUNNER_TEMP 'meu-rollback-baseline'
 $candidate = Join-Path $env:GITHUB_WORKSPACE 'apps/desktop/release/meu-release-candidate'
