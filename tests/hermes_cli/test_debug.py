@@ -398,6 +398,13 @@ class TestRunDebugShare:
 class TestRunDebugShareRedaction:
     """End-to-end: --no-redact flag, banner injection, default behavior."""
 
+    @pytest.fixture(autouse=True)
+    def isolated_gateway_status(self, monkeypatch):
+        # Exercise real config/dump/redaction, without repeatedly enumerating host
+        # services and processes for every credential variant. Runtime status has
+        # its own tests; the fixture profile has no running gateway.
+        monkeypatch.setattr("hermes_cli.dump._gateway_status", lambda: "stopped (test fixture)")
+
     @pytest.fixture
     def hermes_home_with_secret(self, tmp_path, monkeypatch):
         """Isolated HERMES_HOME whose agent.log contains a vendor-prefixed token."""
@@ -908,7 +915,7 @@ class TestBuildDebugShare:
 
 
 # ---------------------------------------------------------------------------
-# Shared bundle collection + Nous-S3 path
+# Shared bundle collection
 # ---------------------------------------------------------------------------
 
 class TestCollectShareBundle:

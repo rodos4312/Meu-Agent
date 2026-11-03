@@ -154,6 +154,7 @@ jobs:
           tests/hermes_cli/test_meu_removed_metrics_routes.py
           tests/hermes_cli/test_meu_removed_diagnostics.py
           tests/hermes_cli/test_debug.py
+          tests/hermes_cli/test_dump_gateway_status.py
           tests/gateway/test_local_debug_never_uploads.py
           tests/tui_gateway/test_meu_removed_payments.py
           tests/agent/test_account_usage_fetch.py
