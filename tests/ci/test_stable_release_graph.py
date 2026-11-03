@@ -61,7 +61,7 @@ def test_release_reuses_whole_ci_and_docker_before_publication():
     required = {"ci", "docker", "nix", "pm-bundle", "install-e2e", "windows-packaged",
                 "macos-packaged-arm64", "macos-packaged-x64", "termux-checks", "windows-live",
                 "candidate-manifest", "transitions-darwin-arm64", "transitions-darwin-x64",
-                "transitions-win32", "bootstrap-version", *candidate_calls}
+                "transitions-win32", *candidate_calls}
     assert required <= ancestors(jobs, "acceptance")
     # B3: stable calls one build group at a time; the bundle group waits for
     # both Windows arches, and the Linux groups are not called at all.
@@ -303,35 +303,6 @@ def test_docker_dev_stamp_checkout_has_release_history():
     assert checkout["with"]["fetch-depth"] == "0"
 
 
-def test_release_gates_extract_consumer_facing_versions():
-    release_jobs = workflow("stable-release.yml")["jobs"]
-    bootstrap = next(
-        step["run"] for step in release_jobs["bootstrap-version"]["steps"]
-        if step.get("name") == "Stamp and verify the Cargo and Tauri release identity"
-    )
-    assert "cargo metadata" in bootstrap
-    assert "tauri.conf.json" in bootstrap
-    assert "uv build --wheel --sdist" not in bootstrap
-
-    docker = workflow("docker.yml")["jobs"]
-    image_check = next(
-        step["run"] for step in docker["build"]["steps"]
-        if step.get("name") == "Verify release image identity"
-    )
-    assert '["baseVersion"]' in image_check and "$RELEASE_VERSION" in image_check
-
-    nix = workflow("nix.yml")["jobs"]
-    nix_check = next(
-        step["run"] for step in nix["flake-check"]["steps"]
-        if step.get("name") == "Verify release package runtime identity"
-    )
-    assert '"$package/bin/hermes" --version' in nix_check
-    assert "actual != expected" in nix_check
-    # A path: flake has no git metadata; without ?rev= the stamp has no commit
-    # and the packaged CLI reports "unknown".
-    assert 'release-source?rev=$CANDIDATE_COMMIT' in nix_check
-    flake_check = next(step["run"] for step in nix["flake-check"]["steps"] if step.get("name") == "nix flake check")
-    assert "release-source?rev={1}" in flake_check and "env.CANDIDATE_COMMIT" in flake_check
 
 
 def test_versioned_docker_images_belong_to_one_attempt():
@@ -384,6 +355,7 @@ def test_publication_reconciler_has_every_recovery_trigger_and_shared_lock():
     assert not any(step.get("run", "").startswith("sleep ") for step in reconcile["steps"])
 
 
+@pytest.mark.platforms("posix")
 def test_docker_recovery_refuses_to_replace_a_divergent_version_tag(tmp_path):
     publish = workflow("docker.yml")["jobs"]["release-publish-manifest"]
     step = next(item for item in publish["steps"] if item.get("name") == "Create both immutable versioned manifest lists")

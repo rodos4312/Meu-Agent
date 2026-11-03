@@ -182,6 +182,8 @@ class _Parser:
             return json.dumps(args[0])
         if name == "fromJSON":
             return json.loads(args[0])
+        if name == "startsWith":
+            return to_string(args[0]).lower().startswith(to_string(args[1]).lower())
         if name == "contains":
             hay, needle = args
             if isinstance(hay, list):

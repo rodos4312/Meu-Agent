@@ -46,7 +46,7 @@ DEFAULT = {
     "npm_lock": True,
     "bootstrap": True,
     "desktop_updater": True,
-    "rust": True,
+
     "remote_backends": True,
     "catalog": True,
 }
@@ -54,7 +54,7 @@ DEFAULT = {
 SLOW_LANES = {"docker", "nix", "e2e", "e2e_upgrade", "e2e_desktop_core", "e2e_desktop_update"}
 
 
-def _lanes(python=False, frontend=False, site=False, scan=False, deps=False, uv_lock=False, npm_lock=False, bootstrap=False, desktop_updater=False, rust=False, docker_meta=False, python_prod=None, nix=False, docker=None, e2e=False, e2e_upgrade=False, e2e_desktop_core=False, e2e_desktop_update=False, remote_backends=False, catalog=False) -> dict[str, bool]:
+def _lanes(python=False, frontend=False, site=False, scan=False, deps=False, uv_lock=False, npm_lock=False, bootstrap=False, desktop_updater=False, docker_meta=False, python_prod=None, nix=False, docker=None, e2e=False, e2e_upgrade=False, e2e_desktop_core=False, e2e_desktop_update=False, remote_backends=False, catalog=False) -> dict[str, bool]:
     # python_prod tracks python except for tests-only diffs; default it to
     # python so the majority of cases don't need to spell it out.
     #
@@ -81,7 +81,7 @@ def _lanes(python=False, frontend=False, site=False, scan=False, deps=False, uv_
         "npm_lock": npm_lock,
         "bootstrap": bootstrap,
         "desktop_updater": desktop_updater,
-        "rust": rust,
+
         "remote_backends": remote_backends,
         "catalog": catalog,
     }
@@ -221,23 +221,7 @@ CASES = {
     # `.rs` lives under apps/, so it matches `frontend` too. That lane builds
     # TypeScript and cannot notice a Rust error — before `rust` existed it was
     # the ONLY lane a Rust change ran, and the crate's tests never executed.
-    "rust source → rust": (
-        ["apps/bootstrap-installer/src-tauri/src/powershell.rs"],
-        _lanes(frontend=True, bootstrap=True, rust=True),
-    ),
-    "cargo lockfile → rust": (
-        ["apps/bootstrap-installer/src-tauri/Cargo.lock"],
-        _lanes(frontend=True, bootstrap=True, rust=True),
-    ),
     # Non-.rs files in the crate still change what cargo builds.
-    "tauri config → rust": (
-        ["apps/bootstrap-installer/src-tauri/tauri.conf.json"],
-        _lanes(frontend=True, bootstrap=True, rust=True),
-    ),
-    "ts source alone → no rust lane": (
-        ["apps/bootstrap-installer/src/main.tsx"],
-        _lanes(frontend=True, bootstrap=True),
-    ),
     # Unknown top-level file keeps Python on rather than risk a silent skip.
     "unknown toplevel → python": (["Makefile"], _lanes(python=True)),
     "mixed docs+python → python": (["README.md", "agent/x.py"], _lanes(python=True, scan=True)),
@@ -303,10 +287,6 @@ CASES = {
         ["apps/shared/eslint.config.mjs"],
         _lanes(frontend=True),
     ),
-    "bootstrap-installer eslint config → frontend + bootstrap": (
-        ["apps/bootstrap-installer/eslint.config.mjs"],
-        _lanes(frontend=True, bootstrap=True),
-    ),
     "prettier config → python": (
         [".prettierrc"],
         _lanes(python=True),
@@ -324,10 +304,6 @@ CASES = {
     "setup-hermes.sh → bootstrap lane": (
         ["setup-hermes.sh"],
         _lanes(python=True, bootstrap=True, python_prod=True, e2e_upgrade=True),
-    ),
-    "tauri installer source → bootstrap + rust": (
-        ["apps/bootstrap-installer/src-tauri/src/lib.rs"],
-        _lanes(frontend=True, bootstrap=True, rust=True),
     ),
     "composite action → fail-open all": (
         [".github/actions/retry/action.yml"],
