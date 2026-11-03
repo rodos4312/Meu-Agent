@@ -15,7 +15,6 @@ import { translateNow } from '@/i18n/runtime'
 import { type ChatMessage, chatMessageText, toChatMessages } from '@/lib/chat-messages'
 import { markReasoningEffortPending } from '@/lib/chat-runtime'
 import { type GuardedModelSwitchResult, surfaceModelSwitchConfirm } from '@/lib/guarded-model-switch'
-import { noteMessageSent } from '@/store/desktop-metrics'
 import { notify } from '@/store/notifications'
 import {
   isReadOnlyRuntimeId,
@@ -266,8 +265,8 @@ export function useSessionTileDelegate({
       deleteSession: async storedSessionId => {
         await removeSession(storedSessionId)
       },
-      executeSlash: async (rawCommand, sessionId, options) => {
-        await executeSlashCommand(rawCommand, { sessionId, ...options })
+      executeSlash: async (rawCommand, sessionId) => {
+        await executeSlashCommand(rawCommand, { sessionId })
       },
       // The picker's wire (config.set model), always --session (never the profile default), with a
       // guarded target asked through the ONE shared confirm flow and awaited: true only once the switch
@@ -613,7 +612,6 @@ export function useSessionTileDelegate({
               requestForStoredSession<T>(storedSessionId, method, params ?? {}, timeoutMs)
           : requestGateway
 
-        noteMessageSent($sessionTiles.get().find(tile => tile.runtimeId === runtimeId)?.workspaceMode ?? 'sessions')
         let acceptedRuntimeId = runtimeId
 
         await withSessionNotFoundResume(

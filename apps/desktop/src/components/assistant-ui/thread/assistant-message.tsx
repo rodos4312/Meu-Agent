@@ -83,7 +83,6 @@ import { useEnterAnimation } from '@/lib/use-enter-animation'
 import { cn } from '@/lib/utils'
 import { playSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
 import { $billingBlock, runBillingRecovery } from '@/store/billing-block'
-import { DESKTOP_BUTTON_ACTIONS, recordAction } from '@/store/desktop-metrics'
 import { notifyError } from '@/store/notifications'
 import { startManualProviderOAuth } from '@/store/onboarding'
 import { $activeGatewayProfile, normalizeProfileKey, requestFreshSession } from '@/store/profile'
@@ -711,7 +710,7 @@ const CompressConversationAction: FC<{ className: string; label: string }> = ({ 
 
     triggerHaptic('submit')
     // A button, not a typed command: kept out of the slash-command usage count.
-    void delegate.executeSlash('/compress', sessionId, { typed: false }).catch(error => {
+    void delegate.executeSlash('/compress', sessionId).catch(error => {
       notifyError(error, t.assistant.thread.errorCompressFailed)
     })
   }, [sessionId, t.assistant.thread.errorCompressFailed])
@@ -1101,7 +1100,6 @@ const ERROR_ACTION_RENDERERS: Record<ErrorActionId, (ctx: ErrorActionContext) =>
         className={className}
         onClick={() => {
           triggerHaptic('submit')
-          recordAction(DESKTOP_BUTTON_ACTIONS.messageRetry, 'click')
         }}
         type="button"
       >
@@ -1314,7 +1312,6 @@ const AssistantActionBar: FC<MessageActionProps & { durationS?: number }> = ({
     }
 
     triggerHaptic('submit')
-    recordAction(DESKTOP_BUTTON_ACTIONS.messageRetry, 'click')
     reloadMessage()
   }, [reloadDisabled, reloadMessage])
 
@@ -1333,15 +1330,7 @@ const AssistantActionBar: FC<MessageActionProps & { durationS?: number }> = ({
       }
     : undefined
 
-  const copyButton = (
-    <CopyButton
-      appearance="icon"
-      buttonSize="icon"
-      label={copy.copy}
-      onCopied={() => recordAction(DESKTOP_BUTTON_ACTIONS.messageCopy, 'click')}
-      text={getMessageText}
-    />
-  )
+  const copyButton = <CopyButton appearance="icon" buttonSize="icon" label={copy.copy} text={getMessageText} />
 
   return (
     <div className="relative flex w-full shrink-0 items-center justify-end gap-1.5">

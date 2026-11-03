@@ -4,6 +4,23 @@ import { appVersionInfo, assertSourceUpdateChannel, nativeAboutVersion } from '.
 import type { InstallStamp } from './install-stamp'
 
 describe('artifact version identity', (): void => {
+  it('names the Meu desktop release independently of its pinned or remote backend', (): void => {
+    const stamp = {
+      payload: 'bootstrap',
+      displayVersion: null,
+      baseVersion: null,
+      meuUpdates: {
+        repository: 'rodos4312/Meu-Agent',
+        branch: 'dev/meu-foundation',
+        channel: 'meu-preview',
+        publicKey: 'test'
+      }
+    } as InstallStamp
+
+    expect(appVersionInfo(stamp, 'git.689522c', '0.1.0-dev.13').appVersion).toBe('0.1.0-dev.13')
+    expect(appVersionInfo(stamp, '9.9.9-remote', '0.1.0-dev.14').appVersion).toBe('0.1.0-dev.14')
+  })
+
   it.each([
     ['v1.2.3', 'stable'],
     ['v1.2.4+canary.20260911T010101Z', 'canary'],

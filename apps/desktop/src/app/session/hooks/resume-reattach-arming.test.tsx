@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { getLatestSessionMessages } from '@/hermes'
-import { recordFriction } from '@/store/desktop-metrics'
 import { $notifications, clearNotifications, notify } from '@/store/notifications'
 import {
   $activeSessionId,
@@ -41,11 +40,6 @@ vi.mock('@/store/gateway', async importOriginal => ({
   requestGatewayForAgent: vi.fn(),
   requestGatewayForProfile: vi.fn(),
   retainGatewayForAgent: vi.fn(async () => () => undefined)
-}))
-
-vi.mock('@/store/desktop-metrics', async importOriginal => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  recordFriction: vi.fn()
 }))
 
 type Resume = ReturnType<typeof useSessionActions>['resumeSession']
@@ -122,5 +116,4 @@ it('a resume that fails after painting the history arms the quiet re-attach, and
 
   expect($resumeReattachSessionId.get()).toBe('stored-1')
   expect($notifications.get().map(n => n.id)).toEqual(['unrelated', 'resume-failed:stored-1'])
-  expect(vi.mocked(recordFriction).mock.calls.filter(([kind]) => kind === 'error_toast')).toHaveLength(1)
 })

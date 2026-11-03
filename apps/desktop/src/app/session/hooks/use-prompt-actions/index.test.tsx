@@ -63,9 +63,6 @@ vi.mock('@/store/gateway', async importOriginal => ({
   requestGatewayForAgent: vi.fn()
 }))
 
-// Every typed command also fires this (fire-and-forget); these tests assert the command's own traffic.
-const SLASH_METRIC = 'shared_metrics.slash_command'
-
 describe('durable submit acknowledgement', () => {
   it('retires the native private-file journal only after a matching canonical receipt', async () => {
     const fs = await import('node:fs')
@@ -112,13 +109,20 @@ describe('durable submit acknowledgement', () => {
     const entries = new Map<string, string>()
     const previous = window.hermesDesktop
     // The private-file journal accepts the preparation write, then the disk fills before retirement.
-    window.hermesDesktop = { ...previous, preparedSubmissions: {
-      read: async () => JSON.stringify(Object.fromEntries([...entries].map(([key, entry]) => [key, JSON.parse(entry)]))),
-      update: async (key, entry) => {
-        if (entry === null) {throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' })}
-        entries.set(key, entry)
+    window.hermesDesktop = {
+      ...previous,
+      preparedSubmissions: {
+        read: async () =>
+          JSON.stringify(Object.fromEntries([...entries].map(([key, entry]) => [key, JSON.parse(entry)]))),
+        update: async (key, entry) => {
+          if (entry === null) {
+            throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' })
+          }
+
+          entries.set(key, entry)
+        }
       }
-    } }
+    }
     const ids: unknown[] = []
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
@@ -356,16 +360,30 @@ describe('terminal receipt settlement', () => {
   it('does not settle a newer external generation when an older terminal receipt arrives', async () => {
     let finish!: (value: never) => void
 
-    const requestGateway = vi.fn(async (method: string) => method === 'prompt.submit'
-      ? new Promise<never>(resolve => { finish = resolve }) : {} as never)
+    const requestGateway = vi.fn(async (method: string) =>
+      method === 'prompt.submit'
+        ? new Promise<never>(resolve => {
+            finish = resolve
+          })
+        : ({} as never)
+    )
 
     let handle: HarnessHandle | null = null
     await actRender(<Harness onReady={h => (handle = h)} rawAdmissionReceipts refreshSessions={async () => undefined} requestGateway={requestGateway} />)
     let pending!: Promise<boolean>
     act(() => { pending = handle!.submitTextRaw('old retry', { submission_id: 'old-terminal' }) })
     await waitFor(() => expect(finish).toBeTypeOf('function'))
-    handle!.handleEvent({ type: 'message.start', session_id: RUNTIME_SESSION_ID, authority_epoch: 1, execution_generation: 2, payload: {} })
-    await act(async () => { finish({ admission_id: 'old-terminal', status: 'terminal' } as never); expect(await pending).toBe(true) })
+    handle!.handleEvent({
+      type: 'message.start',
+      session_id: RUNTIME_SESSION_ID,
+      authority_epoch: 1,
+      execution_generation: 2,
+      payload: {}
+    })
+    await act(async () => {
+      finish({ admission_id: 'old-terminal', status: 'terminal' } as never)
+      expect(await pending).toBe(true)
+    })
     expect(handle!.state()).toMatchObject({ busy: true, awaitingResponse: true, turnLive: true })
     expect(handle!.state().messages.filter(m => m.id === 'user-old-terminal')).toEqual([])
     handle!.handleEvent({ type: 'message.delta', session_id: RUNTIME_SESSION_ID, authority_epoch: 1, execution_generation: 2, payload: { text: 'new answer' } })
@@ -502,10 +520,6 @@ describe('usePromptActions /stop', () => {
     const calls: Array<{ method: string; params?: Record<string, unknown> }> = []
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push({ method, params })
 
       if (method === 'session.interrupt') {
@@ -638,10 +652,6 @@ describe('usePromptActions slash session targeting', () => {
     const createBackendSessionForSend = vi.fn(async () => 'rt-brand-new-WRONG')
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push({ method, params })
 
       if (method === 'session.resume') {
@@ -822,11 +832,7 @@ describe('usePromptActions /wake', () => {
 
     await handle!.submitText('/wake')
 
-    expect(requestGateway.mock.calls.map(([method]) => method).filter(m => m !== SLASH_METRIC)).toEqual([
-      'wake.status',
-      'wake.stop',
-      'wake.status'
-    ])
+    expect(requestGateway.mock.calls.map(([method]) => method)).toEqual(['wake.status', 'wake.stop', 'wake.status'])
     expect(requestGateway).toHaveBeenCalledWith('wake.stop', { persist: true })
     expect(requestGateway).not.toHaveBeenCalledWith('slash.exec', expect.anything())
     expect(requestGateway).not.toHaveBeenCalledWith('command.dispatch', expect.anything())
@@ -1569,10 +1575,6 @@ describe('usePromptActions slash.exec dispatch payloads', () => {
     const states: Record<string, unknown>[] = []
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push({ method, params })
 
       if (method === 'slash.exec') {
@@ -1702,10 +1704,6 @@ describe('usePromptActions slash.exec dispatch payloads', () => {
     const busyRef = { current: true }
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push({ method, params })
 
       if (method === 'slash.exec') {
@@ -1868,10 +1866,6 @@ describe('usePromptActions slash.exec dispatch payloads', () => {
     const busyRef = { current: false }
 
     const requestGateway = vi.fn(async (method: string) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push(method)
 
       return (method === 'slash.exec' ? { type: 'send', message: 'audit the session states' } : {}) as never
@@ -2091,10 +2085,6 @@ describe('usePromptActions slash.exec dispatch payloads', () => {
     const states: Record<string, unknown>[] = []
 
     const requestGateway = vi.fn(async (method: string, params?: Record<string, unknown>) => {
-      if (method === SLASH_METRIC) {
-        return {} as never
-      }
-
       calls.push({ method, params })
 
       if (method === 'slash.exec') {
@@ -2211,7 +2201,7 @@ describe('usePromptActions desktop slash pickers', () => {
     expect(requestGateway).not.toHaveBeenCalledWith('command.dispatch', expect.anything())
   })
 
-  it('reports each typed command to shared metrics once, locally handled ones included, never alias re-dispatches', async () => {
+  it('runs local commands and aliases without sending shared metrics', async () => {
     const openMemoryGraph = vi.fn()
 
     const requestGateway = vi.fn(
@@ -2233,12 +2223,7 @@ describe('usePromptActions desktop slash pickers', () => {
     await handle!.submitText('/mg') // user alias: the backend answers "run /journey"
 
     expect(openMemoryGraph).toHaveBeenCalledTimes(2)
-    expect(requestGateway.mock.calls.filter(([method]) => method === SLASH_METRIC).map(([, params]) => params)).toEqual(
-      [
-        { command: 'journey', session_id: RUNTIME_SESSION_ID },
-        { command: 'mg', session_id: RUNTIME_SESSION_ID }
-      ]
-    )
+    expect(requestGateway.mock.calls.map(([method]) => method)).toEqual(['slash.exec'])
   })
 
   it('marks a timed-out handoff as failed so the next attempt can retry', async () => {

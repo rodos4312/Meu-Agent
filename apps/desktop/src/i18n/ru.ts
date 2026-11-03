@@ -1,8 +1,8 @@
-import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { meuShellCopy } from './meu-shell'
 import { ruBoot } from './ru_boot'
 import { ruCatalog, ruSkillDeepLink } from './ru_catalog'
 import { ruClarify } from './ru_clarify'
@@ -22,7 +22,6 @@ import { ruPluginSettings, ruPluginsTab } from './ru_plugins'
 import { RU_NOUN, RU_PLURAL } from './ru_plural'
 import { ruPreviewWeb } from './ru_preview_web'
 import { ruProjects } from './ru_projects'
-import { ruSharedMetrics } from './ru_shared_metrics'
 import { ruThemePicker } from './ru_theme_picker'
 import { ruUpdateChannel } from './ru_update_channel'
 
@@ -30,7 +29,6 @@ export const ruOverrides = {
   meuShell: meuShellCopy['ru'],
   catalog: ruCatalog,
   connectors: ruConnectors.connectors,
-  sharedMetrics: ruSharedMetrics,
   firstRun: ruFirstRun,
   sessionImport: ruConnectors.sessionImport,
   common: {

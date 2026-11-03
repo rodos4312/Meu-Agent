@@ -1,4 +1,3 @@
-import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
@@ -22,15 +21,14 @@ import { dePluginPreviewAccess } from './de_plugin_preview_access'
 import { dePluginUpdate } from './de_plugin_update'
 import { dePreviewWeb } from './de_preview_web'
 import { deProjects } from './de_projects'
-import { deSharedMetrics } from './de_shared_metrics'
 import { deThemePicker } from './de_theme_picker'
 import { deUpdateChannel } from './de_update_channel'
 import { defineLocale, type TranslationOverrides } from './define-locale'
 import { introDe } from './intro-de'
+import { meuShellCopy } from './meu-shell'
 
 export const deOverrides = {
   meuShell: meuShellCopy['de'],
-  sharedMetrics: deSharedMetrics,
   firstRun: deFirstRun,
   intro: introDe,
   connectors: deConnectorCard,

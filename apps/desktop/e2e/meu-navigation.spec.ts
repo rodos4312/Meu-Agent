@@ -16,6 +16,21 @@ test.afterAll(async () => {
 test('Meu navigation preserves the live composer and stays usable across pages and window sizes', async () => {
   test.setTimeout(180_000)
   const { app, page } = fixture
+  const requests: string[] = []
+  const externalNousRequests: string[] = []
+  page.on('websocket', socket => {
+    socket.on('framesent', frame => {
+      const message = JSON.parse(String(frame.payload))
+      if (typeof message.method === 'string') requests.push(message.method)
+    })
+  })
+  page.on('request', request => {
+    if (/^https?:\/\/([^/]+\.)?nousresearch\.com(?:\/|$)/i.test(request.url())) {
+      externalNousRequests.push(request.url())
+    }
+  })
+  // Observe a complete attach as well as navigation and a real mock-provider turn.
+  await page.reload()
   // Fail before interacting if a product-specific resolver escapes the sandbox.
   expect(await app.evaluate(() => process.env.HERMES_HOME)).toBe(fixture.sandbox.hermesHome)
   expect(await app.evaluate(() => process.env.MEU_HOME)).toBe(fixture.sandbox.hermesHome)
@@ -91,4 +106,10 @@ test('Meu navigation preserves the live composer and stays usable across pages a
   await expect(page.locator('html')).toHaveAttribute('data-hermes-mode', 'dark')
   await rail.locator('[data-meu-nav="home"]').click()
   await page.screenshot({ path: test.info().outputPath('meu-home-dark.png') })
+  expect(requests.some(method => method === 'prompt.submit')).toBe(true)
+  expect(requests.filter(method => method.startsWith('shared_metrics.'))).toEqual([])
+  expect(externalNousRequests).toEqual([])
+  expect(
+    await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('hermes.desktop.metrics.')))
+  ).toEqual([])
 })

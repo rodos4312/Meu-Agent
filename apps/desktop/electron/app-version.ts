@@ -91,7 +91,7 @@ export function appVersionInfo(
   return {
     appVersion: build
       ? `${build.sourceVersion} (${build.channel} #${build.sequence}, ${build.commit.slice(0, 8)})`
-      : stamp.payload === 'bootstrap'
+      : stamp.payload === 'bootstrap' && !stamp.meuUpdates
         ? firstRealVersion([runtimeVersion, stamp.displayVersion, stamp.baseVersion, packageVersion])
         : firstRealVersion([stamp.displayVersion, stamp.baseVersion, packageVersion, runtimeVersion]),
     baseVersion: build?.sourceVersion ?? stamp.baseVersion ?? undefined,

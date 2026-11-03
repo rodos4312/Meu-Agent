@@ -8,7 +8,6 @@ import { triggerHaptic } from '@/lib/haptics'
 import { hostHas } from '@/lib/host-capabilities'
 import { Ear, EarOff, iconSize, Layers3, Loader2, Square } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { recordAction } from '@/store/desktop-metrics'
 import { $hudMode, closeHud, resetHudLayout } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
 
@@ -188,7 +187,6 @@ export function ComposerControls({
             aria-label={showStop ? c.stop : sendLabel}
             className={PRIMARY_ICON_BTN}
             disabled={disabled || !canSubmit}
-            onClick={() => recordAction(showStop ? 'composer.cancel' : 'composer.send', 'click')}
             onMouseDown={keepEditorFocus}
             type="submit"
           >

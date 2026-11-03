@@ -10,7 +10,6 @@ import {
 import { TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
-import { recordAction } from '@/store/desktop-metrics'
 import { $newChatProfile } from '@/store/profile'
 import { openRouteTile } from '@/store/route-tiles'
 
@@ -85,10 +84,6 @@ export function SidebarNavigation({
                   // change which profile that is.
                   if (isNewSession) {
                     $newChatProfile.set(null)
-                  }
-
-                  if (item.keybindActionId) {
-                    recordAction(item.keybindActionId, 'click')
                   }
 
                   onNavigate(item)

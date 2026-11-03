@@ -19,7 +19,6 @@ import { triggerHaptic } from '@/lib/haptics'
 import { hostHas } from '@/lib/host-capabilities'
 import { formatModifierToken } from '@/lib/keybinds/combo'
 import { cn } from '@/lib/utils'
-import { recordAction } from '@/store/desktop-metrics'
 import { canUseHud, toggleHud } from '@/store/hud'
 import { $interfaceMode, shownInMode, type Tiered } from '@/store/interface-mode'
 import {
@@ -446,10 +445,6 @@ function TitlebarToolButton({ navigate, tool }: { navigate: ReturnType<typeof us
         data-tour={tool.tour}
         disabled={tool.disabled}
         onClick={event => {
-          if (tool.actionId) {
-            recordAction(tool.actionId, 'click')
-          }
-
           if (tool.to) {
             navigate(tool.to)
           }

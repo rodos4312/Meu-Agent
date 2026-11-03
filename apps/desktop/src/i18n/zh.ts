@@ -1,9 +1,9 @@
-import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
 import { introZh } from './intro-zh'
+import { meuShellCopy } from './meu-shell'
 import { zhCatalog, zhSkillDeepLink } from './zh_catalog'
 import { zhClarify } from './zh_clarify'
 import { zhConnectorCard } from './zh_connector_card'
@@ -23,7 +23,6 @@ import { zhPluginPreviewAccess } from './zh_plugin_preview_access'
 import { zhPluginUpdate } from './zh_plugin_update'
 import { zhPreviewWeb } from './zh_preview_web'
 import { zhProjects } from './zh_projects'
-import { zhSharedMetrics } from './zh_shared_metrics'
 import { zhThemePicker } from './zh_theme_picker'
 import { zhUpdateChannel } from './zh_update_channel'
 
@@ -36,7 +35,6 @@ export const zhOverrides = {
     copyUrl: '复制链接',
     close: '关闭'
   },
-  sharedMetrics: zhSharedMetrics,
   firstRun: zhFirstRun,
   intro: introZh,
   connectors: zhConnectorCard,

@@ -23,7 +23,6 @@ import {
   revokeDiscardedAttachmentPreviews
 } from '@/store/composer'
 import { serverOwnsComposerQueue } from '@/store/composer-queue'
-import { noteMessageSent } from '@/store/desktop-metrics'
 import { $hudMode } from '@/store/hud'
 import { clearNotifications, notify, notifyError } from '@/store/notifications'
 import { consumePendingCredentialWarning, requestDesktopOnboarding } from '@/store/onboarding'
@@ -40,7 +39,7 @@ import {
   touchSessionActivity
 } from '@/store/session'
 import { profileScopeForSessionOwner } from '@/store/session-request-router'
-import { $sessionStates, $sessionTiles } from '@/store/session-states'
+import { $sessionStates } from '@/store/session-states'
 import type { SessionInfo } from '@/types/hermes'
 
 import { cronRunWriteGateApplies, refreshCronRunWriteGate } from '../../../cron/open-cron-run'
@@ -1140,9 +1139,6 @@ export function useSubmitPrompt(deps: SubmitPromptDeps) {
         const recoverStoredSessionId = targetStoredSessionId
 
         try {
-          // A bot's chat is a tile scoped to the `bots` workspace; the primary chat is Sessions mode.
-          noteMessageSent($sessionTiles.get().find(tile => tile.runtimeId === sessionId)?.workspaceMode ?? 'sessions')
-
           const { result, sessionId: receiptSessionId } = await withSessionNotFoundResume<SubmitReceipt>(
             sessionId,
             recoverStoredSessionId,

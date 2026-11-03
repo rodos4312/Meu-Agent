@@ -11,8 +11,8 @@ $driver = Join-Path $PSScriptRoot 'test-meu-native-upgrade.mjs'
 & node $driver validate $baseline $candidate $scratch
 if ($LASTEXITCODE -ne 0) { throw 'Candidate signature/hash validation failed before installation.' }
 $old = Get-Content -LiteralPath (Join-Path $baseline 'meu-release.json') -Raw | ConvertFrom-Json
-if ($old.version -cne '0.1.0-dev.11' -or $old.commit -cne '5e022912303da8e4ce10ee52fbd802d6e263d27f') {
-  throw 'The baseline does not match the pinned Meu dev.11 rehearsal candidate.'
+if ($old.version -cne '0.1.0-dev.13' -or $old.commit -cne '689522cb74b73c9d951ff1aa204e7b2d36d2851b') {
+  throw 'The baseline does not match the pinned public Meu dev.13 release.'
 }
 $executable = Join-Path $env:LOCALAPPDATA 'Programs\Meu\Meu.exe'
 if (Test-Path -LiteralPath $executable) { throw 'Rehearsal requires a fresh runner without an existing Meu installation.' }

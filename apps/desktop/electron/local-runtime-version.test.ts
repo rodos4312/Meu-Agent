@@ -5,9 +5,21 @@ import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 import { PROBE_TIMEOUT_MS } from './backend-probes'
-import { parseLocalRuntimeVersion, resolveLocalRuntimeVersion, type VersionProbeRunner } from './local-runtime-version'
+import type { InstallStamp } from './install-stamp'
+import {
+  parseLocalRuntimeVersion,
+  resolveDesktopClientVersion,
+  resolveLocalRuntimeVersion,
+  type VersionProbeRunner
+} from './local-runtime-version'
 
 describe('local client version source', (): void => {
+  it('reads the Meu package version even when no local backend installation is available', async () => {
+    const stamp = { payload: 'bootstrap', meuUpdates: { repository: 'rodos4312/Meu-Agent' } } as InstallStamp
+    await expect(
+      resolveDesktopClientVersion(stamp, '/missing/checkout', '/missing/home', '0.1.0-dev.14')
+    ).resolves.toBe('0.1.0-dev.14')
+  })
   it('parses the exact version line emitted by the local launcher', (): void => {
     expect(parseLocalRuntimeVersion('Hermes Agent v0.21.5+6644.gb412ee9 (2026.9.24)\n')).toBe('0.21.5+6644.gb412ee9')
     expect(parseLocalRuntimeVersion('gateway: v0.21.5+6634\n')).toBe('')

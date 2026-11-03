@@ -139,7 +139,7 @@ export async function resolveDesktopClientVersion(
   hermesHome: string,
   packageVersion: string
 ): Promise<string> {
-  if (stamp?.payload && stamp.payload !== 'bootstrap') {
+  if (stamp?.meuUpdates || (stamp?.payload && stamp.payload !== 'bootstrap')) {
     return appVersionInfo(stamp, '', packageVersion).appVersion
   }
 

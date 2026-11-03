@@ -1,4 +1,3 @@
-import { meuShellCopy } from './meu-shell'
 import { arArtifacts } from './ar_artifacts'
 import { arAssistant } from './ar_assistant'
 import { arBoot } from './ar_boot'
@@ -12,6 +11,7 @@ import { arDiagnostics } from './ar_diagnostics'
 import { arFirstRun } from './ar_first_run'
 import { arSettings } from './ar_settings'
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { meuShellCopy } from './meu-shell'
 
 export const arOverrides = {
   meuShell: meuShellCopy['ar'],
@@ -87,7 +87,6 @@ export const arOverrides = {
       signInFailed: 'تعذّر الاتصال. انقر لإعادة المحاولة'
     }
   },
-  sharedMetrics: arCommon.sharedMetrics,
   firstRun: arFirstRun,
   externalOpenFailed: arChrome.externalOpenFailed,
   sessionImport: arConnectors.sessionImport,

@@ -1,4 +1,3 @@
-import { meuShellCopy } from './meu-shell'
 // health: allow FILE_LINES -- locale data: translated copy for the usage-window plan UI (allowance gauges, Large/Free tags, the limit card), one key per string
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
@@ -24,9 +23,9 @@ import { jaPluginPreviewAccess } from './ja_plugin_preview_access'
 import { jaPluginSettings, jaPluginsTab } from './ja_plugins'
 import { jaPreviewWeb } from './ja_preview_web'
 import { jaProjects } from './ja_projects'
-import { jaSharedMetrics } from './ja_shared_metrics'
 import { jaThemePicker } from './ja_theme_picker'
 import { jaUpdateChannel } from './ja_update_channel'
+import { meuShellCopy } from './meu-shell'
 
 export const jaOverrides = {
   meuShell: meuShellCopy['ja'],
@@ -38,7 +37,6 @@ export const jaOverrides = {
     copyUrl: 'リンクをコピー',
     close: '閉じる'
   },
-  sharedMetrics: jaSharedMetrics,
   firstRun: jaFirstRun,
   intro: introJa,
   sessionImport: jaConnectors.sessionImport,

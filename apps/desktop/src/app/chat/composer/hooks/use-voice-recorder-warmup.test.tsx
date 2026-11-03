@@ -48,10 +48,6 @@ vi.mock('@/store/notifications', () => ({
   notifyError: vi.fn()
 }))
 
-vi.mock('@/store/desktop-metrics', () => ({
-  recordFeatureUse: vi.fn()
-}))
-
 vi.mock('@/i18n', () => ({
   useI18n: () => ({
     t: {

@@ -10,7 +10,6 @@ import {
 import { readJson, writeKey } from '@/lib/storage'
 import { normalize } from '@/lib/text'
 
-import { recordFeatureUse } from './desktop-metrics'
 import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from './layout'
 import { clearExplicitPreviewOpen, noteExplicitPreviewOpen, PREVIEW_TILE_PREFIX } from './preview-explicit'
 import {
@@ -1006,8 +1005,6 @@ export function markPreviewTabMissing(tabIdOrUrl: string) {
 export function openBrowserTab() {
   const tabs = $visiblePreviewTabs.get()
   const current = tabs.find(tab => tab.id === browserTabId(tabs))
-
-  recordFeatureUse('browser_pane')
   openPreview(current?.target ?? blankPage())
 }
 
@@ -1032,8 +1029,6 @@ export function toggleBrowserTab() {
 /** Another Browser, always — the strip's "+". */
 export function newBrowserTab() {
   const id = mintBrowserTabId()
-
-  recordFeatureUse('browser_pane')
   $previewTabs.set([
     ...$previewTabs.get(),
     { id, pinned: false, sessionId: currentSessionId($focusedStoredSessionId.get()) ?? undefined, target: blankPage() }

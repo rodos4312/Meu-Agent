@@ -228,7 +228,6 @@ import {
   resolveDesktopWindowLaunch
 } from './desktop-profile'
 import { registryPrimaryBootRoute, resolveDesktopRemoteRoute, v1SshTerminalPoolKey } from './desktop-remote-route'
-import { type DesktopSharedMetrics, registerDesktopSharedMetrics } from './desktop-shared-metrics'
 import {
   buildPosixCleanupScript,
   buildWindowsCleanupScript,
@@ -380,6 +379,7 @@ import { registerMcpOauthCallbackIpc } from './mcp-oauth-callback-ipc'
 import { isMediaCapturePermission } from './media-capture-permission'
 import { createMediaProtocolHandler, MEDIA_PROTOCOL, mediaProtocolDownloadName } from './media-protocol'
 import { fetchLocalMedia } from './media-range'
+import { type ResolvedHermesBackend, resolveMeuBackendVersion } from './meu-runtime-upgrade'
 import { createMinimizeToTray } from './minimize-to-tray'
 import {
   createNativeAccessTokenCoordinator,
@@ -563,7 +563,6 @@ import {
 import { ensureLoginShellPath } from './shell-path'
 import { removeStaleSingletonLock } from './singleton-lock'
 import { createSourcePythonBackend, resolveSourceInstallationBackend, type SourceBackend } from './source-backend'
-import { resolveMeuBackendVersion, type ResolvedHermesBackend } from './meu-runtime-upgrade'
 import { resolveSourcePython } from './source-python'
 import { registerSpellcheckDictionaryIpc } from './spellcheck-dictionary-ipc'
 import { resolveSshBinary } from './ssh-binary'
@@ -621,8 +620,6 @@ import {
   type UpdaterStatusWire,
   type UpdaterStrategy
 } from './updater'
-import { createMeuWindowsStrategy } from './updater/meu-client'
-import { prepareMeuUpdate } from './updater/meu-prepare'
 import {
   launcherInstallRoot,
   observeUpdaterHandoff,
@@ -645,6 +642,8 @@ import { readSourceUpdate, sourceChannelName, type SourceUpdate } from './update
 import { ExternalStrategy } from './updater/external'
 import { readUpdatesFeedBaseFromConfig, resolveFeedBaseUrl } from './updater/feed-config'
 import { createChannelMacStrategy, createMacStrategy } from './updater/mac-client'
+import { createMeuWindowsStrategy } from './updater/meu-client'
+import { prepareMeuUpdate } from './updater/meu-prepare'
 import { UpdateOperation } from './updater/operation'
 import {
   type ConsumedRelaunch,
@@ -3429,7 +3428,6 @@ function resolveUpdateRoot() {
 function emitUpdateProgress(payload) {
   const merged = { stage: 'idle', message: '', percent: null, error: null, ...payload, at: Date.now() }
   rememberLog(`[updates] ${merged.stage}: ${merged.message || merged.error || ''}`)
-  desktopMetrics.noteUpdateProgress(merged.stage)
 
   for (const window of BrowserWindow.getAllWindows()) {
     window.webContents.send('hermes:updates:progress', merged)
@@ -3469,8 +3467,6 @@ let updateInFlight = false
 /** Preserve the packaged app's native updater across check and install. */
 const updateOperation: UpdateOperation = new UpdateOperation(createPackagedUpdateStrategy)
 
-const desktopMetrics: DesktopSharedMetrics = registerDesktopSharedMetrics()
-
 function resolvePackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
   return updateOperation.resolve()
 }
@@ -3483,10 +3479,14 @@ async function createPackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
       prepare: () => prepareMeuUpdate({ root: ACTIVE_HERMES_ROOT, home: HERMES_HOME,
         resolveBackend: resolveHermesBackend, findPython: findPythonForRoot, log: rememberLog }),
       teardown: teardownBundledBackend,
-      restore: async () => { await restoreBundledBackend(); updateOperation.recoverHandoff() },
+      restore: async () => {
+        await restoreBundledBackend()
+        updateOperation.recoverHandoff()
+      },
       emitProgress: emitUpdateProgress
     })
   }
+
   const mechanism = resolveUpdaterMechanism({
     platform: process.platform,
     updateMechanism: INSTALL_STAMP?.updateMechanism,
@@ -4387,7 +4387,7 @@ async function applyUpdates(): Promise<UpdaterApplyResultWire> {
 
       const packaged: UpdaterStrategy | null = await resolvePackagedUpdateStrategy()
       const strategy: UpdaterStrategy = packaged ?? resolveCheckoutUpdateStrategy()
-      const result: UpdaterApplyResultWire = await desktopMetrics.trackUpdateApply(packaged, strategy)
+      const result: UpdaterApplyResultWire = await strategy.apply()
       handedOff = result.handedOff === true
 
       return result
@@ -5092,7 +5092,7 @@ async function ensureRuntime(
   if (backend.kind === 'bootstrap-needed') {
     rememberLog('[bootstrap] no Meu install found; starting first-launch bootstrap')
 
-    if (!backend.upgrade && await handOffWindowsBootstrapRecovery('bootstrap-needed')) {
+    if (!backend.upgrade && (await handOffWindowsBootstrapRecovery('bootstrap-needed'))) {
       const handoffError: Error & { isBootstrapFailure?: boolean; bootstrapHandedOff?: boolean } = new Error(
         'Meu recovery was handed off to Meu Setup. The desktop will restart when recovery completes.'
       )
@@ -5120,9 +5120,11 @@ async function ensureRuntime(
     }
 
     localBackendLifecycle.assertCanStart()
+
     if (bootstrapInstallFlight.isRunning()) {
       rememberLog('[bootstrap] another connection attempt joined the active installer')
     }
+
     const bootstrapResult = await bootstrapInstallFlight.run(async () => {
       // One owner for the entire installation, including its cancellation
       // controller. Concurrent backend starts reuse its result.
@@ -12372,8 +12374,7 @@ function spawnSecondaryWindow({
     isIntentionalTeardown: rendererTeardownInProgress,
     reloadWindowMs: RENDERER_RELOAD_WINDOW_MS,
     reloadMax: RENDERER_RELOAD_MAX,
-    recentReloadTimesRef: rendererReloadTimesRef,
-    onRendererGone: reason => desktopMetrics.recordRendererGone(win.webContents.id, reason)
+    recentReloadTimesRef: rendererReloadTimesRef
   })
 
   loadWindowUrl(
@@ -13847,7 +13848,6 @@ function createWindow() {
   // the #38216 Windows sandbox relaunch check on suppression) is the same
   // policy this window used before it moved into the shared helper, so a
   // crashed peer renderer now logs and recovers exactly like the primary one.
-  const mainContentsId = mainWindow.webContents.id
   installWindowRendererLifecycle(mainWindow, {
     kind: 'main',
     callbacks: {
@@ -13995,8 +13995,7 @@ function createWindow() {
     reloadWindowMs: RENDERER_RELOAD_WINDOW_MS,
     reloadMax: RENDERER_RELOAD_MAX,
     recentReloadTimesRef: rendererReloadTimesRef,
-    reloadOnFailedLoad: true,
-    onRendererGone: reason => desktopMetrics.recordRendererGone(mainContentsId, reason)
+    reloadOnFailedLoad: true
   })
 
   // Electron always passes the event first. The canonical (Electron 36+) shape
@@ -14426,6 +14425,7 @@ ipcMain.handle('hermes:bootstrap:reset', async () => {
   // the same environment (observed on Meu Windows first-run).
   if (bootstrapInstallFlight.isRunning()) {
     rememberLog('[bootstrap] retry rejected: first-run installation still active')
+
     return { ok: false, reason: 'install-in-progress' }
   }
 
