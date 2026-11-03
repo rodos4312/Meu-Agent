@@ -4,7 +4,7 @@ import path from 'node:path'
 import { createHash, generateKeyPairSync } from 'node:crypto'
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { verify, native, construct, listeners, findRelease } = vi.hoisted(() => {
+const { verify, native, construct, listeners, findRelease, readRelease, fetchResponse } = vi.hoisted(() => {
   const listeners = new Map<string, (error: Error) => void>()
   const native = {
     on: vi.fn((name: string, fn: (error: Error) => void) => listeners.set(name, fn)),
@@ -13,9 +13,11 @@ const { verify, native, construct, listeners, findRelease } = vi.hoisted(() => {
     quitAndInstall: vi.fn(),
     verifyUpdateCodeSignature: undefined
   }
-  return { verify: vi.fn(async () => undefined), native, construct: vi.fn(), listeners, findRelease: vi.fn() }
+  return { verify: vi.fn(async () => undefined), native, construct: vi.fn(), listeners, findRelease: vi.fn(),
+    readRelease: vi.fn(), fetchResponse: vi.fn() }
 })
-vi.mock(import('./meu-release-feed'), async original => ({ ...(await original()), findMeuRelease: findRelease }))
+vi.mock(import('./meu-release-feed'), async original => ({ ...(await original()), findMeuRelease: findRelease,
+  readMeuRelease: readRelease, fetchMeuResponse: fetchResponse }))
 vi.mock('./meu-signature', () => ({ verifyMeuSignature: verify }))
 vi.mock('electron-updater', () => ({
   default: {
@@ -63,6 +65,9 @@ it('offers free-key updates without initializing downloads and rejects tampering
       publicKey
     )
     findRelease.mockResolvedValue(release)
+    readRelease.mockResolvedValue(signing.signRelease({ ...release, version: '0.1.0-dev.8',
+      file: 'Meu-0.1.0-dev.8-win-x64.exe' }, keys.privateKey, publicKey))
+    fetchResponse.mockImplementation(async () => new Response(bytes))
     native.checkForUpdates.mockResolvedValue({
       isUpdateAvailable: true,
       updateInfo: {
@@ -89,6 +94,9 @@ it('offers free-key updates without initializing downloads and rejects tampering
     expect(construct).not.toHaveBeenCalled()
     expect(native.downloadUpdate).not.toHaveBeenCalled()
     await expect(strategy.apply()).resolves.toMatchObject({ ok: true, handedOff: true })
+    expect(readRelease).toHaveBeenCalledWith('0.1.0-dev.8', publicKey)
+    expect(JSON.parse(fs.readFileSync(path.join(root, 'retained', 'meu-update-recovery.json'), 'utf8')).rollback.version)
+      .toBe('0.1.0-dev.8')
     expect(native.quitAndInstall).toHaveBeenCalledWith(true, true)
     expect(native).toMatchObject({
       autoDownload: false,

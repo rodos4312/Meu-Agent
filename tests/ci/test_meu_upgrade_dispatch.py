@@ -15,4 +15,6 @@ def test_rehearsal_and_release_dispatch_have_separate_publication_gates(verify, 
     }}
     assert gha.truthy(gha.render(flow["env"]["MEU_RELEASE_REQUEST"], context)) == (verify or prepare)
     assert gha.condition(flow["jobs"]["native-upgrade"]["if"], context) == (verify or prepare)
+    assert gha.condition(flow["jobs"]["automatic-rollback"]["if"], context) == (verify or prepare)
     assert gha.condition(flow["jobs"]["release-draft"]["if"], context) == prepare
+    assert "automatic-rollback" in flow["jobs"]["release-draft"]["needs"]

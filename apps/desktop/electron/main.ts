@@ -636,9 +636,9 @@ import { readSourceUpdate, sourceChannelName, type SourceUpdate } from './update
 import { ExternalStrategy } from './updater/external'
 import { readUpdatesFeedBaseFromConfig, resolveFeedBaseUrl } from './updater/feed-config'
 import { createChannelMacStrategy, createMacStrategy } from './updater/mac-client'
-import { createMeuWindowsStrategy } from './updater/meu-client'
-import { prepareMeuUpdate } from './updater/meu-prepare'
+import { createManagedMeuWindowsStrategy, signalMeuRollback } from './updater/meu-rollback'
 import { UpdateOperation } from './updater/operation'
+import { createUpdateProgressEmitter } from './updater/progress'
 import {
   type ConsumedRelaunch,
   consumePendingRelaunch,
@@ -3341,14 +3341,7 @@ function resolveUpdateRoot() {
   return candidates.find(isGitCheckout) || candidates[0] || ACTIVE_HERMES_ROOT
 }
 
-function emitUpdateProgress(payload) {
-  const merged = { stage: 'idle', message: '', percent: null, error: null, ...payload, at: Date.now() }
-  rememberLog(`[updates] ${merged.stage}: ${merged.message || merged.error || ''}`)
-
-  for (const window of BrowserWindow.getAllWindows()) {
-    window.webContents.send('hermes:updates:progress', merged)
-  }
-}
+const emitUpdateProgress = createUpdateProgressEmitter(rememberLog)
 
 async function checkUpdates(opts: { force?: boolean } = {}): Promise<UpdaterStatusWire> {
   // A packaged install delegates to the update owner named by its stamp.
@@ -3389,11 +3382,12 @@ function resolvePackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
 
 async function createPackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
   if (IS_PACKAGED && IS_WINDOWS && PRODUCT_IDENTITY.appId === 'com.meuagent.desktop') {
-    return createMeuWindowsStrategy({
+    return createManagedMeuWindowsStrategy({
       stamp: INSTALL_STAMP, currentVersion: app.getVersion(), executable: process.execPath,
-      recoveryDirectory: path.join(app.getPath('userData'), 'meu-updates'), log: rememberLog,
-      prepare: () => prepareMeuUpdate({ root: ACTIVE_HERMES_ROOT, home: HERMES_HOME,
-        resolveBackend: resolveHermesBackend, findPython: findPythonForRoot, log: rememberLog }),
+      directory: path.join(app.getPath('userData'), 'meu-updates'), log: rememberLog,
+      root: ACTIVE_HERMES_ROOT, home: HERMES_HOME, helperDirectory: path.join(process.resourcesPath, 'meu-recovery'),
+      git: resolveGitBinary(), resolveBackend: resolveHermesBackend, findPython: findPythonForRoot,
+      isRemote: primaryBackendIsRemote,
       teardown: teardownBundledBackend,
       restore: () => updateOperation.restoreAfterFailure(restoreBundledBackend),
       emitProgress: emitUpdateProgress
@@ -11388,6 +11382,7 @@ async function startHermes(requestedProfile?: string) {
     const error = new Error(BOOT_FAKE_ERROR) as any
     error.isBootstrapFailure = true
     bootstrapFailure = error
+    await signalMeuRollback(HERMES_HOME, path.join(app.getPath('userData'), 'meu-updates'), 'failed', INSTALL_STAMP?.commit, app.getVersion())
     throw error
   }
 
@@ -11553,6 +11548,7 @@ async function startHermes(requestedProfile?: string) {
     backendConnectionState.assertCurrentAttempt(connectionAttempt)
 
     backendStartFailure = null
+    await signalMeuRollback(HERMES_HOME, path.join(app.getPath('userData'), 'meu-updates'), 'healthy', INSTALL_STAMP?.commit, app.getVersion())
     rememberLog('[backend] Meu gateway is ready')
     updateBootProgress({ phase: 'backend.ready', message: 'Meu gateway is ready', progress: 94, running: true, error: null })
     bootstrapRepairAttempt = 0
@@ -11579,6 +11575,10 @@ async function startHermes(requestedProfile?: string) {
     }
 
     const message = error instanceof Error ? error.message : String(error)
+    if (!attemptedRemote) {
+      await signalMeuRollback(HERMES_HOME, path.join(app.getPath('userData'), 'meu-updates'), 'failed', INSTALL_STAMP?.commit, app.getVersion())
+        .catch(recoveryError => rememberLog(`[updates] recovery acknowledgement: ${recoveryError.message}`))
+    }
     const hostKeyChanged = isHostKeyChangedBootFailure(error)
     const sshAuthFailed = isSshAuthFailedBootFailure(error)
     const sshClientFailed = isSshClientFailedBootFailure(error)

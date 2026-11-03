@@ -290,6 +290,7 @@ jobs:
           tests/hermes_cli/test_model_catalog.py
           tests/hermes_cli/test_source_release_channels.py
           tests/hermes_cli/test_update_target_identity.py
+          tests/hermes_cli/test_meu_update_recovery.py
           tests/tools/test_plugin_guard.py
           -- --override-ini=addopts= -q
       - name: Verify gateway usage counters
@@ -380,7 +381,7 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx src/components/boot-failure-overlay.test.tsx src/lib/desktop-backend-wait.test.ts src/lib/with-timeout.test.ts src/app/gateway/hooks/use-gateway-boot.bootstrap.test.tsx src/app/gateway/hooks/use-gateway-boot.test.tsx
       - name: Verify Meu release origin, signatures and update recovery
         working-directory: apps/desktop
-        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs
+        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/meu-rollback.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs
       - name: Verify installed-home isolation and upgrade setup behavior
         working-directory: apps/desktop
         shell: pwsh
@@ -601,11 +602,66 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  automatic-rollback:
+    name: Real failed startup and automatic Meu rollback
+    if: >-
+      (inputs.verify_upgrade || inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
+    needs: [installer-consolidation, coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety]
+    runs-on: windows-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          extras: '[]'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: Meu-release-candidate
+          path: ${{ runner.temp }}/meu-rollback-baseline
+      - name: Build a private next-version failure fixture, never publish it
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; import {inc} from 'semver'; const p=JSON.parse(fs.readFileSync('package.json')); p.version=inc(p.version,'prerelease','dev'); fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot select private fixture version.' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Private fixture build failed.' }
+          npm run builder -- --win nsis --x64
+          if ($LASTEXITCODE -ne 0) { throw 'Private fixture packaging failed.' }
+          $installer = Get-ChildItem -LiteralPath release -Filter 'Meu-*-win-x64.exe' -File
+          if (@($installer).Count -ne 1) { throw 'Expected exactly one private fixture installer.' }
+          ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security -UnpackedPath release/win-unpacked
+      - name: Sign only the private fixture metadata
+        working-directory: apps/desktop
+        env:
+          MEU_RELEASE_PRIVATE_KEY: ${{ secrets.MEU_RELEASE_PRIVATE_KEY }}
+        run: node scripts/prepare-meu-release.mjs
+      - name: Rehearse actual application, gateway and SQLite rollback
+        shell: pwsh
+        run: ./apps/desktop/scripts/test-meu-rollback.ps1
+      - name: Preserve bounded recovery evidence without profile contents or installers
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-Windows-automatic-rollback-evidence
+          path: |
+            ${{ runner.temp }}/meu-rollback/*.json
+            ${{ runner.temp }}/meu-rollback/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
   release-draft:
     name: Prepare a draft in Meu GitHub Releases
     if: >-
       (inputs.prepare_release || startsWith(github.ref, 'refs/tags/meu-release-request-') || (github.ref == 'refs/heads/dev/meu-foundation' && startsWith(github.event.head_commit.message, 'release(meu): prepare '))) && github.repository == 'rodos4312/Meu-Agent'
-    needs: [installer-consolidation, coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety, native-upgrade, backend-upgrade]
+    needs: [installer-consolidation, coordinator-compatibility, windows-navigation, windows-privacy, windows-identity-and-safety, native-upgrade, backend-upgrade, automatic-rollback]
     runs-on: ubuntu-latest
     permissions:
       contents: write

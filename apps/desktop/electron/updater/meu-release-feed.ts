@@ -72,8 +72,8 @@ export async function fetchMeuJson(url: string): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
-async function fetchMeuResponse(url: string): Promise<Response> {
-  const signal = AbortSignal.timeout(30_000)
+export async function fetchMeuResponse(url: string, timeoutMs = 30_000): Promise<Response> {
+  const signal = AbortSignal.timeout(timeoutMs)
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const response = await fetch(url, { signal, redirect: 'manual', headers: { Accept: 'application/json' } })
     if (![301, 302, 303, 307, 308].includes(response.status)) return response
@@ -112,7 +112,14 @@ export async function findMeuRelease(
     )
     .sort((a, b) => (gt(a.tag_name.slice(5), b.tag_name.slice(5)) ? -1 : 1))
   if (!candidates.length) return null
-  const release = candidates[0]
+  return verifyPublishedMeuRelease(candidates[0], publisher, readJson)
+}
+
+async function verifyPublishedMeuRelease(
+  release: GitHubRelease,
+  publisher: string,
+  readJson: (url: string) => Promise<unknown>
+): Promise<MeuRelease> {
   const version = release.tag_name.slice(5)
   const directory = meuReleaseDirectory(version)
   for (const name of ['meu-release.json', 'meu-preview.yml', `Meu-${version}-win-x64.exe`]) {
@@ -124,4 +131,19 @@ export async function findMeuRelease(
   if (release.assets.find(a => a.name === manifest.file)?.size !== manifest.size)
     throw new Error('Meu release asset size differs from its manifest.')
   return manifest
+}
+
+/** The installed version is a recovery pin, never a request for a newer release. */
+export async function readMeuRelease(
+  version: string,
+  publisher: string,
+  readJson: (url: string) => Promise<unknown> = fetchMeuJson
+): Promise<MeuRelease> {
+  meuReleaseDirectory(version)
+  const response = await readJson(`https://api.github.com/repos/${releasePolicy.REPOSITORY}/releases/tags/meu-v${version}`)
+  const release = response as GitHubRelease
+  if (!release || release.draft || release.tag_name !== `meu-v${version}` || !Array.isArray(release.assets)) {
+    throw new Error('The installed Meu release is unavailable as a verified recovery version.')
+  }
+  return verifyPublishedMeuRelease(release, publisher, readJson)
 }

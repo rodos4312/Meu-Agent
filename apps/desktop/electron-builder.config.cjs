@@ -127,6 +127,10 @@ module.exports = {
   ...(process.platform === 'darwin' ? { afterSign: 'scripts/notarize.mjs' } : {}),
   extraResources: [
     { from: '../../LICENSE', to: 'open-source-notices/Hermes-LICENSE.txt' },
+    ...(appId === 'com.meuagent.desktop' ? [
+      { from: '../../hermes_cli/meu_update_recovery.py', to: 'meu-recovery/meu_update_recovery.py' },
+      { from: '../../hermes_cli/meu_update_watch.py', to: 'meu-recovery/meu_update_watch.py' }
+    ] : []),
     {
       from: 'build/install-stamp.json',
       to: 'install-stamp.json'

@@ -4,6 +4,7 @@ import {
   fetchMeuJson,
   findMeuRelease,
   meuReleaseDirectory,
+  readMeuRelease,
   validateMeuRelease,
   type MeuRelease
 } from './meu-release-feed'
@@ -35,6 +36,21 @@ function githubRelease(r: MeuRelease, draft = false) {
 }
 
 describe('Meu release authority', () => {
+  it('loads the exact installed release for recovery, independently of newer releases', async () => {
+    const r = releaseFixture('0.1.0-dev.15')
+    const read = vi.fn(async (url: string) => url.includes('api.github.com') ? githubRelease(r) : r)
+    await expect(readMeuRelease(r.version, r.publisherName, read)).resolves.toEqual(r)
+    expect(read.mock.calls[0][0]).toBe('https://api.github.com/repos/rodos4312/Meu-Agent/releases/tags/meu-v0.1.0-dev.15')
+  })
+
+  it.each(['draft', 'wrong-version'])('refuses a %s baseline without downloading an installer', async fault => {
+    const r = releaseFixture()
+    const entry = githubRelease(r, fault === 'draft')
+    if (fault === 'wrong-version') entry.tag_name = 'meu-v99.0.0'
+    const read = vi.fn(async () => entry)
+    await expect(readMeuRelease(r.version, r.publisherName, read)).rejects.toThrow('recovery version')
+    expect(read).toHaveBeenCalledOnce()
+  })
   it('selects a newer Meu release while ignoring drafts, old versions and upstream tags', async () => {
     const r = releaseFixture()
     const releases = [

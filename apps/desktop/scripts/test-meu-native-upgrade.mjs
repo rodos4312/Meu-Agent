@@ -2,14 +2,13 @@
 // The agent backend is deliberately not started; public-feed/backend upgrade testing is separate.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
 import { _electron, expect } from '@playwright/test'
 import { gt } from 'semver'
 
-import signing from '../meu-release-signing.cjs'
+import { installMeuUpgradeTransport, verifiedMeuCandidate } from './meu-upgrade-transport.mjs'
 import trust from '../meu-update-key.json' with { type: 'json' }
 
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Native upgrade rehearsal requires a disposable CI runner')
@@ -18,22 +17,8 @@ assert.equal(process.platform, 'win32')
 const [mode, baselineDirectory, candidateDirectory, scratch, executable] = process.argv.slice(2)
 for (const directory of [baselineDirectory, candidateDirectory, scratch]) assert(path.isAbsolute(directory))
 
-function verifiedCandidate(directory) {
-  const release = JSON.parse(fs.readFileSync(path.join(directory, 'meu-release.json'), 'utf8'))
-  signing.verifyRelease(release, trust.publicKey)
-  assert.equal(release.repository, 'rodos4312/Meu-Agent')
-  assert.equal(release.branch, 'dev/meu-foundation')
-  assert.equal(release.channel, 'meu-preview')
-  assert.equal(release.file, `Meu-${release.version}-win-x64.exe`)
-  const bytes = fs.readFileSync(path.join(directory, release.file))
-  assert.equal(bytes.length, release.size)
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), release.sha256)
-  assert.equal(createHash('sha512').update(bytes).digest('base64'), release.sha512)
-  return release
-}
-
-const baseline = verifiedCandidate(baselineDirectory)
-const release = verifiedCandidate(candidateDirectory)
+const baseline = verifiedMeuCandidate(baselineDirectory, trust.publicKey)
+const release = verifiedMeuCandidate(candidateDirectory, trust.publicKey)
 assert.equal(release.commit, process.env.GITHUB_SHA)
 assert(gt(release.version, baseline.version), 'Rehearsal must install a genuinely newer version')
 if (mode === 'validate') {
@@ -116,65 +101,7 @@ async function launch() {
 }
 
 async function installTransport(app) {
-  await app.evaluate(
-    ({ session }, input) => {
-      const fs = process.getBuiltinModule('fs')
-      const path = process.getBuiltinModule('path')
-      const { Readable, Transform } = process.getBuiltinModule('stream')
-      const { release, directory } = input
-      const base = `https://github.com/rodos4312/Meu-Agent/releases/download/meu-v${release.version}/`
-      const list = 'https://api.github.com/repos/rodos4312/Meu-Agent/releases?per_page=50'
-      const state = { mode: 'forged', requests: [] }
-      globalThis.meuNativeRehearsal = state
-      const original = globalThis.fetch
-      globalThis.fetch = async (url, options) => {
-        const key = String(url)
-        if (key !== list && key !== base + 'meu-release.json') return original(url, options)
-        const value =
-          key === list
-            ? [
-                {
-                  draft: false,
-                  tag_name: `meu-v${release.version}`,
-                  assets: ['meu-release.json', 'meu-preview.yml', release.file].map(name => ({
-                    name,
-                    size: name === release.file ? release.size : 1,
-                    browser_download_url: base + name
-                  }))
-                }
-              ]
-            : state.mode === 'forged'
-              ? { ...release, signature: Buffer.alloc(64).toString('base64') }
-              : release
-        return new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })
-      }
-      // Intercept only the real native updater's session, not its implementation or IPC handlers.
-      session.fromPartition('electron-updater', { cache: false }).protocol.handle('https', request => {
-        const url = new URL(request.url)
-        const canonical = url.origin + url.pathname
-        state.requests.push(canonical)
-        if (canonical === base + 'meu-preview.yml')
-          return new Response(fs.readFileSync(path.join(directory, 'meu-preview.yml')), {
-            headers: { 'content-type': 'text/yaml' }
-          })
-        if (canonical !== base + release.file) throw new Error('Unexpected native upgrade destination: ' + canonical)
-        let first = true
-        const stream = fs.createReadStream(path.join(directory, release.file)).pipe(
-          new Transform({
-            transform(chunk, _encoding, done) {
-              if (first && state.mode === 'tampered') chunk[0] ^= 1
-              first = false
-              done(null, chunk)
-            }
-          })
-        )
-        return new Response(Readable.toWeb(stream), {
-          headers: { 'content-type': 'application/octet-stream', 'content-length': String(release.size) }
-        })
-      })
-    },
-    { release, directory: candidateDirectory }
-  )
+  await installMeuUpgradeTransport(app, { release, directory: candidateDirectory })
 }
 
 async function selectMode(app, mode) {

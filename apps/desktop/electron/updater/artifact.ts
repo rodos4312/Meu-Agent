@@ -30,7 +30,11 @@ export async function verifyPinnedArtifact(file: string, artifact: PinnedArtifac
 }
 
 /** Caller owns private storage and its lifetime. Redirects cannot change authority. */
-export async function downloadPinnedArtifact(directory: string, artifact: PinnedArtifact): Promise<string> {
+export async function downloadPinnedArtifact(
+  directory: string,
+  artifact: PinnedArtifact,
+  readResponse = (url: string): Promise<Response> => fetch(url, { redirect: 'error', signal: AbortSignal.timeout(600_000) })
+): Promise<string> {
   const file: string = path.join(directory, `destination.${artifact.format}`)
 
   try {
@@ -49,7 +53,7 @@ export async function downloadPinnedArtifact(directory: string, artifact: Pinned
       throw error
     }
   })
-  const response: Response = await fetch(artifact.url, { redirect: 'error', signal: AbortSignal.timeout(600_000) })
+  const response: Response = await readResponse(artifact.url)
 
   if (!response.ok || !response.body) {
     throw new Error(`Pinned artifact download failed (${response.status})`)

@@ -4,7 +4,7 @@ import releasePolicy from '../../meu-release.cjs'
 import signing from '../../meu-release-signing.cjs'
 import type { InstallStamp } from '../install-stamp'
 import { verifyPinnedArtifact } from './artifact'
-import { retainMeuInstaller } from './meu-recovery'
+import { ensureMeuRecoveryBaseline, retainMeuInstaller } from './meu-recovery'
 import { findMeuRelease, meuReleaseDirectory, validateMeuRelease, type MeuRelease } from './meu-release-feed'
 import { verifyMeuSignature } from './meu-signature'
 import { MeuWindowsStrategy, type MeuWindowsDeps } from './meu-windows'
@@ -44,8 +44,10 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
     publisher: authority,
     findRelease: () => findMeuRelease(deps.currentVersion, authority!),
     verifySignature: verifyInstaller,
-    retain: (file, release) =>
-      retainMeuInstaller(deps.recoveryDirectory, file, release, deps.currentVersion, authority!),
+    retain: async (file, release) => {
+      if (policy?.publicKey) await ensureMeuRecoveryBaseline(deps.recoveryDirectory, deps.currentVersion, authority!)
+      await retainMeuInstaller(deps.recoveryDirectory, file, release, deps.currentVersion, authority!)
+    },
     native: release => {
       let handedOff = false
       let installing = false
