@@ -15,8 +15,7 @@ const [mode, baselineDirectory, directory, scratch, executable, root, launcher] 
 for (const value of [baselineDirectory, directory, scratch]) assert(path.isAbsolute(value))
 const baseline = verifiedMeuCandidate(baselineDirectory, trust.publicKey)
 const release = verifiedMeuCandidate(directory, trust.publicKey)
-assert.equal(baseline.commit, process.env.GITHUB_SHA)
-assert.equal(release.commit, baseline.commit)
+assert.equal(release.commit, process.env.GITHUB_SHA)
 assert(gt(release.version, baseline.version))
 if (mode === 'validate') process.exit(0)
 assert.equal(mode, 'run')
@@ -118,6 +117,12 @@ try {
   const initial = JSON.parse(cli('gateway', 'ensure', '--json'))
   assert.equal(initial.state, 'ready')
   assert.equal(initial.endpoint.code_sha, baseline.commit)
+  phase = 'wait for desktop attachment to the real gateway'
+  console.log('[Meu rollback] wait for desktop attachment to the real gateway')
+  await expect.poll(async () => {
+    const progress = await page.evaluate(() => window.hermesDesktop.getBootProgress())
+    return !progress.error && progress.progress >= 94
+  }, { timeout: 180_000, intervals: [1000] }).toBe(true)
   await installMeuUpgradeTransport(app, {
     release,
     directory,
@@ -130,7 +135,14 @@ try {
   // Real preparation can outlive Playwright's launch-time debugger waiter.
   // Detach only when Electron itself decides to quit; never force the app out.
   await app.evaluate(({ app }) => {
-    app.once('will-quit', () => process.getBuiltinModule('inspector').close())
+    app.on('before-quit', event => console.log('[Meu rollback] before-quit', JSON.stringify({
+      prevented: event.defaultPrevented, resources: process.getActiveResourcesInfo()
+    })))
+    app.once('will-quit', () => {
+      console.log('[Meu rollback] will-quit')
+      process.getBuiltinModule('inspector').close()
+    })
+    app.once('quit', () => console.log('[Meu rollback] quit'))
   })
   phase = 'native handoff with armed recovery'
   console.log('[Meu rollback] native handoff with armed recovery')
@@ -206,6 +218,8 @@ try {
       const file = path.join(record.location, name)
       if (fs.existsSync(file)) fs.copyFileSync(file, path.join(scratch, name))
     }
+  const mainLog = path.join(env.MEU_HOME, 'logs', 'desktop.log')
+  if (fs.existsSync(mainLog)) fs.writeFileSync(path.join(scratch, 'main.log'), fs.readFileSync(mainLog).subarray(-131072))
   throw error
 } finally {
   if (app) await bounded(app.close(), 10_000, 'Fixture application did not close').catch(() => app.process().kill())

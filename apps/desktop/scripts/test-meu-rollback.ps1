@@ -20,9 +20,10 @@ $candidate = Join-Path $env:GITHUB_WORKSPACE 'apps/desktop/release/meu-release-c
 $driver = Join-Path $PSScriptRoot 'test-meu-rollback.mjs'
 & node $driver validate $baseline $candidate $scratch
 if ($LASTEXITCODE -ne 0) { throw 'Rollback candidates failed verification.' }
+$verifiedBaseline = Get-Content -LiteralPath (Join-Path $baseline 'meu-release.json') -Raw | ConvertFrom-Json
 $arguments = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
     (Join-Path $env:GITHUB_WORKSPACE 'scripts/install.ps1'), '-Branch', 'dev/meu-foundation',
-    '-Commit', $env:GITHUB_SHA, '-HermesHome', $env:MEU_HOME, '-InstallDir', $checkout,
+    '-Commit', $verifiedBaseline.commit, '-HermesHome', $env:MEU_HOME, '-InstallDir', $checkout,
     '-NonInteractive', '-SkipBrowser', '-SkipComputerUse')
 $quoted = ($arguments | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join ' '
 $child = Start-Process powershell.exe -ArgumentList $quoted -WindowStyle Hidden -PassThru `
