@@ -48,6 +48,8 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
       retainMeuInstaller(deps.recoveryDirectory, file, release, deps.currentVersion, authority!),
     native: release => {
       let handedOff = false
+      let installing = false
+      let installError: Error | undefined
       const updater = new electronUpdater.NsisUpdater({
         provider: 'generic',
         url: meuReleaseDirectory(release.version),
@@ -69,8 +71,17 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
         deps.log(`Meu updater: ${error.message}`)
         if (handedOff) {
           handedOff = false
+          // BaseUpdater.install reports immediate refusal through this event,
+          // then returns normally. Let the handoff owner await recovery once.
+          if (installing) {
+            installError = error
+            return
+          }
           deps.emitProgress({ stage: 'error', message: error.message, percent: null })
-          void deps.restore().catch(restoreError => deps.log(`Meu update recovery: ${restoreError.message}`))
+          void deps.restore().catch(restoreError => {
+            deps.log(`Meu update recovery: ${restoreError.message}`)
+            deps.emitProgress({ stage: 'error', message: `${error.message}; ${restoreError.message}`, percent: null })
+          })
         }
       })
       // Enforce our verifier even when native verification is unavailable or permissive.
@@ -83,12 +94,16 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
         downloadUpdate: () => updater.downloadUpdate(),
         quitAndInstall: () => {
           handedOff = true
+          installing = true
           try {
             // Apply is reached only after the user chooses Update now.
             updater.quitAndInstall(true, true)
+            if (installError) throw installError
           } catch (error) {
             handedOff = false
             throw error
+          } finally {
+            installing = false
           }
         }
       }

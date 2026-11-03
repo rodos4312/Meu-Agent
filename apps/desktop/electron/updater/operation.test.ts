@@ -85,3 +85,31 @@ test('apply ownership precedes async resolution, survives restoration, and retai
   operation.recoverHandoff()
   await expect(operation.apply(async () => ({ ok: true }))).resolves.toEqual({ ok: true })
 })
+
+test('an early native recovery cannot leave a stale handoff lock or unlock pending apply work', async () => {
+  const installed = strategy()
+  const initialize = () => Promise.resolve(installed)
+  const operation = new UpdateOperation(initialize)
+  const pending = deferred<UpdaterApplyResultWire>()
+  await operation.resolve()
+  const first = operation.apply(() => pending.promise)
+
+  // Native error events can restore before the apply IPC publishes its result.
+  operation.recoverHandoff()
+  await expect(operation.apply(async () => ({ ok: true }))).rejects.toThrow('already in progress')
+  pending.resolve({ ok: true, handedOff: true })
+  await expect(first).resolves.toMatchObject({ ok: false, handedOff: false })
+  await expect(operation.apply(async () => ({ ok: true }))).resolves.toEqual({ ok: true })
+})
+
+test('a failed restoration reports its error and releases retry ownership only when recovery settles', async () => {
+  const operation = new UpdateOperation(async () => strategy())
+  await operation.apply(async () => ({ ok: true, handedOff: true }))
+  const pending = deferred()
+  const recovery = operation.restoreAfterFailure(() => pending.promise)
+  const rejected = expect(recovery).rejects.toThrow('Gateway restart failed')
+  await expect(operation.apply(async () => ({ ok: true }))).rejects.toThrow('already in progress')
+  pending.reject(new Error('Gateway restart failed'))
+  await rejected
+  await expect(operation.apply(async () => ({ ok: true }))).resolves.toEqual({ ok: true })
+})

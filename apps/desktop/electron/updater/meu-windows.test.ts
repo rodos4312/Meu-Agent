@@ -117,3 +117,14 @@ it('restores the running connection when installation fails after teardown', asy
   expect(f.deps.restore).toHaveBeenCalledOnce()
   expect(f.order.at(-1)).toBe('restore')
 })
+
+it.each(['download', 'recovery cache'] as const)('can retry a failed %s without stopping active work', async stage => {
+  const f = fixture()
+  if (stage === 'download') f.native.downloadUpdate.mockRejectedValueOnce(new Error('Download interrupted'))
+  else f.deps.retain.mockRejectedValueOnce(new Error('Recovery disk full'))
+  await expect(f.strategy.apply()).rejects.toThrow()
+  expect(f.deps.prepare).not.toHaveBeenCalled()
+  expect(f.deps.teardown).not.toHaveBeenCalled()
+  expect(f.native.quitAndInstall).not.toHaveBeenCalled()
+  await expect(f.strategy.apply()).resolves.toMatchObject({ ok: true, handedOff: true })
+})

@@ -129,68 +129,104 @@ it('unsigned builds never initialize a native updater or check a remote feed', a
   expect(findRelease).not.toHaveBeenCalled()
 })
 
-it('uses only the pinned Meu feed and restores only after an asynchronous installer failure', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-native-client-'))
-  try {
-    const file = path.join(root, 'fixture.exe')
-    const bytes = Buffer.from('never executed; native updater fixture')
-    fs.writeFileSync(file, bytes)
-    const release = {
-      schema: 1,
-      repository: 'rodos4312/Meu-Agent',
-      branch: 'dev/meu-foundation',
-      channel: 'meu-preview',
-      publisherName: 'CN=Meu Test Publisher',
-      version: '0.1.0-dev.8',
-      commit: 'a'.repeat(40),
-      file: 'Meu-0.1.0-dev.8-win-x64.exe',
-      size: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-      sha512: createHash('sha512').update(bytes).digest('base64')
-    }
-    findRelease.mockResolvedValue(release)
-    native.checkForUpdates.mockResolvedValue({
-      isUpdateAvailable: true,
-      updateInfo: {
-        version: release.version,
-        files: [{ url: release.file, sha512: release.sha512, size: release.size }]
+it.each(['later', 'immediate', 'failed recovery'] as const)(
+  'restores after a %s native installer refusal and permits retry',
+  async timing => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-native-client-'))
+    try {
+      const file = path.join(root, 'fixture.exe')
+      const bytes = Buffer.from('never executed; native updater fixture')
+      fs.writeFileSync(file, bytes)
+      const release = {
+        schema: 1,
+        repository: 'rodos4312/Meu-Agent',
+        branch: 'dev/meu-foundation',
+        channel: 'meu-preview',
+        publisherName: 'CN=Meu Test Publisher',
+        version: '0.1.0-dev.8',
+        commit: 'a'.repeat(40),
+        file: 'Meu-0.1.0-dev.8-win-x64.exe',
+        size: bytes.length,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        sha512: createHash('sha512').update(bytes).digest('base64')
       }
-    })
-    native.downloadUpdate.mockResolvedValue([file])
-    const restore = vi.fn(async () => undefined)
-    const strategy = await createMeuWindowsStrategy({
-      stamp: { meuUpdates: release } as unknown as InstallStamp,
-      currentVersion: '0.1.0-dev.7',
-      executable: path.join(root, 'current.exe'),
-      recoveryDirectory: path.join(root, 'retained'),
-      log: vi.fn(),
-      prepare: vi.fn(),
-      teardown: vi.fn(),
-      restore,
-      emitProgress: vi.fn()
-    })
-    await strategy.apply()
-    expect(construct).toHaveBeenCalledWith({
-      provider: 'generic',
-      channel: 'meu-preview',
-      url: 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.8/'
-    })
-    expect(native).toMatchObject({
-      autoDownload: false,
-      autoInstallOnAppQuit: false,
-      allowDowngrade: false,
-      disableWebInstaller: true,
-      requestHeaders: { 'x-user-staging-id': '' }
-    })
-    expect(restore).not.toHaveBeenCalled()
-    listeners.get('error')?.(new Error('Native installer refused'))
-    await Promise.resolve()
-    expect(restore).toHaveBeenCalledOnce()
-    expect(verify).toHaveBeenCalledWith(file, release.publisherName, release.version)
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+      findRelease.mockResolvedValue(release)
+      native.checkForUpdates.mockResolvedValue({
+        isUpdateAvailable: true,
+        updateInfo: {
+          version: release.version,
+          files: [{ url: release.file, sha512: release.sha512, size: release.size }]
+        }
+      })
+      native.downloadUpdate.mockResolvedValue([file])
+      let finishRestore!: () => void
+      const restoration = new Promise<void>(resolve => {
+        finishRestore = resolve
+      })
+      const restore = vi.fn(async () => {
+        if (timing === 'immediate') await restoration
+        if (timing === 'failed recovery') throw new Error('Gateway restart failed')
+      })
+      native.quitAndInstall.mockImplementation(() => {
+        if (timing === 'immediate') listeners.get('error')?.(new Error('Native installer refused'))
+      })
+      const emitProgress = vi.fn()
+      const strategy = await createMeuWindowsStrategy({
+        stamp: { meuUpdates: release } as unknown as InstallStamp,
+        currentVersion: '0.1.0-dev.7',
+        executable: path.join(root, 'current.exe'),
+        recoveryDirectory: path.join(root, 'retained'),
+        log: vi.fn(),
+        prepare: vi.fn(),
+        teardown: vi.fn(),
+        restore,
+        emitProgress
+      })
+      if (timing === 'immediate') {
+        const failed = strategy.apply()
+        const rejection = expect(failed).rejects.toThrow('Native installer refused')
+        await vi.waitFor(() => expect(restore).toHaveBeenCalledOnce())
+        await expect(strategy.apply()).rejects.toThrow('already in progress')
+        finishRestore()
+        await rejection
+        expect(restore).toHaveBeenCalledOnce()
+        native.quitAndInstall.mockImplementation(() => undefined)
+        await expect(strategy.apply()).resolves.toMatchObject({ ok: true, handedOff: true })
+        restore.mockClear()
+      } else {
+        await strategy.apply()
+      }
+      expect(construct).toHaveBeenCalledWith({
+        provider: 'generic',
+        channel: 'meu-preview',
+        url: 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.8/'
+      })
+      expect(native).toMatchObject({
+        autoDownload: false,
+        autoInstallOnAppQuit: false,
+        allowDowngrade: false,
+        disableWebInstaller: true,
+        requestHeaders: { 'x-user-staging-id': '' }
+      })
+      expect(restore).not.toHaveBeenCalled()
+      listeners.get('error')?.(new Error('Native installer refused'))
+      await Promise.resolve()
+      expect(restore).toHaveBeenCalledOnce()
+      if (timing === 'failed recovery') {
+        await vi.waitFor(() =>
+          expect(emitProgress).toHaveBeenLastCalledWith({
+            stage: 'error',
+            message: 'Native installer refused; Gateway restart failed',
+            percent: null
+          })
+        )
+      }
+      expect(verify).toHaveBeenCalledWith(file, release.publisherName, release.version)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   }
-})
+)
 
 it('a foreign update authority is refused before inspecting any executable', async () => {
   const stamp = {

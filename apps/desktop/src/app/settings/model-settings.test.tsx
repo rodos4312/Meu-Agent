@@ -7,6 +7,7 @@ import type * as ConfigApi from '@/api/config'
 import { I18nProvider, TRANSLATIONS } from '@/i18n'
 import { queryClient as appQueryClient } from '@/lib/query-client'
 import { $notifications, clearNotifications } from '@/store/notifications'
+import { $activeGatewayProfile } from '@/store/profile'
 
 import { ModelSettings } from './model-settings'
 
@@ -83,7 +84,7 @@ beforeEach(() => {
     tasks: [{ task: 'vision', provider: 'auto', model: '', base_url: '' }]
   })
   getMoaModels.mockResolvedValue(null)
-  setModelAssignment.mockResolvedValue({ ok: true, provider: 'nous', model: 'hermes-4', })
+  setModelAssignment.mockResolvedValue({ ok: true, provider: 'nous', model: 'hermes-4' })
   getRecommendedDefaultModel.mockResolvedValue({ provider: 'nous', model: 'hermes-4', free_tier: null })
   setEnvVar.mockResolvedValue({ ok: true })
   getHermesConfigRecord.mockResolvedValue({ agent: { reasoning_effort: 'medium', service_tier: 'normal' } })
@@ -101,14 +102,20 @@ afterEach(() => {
 
 function renderModelSettings(
   scopeProfile?: string,
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  onConfigSaved?: () => void,
+  onMainModelChanged?: (provider: string, model: string) => void
 ) {
   return render(
     // The aux-task deep-link highlight reads useSearchParams, so the page
     // needs a router context in tests (the app provides HashRouter at root).
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ModelSettings scopeProfile={scopeProfile} />
+        <ModelSettings
+          onConfigSaved={onConfigSaved}
+          onMainModelChanged={onMainModelChanged}
+          scopeProfile={scopeProfile}
+        />
       </QueryClientProvider>
     </MemoryRouter>
   )
@@ -270,7 +277,7 @@ describe('ModelSettings', () => {
     setModelAssignment.mockResolvedValueOnce({
       ok: true,
       provider: 'local-ollama',
-      model: 'qwen3:latest',
+      model: 'qwen3:latest'
     })
 
     renderModelSettings()
@@ -1075,6 +1082,21 @@ describe('Meu credentials and automatic model selection', () => {
     getRecommendedDefaultModel.mockResolvedValue({ provider: 'deepseek', model: 'deepseek-flash' })
   }
 
+  it.each(['default', 'research'])('notifies a saved main model only when scope %s is active', async scope => {
+    selectDeepseek()
+    $activeGatewayProfile.set('default')
+    setModelAssignment.mockResolvedValue({ ok: true, provider: 'deepseek', model: 'deepseek-v4-pro' })
+    const onMainModelChanged = vi.fn()
+    renderModelSettings(scope, appQueryClient, undefined, onMainModelChanged)
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(setModelAssignment).toHaveBeenCalled())
+    if (scope === 'default') {
+      await waitFor(() => expect(onMainModelChanged).toHaveBeenCalledWith('deepseek', 'deepseek-v4-pro'))
+    } else {
+      expect(onMainModelChanged).not.toHaveBeenCalled()
+    }
+  })
+
   it('keeps key entry visible when an unauthenticated saved provider still has models', async () => {
     selectDeepseek(false)
     renderModelSettings('research', appQueryClient)
@@ -1085,9 +1107,7 @@ describe('Meu credentials and automatic model selection', () => {
     expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true)
     fireEvent.change(input, { target: { value: 'test-only-key' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() =>
-      expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'test-only-key', 'research')
-    )
+    await waitFor(() => expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'test-only-key', 'research'))
   })
 
   it('lets a connected provider replace its key without changing its selected model', async () => {
@@ -1106,14 +1126,38 @@ describe('Meu credentials and automatic model selection', () => {
 
   it('saves Auto as a profile preference without sending a fictitious model ID', async () => {
     selectDeepseek()
-    renderModelSettings('research', appQueryClient)
+    const onConfigSaved = vi.fn()
+    renderModelSettings('research', appQueryClient, onConfigSaved)
     const toggle = await screen.findByRole('switch', { name: 'Auto · Flash / Pro' })
 
     fireEvent.click(toggle)
     await waitFor(() => expect(saveHermesConfig).toHaveBeenCalledWith({ smart_model_routing: { enabled: true } }))
     expect(setModelAssignment).not.toHaveBeenCalled()
     expect(toggle.getAttribute('aria-checked')).toBe('true')
+    expect(onConfigSaved).not.toHaveBeenCalled()
   })
+
+  it.each([undefined, 'default'])(
+    'refreshes the active composer only after Auto has been persisted for scope %s',
+    async scope => {
+      selectDeepseek()
+      $activeGatewayProfile.set('default')
+      let complete!: () => void
+      saveHermesConfig.mockReturnValueOnce(
+        new Promise<void>(resolve => {
+          complete = resolve
+        })
+      )
+      const onConfigSaved = vi.fn()
+      renderModelSettings(scope, appQueryClient, onConfigSaved)
+      fireEvent.click(await screen.findByRole('switch', { name: 'Auto · Flash / Pro' }))
+      await waitFor(() => expect(saveHermesConfig).toHaveBeenCalled())
+      expect(onConfigSaved).not.toHaveBeenCalled()
+      await act(async () => complete())
+      await waitFor(() => expect(onConfigSaved).toHaveBeenCalledOnce())
+      expect(setModelAssignment).not.toHaveBeenCalled()
+    }
+  )
 
   it('keeps key replacement usable on an older backend and offers its update for Auto', async () => {
     getGlobalModelInfo.mockResolvedValue({ provider: 'deepseek', model: 'deepseek-v4-pro' })
@@ -1130,11 +1174,34 @@ describe('Meu credentials and automatic model selection', () => {
   it('rolls Auto back visibly if saving fails', async () => {
     selectDeepseek()
     saveHermesConfig.mockRejectedValueOnce(new Error('not saved'))
-    renderModelSettings(undefined, appQueryClient)
+    const onConfigSaved = vi.fn()
+    renderModelSettings(undefined, appQueryClient, onConfigSaved)
     const toggle = await screen.findByRole('switch', { name: 'Auto · Flash / Pro' })
 
     fireEvent.click(toggle)
     await waitFor(() => expect(saveHermesConfig).toHaveBeenCalled())
     await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'))
+    expect(onConfigSaved).not.toHaveBeenCalled()
+  })
+
+  it('does not roll the new profile back when the previous profile Auto save fails late', async () => {
+    selectDeepseek()
+    let fail!: (reason: Error) => void
+    saveHermesConfig.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        fail = reject
+      })
+    )
+    const onConfigSaved = vi.fn()
+    renderModelSettings(undefined, appQueryClient, onConfigSaved)
+    fireEvent.click(await screen.findByRole('switch', { name: 'Auto · Flash / Pro' }))
+    await waitFor(() => expect(saveHermesConfig).toHaveBeenCalled())
+    const previousReads = getHermesConfigRecord.mock.calls.length
+    getHermesConfigRecord.mockResolvedValue({ smart_model_routing: { enabled: true } })
+    act(() => profileSwitchHandler?.())
+    await waitFor(() => expect(getHermesConfigRecord.mock.calls.length).toBeGreaterThan(previousReads))
+    await act(async () => fail(new Error('previous profile save failed')))
+    expect(screen.getByRole('switch', { name: 'Auto · Flash / Pro' }).getAttribute('aria-checked')).toBe('true')
+    expect(onConfigSaved).not.toHaveBeenCalled()
   })
 })

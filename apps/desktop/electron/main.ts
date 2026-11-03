@@ -3395,10 +3395,7 @@ async function createPackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
       prepare: () => prepareMeuUpdate({ root: ACTIVE_HERMES_ROOT, home: HERMES_HOME,
         resolveBackend: resolveHermesBackend, findPython: findPythonForRoot, log: rememberLog }),
       teardown: teardownBundledBackend,
-      restore: async () => {
-        await restoreBundledBackend()
-        updateOperation.recoverHandoff()
-      },
+      restore: () => updateOperation.restoreAfterFailure(restoreBundledBackend),
       emitProgress: emitUpdateProgress
     })
   }

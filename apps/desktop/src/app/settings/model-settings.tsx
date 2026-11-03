@@ -35,8 +35,10 @@ import { composerServiceTier } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
 import { showLargeModelNotice } from '@/store/agent-notices'
 import { $customModels, withCustomModels } from '@/store/custom-models'
+import { $activeConnectionId } from '@/store/connections'
 import { setMainModelAssignment } from '@/store/model-assignment'
 import { notify, notifyError, readableError } from '@/store/notifications'
+import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 
 import { hermesConfigCacheWriter, invalidateHermesConfig, useHermesConfigRecord } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
@@ -291,11 +293,16 @@ function StaleAuxWarning({ applying, onDismiss, onReset, slots, taskLabel }: Sta
   )
 }
 
+function editsActiveProfile(scopeProfile?: string): boolean {
+  return scopeProfile == null || normalizeProfileKey(scopeProfile) === normalizeProfileKey($activeGatewayProfile.get())
+}
+
 interface ModelSettingsProps {
   /** Visibility only: changing pages must not reset drafts or cancel autosave. */
   subpage?: string
   /** Notified after the main model is applied, so live UI stores can sync. */
   onMainModelChanged?: (provider: string, model: string) => void
+  onConfigSaved?: () => void
   /** Shared settings "Applies to" scope: a concrete profile to edit instead of
    *  the app's active one, or undefined to follow the active profile (default).
    *  Request-shaped on purpose — the API helpers treat `null` as "deliberately
@@ -380,7 +387,7 @@ function MainModelDefaults({
   )
 }
 
-export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: ModelSettingsProps) {
+export function ModelSettings({ onConfigSaved, onMainModelChanged, scopeProfile, subpage }: ModelSettingsProps) {
   const { t } = useI18n()
   const m = t.settings.model
   const showMain = subpage === undefined || subpage === 'main'
@@ -800,17 +807,26 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
       }
 
       const prev = config
+      const epoch = profileEpoch.current
+      const connectionId = $activeConnectionId.get()
       const next = setNested(config, key, value)
       setConfig(next)
 
       try {
         await saveHermesConfig(setNested({}, key, value), writeScope ?? scopeProfile)
+        if (
+          profileEpoch.current === epoch &&
+          connectionId === $activeConnectionId.get() &&
+          editsActiveProfile(scopeProfile)
+        ) {
+          onConfigSaved?.()
+        }
       } catch (err) {
-        setConfig(prev)
+        if (profileEpoch.current === epoch && connectionId === $activeConnectionId.get()) setConfig(prev)
         notifyError(err, m.defaultsFailed)
       }
     },
-    [config, m.defaultsFailed, scopeProfile, setConfig, writeScope]
+    [config, m.defaultsFailed, onConfigSaved, scopeProfile, setConfig, writeScope]
   )
 
   // Paste an API key for the selected `api_key` provider, persist it, then
@@ -870,6 +886,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
     }
 
     const epoch = profileEpoch.current
+    const connectionId = $activeConnectionId.get()
     setApplying(true)
     setError('')
 
@@ -883,7 +900,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
         scopeProfile
       )
 
-      if (profileEpoch.current !== epoch) {
+      if (profileEpoch.current !== epoch || connectionId !== $activeConnectionId.get()) {
         return
       }
 
@@ -900,7 +917,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
 
       // Live UI stores mirror the ACTIVE profile's model; a scoped apply
       // changed a different profile and must not repaint them.
-      if (scopeProfile == null) {
+      if (editsActiveProfile(scopeProfile)) {
         onMainModelChanged?.(provider, model)
       }
 
