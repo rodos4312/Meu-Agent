@@ -16,7 +16,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 PATTERN = re.compile(
     r"plugin[-_]catalog|load_catalog|get_catalog_dir|contributors[/\"' ,]+emails"
-    r"|extract-plugins|fetch-plugin-stars|shared_metrics_catalog"
+    r"|extract-plugins|fetch-plugin-stars"
 )
 
 

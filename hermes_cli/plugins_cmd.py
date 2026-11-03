@@ -83,8 +83,7 @@ def _resolve_git_executable() -> Optional[str]:
 class PluginOperationError(Exception):
     """Recoverable plugin install/update failure (CLI exits; HTTP maps to 4xx).
 
-    ``failure_class`` names the raise site for the extension-install metric (a closed name from
-    ``shared_metrics_contract.EXTENSION_PLUGIN_FAILURE_CLASSES``); untagged sites read ``other``.
+    ``failure_class`` identifies the local install failure for recovery; untagged sites read ``other``.
     """
 
     failure_class = "other"
@@ -529,7 +528,6 @@ def _admit_and_save_plugin_sets(
                 "Run `hermes pm install` to resolve dependencies, then retry.[/dim]"
             )
         raise
-
 
 
 _BASIC_AUTH_PLUGIN_KEYS = frozenset({"basic", "dashboard_auth/basic"})

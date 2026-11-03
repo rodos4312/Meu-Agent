@@ -829,7 +829,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile, subpage }: Mod
     setError('')
 
     try {
-      await setEnvVar(keyEnv, apiKeyDraft.trim(), scopeProfile, { providerSetup: true })
+      await setEnvVar(keyEnv, apiKeyDraft.trim(), scopeProfile)
 
       if (profileEpoch.current !== epoch || selectedProviderRef.current !== slug) {
         return

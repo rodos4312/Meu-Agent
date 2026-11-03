@@ -793,7 +793,6 @@ def _dispatch_nonstreaming_api_request(agent, api_kwargs: dict, *, make_client):
     return _chat_completion_capturing_headers(agent, request_client, api_kwargs)
 
 
-
 def should_use_direct_api_call(agent) -> bool:
     """Whether an OpenAI-wire request should skip the interrupt worker.
 
@@ -1256,7 +1255,6 @@ def _codex_silent_hang_hint(agent, api_kwargs: dict) -> Optional[str]:
     return None
 
 
-
 def interruptible_api_call(agent, api_kwargs: dict):
     """Run the API call on a worker thread so the caller can detect interrupts
     without waiting for the full HTTP round-trip. Each worker gets its own
@@ -1431,7 +1429,6 @@ def _build_codex_kwargs(agent, api_messages, tools_for_api, reasoning_config, re
         profile_reasoning=agent._endpoint_reasoning_payload() if endpoint.profile_reasoning else None,
         replay_encrypted_reasoning=bool(getattr(agent, "_codex_reasoning_replay_enabled", True)),
         context_management=context_management, text_verbosity=getattr(agent, "text_verbosity", None))
-
 
 
 def _build_chat_completions_kwargs(agent, api_messages, tools_for_api, reasoning_config, request_overrides, cache_scope_id):
@@ -2090,8 +2087,6 @@ def try_activate_fallback(agent, reason: FailoverReason | None = None, reset_at=
             agent._provider_fallback_active = True
             agent._provider_fallback_route = (str(fb_model), str(fb_provider))
             _log_fallback_activated(agent, reason, old_model, old_provider, fb_model, fb_provider)
-            from hermes_cli.observability.shared_metrics_events import record_fallback
-            record_fallback(from_provider=old_provider, to_provider=fb_provider, reason=reason)
             # The stale-call streak measured the OLD provider; carrying it over would
             # short-circuit the fresh fallback before its first stream attempt.
             _reset_stale_streak(agent)

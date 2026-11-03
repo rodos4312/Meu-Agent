@@ -20,9 +20,6 @@ _HTTP = ("http://", "https://")
 
 def _note_setup_failure(failure_class: str) -> None:
     """Why a flow returns without a pick, for the provider-setup metric (no-op outside a tracked flow)."""
-    from hermes_cli.observability.shared_metrics_setup import note_provider_setup_failure
-
-    note_provider_setup_failure(failure_class)
 
 
 def _say(*lines: str) -> None:

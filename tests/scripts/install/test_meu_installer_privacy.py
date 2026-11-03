@@ -10,7 +10,7 @@ from hermes_platform.resolver import locate_command
 
 
 @pytest.mark.platforms("windows")
-def test_installer_receipt_helpers_create_no_telemetry_files(tmp_path):
+def test_installer_has_no_receipt_command_or_telemetry_files(tmp_path):
     installer = Path(__file__).resolve().parents[3] / "scripts" / "install.ps1"
     shell = locate_command("powershell")
     assert shell.found
@@ -18,8 +18,7 @@ def test_installer_receipt_helpers_create_no_telemetry_files(tmp_path):
     probe.write_text(
         'param([string]$Installer, [string]$ProbeHome)\n'
         '. $Installer -HermesHome $ProbeHome\n'
-        'Write-InstallReceipt success none none\n'
-        'Write-InstallReceipt failed repository other\n', encoding="utf-8",
+        'if (Get-Command Write-InstallReceipt -ErrorAction SilentlyContinue) { throw "Legacy collector found" }\n', encoding="utf-8",
     )
     home = tmp_path / "home"
     # Cold Windows CI has exceeded 30s while starting PowerShell/loading this

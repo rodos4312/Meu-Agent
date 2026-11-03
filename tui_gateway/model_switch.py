@@ -311,9 +311,8 @@ LARGE_MODEL_NOTICE_KEY = "model.large_notice"
 def _apply_model_switch(
     sid: str, session: dict, raw_input: str, *, confirm_expensive_model: bool = False,
     pin_session_override: bool = True, parsed_flags: Any | None = None,
-    persist_override: bool | None = None, count_switch: bool = True) -> dict:
-    """``count_switch=False``: an internal swap (config adoption, MoA one-shot and its restore), not a
-    user's /model pick, so it stays out of the shared-metrics switch count."""
+    persist_override: bool | None = None) -> dict:
+    """Apply the selected route and optionally persist the session override."""
     from hermes_cli.model_switch import parse_model_switch_args, switch_model
     if parsed_flags is None:
         parsed_flags = parse_model_switch_args(raw_input)
@@ -380,13 +379,6 @@ def _apply_model_switch(
         persist_model_selection(result)
     if reasoning_effort:
         _apply_switch_reasoning(sid, session, agent, reasoning_effort, persist_global=persist_global, one_turn=one_turn)
-    if count_switch:
-        from hermes_cli.observability.shared_metrics_events import record_model_switch
-
-        record_model_switch(
-            from_provider=_switch_away_provider(agent, explicit_provider, current_provider),
-            to_provider=result.target_provider, surface=_session_source(session), from_model=current_model,
-            session_id=getattr(agent, "session_id", None))
     if (notice := getattr(result, "usage_notice", "")) and sid:
         # Window plans, Large model: a warning, never a confirm. The existing notice event, so desktop
         # (toast) and TUI (status line) show it for every switch path, live or applied at turn start.
@@ -418,7 +410,7 @@ def _reset_session_model_override(sid: str, session: dict) -> dict:
         _apply_model_switch(
             sid, session, f"{model} --provider {provider}" if provider else model,
             confirm_expensive_model=True, pin_session_override=False, persist_override=False,
-            count_switch=False)
+            )
     _persist_live_session_runtime(session)
     _emit_session_info(sid, session)
     shown = model or getattr(agent, "model", "") or t("gateway.shared.unknown_value")
@@ -528,7 +520,7 @@ def _sync_agent_model_with_config(sid: str, session: dict) -> None:
         # how `hermes --tui -m` once leaked into config.yaml).
         _apply_model_switch(
             sid, session, raw, confirm_expensive_model=True, pin_session_override=False,
-            persist_override=False, count_switch=False)
+            persist_override=False)
     except Exception as e:
         logger.warning("Configured model %s could not be adopted for session %s: %s", model, sid, e)
         from gateway.warning_notifications import render_notification

@@ -150,16 +150,9 @@ def test_overlapping_cancel_requests_keep_the_first_reason(store, monkeypatch):
 
 def test_monitoring_reports_stops_and_misses_as_themselves(monkeypatch):
     from agent.monitoring.cron_health import project_execution_event
-    from hermes_cli.observability import shared_metrics_gateway as metrics
 
     assert project_execution_event({"status": "cancelled", "job_id": "j"}).status == "cancelled"
     assert project_execution_event({"status": "missed", "job_id": "j"}).status == "missed"
-
-    sent: list = []
-    monkeypatch.setattr(metrics, "_submit", lambda emit, mark, fields, **kw: sent.append(fields(**kw)))
-    metrics.record_cron_finish({"id": "e1", "status": "cancelled", "started_at": "2026-01-01T00:00:00",
-                                "finished_at": "2026-01-01T00:00:05"})
-    assert sent[0]["outcome"] == "cancelled"
 
 
 def test_a_cancelled_agent_run_names_its_reason_in_history():

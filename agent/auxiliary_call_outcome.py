@@ -1,7 +1,6 @@
 """How one auxiliary logical call ended, for its Relay ``hermes.logical_llm_call`` scope.
 
-The scope's ``outcome`` + ``error_class`` become the shared-metrics ``model_route`` row of an
-auxiliary call, under the same contract as a primary call: a failure carries the classifier's
+The local scope records ``outcome`` and ``error_class`` under the same contract as a primary call: a failure carries the classifier's
 ``FailoverReason`` for the error that ended it, a Hermes-side abort (``/stop``, Ctrl+C, an
 interrupt, shutdown) is ``cancelled`` rather than ``failed``, and a success keeps the last
 attempt error it recovered from (a retried timeout, a fallback past a 429).

@@ -4356,7 +4356,6 @@ def test_config_sync_switches_unpinned_session(monkeypatch):
                 "confirm_expensive_model": True,
                 "pin_session_override": False,
                 "persist_override": False,
-                "count_switch": False,
             },
         )
     ]
@@ -18769,8 +18768,6 @@ def test_sniff_image_ext_magic_and_filename():
     assert server._sniff_image_ext(b"\x89PNG", "photo.jpeg") == ".jpeg"
 
 
-
-
 def test_close_session_by_id_is_idempotent_and_full(monkeypatch):
     """One call tears the session down fully; a second is a no-op."""
     calls = {"worker": 0, "agent": 0, "unreg": 0, "finalize": 0}
@@ -19527,33 +19524,7 @@ def test_reset_session_agent_clears_session_overrides(monkeypatch):
     assert session["agent"] is new_agent
 
 
-
-
-
-
-
-
-
-
-
-
 # ── subscription change RPCs (V3): preview + pending-change + upgrade ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # ── _get_usage active_subagents (TUI status-bar ⛓ indicator) ──────────────

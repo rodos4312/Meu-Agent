@@ -443,9 +443,6 @@ def _install_single_query_signal_handlers(cli):
                 # store here or the worker's turn (and its usage deltas) never become durable (#88583 /
                 # #50881 class). Best-effort under the SIGALRM deadman above.
                 _flush_one_shot_session_store(cli)
-            # The one-shot exit's shared_metrics shutdown_runtimes is skipped too: bounded inside the deadman.
-            from hermes_cli.observability.shared_metrics_process import flush_before_hard_exit
-            flush_before_hard_exit()
             _flush_logging_and_stdio()
             _kill_foreground_and_exit()
         raise KeyboardInterrupt()
@@ -506,8 +503,6 @@ def _run_single_query_mode(cli, query, image, quiet, oneshot, stream_json: bool 
     try:
         query, single_query_images = _collect_query_images(query, image)
         single_query_image_urls = _collect_kanban_task_images(single_query_images)
-        from hermes_cli.observability.shared_metrics_startup import record_cli_one_shot_ready
-        record_cli_one_shot_ready()
         if quiet:
             # Quiet mode: suppress banner, spinner, tool previews.
             cli.tool_progress_mode = "off"

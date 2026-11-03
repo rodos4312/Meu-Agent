@@ -44,7 +44,6 @@ def _mock_client(base_url="https://openrouter.ai/api/v1", api_key="fb-key"):
 class TestFallbackChainInit:
 
 
-
     def test_invalid_entries_filtered(self):
         fbs = [
             {"provider": "openai", "model": "gpt-4o"},
@@ -63,10 +62,6 @@ class TestFallbackChainInit:
 
 
 # ── Chain advancement ─────────────────────────────────────────────────────
-
-
-
-
 
 
 class TestFallbackChainAdvancement:
@@ -135,11 +130,7 @@ class TestFallbackChainAdvancement:
 
     def test_activation_counts_once_with_classifier_reason(self, monkeypatch):
         """A skipped candidate is not an activation; the one that binds records its FailoverReason."""
-        from hermes_cli.observability import shared_metrics_events
-        from hermes_cli.observability.shared_metrics_fields import fallback_fields
 
-        calls = []
-        monkeypatch.setattr(shared_metrics_events, "record_fallback", lambda **kw: calls.append(kw))
         agent = _make_agent(fallback_model=[
             {"provider": "broken", "model": "nope"}, {"provider": "zai", "model": "glm-5.2"},
         ])
@@ -148,8 +139,6 @@ class TestFallbackChainAdvancement:
                    side_effect=[(None, None), (_mock_client(base_url="https://api.z.ai/v1"), "glm-5.2")]):
             assert agent._try_activate_fallback(FailoverReason.rate_limit) is True
 
-        assert [(kw["from_provider"], kw["to_provider"]) for kw in calls] == [("nous", "zai")]
-        assert fallback_fields(**calls[0])["error_class"] == "rate_limit"
 
     def test_skips_provider_that_raises_to_next(self):
         """If resolve_provider_client raises, skip to next in chain."""
@@ -291,13 +280,6 @@ def _pool(n_entries: int, has_available: bool = True):
     pool.entries.return_value = [MagicMock() for _ in range(n_entries)]
     pool.has_available.return_value = has_available
     return pool
-
-
-
-
-
-
-
 
 
 # ── Skip-self dedup (#22548) ───────────────────────────────────────────────

@@ -214,11 +214,9 @@ def _exact_name_hits(results, name: str):
     return [r for r in results if key in (_slug_key(r.name), _slug_key(_identifier_slug(r.identifier)))]
 
 
-def _resolve_short_name(name: str, sources, console: Console, attempt: Optional[dict] = None) -> str:
+def _resolve_short_name(name: str, sources, console: Console) -> str:
     """Short name -> full identifier via search; "" when ambiguous/missing (one exact match wins,
-    several -> the single official one, else they are listed). ``attempt`` (an install's metric
-    record) gets ``failure_class`` ``ambiguous`` / ``not_found`` when it returns ""."""
-    attempt = attempt if attempt is not None else {}
+    several -> the single official one, else they are listed)."""
     from tools.skills_hub_search import unified_search
     c = console or _console
     c.print(f"[dim]Resolving '{name}'...[/]")
@@ -227,13 +225,11 @@ def _resolve_short_name(name: str, sources, console: Console, attempt: Optional[
 
     if len(exact) == 1:
         c.print(f"[dim]Resolved to: {exact[0].identifier}[/]")
-        attempt["registry"] = exact[0].source  # the adapter that served it overrides this
         return exact[0].identifier
     if len(exact) > 1:
         official = [r for r in exact if r.source == "official"]  # outranks community mirrors
         if len(official) == 1:
             c.print(f"[dim]Resolved to: {official[0].identifier} (official catalog)[/]")
-            attempt["registry"] = "official"
             return official[0].identifier
         c.print(f"\n[yellow]Multiple skills named '{name}' found:[/]")
         table = _table("Source", "Trust", _ident_col("bold cyan"))
@@ -241,17 +237,14 @@ def _resolve_short_name(name: str, sources, console: Console, attempt: Optional[
             table.add_row(r.source, _trust_cell(r.trust_level, r.source), r.identifier)
         c.print(table)
         c.print("[bold]Use the full identifier to install a specific one.[/]\n")
-        attempt["failure_class"] = "ambiguous"
         return ""
     if results:
         c.print(f"[yellow]No exact match for '{name}'. Did you mean one of these?[/]")
         for r in results[:5]:
             c.print(f"  [cyan]{r.name}[/] — {r.identifier}")
         c.print()
-        attempt["failure_class"] = "not_found"
         return ""
     _print_error(c, f"No skill named '{name}' found in any source.")
-    attempt["failure_class"] = "not_found"
     return ""
 
 
@@ -273,9 +266,9 @@ def _resolve_source_meta_and_bundle(identifier: str, sources):
     return first_meta, None, first_meta_source
 
 
-def _full_identifier(identifier: str, sources, c, attempt: Optional[dict] = None) -> str:
+def _full_identifier(identifier: str, sources, c) -> str:
     """Identifiers without a slash are short names; "" when they cannot be resolved."""
-    return identifier if "/" in identifier else _resolve_short_name(identifier, sources, c, attempt)
+    return identifier if "/" in identifier else _resolve_short_name(identifier, sources, c)
 
 
 def _resolve_identifier(identifier: str, sources, c) -> tuple:
@@ -721,71 +714,25 @@ def _confirm_install(c: Console, bundle, category: str) -> bool:
                               cancel="[dim]Installation cancelled.[/]\n")
 
 
-_SKILL_METRIC_SOURCES = {"official": "catalog", "url": "url", "bundled": "bundled"}
-
-
-def _install_bundled(c: Console, name: str, invalidate_cache: bool) -> tuple:
+def _install_bundled(c: Console, name: str, invalidate_cache: bool) -> Optional[bool]:
     """``_install_skill`` for a name Hermes ships: point at the active copy, or restore it from the
     bundled source. The hub copy of a built-in is either a stranger's same-named skill or this
     repo's files rescanned as community content and refused, so neither is fetched."""
-    from types import SimpleNamespace
     from tools.skills_sync_bundled_ops import ensure_bundled_skill
     result = ensure_bundled_skill(name)
     if not result["ok"]:
         _print_error(c, result["message"])
-        return None, "failed", False
+        return False
     if result["action"] == "hub_shadowed":  # not the built-in, so exit 1; the hub install stays (no install event)
         _print_error(c, result["message"])
-        return None, None, False
+        return False
     if result["action"] == "present":
         where = f" at {result['path']}" if result["path"] else ""
         c.print(f"[green]'{name}' is a built-in skill and is already available{where}.[/]\n")
-        return None, None, None
+        return None
     c.print(f"[bold green]Restored built-in skill:[/] {name} [dim]({result['path']})[/]\n")
     _finish_change(c, invalidate_cache, "Skill will be available", "activate")
-    return SimpleNamespace(name=name, source="bundled"), "success", True
-
-
-def _registry_prefixes() -> tuple:
-    """Identifier prefixes each adapter accepts, from the adapters themselves (``<SOURCE_ID>/``, the
-    skills.sh spellings, ``well-known:``), so a fetch no adapter answered still names the registry
-    it was meant for. Bare owner/repo/path stays unresolved."""
-    from tools.skills_hub_clawhub import ClawHubSource
-    from tools.skills_hub_official import OptionalSkillSource
-    from tools.skills_hub_skillssh import SkillsShSource
-    from tools.skills_hub_sources import BrowseShSource, LobeHubSource, UrlSource, WellKnownSkillSource
-
-    return (
-        *((f"{cls.SOURCE_ID}/", cls.SOURCE_ID) for cls in (OptionalSkillSource, ClawHubSource, LobeHubSource, BrowseShSource)),
-        *((prefix, SkillsShSource.SOURCE_ID) for prefix in SkillsShSource._ID_PREFIX_ALIASES),
-        (f"{WellKnownSkillSource.SOURCE_ID}:", WellKnownSkillSource.SOURCE_ID),
-        ("http://", UrlSource.SOURCE_ID), ("https://", UrlSource.SOURCE_ID),
-    )
-
-
-def _registry_from_identifier(identifier: str) -> str:
-    lowered = identifier.lower()
-    if lowered.startswith(("http://", "https://")) and "/.well-known/skills/" in lowered:
-        return "well-known"
-    return next((sid for prefix, sid in _registry_prefixes() if lowered.startswith(prefix)), "unresolved")
-
-
-def _record_skill_install(identifier: str, bundle, outcome: str, attempt: Optional[dict] = None,
-                          error: Optional[BaseException] = None) -> None:
-    """One shared-metrics extension install: official optional skills are the catalog, URL skills
-    stay anonymous, every other registry is the hub. ``attempt`` carries the failure class the
-    failing exit named and the hub adapter id (``registry``); a raised ``error`` is classified by
-    its type inside the metrics guard."""
-    from hermes_cli.observability.shared_metrics_events import record_extension_install
-    attempt = attempt or {}
-    origin = getattr(bundle, "source", None) or attempt.get("origin") or (
-        "official" if identifier.startswith("official/")
-        else "url" if identifier.startswith(("http://", "https://")) else "hub")
-    source = _SKILL_METRIC_SOURCES.get(origin, "hub")
-    name = None if source == "url" else (getattr(bundle, "name", None) or identifier)
-    record_extension_install(kind="skill", source=source, name=name, outcome=outcome,
-                             failure_class=attempt.get("failure_class"), registry=attempt.get("registry"),
-                             error=error)
+    return True
 
 
 def do_install(identifier: str, category: str = "", force: bool = False,
@@ -796,76 +743,40 @@ def do_install(identifier: str, category: str = "", force: bool = False,
     adapter; callers that know the provenance (``do_update``) must pass it so a bare identifier
     cannot resolve to a same-named skill elsewhere.
 
-    A first install is recorded once as an extension install; updates and ``--force`` reinstalls
-    of an installed skill run through here too and are not installs, nor is a cancelled prompt.
-
     Returns True when the skill was installed, False when the install failed (unresolved name,
     fetch, scan block, bad path), None for a no-op the user owns (already installed, declined).
     The CLI router turns False into a non-zero exit — the Desktop Hub toasts failures off that
     exit code, so an exit-0 failure reads as "the button did nothing" (only the action log).
     """
-    from tools.skills_hub import HubLockFile
-    fresh = not HubLockFile().get_installed(identifier.rstrip("/").rsplit("/", 1)[-1])
-    attempt: dict = {}
-    try:
-        bundle, outcome, installed = _install_skill(identifier, category, force, console or _console,
-                                                    skip_confirm, invalidate_cache, name_override, source_id,
-                                                    attempt=attempt)
-    except Exception as exc:
-        if fresh:
-            _record_skill_install(identifier, None, "failed", attempt, error=exc)
-        raise
-    if fresh and outcome:
-        _record_skill_install(identifier, bundle, outcome, attempt)
-    return installed
+    return _install_skill(identifier, category, force, console or _console,
+                          skip_confirm, invalidate_cache, name_override, source_id)
 
 
 def _install_skill(identifier: str, category: str, force: bool, c: Console, skip_confirm: bool,
-                   invalidate_cache: bool, name_override: str, source_id: Optional[str],
-                   attempt: Optional[dict] = None) -> tuple:
-    """``do_install``'s body: ``(bundle, outcome, installed)``. ``outcome`` is the extension-install
-    event (None when this was no new install); ``installed`` is ``do_install``'s return value.
-    ``attempt`` collects the metric's ``registry`` (adapter id) and, on a failed exit, its
-    ``failure_class``."""
-    attempt = attempt if attempt is not None else {}
-    attempt["registry"] = "none"
+                   invalidate_cache: bool, name_override: str, source_id: Optional[str]) -> Optional[bool]:
+    """Install a skill and return success, failure, or None for a user-owned no-op."""
     from tools.skills_hub import HubLockFile, ensure_hub_dirs, skills_hub_http_session
     from tools.skills_hub_install import install_from_quarantine, quarantine_bundle
     from tools.skills_guard import should_allow_install
     ensure_hub_dirs()
     from tools.skills_sync_bundled_ops import bundled_skill_for_install
     if not source_id and not name_override and (builtin := bundled_skill_for_install(identifier)):
-        # Read only when the restore fails or raises: either way it was a bundled install, not a hub one.
-        attempt.update(failure_class="filesystem_error", origin="bundled")
         return _install_bundled(c, builtin, invalidate_cache)
-    attempt["registry"] = "unresolved"
     sources = _pinned_sources(c, _sources(), source_id, identifier)
     if sources is None:
-        attempt["failure_class"] = "not_found"
-        return None, "failed", False
+        return False
     # One pooled guarded client for the whole resolve + fetch fan-out (tree, SKILL.md, N support files).
     with skills_hub_http_session():
-        identifier = _full_identifier(identifier, sources, c, attempt)
+        identifier = _full_identifier(identifier, sources, c)
         if not identifier:
-            # Search fans out to every adapter and swallows their errors: a name that resolved to
-            # nothing while GitHub was refusing us is the refusal, not a missing skill.
-            if _hub_rate_limited(sources):
-                attempt["failure_class"] = "rate_limited"
-            elif _hub_rejected_credentials(sources):
-                attempt["failure_class"] = "auth_rejected"
-            return None, "failed", False
+            return False
         c.print(f"\n[bold]Fetching:[/] {identifier}")
         meta, bundle, _matched_source = _resolve_source_meta_and_bundle(identifier, sources)
-    if _matched_source is not None:
-        attempt["registry"] = _matched_source.source_id() or "other"
-    elif attempt.get("registry") == "unresolved":
-        attempt["registry"] = _registry_from_identifier(identifier)
     if not bundle:
-        attempt["failure_class"] = _print_fetch_failure(c, sources, identifier, meta=meta, source=_matched_source)
-        return None, "failed", False
+        _print_fetch_failure(c, sources, identifier, meta=meta, source=_matched_source)
+        return False
     if not _resolve_url_bundle_name(c, bundle, meta, identifier, name_override, skip_confirm):
-        attempt["failure_class"] = "invalid_name"
-        return bundle, "failed", False
+        return False
 
     # URL-sourced skills: pick a category interactively when none was given (TTY only;
     # non-interactive installs fall through to flat install like every other source).
@@ -881,8 +792,7 @@ def _install_skill(identifier: str, category: str, force: bool, c: Console, skip
         c.print(f"[yellow]Warning:[/] '{bundle.name}' is already installed at {existing['install_path']}")
         if not force:
             c.print("Use --force to reinstall.\n")
-            return bundle, None, None
-    failed = None if existing else "failed"
+            return None
 
     extra_metadata = {**(getattr(meta, "extra", {}) or {}), **bundle.metadata}
 
@@ -890,8 +800,7 @@ def _install_skill(identifier: str, category: str, force: bool, c: Console, skip
         q_path = quarantine_bundle(bundle)
     except ValueError as exc:
         _invalid_path(c, bundle, exc)
-        attempt["failure_class"] = "invalid_bundle"
-        return bundle, failed, False
+        return False
     c.print(f"[dim]Quarantined to {q_path.relative_to(q_path.parent.parent.parent)}[/]")
 
     result = _scan_quarantined(c, q_path, bundle, meta, identifier)
@@ -899,8 +808,7 @@ def _install_skill(identifier: str, category: str, force: bool, c: Console, skip
     if not allowed:
         _install_blocked(c, bundle, _scan_block_message(result, identifier), result.verdict,
                          f"{len(result.findings)}_findings", q_path=q_path, lead="\n", label="Not installed:")
-        attempt["failure_class"] = "scan_blocked"
-        return bundle, failed, False
+        return False
     # Advisory second opinion — warn-and-continue by design (PII-class findings are
     # informational); the install confirmation below is where the user decides.
     _print_tier1_advisory(q_path, c)
@@ -911,20 +819,19 @@ def _install_skill(identifier: str, category: str, force: bool, c: Console, skip
     # skip_confirm bypasses the prompt (TUI mode, where input() hangs).
     if not force and not skip_confirm and not _confirm_install(c, bundle, category):
         shutil.rmtree(q_path, ignore_errors=True)
-        return bundle, None, None
+        return None
 
     try:
         install_dir = install_from_quarantine(q_path, bundle.name, category, bundle, result)
     except ValueError as exc:
         _invalid_path(c, bundle, exc, q_path)
-        attempt["failure_class"] = "invalid_bundle"
-        return bundle, failed, False
+        return False
     from tools.skills_hub import SKILLS_DIR
     c.print(f"[bold green]Installed:[/] {install_dir.resolve().relative_to(Path(SKILLS_DIR).resolve()).as_posix()}")
     c.print(f"[dim]Files: {', '.join(bundle.files.keys())}[/]\n")
     _announce_blueprint(c, bundle.name)
     _finish_change(c, invalidate_cache, "Skill will be available", "activate")
-    return bundle, None if existing else "success", True
+    return True
 
 
 def _print_tier1_advisory(skill_dir, console) -> None:

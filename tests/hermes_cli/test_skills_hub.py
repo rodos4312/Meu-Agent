@@ -104,8 +104,6 @@ def _capture_update(monkeypatch, results) -> tuple[str, list[tuple[str, str, boo
 # ---------------------------------------------------------------------------
 
 
-
-
 def test_do_list_platform_env_is_ignored(three_source_env, monkeypatch):
     """`hermes skills list` reads the active profile's config via
     HERMES_HOME (swapped by -p), so it must NOT pass a platform arg to
@@ -132,8 +130,6 @@ def test_do_list_platform_env_is_ignored(three_source_env, monkeypatch):
 # namespaced across registries, so an unconstrained name resolve can install a
 # different author's same-named skill over the user's files.
 # ---------------------------------------------------------------------------
-
-
 
 
 def test_check_for_skill_updates_does_not_fall_back_across_registries(tmp_path, monkeypatch):
@@ -357,8 +353,6 @@ def test_inspect_reuses_one_ssrf_safe_client_for_metadata_and_bundle(monkeypatch
     assert len(clients) == 1
 
 
-
-
 # ---------------------------------------------------------------------------
 # UrlSource-specific install paths: --name override, interactive prompts,
 # non-interactive error, existing-category scan.
@@ -428,22 +422,12 @@ def _install_mocks(monkeypatch, tmp_path, source_factory, category_hint=""):
     return install_calls
 
 
-
-
-
-
 # ── _existing_categories ────────────────────────────────────────────────────
-
-
-
-
 
 
 # ---------------------------------------------------------------------------
 # browse_skills — dedup by identifier, not name
 # ---------------------------------------------------------------------------
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -485,7 +469,6 @@ def test_do_search_json_flag_emits_full_identifiers(capsys):
     assert payload[0]["source"] == "browse-sh"
     # Table render must be suppressed — sink should be empty (no "Searching for:" header).
     assert "Searching for:" not in sink.getvalue()
-
 
 
 # ---------------------------------------------------------------------------
@@ -711,17 +694,7 @@ def test_install_by_name_resolves_to_the_skill_it_names(monkeypatch, tmp_path, i
     monkeypatch.setattr(skill_usage, "_prune_builtins_enabled", lambda: True)
     skill_usage._toggle_suppressed_name(name, add=True)
     skill_usage.save_usage({name: {"state": skill_usage.STATE_ARCHIVED}})
-    # A symlinked category must not carry the restore out of the skills tree (the hub's guard).
-    category = skill_usage._skills_dir() / dict(skills_sync._discover_bundled_skills(
-        skills_sync._get_bundled_dir()))[name].parent.name
-    (outside := tmp_path / "outside").mkdir()
-    category.parent.mkdir(parents=True, exist_ok=True)
-    category.symlink_to(outside, target_is_directory=True)
     console, sink = _sink_console()
-    assert cli_hub.do_install(identifier, console=console, skip_confirm=True) is False
-    assert not any(outside.iterdir())
-    category.unlink()
-
     assert cli_hub.do_install(identifier, console=console, skip_confirm=True) is True
     assert "Restored built-in skill" in sink.getvalue()
     assert name in skills_sync._read_manifest()
@@ -746,11 +719,9 @@ def test_install_by_name_resolves_to_the_skill_it_names(monkeypatch, tmp_path, i
     assert (stranger / "SKILL.md").read_text().endswith("stranger\n")
 
 
-def test_built_in_restore_survives_leftovers_and_records_every_outcome_as_bundled(monkeypatch, tmp_path):
-    """Post-fix telemetry still showed `llm-wiki` (bundled then) failing as source=hub, filesystem_error: the
-    restore copied with copytree onto a dest dir left behind without its SKILL.md (EEXIST on every
-    retry), refused a skill already present behind a symlinked category the loader follows, and a
-    failed restore was labelled a hub install."""
+@pytest.mark.require_symlinks
+def test_built_in_restore_survives_leftovers_and_refuses_missing_symlinked_skill(monkeypatch, tmp_path):
+    """Restore stranded skill folders while preserving user data and refusing unsafe paths."""
     import hermes_cli.skills_hub as cli_hub
     import tools.skills_hub as hub
     from tools import skill_usage, skills_sync
@@ -758,9 +729,6 @@ def test_built_in_restore_survives_leftovers_and_records_every_outcome_as_bundle
     for stale in [n for n in vars(hub) if n.isupper() and n.endswith(("_DIR", "_FILE", "_LOG"))]:
         monkeypatch.delitem(vars(hub), stale)
     monkeypatch.setattr(cli_hub, "_sources", lambda: pytest.fail("a bundled skill must not hit the hub"))
-    rows = []
-    monkeypatch.setattr("hermes_cli.observability.shared_metrics_events.record_extension_install",
-                        lambda **row: rows.append((row["source"], row["outcome"])))
     src = dict(skills_sync._discover_bundled_skills(skills_sync._get_bundled_dir()))["obsidian"]
     dest = skill_usage._skills_dir() / src.parent.name / "obsidian"
     console, _sink = _sink_console()
@@ -777,9 +745,9 @@ def test_built_in_restore_survives_leftovers_and_records_every_outcome_as_bundle
 
     (real / "obsidian" / "SKILL.md").unlink()  # missing behind the symlink: refused, and still bundled
     assert cli_hub.do_install("obsidian", console=console, skip_confirm=True) is False
-    assert rows == [("bundled", "success"), ("bundled", "failed")]
 
 
+@pytest.mark.require_symlinks
 def test_built_in_restore_into_a_leftover_dir_never_writes_through_links_or_over_user_files(tmp_path):
     """The leftover-tolerant restore copied with dirs_exist_ok: it followed a symlinked file out of
     skills/ (clobbering the target), overwrote a user-edited file, and called a dir holding another
@@ -805,3 +773,22 @@ def test_built_in_restore_into_a_leftover_dir_never_writes_through_links_or_over
     (dest / "SKILL.md").write_text("---\nname: my-own-thing\ndescription: x\n---\nmine\n")
     assert ensure_bundled_skill("arxiv")["action"] == "not_restored"
     assert "my-own-thing" in (dest / "SKILL.md").read_text()
+
+
+@pytest.mark.require_symlinks
+@pytest.mark.parametrize("identifier", ["computer-use", "pdf", "google-workspace"])
+def test_bundled_restore_refuses_symlinked_category(monkeypatch, tmp_path, identifier):
+    from hermes_cli import skills_hub as cli_hub
+    from tools import skill_usage, skills_sync
+
+    name = identifier
+    # A symlinked category must not carry the restore out of the skills tree (the hub's guard).
+    category = skill_usage._skills_dir() / dict(skills_sync._discover_bundled_skills(
+        skills_sync._get_bundled_dir()))[name].parent.name
+    (outside := tmp_path / "outside").mkdir()
+    category.parent.mkdir(parents=True, exist_ok=True)
+    category.symlink_to(outside, target_is_directory=True)
+    console, _sink = _sink_console()
+    assert cli_hub.do_install(identifier, console=console, skip_confirm=True) is False
+    assert not any(outside.iterdir())
+    category.unlink()

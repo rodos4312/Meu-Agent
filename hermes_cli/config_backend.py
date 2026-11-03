@@ -246,22 +246,22 @@ class FileBackend:
         return True
 
     def boot(self, home: Path) -> None:
-        # Migrate existing profiles once at boot; the runtime gates also cover read-only files.
-        from hermes_cli.meu_privacy import disable_shared_metrics
+        # Migrate existing profiles once at boot; read-only config normalization also strips the retired settings.
+        from hermes_cli.meu_privacy import strip_retired_metrics
 
         if not self.exists(home):
             return
         try:
             raw = self.read_user_doc(home)
             if isinstance(raw, dict):
-                private = disable_shared_metrics(raw)
+                private = strip_retired_metrics(raw)
                 if private != raw:
                     write_config_document(self.config_path(home), private)
         except Exception:
             import logging
 
             logging.getLogger(__name__).warning(
-                "Could not persist Meu privacy policy; shared metrics remain disabled", exc_info=True)
+                "Could not remove retired usage settings from this profile", exc_info=True)
 
     def protected_env_names(self) -> frozenset:
         return frozenset()

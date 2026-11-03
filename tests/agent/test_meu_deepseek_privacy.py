@@ -8,9 +8,6 @@ import httpx
 from openai import OpenAI
 
 from agent.transports.chat_completions import ChatCompletionsTransport
-from hermes_cli.observability.shared_metrics_events import record_setup_completed
-from hermes_cli.observability.shared_metrics_send_config import resolve_send_config
-from hermes_cli.observability.shared_metrics_sender import SharedMetricsSender
 from providers import get_provider_profile
 
 
@@ -61,8 +58,5 @@ def test_deepseek_tool_call_and_followup_work_without_nous_telemetry(monkeypatch
         final = client.chat.completions.create(**transport.build_kwargs(
             "deepseek-v4-pro", history, tools, provider_profile=profile, base_url=str(client.base_url)))
         assert transport.normalize_response(final).content == "Read successfully."
-    record_setup_completed(surface="desktop", provider="deepseek")
-    assert not resolve_send_config({"telemetry": {"shared_metrics": {"enabled": True, "send": True}}}).send
-    assert SharedMetricsSender(None, "https://telemetry.nousresearch.com/v1/telemetry").send_pending().sent == 0
     assert len(calls) == 2
     telemetry.assert_not_called()

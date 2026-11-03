@@ -20,6 +20,19 @@ from typing import Any
 
 from agent.model_metadata import estimate_messages_tokens_rough
 
+COMPRESSION_SKIP_CLASSES = frozenset({
+    "attempt_superseded", "empty_post_handoff_window", "explicit_interrupt", "insufficient_messages",
+    "lock_contended", "no_compressible_window", "snapshot_stale",
+})
+COMPRESSION_FAILURE_CLASSES = COMPRESSION_SKIP_CLASSES | frozenset({
+    "aux_model_fallback", "commit_fence_cancelled", "empty_transcript", "exception", "feasibility_skip",
+    "no_progress", "none",
+    "other", "pool_saturated", "rollback", "session_split_failed", "stall_deterministic_fallback",
+    "stall_interrupted", "summary_auth_failure", "summary_empty_content_failure", "summary_generation_aborted",
+    "summary_generation_failed", "summary_network_failure", "summary_overload_degraded",
+    "summary_overload_failure", "summary_truncated_failure", "unknown", "would_grow",
+})
+
 logger = logging.getLogger(__name__)
 
 SCHEMA_NAME = "hermes.compaction"
@@ -51,7 +64,7 @@ _SPLIT_STATUSES = frozenset({
     "not_applicable", "in_place_committed", "rotated_committed", "failed_not_indexed", "aborted",
 })
 _TOKEN_COUNT_METHODS = frozenset({"estimate_rough"})
-# Attempt classes beyond the shared-metrics closed set: guards, Codex route exits, lease races, an engine's
+# Additional local attempt classes: guards, Codex route exits, lease races, an engine's
 # empty transcript, and the micro-compaction pass outcomes.
 _EXTRA_FAILURE_CLASSES = frozenset({
     "blocked:cooldown", "blocked:structural_backoff", "blocked:ineffective", "blocked:unknown",
@@ -95,15 +108,11 @@ _warned = False
 
 @functools.cache
 def _failure_classes() -> frozenset[str]:
-    from hermes_cli.observability.shared_metrics_contract import COMPRESSION_FAILURE_CLASSES
-
     return COMPRESSION_FAILURE_CLASSES | _EXTRA_FAILURE_CLASSES
 
 
 @functools.cache
 def _skip_classes() -> frozenset[str]:
-    from hermes_cli.observability.shared_metrics_contract import COMPRESSION_SKIP_CLASSES
-
     return COMPRESSION_SKIP_CLASSES
 
 

@@ -176,6 +176,7 @@ class TestPatchSensitivePathExtraction:
     """
 
     @patch("tools.file_tools._get_file_ops")
+    @pytest.mark.platforms("posix")
     def test_patch_move_to_sensitive_dst_blocked(self, mock_get):
         from tools.file_tools import patch_tool
         patch_text = (
@@ -190,6 +191,7 @@ class TestPatchSensitivePathExtraction:
 
 
     @patch("tools.file_tools._get_file_ops")
+    @pytest.mark.platforms("posix")
     def test_patch_update_no_space_after_asterisks_blocked(self, mock_get):
         """``***Update File:`` (no space after asterisks) must also be caught.
 
@@ -368,6 +370,7 @@ class TestSensitivePathCheck:
 
 
 
+    @pytest.mark.platforms("posix")
     def test_system_path_still_blocked(self, monkeypatch):
         monkeypatch.setattr("tools.file_tools_write_guards._hermes_config_resolved", "/some/other/path")
         monkeypatch.setattr("tools.file_tools_write_guards._hermes_config_resolved_loaded", True)
@@ -377,6 +380,7 @@ class TestSensitivePathCheck:
         assert "error" in result
         assert "sensitive system path" in result["error"]
 
+    @pytest.mark.platforms("macos")
     def test_macos_private_var_carveouts(self):
         """macOS temp dirs under /private/var must not be blanket-blocked,
         while the genuinely-sensitive /private/var subtrees still are."""
@@ -918,6 +922,7 @@ class TestSSHConfigWriteGate:
         assert "single-query" in result["error"]
         assert not ssh_config.exists()
 
+    @pytest.mark.require_symlinks
     def test_relative_path_is_gated_from_the_task_cwd_not_the_process_cwd(self, ssh_config, tmp_path,
                                                                            monkeypatch):
         """A gateway-hosted turn's workspace is not the process cwd: the gate must judge the path

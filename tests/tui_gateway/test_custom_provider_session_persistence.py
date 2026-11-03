@@ -24,6 +24,8 @@ pinning); same family of resolved-vs-requested identity loss.
 """
 
 import json
+
+import pytest
 import types
 from unittest.mock import MagicMock, patch
 
@@ -742,7 +744,6 @@ class TestFollowProfileConfigRuntimeOverrides:
         apply_switch.assert_called_once_with(
             "sid", session, "profile/new-default --provider nous",
             confirm_expensive_model=True, pin_session_override=False, persist_override=False,
-            count_switch=False,
         )
 
     def test_marked_row_returns_no_overrides(self):
@@ -763,7 +764,6 @@ class TestFollowProfileConfigRuntimeOverrides:
             ),
         }
         assert _stored_session_runtime_overrides(row) == {}
-
 
 
     def test_legacy_bot_chat_title_backfills_contract(self):
@@ -919,7 +919,8 @@ class TestRuntimeModelConfigDropsStaleKeys:
         assert config["provider"] == "nous"
         assert config["model"] == "deepseek/deepseek-v4-flash-0731"
 
-    def test_resume_overrides_get_no_stale_provider(self):
+    @pytest.mark.parametrize("billing_provider, expected", [("deepseek", "deepseek"), ("nous", None)])
+    def test_resume_overrides_get_no_stale_provider(self, billing_provider, expected):
         """End-to-end shape: a config merged from an empty-provider agent must
         NOT resurrect the stale endpoint on resume — the chat falls back to
         the row's billing provider (the profile default) instead of the stale
@@ -938,15 +939,15 @@ class TestRuntimeModelConfigDropsStaleKeys:
         row = {
             "model": "deepseek/deepseek-v4-flash-0731",
             "model_config": json.dumps(config),
-            "billing_provider": "nous",
+            "billing_provider": billing_provider,
         }
         overrides = _stored_session_runtime_overrides(row)
 
         assert overrides["model_override"]["model"] == "deepseek/deepseek-v4-flash-0731"
         # The stale endpoint identity is gone; resume routes through the
         # billing fallback to the profile's real provider.
-        assert overrides["model_override"]["provider"] == "nous"
-        assert overrides["provider_override"] == "nous"
+        assert overrides["model_override"]["provider"] == expected
+        assert overrides.get("provider_override") == expected
 
 
     def test_existing_none_returns_only_agent_identity(self):

@@ -122,13 +122,11 @@ def apply_requested_tool_rebuild(agent: Any) -> bool:
         if key not in _rebuild_requests:
             return False
         _rebuild_requests.discard(key)
-    from hermes_cli.observability.shared_metrics_efficiency import record_cache_break
     from tools.mcp_tool_agent import refresh_agent_mcp_tools
     before = getattr(agent, "tools", None)
     refresh_agent_mcp_tools(agent, quiet_mode=True, content_aware=True)  # adopts the saved backend, re-pins a change
     if agent.tools is before:
         return False
-    record_cache_break(agent, "toolset_change")
     return True
 
 

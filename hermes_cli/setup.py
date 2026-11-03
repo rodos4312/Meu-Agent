@@ -383,10 +383,8 @@ def setup_model_provider(config: dict, *, quick: bool = False):
     _info("Choose how to connect to your main chat model.",
           f"   Guide: {_DOCS_BASE}/integrations/providers", None)
     from hermes_cli.main import select_provider_and_model
-    from hermes_cli.observability.shared_metrics_setup import provider_setup_surface
     try:
-        with provider_setup_surface("cli_setup"):
-            select_provider_and_model()
+        select_provider_and_model()
     except (SystemExit, KeyboardInterrupt):
         _info(None, "Provider setup skipped.")
     except Exception as exc:
@@ -509,35 +507,6 @@ def setup_tools(config: dict, first_install: bool = False):
     tools_command(first_install=first_install, config=config)
 
 
-# ── Shared Metrics ──
-
-
-def setup_telemetry(config: dict):
-    """Meu has a fixed opt-out; the wizard cannot enable shared metrics."""
-    from hermes_cli.observability.shared_metrics_consent import save_consent
-
-    save_consent(False, False, config)
-    print_info("Usage statistics collection and sharing are disabled in Meu.")
-
-
-def _record_send_consent_change(*, enabled: bool) -> None:
-    """Reconcile consent windows at the moment the user decides — same single writer as the relay
-    and the sender, so wizard, relay and mid-pass callers cannot disagree."""
-    try:
-        from hermes_constants import get_hermes_home
-
-        if not (get_hermes_home() / "telemetry" / "shared_metrics" / "metrics.sqlite3").exists():
-            return
-        from hermes_cli.observability.shared_metrics import SharedMetricsStore
-        from hermes_cli.observability.shared_metrics_sender import reconcile_send_consent
-        from hermes_cli.sqlite_util import write_txn
-        with SharedMetricsStore()._connection() as connection, write_txn(connection):
-            reconcile_send_consent(connection, False)
-    except Exception:
-        # Never block the wizard on telemetry bookkeeping; the relay reconciles on the next hook.
-        logger.debug("Unable to record shared-metrics consent change", exc_info=True)
-
-
 # Extracted sections, re-exported so callers and test patches keep resolving through
 # hermes_cli.setup. They import this module lazily inside bodies, so this is cycle-free.
 
@@ -558,7 +527,6 @@ SETUP_SECTIONS = [
     ("terminal", "Terminal Backend", setup_terminal_backend),
     ("gateway", "Messaging Platforms (Gateway)", setup_gateway),
     ("tools", "Tools", setup_tools),
-    ("telemetry", "Shared Metrics", setup_telemetry),
     ("agent", "Agent Settings", setup_agent_settings),
 ]
 
@@ -683,7 +651,6 @@ def _run_setup_wizard_impl(args):
         # backwards-compatible no-op here.
         if quick_requested:
             _run_setup_steps([("Quick Setup", lambda: _run_quick_setup(config, hermes_home))])
-            _record_setup_completed(config)
             return
         print_header("Reconfigure", gap=True)
         print_success("You already have Hermes configured.")
@@ -708,7 +675,6 @@ def _run_setup_wizard_impl(args):
             run_args = (config, hermes_home, is_existing) + (
                 (imported_from,) if runner == "_run_first_time_quick_setup" else ())
             _run_setup_steps([(label, lambda: getattr(setup_quick, runner)(*run_args))])
-            _record_setup_completed(config)
             return
     _run_full_setup(config, hermes_home, is_existing=is_existing, imported_from=imported_from)
 
@@ -719,15 +685,3 @@ def _run_setup_wizard_impl(args):
               "If setup changed a value you customized, restore it with:",
               f"  cp {_backup_path} {config_path}")
     _print_setup_summary(config, hermes_home)
-    _record_setup_completed(config)
-
-
-def _record_setup_completed(config: dict) -> None:
-    """Count a wizard run that finished. Every setup flow ends here, so the one-time
-    shared-metrics offer runs first: a user who opts in now is counted; the API checks enablement."""
-    from hermes_cli.observability.shared_metrics_consent import offer_consent_if_undecided
-
-    offer_consent_if_undecided(config)
-    from hermes_cli.observability.shared_metrics_events import record_setup_completed
-    model = config.get("model")
-    record_setup_completed(surface="cli", provider=model.get("provider") if isinstance(model, dict) else None)

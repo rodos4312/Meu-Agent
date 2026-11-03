@@ -20,15 +20,6 @@ def test_persist_model_selection_writes_the_model_section(tmp_path, monkeypatch)
     assert "api_key" not in model  # endpoint credentials of the previous route never carry over
 
 
-def test_note_setup_failure_reaches_the_setup_metric(monkeypatch):
-    seen = []
-    monkeypatch.setattr("hermes_cli.observability.shared_metrics_setup.note_provider_setup_failure", seen.append)
-    from hermes_cli.model_setup import note_setup_failure
-
-    note_setup_failure("auth")
-    assert seen == ["auth"]
-
-
 def test_secret_source_label_names_an_external_source(monkeypatch):
     monkeypatch.setattr("hermes_cli.env_loader.get_secret_source",
                         lambda name: "bitwarden" if name == "FAKE_TOKEN" else None)

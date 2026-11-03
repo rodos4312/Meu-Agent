@@ -82,7 +82,7 @@ _WAIT_CANCEL_REASONS = frozenset({"wait_timeout", "host_cancelled"})
 
 
 class _Miss(str):
-    """A splice-miss reason: the log text, plus the closed code opt-in shared metrics count."""
+    """A splice-miss reason: readable log text and a code for cancellation handling."""
 
     code: str
 
@@ -90,13 +90,6 @@ class _Miss(str):
         miss = super().__new__(cls, text)
         miss.code = code
         return miss
-
-
-def _record(event: str, **dims: Any) -> None:
-    """Count one event in opt-in shared metrics (a no-op when off; never raises)."""
-    from hermes_cli.observability.shared_metrics_prepared_compaction import record_prepared_compaction
-
-    record_prepared_compaction(event, **dims)
 
 
 @dataclass(frozen=True)
@@ -232,34 +225,16 @@ class PreparedCompaction:
         self._retry_after = 0.0  # monotonic; set by a failed pass
         # Set by the first compaction that needed memory-provider context; such compactions summarise fresh.
         self._needs_provider_context = False
-        self._busy_window: Optional[tuple[str, int, int]] = None  # last window the slot cap refused (counted once)
-        self._taken: Optional[PreparedSummary] = None  # handed to compress(), not yet spliced by adopt()
-        # The attempt that spliced the last summary. Lives here, not on the compressor, because a pre-commit
-        # cancel restores the compressor's attempt telemetry (and its prepared_summary flag) before the
-        # attempt record is emitted.
-        self.spliced_attempt_id: Optional[str] = None
         self._boundaries = 0  # discard() calls that dropped something; a wait that spans one was discarded
 
-    def _count_unspliced(self) -> None:
-        """A summary take() handed out that adopt() never spliced (the compaction aborted or no-opped after
-        taking it) is counted once, at the next touch, so every summary ends as used or discarded."""
-        with self._lock:
-            taken, self._taken = self._taken, None
-        if taken is not None:
-            _record("discarded", reason="compaction_aborted", wait_seconds=taken.waited)
-
     def discard(self, reason: str, code: str = "session_boundary") -> None:
-        """Drop the candidate and cancel a running pass (it can no longer publish); ``code`` is the closed
-        reason opt-in shared metrics count."""
-        self._count_unspliced()
+        """Drop the candidate and cancel a running pass with the local reason ``code``."""
         with self._lock:
             entry, pending, self._entry, self._pending = self._entry, self._pending, None, None
             if pending is not None:
                 pending.cancel(code)  # under the lock: the pass reads its cancel reason after it
             if entry is not None or pending is not None:
                 self._boundaries += 1
-        if entry is not None or pending is not None:
-            _record("discarded", reason=code)
         dropped = entry or (pending.window if pending is not None else None)
         if dropped is not None:
             logger.info(
@@ -272,7 +247,6 @@ class PreparedCompaction:
         if not self._needs_provider_context:
             self._needs_provider_context = True
             logger.info("prepared compaction: off for this agent (memory provider supplies compaction context)")
-            _record("auto_disabled", reason="provider_context")
 
     def take(
         self, messages: list[dict[str, Any]], session_id: str, start: int, *, eligible: bool,
@@ -280,7 +254,6 @@ class PreparedCompaction:
         """The completed candidate when it still covers the same messages after ``compress()``'s head, else
         what a running pass whose window does publishes while this compaction waits for it, else None. Either way the state is
         cleared and a running pass is cancelled: this compaction consumes or supersedes it."""
-        self._count_unspliced()
         with self._lock:
             entry, pending = self._entry, self._pending
             self._entry = None
@@ -318,16 +291,12 @@ class PreparedCompaction:
         if reason is not None or entry is None:
             if entry is not None or pending is not None:
                 logger.info("prepared compaction: splice miss session=%s reason=%s", session_id, reason)
-                if reason.code != "discarded_while_waiting":  # the discard() that woke the wait counted it
-                    _record("discarded", reason=reason.code, wait_seconds=waited)
             return None
         logger.info(
             "prepared compaction: splice hit session=%s window=%d-%d", session_id, entry.compress_start,
             entry.compress_end,
         )
         taken = replace(entry, waited=waited)  # counted as used once adopt() splices it
-        with self._lock:
-            self._taken = taken
         return taken
 
     def _await(self, pending: _PendingPass) -> tuple[Optional[PreparedSummary], Optional[_Miss]]:
@@ -399,7 +368,6 @@ class PreparedCompaction:
         Never raises."""
         token: Optional[_PendingPass] = None
         try:
-            self._count_unspliced()
             if self._blocked(agent, compressor, origin):
                 return None
             with self._lock:
@@ -420,9 +388,6 @@ class PreparedCompaction:
             window = _Window(compressor._session_id, start, end, prefix_identities(working, end))
             # Never queue threads that retain transcripts while every slot is busy.
             if not _slots.acquire(blocking=False):
-                if self._busy_window != (window.session_id, start, end):  # count refused passes, not tool batches
-                    self._busy_window = (window.session_id, start, end)
-                    _record("skipped_busy", origin=origin)
                 return None
             with self._lock:
                 if self._pending is not None or self._entry is not None:
@@ -436,7 +401,6 @@ class PreparedCompaction:
                 self._run_pass, name="compaction-prepare", args=(worker, copy.deepcopy(turns), focus, token, origin),
             )
             thread.start()
-            _record("pass_started", origin=origin)
             return thread
         except Exception:
             if token is not None:
@@ -446,7 +410,6 @@ class PreparedCompaction:
                 token.done.set()
                 _slots.release()
             logger.debug("prepared compaction: maybe_prepare failed", exc_info=True)
-            _record("internal_error", origin=origin, failure_class="exception")
             return None
 
     def _run_pass(
@@ -458,7 +421,6 @@ class PreparedCompaction:
 
         window = token.window
         entry: Optional[PreparedSummary] = None
-        event, failure_class = "pass_cancelled", None  # a published summary records pass_completed instead
         started = time.monotonic()
         try:
             logger.info(
@@ -487,18 +449,14 @@ class PreparedCompaction:
                 logger.warning("prepared compaction: pass failed session=%s after %.1fs: %s", window.session_id,
                                time.monotonic() - started,
                                worker._last_summary_error or "summariser returned nothing")
-                event, failure_class = "pass_failed", _pass_failure_class(worker)
         except AuxiliaryExplicitCancellation:
             # The closed stream raises a BaseException; it must not reach the thread's excepthook (stderr).
             logger.info("prepared compaction: pass cancelled session=%s after %.1fs (%s)", window.session_id,
                             time.monotonic() - started, token.cancel_reason)
         except Exception:
             logger.warning("prepared compaction: pass crashed session=%s", window.session_id, exc_info=True)
-            event, failure_class = "internal_error", "exception"
         finally:
             with self._lock:
-                if entry is not None and self._pending is token:
-                    event = "pass_completed"
                 if self._pending is token:
                     self._pending = None
                     if entry is not None:
@@ -509,18 +467,6 @@ class PreparedCompaction:
                         )
             token.done.set()
             _slots.release()
-            _record(
-                event, origin=origin, reason=token.cancel_reason if event == "pass_cancelled" else None,
-                failure_class=failure_class,
-            )
-
-
-def _pass_failure_class(worker: Any) -> str:
-    """The class an inline attempt logs for this failed summary call: a terminal failure first."""
-    from agent.context_compressor import _TERMINAL_SUMMARY_FAILURES
-
-    terminal = next((cls for flag, cls, _ in _TERMINAL_SUMMARY_FAILURES if getattr(worker, flag, False)), None)
-    return terminal or (worker._active_compression_telemetry or {}).get("failure_class") or "summary_generation_failed"
 
 
 def release_for_agent(agent: Any) -> None:
@@ -534,21 +480,13 @@ def release_for_agent(agent: Any) -> None:
 def adopt(compressor: Any, prepared: PreparedSummary) -> None:
     """Leave the live compressor as the inline summary call would have: the summary is the iterative base,
     failure state cleared, the pass's main-model fallback (if any) carried over, its call in the telemetry."""
-    state = getattr(compressor, "prepared_compaction", None)
     telemetry = getattr(compressor, "_active_compression_telemetry", None)
-    if state is not None:
-        with state._lock:
-            if state._taken is prepared:
-                state._taken = None
-            state.spliced_attempt_id = telemetry.get("attempt_id") if isinstance(telemetry, dict) else None
     compressor._record_summary_success(prepared.body)
     for name, value in prepared.call_state.items():
         setattr(compressor, name, value)
     if isinstance(telemetry, dict):
         telemetry.update({key: value for key, value in prepared.telemetry.items() if value is not None})
         telemetry["prepared_summary"] = True
-    _record("used", reason="aux_fallback_main" if prepared.telemetry.get("fallback_used") else None,
-            wait_seconds=prepared.waited)
 
 
 def maybe_prepare(agent: Any, messages: list[dict[str, Any]], *, origin: str) -> Optional[threading.Thread]:

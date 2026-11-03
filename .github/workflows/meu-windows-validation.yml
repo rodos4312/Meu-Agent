@@ -209,8 +209,6 @@ jobs:
           tests/tui_gateway/contracts/test_generated.py
           tests/agent/test_deepseek_reasoning_content_echo.py
           tests/plugins/model_providers/test_deepseek_profile.py
-          tests/hermes_cli/test_shared_metrics_consent_windows.py
-          tests/hermes_cli/test_shared_metrics_send_migration.py
           tests/agent/test_retry_delay_parsers_shared.py
           tests/tools/test_meu_memory_lifecycle.py
           tests/tools/test_memory_tool.py

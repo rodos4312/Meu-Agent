@@ -409,6 +409,7 @@ def test_rotation_publishes_after_the_split_with_the_attempts_own_session(publis
         with patch.object(agent.context_compressor, "_generate_summary", return_value="SANITIZED SUMMARY"):
             agent._compress_context(_messages(), "sys", approx_tokens=80_000, trigger="pre_api")
         agent.close()
+        agent._session_db.close()
 
     assert agent.session_id != "rotating-session"
     [(session_id, name, payload)] = published
@@ -438,6 +439,7 @@ def test_a_split_that_fails_after_rewriting_history_is_still_a_compaction(publis
                 patch.object(SessionDB, "update_system_prompt", side_effect=OSError("disk full")):
             compressed, _ = agent._compress_context(_messages(), "sys", approx_tokens=80_000, trigger="pre_api")
         agent.close()
+        agent._session_db.close()
 
     assert len(compressed) < len(_messages())
     [(_sid, name, payload)] = published
@@ -479,6 +481,7 @@ def test_an_in_place_engine_whose_split_fails_after_the_archive_is_still_a_compa
                 messages, "sys", approx_tokens=80_000, trigger="pre_api", commit_fence=CompressionCommitFence(),
             )
         agent.close()
+        agent._session_db.close()
 
     assert compressed is messages and len(compressed) < len(_messages())
     [(_sid, name, payload)] = published

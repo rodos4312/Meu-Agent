@@ -1018,16 +1018,14 @@ _exec_local_engine: contextvars.ContextVar[Optional[str]] = contextvars.ContextV
 
 
 def _handle_browser_exec(args: dict, **kw):
-    """Registry handler; each call counts against the backend that served it (shared metrics, opt-in)."""
-    from hermes_cli.observability.shared_metrics_loop import record_browser_call
-    from tools.browser_session_cloud import browser_backend_name
+    """Registry handler for the configured browser backend."""
     token = _exec_local_engine.set(None)
     try:
-        return record_browser_call(lambda: browser_exec(
+        return browser_exec(
             code=args.get("code", ""), session=args.get("session", "") or "",
             timeout_s=args.get("timeout_s", _DEFAULT_TIMEOUT_S), task_id=kw.get("task_id"),
             local=bool(args.get("local", False)),
-        ), lambda: browser_backend_name(local_engine=_exec_local_engine.get()))
+        )
     finally:
         _exec_local_engine.reset(token)
 

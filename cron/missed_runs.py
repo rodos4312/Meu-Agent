@@ -83,7 +83,7 @@ def fast_forward_missed_recurring(d: Any, grace: int) -> bool:
     never calls advance_next_run. mark_job_run re-anchors on completion, so the value is
     provisional.
     """
-    from cron.jobs import _elapsed_seconds, _ensure_aware, _instant_after, record_cron_missed
+    from cron.jobs import _elapsed_seconds, _ensure_aware, _instant_after
 
     if _elapsed_seconds(d.scan.now, d.next_run_dt) <= grace:
         return False
@@ -99,7 +99,6 @@ def fast_forward_missed_recurring(d: Any, grace: int) -> bool:
             "Job '%s' missed its scheduled time (%s, grace=%ds). "
             "Skipping %d missed occurrence(s) because catch-up is off for this job; next run: %s",
             d.label, d.next_run, grace, missed, new_next)
-        d.scan.on_saved.append(lambda job=d.job: record_cron_missed(job))
         d.scan.on_saved.append(lambda job=d.job, first=d.next_run: _book_missed(
             job, missed, first, f"skipped, catch-up off; next run {new_next}", capped=capped))
         return True
@@ -125,7 +124,7 @@ def retire_expired_oneshot(d: Any) -> bool:
     elsewhere — skip but keep the record so its mark_job_run can land."""
     from cron import store_health
     from cron.jobs import (
-        ONESHOT_GRACE_SECONDS, _current_cron_store, _elapsed_seconds, record_cron_missed)
+        ONESHOT_GRACE_SECONDS, _current_cron_store, _elapsed_seconds)
     from cron.jobs_oneshot_diagnostics import write_missed
 
     if _elapsed_seconds(d.scan.now, d.next_run_dt) <= ONESHOT_GRACE_SECONDS:
@@ -145,7 +144,6 @@ def retire_expired_oneshot(d: Any) -> bool:
     if not (claim or d.job.get("fire_claim")):
         write_missed(d.job, d.next_run)
         d.scan.retire(d.job["id"])
-        d.scan.on_saved.append(lambda job=d.job: record_cron_missed(job))
         d.scan.on_saved.append(lambda job=d.job, first=d.next_run: _book_missed(
             job, 1, first, "one-shot past its grace window; catch-up off", capped=False))
     return True

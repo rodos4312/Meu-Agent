@@ -2811,7 +2811,6 @@ def install_linux_gateway_from_setup(force: bool = False, enable_on_startup: boo
     return scope, True
 
 
-
 def get_systemd_linger_status(username: str | None = None) -> tuple[bool | None, str]:
     """Linger status for *username* or the current user when omitted.
 
@@ -2999,8 +2998,6 @@ def _remap_path_for_user(path: str, target_home_dir: str) -> str:
         return str(Path(target_home_dir) / relative)
     except ValueError:
         return str(p)
-
-
 
 
 def _systemd_env_line(name: str, value: str) -> str:
@@ -3968,7 +3965,6 @@ from datetime import UTC
 _resolved_launchd_domain: str | None = None
 
 
-
 def _wait_for_gateway_exit(timeout: float = 10.0, force_after: float | None = 5.0) -> bool:
     """Wait up to ``timeout`` s for the gateway (by gateway.pid, not launchd labels, so multiple
     HERMES_HOMEs work) to exit; SIGKILL it after ``force_after`` s of graceful waiting."""
@@ -4040,7 +4036,6 @@ def _wait_for_api_server_port_free(*, timeout: float = 10.0) -> bool:
             "new api_server may fail to bind"
         )
     return freed
-
 
 
 # =============================================================================
@@ -4559,8 +4554,6 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False, fo
     _guard_existing_gateway_process_conflict(replace=replace)
     sys.path.insert(0, str(PROJECT_ROOT))
     _apply_startup_watchdog_config()
-    from hermes_cli.observability.shared_metrics_process import begin_process
-    begin_process("gateway")
 
     # Detached Windows runs (HERMES_GATEWAY_DETACHED=1, or non-TTY for older wrappers) ignore
     # console-control broadcasts from sibling CLIs; foreground runs keep Ctrl+C-to-stop.
@@ -4746,11 +4739,9 @@ def _runtime_health_lines() -> list[str]:
     return lines
 
 
-
 def _print_info_lines(*lines: str) -> None:
     for line in lines:
         print_info(line)
-
 
 
 # WhatsApp/DingTalk/WeCom/Feishu setup flows live in their plugins' adapter.py::interactive_setup.
@@ -4788,7 +4779,6 @@ def _is_service_running() -> bool:
     return len(find_gateway_pids()) > 0
 
 
-
 def _print_indented(text: str, emit=print) -> None:
     for line in text.splitlines():
         emit(f"  {line}")
@@ -4816,7 +4806,6 @@ def _service_call(backend: str, verb: str, system: bool | None = False) -> None:
         return globals()[f"launchd_{verb}"]()
     fn = globals()[f"systemd_{verb}"]
     return fn() if system is None else fn(system=system)
-
 
 
 # =============================================================================

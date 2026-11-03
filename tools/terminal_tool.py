@@ -1340,11 +1340,8 @@ def _run_foreground(
     command: str, env: Any, plan: _ExecPlan, *,
     task_id: Optional[str], session_id: Optional[str], session_key: str,
     workdir: Optional[str], approval_note: Optional[str], clear_interrupt: bool,
-    metered: bool = True,
 ) -> str:
-    """Execute in the foreground with retry on transient errors, then finalize. ``metered``
-    is False for Hermes' own control-plane commands (``_host_local``)."""
-    from hermes_cli.observability.shared_metrics_harness import record_terminal_outcome
+    """Execute in the foreground with retry on transient errors, then finalize."""
     max_retries = 3
     env_type, eff, effective_timeout = plan.env_type, plan.effective_task_id, plan.effective_timeout
 
@@ -1395,8 +1392,6 @@ def _run_foreground(
             "status": "yielded_to_background", "session_id": result["yielded_session_id"],
             "pid": result.get("pid"), "notify_on_complete": True, "note": _YIELDED_NOTE,
         }, ensure_ascii=False)
-    if metered:
-        record_terminal_outcome(command, env_type, result)
     return finalize_foreground_result(
         command=command, result=result, env=env, env_type=env_type, effective_task_id=eff,
         task_id=task_id, session_id=session_id, session_key=session_key, workdir=workdir,
@@ -1502,7 +1497,6 @@ def terminal_tool(
     ``_host_local`` forces the local backend for Hermes-owned control-plane
     children (kept in a separate env cache from the configured backend).
     """
-    from hermes_cli.observability.shared_metrics_loop import record_terminal_backend as _metered
     plan = None
     try:
         plan = _plan_execution(
@@ -1580,19 +1574,18 @@ def terminal_tool(
                 )
                 if plan.promoted_from_foreground_timeout is not None:
                     result = _with_promoted_note(result, plan.promoted_from_foreground_timeout)
-                return _metered(None if _host_local else plan, result)
-            return _metered(None if _host_local else plan, _run_foreground(
+                return result
+            return _run_foreground(
                 command, env, plan,
                 task_id=task_id, session_id=session_id, session_key=session_key,
                 workdir=workdir, approval_note=verdict.note, clear_interrupt=verdict.approved_run,
-                metered=not _host_local,
-            ))
+            )
     except _Rejected as r:
         return r.result_json
     except EnvironmentConnectionError as e:
-        return _metered(None if _host_local else plan, _degraded_result(e, task_id), error_class="tool_error")
+        return _degraded_result(e, task_id)
     except Exception as e:
-        return _metered(None if _host_local else plan, _fatal_error_json(e), error_class="exception")
+        return _fatal_error_json(e)
 
 
 def check_terminal_requirements() -> bool:

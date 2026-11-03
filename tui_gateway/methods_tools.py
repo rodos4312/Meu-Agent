@@ -720,7 +720,7 @@ def _cmd_moa(rid, params, session, name, arg):
                 _apply_model_switch(
                     params.get("session_id", ""), session, f"{preset} --provider moa",
                     confirm_expensive_model=False, pin_session_override=True, persist_override=False,
-                    count_switch=False)
+                    )
             except Exception:
                 session.pop("moa_one_shot_restore", None)
                 raise
@@ -1523,7 +1523,6 @@ def _(rid, params: dict) -> dict:
     if bearer_token := params.get("bearer_token"):
         server_config["headers"] = mc._save_bearer_auth_token(name, str(bearer_token))
     saved_ok = mc._save_mcp_server(name, server_config)
-    _tools_mod("tui_gateway.mcp_rpc_helpers").record_mcp_add(entry, server_config, saved_ok)
     if not saved_ok:
         return _err(rid, 4001, f"server '{name}' rejected: suspicious command/args configuration")
     saved = mc._get_mcp_servers().get(name, server_config)

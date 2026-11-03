@@ -1090,7 +1090,7 @@ describe('Meu credentials and automatic model selection', () => {
     fireEvent.change(input, { target: { value: 'test-only-key' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
-      expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'test-only-key', 'research', { providerSetup: true })
+      expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'test-only-key', 'research')
     )
   })
 

@@ -404,9 +404,6 @@ def _save_model_choice(model_id: str) -> None:
     else:
         config["model"] = {"default": model_id}
     save_config(config)
-    from hermes_cli.observability.shared_metrics_setup import note_provider_setup_saved
-
-    note_provider_setup_saved()
 
 
 # Public for plugins (catalog rule 9): the interactive model picker under a caller's title.

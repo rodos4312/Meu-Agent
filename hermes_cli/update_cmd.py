@@ -258,7 +258,6 @@ def _record_snapshot_stage(args, snapshot_id) -> None:
     _completion_receipt.record_stage("snapshot", "success" if snapshot_id else "skipped" if skipped else "failed")
 
 
-
 def _git_run(git_cmd, args, cwd=None, *, check=False, network=False):
     """Run git capturing utf-8 text (default cwd: checkout); ``network=True`` disables the
     terminal prompt so an HTTP 401 fails fast instead of hanging, and bounds the wait.
@@ -541,7 +540,6 @@ def _write_update_incomplete_marker() -> None:
 def _write_lazy_refresh_incomplete_marker() -> None:
     # Historical updater hook. There is no separate lazy-refresh transaction.
     stop_for_relaunch()
-
 
 
 def _filter_non_gateway_concurrent_instances(
@@ -1821,7 +1819,6 @@ def _cmd_update_impl(args, gateway_mode: bool):
         root = _m().PROJECT_ROOT
         print(f"✗ Cannot update while a Git {git_operation} is in progress in {root}.")
         print(f"  Finish it or run `git {git_operation} --abort`, then re-run `hermes update`.")
-        _record_stop("git_in_progress", without_receipt="failed")  # before the receipt opens: a metrics row only
         sys.exit(1)
 
     # Self-heal abandoned .git/*.lock files (a crashed fetch) and aborted-transfer pack temps

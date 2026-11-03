@@ -427,13 +427,13 @@ function Invoke-VerifiedDownload {
         if ($digest -eq $Sha256.ToLowerInvariant()) { return }
         Remove-Item -Path $OutFile -Force -ErrorAction SilentlyContinue
         # Wrong bytes = tampering or a corrupt mirror, not a routing problem.
-        Fail "download digest mismatch for $candidate (expected $Sha256, got $digest)" download_digest_mismatch
+        Fail "download digest mismatch for $candidate (expected $Sha256, got $digest)"
     }
     $tried = $urls -join " or "
     if ($httpFailure) {
-        Fail "failed to download from $tried : $httpFailure" download_failed
+        Fail "failed to download from $tried : $httpFailure"
     }
-    Fail "failed to download from $tried" download_failed
+    Fail "failed to download from $tried"
 }
 
 # Best-effort: how big is $Uri, per the server? Returns 0 when the server
@@ -522,7 +522,7 @@ function Get-Uv {
     $target = "win32-$(Get-WindowsArch)"
     $pin = $script:UvPinFiles[$target]
     if (-not $pin) {
-        Fail "no pinned uv artifact for $target; Hermes does not support this host" unsupported_platform
+        Fail "no pinned uv artifact for $target; Hermes does not support this host"
     }
     $entry = Join-Path (Get-PmStoreRoot) "uv-$($script:UvPinVersion)-$target"
     $uvExe = Join-Path $entry "uv.exe"
@@ -542,7 +542,7 @@ function Get-Uv {
         # The zip carries uv.exe (+ uvx.exe) at the root or under one
         # versioned wrapper dir — take whichever layout arrived.
         $found = Get-ChildItem -Path $extractDir -Filter "uv.exe" -Recurse | Select-Object -First 1
-        if (-not $found) { Fail "uv.exe not found in the downloaded archive" uv_unusable }
+        if (-not $found) { Fail "uv.exe not found in the downloaded archive"  }
         New-Item -ItemType Directory -Force -Path $entry | Out-Null
         Move-Item -Path $found.FullName -Destination $uvExe -Force
         $uvx = Get-ChildItem -Path $extractDir -Filter "uvx.exe" -Recurse | Select-Object -First 1
@@ -550,7 +550,7 @@ function Get-Uv {
     } finally {
         Remove-Item -Path $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
     }
-    if (-not (Test-UvAtLeastPin $uvExe)) { Fail "pinned uv staged but does not run on this host" uv_unusable }
+    if (-not (Test-UvAtLeastPin $uvExe)) { Fail "pinned uv staged but does not run on this host"  }
     return $uvExe
 }
 
@@ -583,12 +583,12 @@ function Get-PinnedGit {
         if (-not $sfx.WaitForExit(600000)) {
             Invoke-Native { taskkill.exe /T /F /PID $sfx.Id 2>&1 | Out-Null }
             $sfx.WaitForExit()
-            Fail "pinned git self-extractor timed out after 600s" git_extract_failed
+            Fail "pinned git self-extractor timed out after 600s"
         }
         if ($sfx.ExitCode) {
-            Fail "pinned git self-extractor exited $($sfx.ExitCode) (it reports nothing under -y; usual causes: disk full, path-length limit, antivirus lock)" git_extract_failed
+            Fail "pinned git self-extractor exited $($sfx.ExitCode) (it reports nothing under -y; usual causes: disk full, path-length limit, antivirus lock)"
         }
-        if (-not (Test-Path (Join-Path $extractDir "cmd\git.exe"))) { Fail "git.exe not found in the downloaded archive" git_extract_failed }
+        if (-not (Test-Path (Join-Path $extractDir "cmd\git.exe"))) { Fail "git.exe not found in the downloaded archive"  }
         if (Test-Path $entry) { Remove-Item -Recurse -Force $entry }
         # Prerequisites run first, so on a fresh host the store root does not
         # exist yet; Move-Item never creates the destination's parent.
@@ -769,33 +769,10 @@ function Test-UvAtLeastPin([string]$Path) {
     $have = ("$out".Trim() -split '\s+')[1] -replace '[^0-9.].*$', ''
     try { return ([version]$have -ge [version]$script:UvPinVersion) } catch { return $false }
 }
-function Fail([string]$msg, [string]$Class = "other") {
+function Fail([string]$msg) {
     # Throw, never exit: the entry points below own reporting and the exit
     # code, and the stage dispatcher's catch emits the -Json failure frame.
-    # $Class: closed failure class for the local install receipt.
-    $script:FailureClass = $Class
     throw $msg
-}
-
-# One local receipt per full-ladder run, under the profile's shared-metrics dir.
-# Only closed tokens and two timestamps (never the error text, paths or URLs);
-# the installer never sends anything. Hermes reports it as hermes.install.run on
-# a later start only while shared metrics collection is on, and deletes it
-# unreported when collection is off. Best effort: never fails the install.
-function Write-InstallReceipt([string]$Outcome, [string]$FailedStage, [string]$Class) {
-    # Meu does not collect installation telemetry.
-    return
-}
-
-# The receipt class for a ladder stage that threw. A native child Ctrl-C ended
-# (130, or Windows STATUS_CONTROL_C_EXIT 0xC000013A) is a user abort even when
-# the host did not stop the pipeline first; it beats the stage's own class.
-# (A Ctrl-C the host saw stops the pipeline: catch is skipped and finally
-# records `interrupted`.)
-function Get-StageFailureClass {
-    if ($global:LASTEXITCODE -in @(130, -1073741510, 3221225786)) { return "interrupted" }
-    if ($script:FailureClass) { return $script:FailureClass }
-    return "other"
 }
 
 function Emit-Frame([bool]$ok, [string]$name, [bool]$skipped, [string]$reason = "") {
@@ -821,7 +798,7 @@ $Stages = @(
 $Stages += @{ name = "complete"; title = "Finish install"; category = "runtime"; needs_user_input = $false }
 function Stage-Prerequisites {
     if (-not (Ensure-Git)) {
-        Fail "no pinned Git artifact for this Windows architecture" unsupported_platform
+        Fail "no pinned Git artifact for this Windows architecture"
     }
     Write-Ok "prerequisites ok (git)"
 }
@@ -943,14 +920,14 @@ function Confirm-StableUnreachable([string]$What) {
         Write-Warn "$What; keeping the checkout where it is"
         return
     }
-    Fail "$What$(Get-NativeDetail). Rerun the installer to retry, or pass -Channel main to install main's tip" git_fetch_failed
+    Fail "$What$(Get-NativeDetail). Rerun the installer to retry, or pass -Channel main to install main's tip"
 }
 
 function Update-MeuPinnedCheckout {
     # Desktop upgrades pair one tested artifact with exactly its backend commit.
     # Never stash, reset, switch branches, or advance to a newer untested branch tip.
     if ($Branch -cne 'dev/meu-foundation' -or $Commit -cnotmatch '^[a-f0-9]{40}$') {
-        Fail 'Meu upgrade requires a pinned development build' commit_not_on_branch
+        Fail 'Meu upgrade requires a pinned development build'
     }
     $current = (Invoke-Native { git -C $InstallDir rev-parse HEAD }).Trim()
     if ($current -ceq $Commit) { return }
@@ -959,23 +936,23 @@ function Update-MeuPinnedCheckout {
     $activeBranch = "$(Invoke-Native { git -C $InstallDir branch --show-current })".Trim()
     $origin = (Invoke-Native { git -C $InstallDir config --get remote.origin.url }).Trim()
     if (($activeBranch -and $activeBranch -cne $Branch) -or $origin -cne 'https://github.com/rodos4312/Meu-Agent.git') {
-        Fail 'Meu backend uses another branch or repository; upgrade stopped' commit_not_on_branch
+        Fail 'Meu backend uses another branch or repository; upgrade stopped'
     }
     if (Invoke-Native { git -C $InstallDir status --porcelain }) {
-        Fail 'Meu backend has local changes; upgrade stopped without changing them' local_changes_blocked
+        Fail 'Meu backend has local changes; upgrade stopped without changing them'
     }
     Invoke-Logged "Fetching Meu $Branch" { git -C $InstallDir fetch --no-tags origin "+refs/heads/${Branch}:refs/remotes/origin/${Branch}" }
-    if ($LASTEXITCODE) { Fail 'Could not fetch the Meu backend' git_fetch_failed }
+    if ($LASTEXITCODE) { Fail 'Could not fetch the Meu backend'  }
     Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit HEAD } | Out-Null
     if (-not $LASTEXITCODE) { return } # No downgrade, including an older installer.
     Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit "origin/$Branch" } | Out-Null
-    if ($LASTEXITCODE) { Fail 'The packaged commit is not on the Meu development branch' commit_not_on_branch }
+    if ($LASTEXITCODE) { Fail 'The packaged commit is not on the Meu development branch'  }
     Invoke-Native { git -C $InstallDir merge-base --is-ancestor HEAD $Commit } | Out-Null
-    if ($LASTEXITCODE) { Fail 'Meu backend history differs; upgrade stopped' commit_not_on_branch }
+    if ($LASTEXITCODE) { Fail 'Meu backend history differs; upgrade stopped'  }
     # Existing lifecycle checks refuse to interrupt active agent work.
     Invoke-InstalledHermes @('gateway', 'stop')
     Invoke-Logged "Updating Meu backend to $Commit" { git -C $InstallDir merge --ff-only --no-stat $Commit }
-    if ($LASTEXITCODE) { Fail 'Could not advance the Meu backend' git_checkout_failed }
+    if ($LASTEXITCODE) { Fail 'Could not advance the Meu backend'  }
 }
 
 function Stage-Repository {
@@ -984,17 +961,17 @@ function Stage-Repository {
     # parameter through this scope.
     $chosen = ''
     $release = ''
-    if ($Channel -and $Channel -cnotin @('stable', 'main')) { Fail "-Channel must be stable or main, not $Channel" other }
+    if ($Channel -and $Channel -cnotin @('stable', 'main')) { Fail "-Channel must be stable or main, not $Channel"  }
     # Refuse an occupied non-checkout before provisioning Git. This check
     # needs no tool download and must not overwrite a user's existing files.
     if (-not (Test-Path (Join-Path $InstallDir ".git")) -and (Test-Path -LiteralPath $InstallDir)) {
         $item = Get-Item -LiteralPath $InstallDir -Force
         $empty = $item.PSIsContainer -and -not $item.LinkType -and -not (Get-ChildItem -LiteralPath $InstallDir -Force | Select-Object -First 1)
         if (-not $empty) {
-            Fail "$InstallDir exists and is not a Hermes git checkout. Move it aside, or install elsewhere with -InstallDir <path>." dir_not_checkout
+            Fail "$InstallDir exists and is not a Hermes git checkout. Move it aside, or install elsewhere with -InstallDir <path>."
         }
     }
-    if (-not (Ensure-Git)) { Fail "no pinned Git artifact for this Windows architecture" unsupported_platform }
+    if (-not (Ensure-Git)) { Fail "no pinned Git artifact for this Windows architecture"  }
     # An interrupted clone from an older installer can leave a .git with no
     # initial commit, where stash/checkout abort ("You do not have the initial
     # commit yet", #40998); a killed update or a sync tool can leave one git
@@ -1026,7 +1003,7 @@ function Stage-Repository {
         # just the first clone.
         if ($env:HERMES_REPO_URL) {
             Invoke-Native { git -C $InstallDir remote set-url origin $RepoUrl }
-            if ($LASTEXITCODE) { Fail "cannot point origin at $RepoUrl" git_fetch_failed }
+            if ($LASTEXITCODE) { Fail "cannot point origin at $RepoUrl"  }
         }
         # No recorded choice: an official checkout tracks stable, as `hermes update` does.
         if (-not $chosen) {
@@ -1098,7 +1075,7 @@ function Stage-Repository {
             }
         } else {
             Invoke-Logged "Fetching origin/$Branch" { git -C $InstallDir fetch origin "+refs/heads/${Branch}:refs/remotes/origin/${Branch}" }
-            if ($LASTEXITCODE) { Fail "git fetch failed$(Get-NativeDetail)" git_fetch_failed }
+            if ($LASTEXITCODE) { Fail "git fetch failed$(Get-NativeDetail)"  }
         }
         $stamp = (Get-Date -Format 'yyyyMMdd-HHmmss')
         # Park local work BEFORE switching branches: checkout refuses a dirty
@@ -1112,17 +1089,17 @@ function Stage-Repository {
             if (Invoke-Native { git -C $InstallDir ls-files --unmerged }) {
                 Write-Warn "clearing unmerged index entries from a previous conflict"
                 Invoke-Native { git -C $InstallDir reset -q }
-                if ($LASTEXITCODE) { Fail "cannot clear the unmerged index in $InstallDir" local_changes_blocked }
+                if ($LASTEXITCODE) { Fail "cannot clear the unmerged index in $InstallDir"  }
             }
             Invoke-Logged "Stashing local changes" { git -C $InstallDir stash push --include-untracked -m "hermes-install-autostash-$stamp" }
-            if ($LASTEXITCODE) { Fail "could not stash local changes in $InstallDir; commit or move them aside, then rerun" local_changes_blocked }
+            if ($LASTEXITCODE) { Fail "could not stash local changes in $InstallDir; commit or move them aside, then rerun"  }
             Write-Warn "local changes stashed as hermes-install-autostash-$stamp"
         }
         if ($release) {
             # Detached at the release commit, the way `hermes update` places a stable checkout;
             # branches (and any commits on them) stay where they are.
             Invoke-Logged "Checking out $release" { git -C $InstallDir checkout --detach $release }
-            if ($LASTEXITCODE) { Fail "git checkout failed$(Get-NativeDetail)" git_checkout_failed }
+            if ($LASTEXITCODE) { Fail "git checkout failed$(Get-NativeDetail)"  }
             return
         }
         # checkout's branch guess only sees remote refs the refspec maps, so a narrow checkout
@@ -1133,7 +1110,7 @@ function Stage-Repository {
         } else {
             Invoke-Logged "Checking out $Branch" { git -C $InstallDir checkout $Branch }
         }
-        if ($LASTEXITCODE) { Fail "git checkout failed$(Get-NativeDetail)" git_checkout_failed }
+        if ($LASTEXITCODE) { Fail "git checkout failed$(Get-NativeDetail)"  }
         # --no-stat: across a large gap (v2026.7.1 -> today is ~27k lines) the
         # diffstat arrives as one burst. Hermes-Setup.exe forwards every line
         # to its window as a separate event; the burst overflows the Windows
@@ -1148,22 +1125,22 @@ function Stage-Repository {
             # does, after parking the old tip. Mirrors scripts/install.sh.
             # Keep commits absent from origin in the updater's rescue namespace.
             $droppedText = (Invoke-Native { git -C $InstallDir rev-list --count "origin/$Branch..HEAD" 2>$null })
-            if ($LASTEXITCODE) { Fail "cannot count commits before reset" git_reset_failed }
+            if ($LASTEXITCODE) { Fail "cannot count commits before reset"  }
             [long]$dropped = 0
-            if (-not [long]::TryParse("$droppedText".Trim(), [ref]$dropped)) { Fail "cannot count commits before reset" git_reset_failed }
+            if (-not [long]::TryParse("$droppedText".Trim(), [ref]$dropped)) { Fail "cannot count commits before reset"  }
             if ($dropped -gt 0) {
                 Invoke-Native { git -C $InstallDir merge-base HEAD "origin/$Branch" 2>$null } | Out-Null
                 $rescueKind = if ($LASTEXITCODE -eq 0) { 'diverged' } else { 'orphan' }
                 $prior = (Invoke-Native { git -C $InstallDir rev-parse --short=12 HEAD 2>$null })
-                if ($LASTEXITCODE -or -not $prior) { Fail "cannot identify commits before reset" git_reset_failed }
+                if ($LASTEXITCODE -or -not $prior) { Fail "cannot identify commits before reset"  }
                 $rescue = "refs/hermes-update-backups/$rescueKind-$Branch-$stamp-$prior"
                 Invoke-Native { git -C $InstallDir update-ref $rescue HEAD 2>$null }
-                if ($LASTEXITCODE) { Fail "cannot back up $dropped local commit(s); refusing to reset" git_reset_failed }
+                if ($LASTEXITCODE) { Fail "cannot back up $dropped local commit(s); refusing to reset"  }
                 Write-Warn "$dropped commit(s) not on origin/$Branch backed up to $rescue"
                 Log "List them with: git -C `"$InstallDir`" log origin/$Branch..$rescue"
             }
             Invoke-Logged "Resetting to origin/$Branch" { git -C $InstallDir reset --hard "origin/$Branch" }
-            if ($LASTEXITCODE) { Fail "git reset failed$(Get-NativeDetail)" git_reset_failed }
+            if ($LASTEXITCODE) { Fail "git reset failed$(Get-NativeDetail)"  }
             Write-Warn "not fast-forwardable; reset to origin/$Branch"
         }
     } else {
@@ -1218,12 +1195,12 @@ function Stage-Repository {
                 Invoke-Logged "Cloning history" { git clone @progress @longPaths --filter=blob:none --no-checkout --branch $Branch $RepoUrl $tree }
                 if (-not $LASTEXITCODE) { $cloned = $true; $deferred = $true }
             }
-            if (-not $cloned) { Fail "git clone failed; no checkout published$(Get-NativeDetail)" git_clone_failed }
+            if (-not $cloned) { Fail "git clone failed; no checkout published$(Get-NativeDetail)"  }
             if ($Commit) {
                 # Pin before publishing: a pinned or deferred clone has no files yet,
                 # and a failure here leaves only the staging dir, which finally removes.
                 Invoke-Native { git -C $tree merge-base --is-ancestor $Commit "origin/$Branch" 2>$null }
-                if ($LASTEXITCODE) { Fail "commit $Commit is not on branch $Branch" commit_not_on_branch }
+                if ($LASTEXITCODE) { Fail "commit $Commit is not on branch $Branch"  }
             }
             # A failure here leaves only the staging dir, which finally removes.
             if ($release -and -not (Receive-StableRelease $tree $release)) { Confirm-StableUnreachable "could not fetch $release" }
@@ -1242,7 +1219,7 @@ function Stage-Repository {
                 }
                 if (-not $materialized) {
                     $what = if ($Commit) { $Commit } else { "the cloned tree" }
-                    Fail "could not check out $what; no checkout published$(Get-NativeDetail)" git_checkout_failed
+                    Fail "could not check out $what; no checkout published$(Get-NativeDetail)"
                 }
                 $pinned = [bool]$Commit
             }
@@ -1259,9 +1236,9 @@ function Stage-Repository {
         # the complete marker records both, and a commit off that branch would
         # make the next plain rerun "update" onto a different line.
         Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit "origin/$Branch" 2>$null }
-        if ($LASTEXITCODE) { Fail "commit $Commit is not on branch $Branch" commit_not_on_branch }
+        if ($LASTEXITCODE) { Fail "commit $Commit is not on branch $Branch"  }
         Invoke-Logged "Pinning $Commit" { git -C $InstallDir checkout $Commit }
-        if ($LASTEXITCODE) { Fail "could not pin commit $Commit$(Get-NativeDetail)" git_checkout_failed }
+        if ($LASTEXITCODE) { Fail "could not pin commit $Commit$(Get-NativeDetail)"  }
     }
 }
 
@@ -1293,10 +1270,10 @@ function Get-BootstrapPython {
     $bootPy = (Invoke-Native -Utf8Output { & $uv python find --managed-python --no-project $pyRequest 2>$null }) -join "`n"
     if ($LASTEXITCODE -or -not $bootPy) {
         Invoke-Logged "Downloading Python $pyVersion" { & $uv python install --no-bin --no-registry $pyRequest }
-        if ($LASTEXITCODE) { Fail "bootstrap Python installation failed" python_install_failed }
+        if ($LASTEXITCODE) { Fail "bootstrap Python installation failed"  }
         $bootPy = (Invoke-Native -Utf8Output { & $uv python find --managed-python --no-project $pyRequest }) -join "`n"
     }
-    if ($LASTEXITCODE -or -not $bootPy) { Fail "bootstrap Python lookup failed" python_install_failed }
+    if ($LASTEXITCODE -or -not $bootPy) { Fail "bootstrap Python lookup failed"  }
     $script:BootstrapPython = $bootPy.Trim()
     return $script:BootstrapPython
 }
@@ -1314,7 +1291,7 @@ function Invoke-BootstrapPm {
         if ($SkipBrowser) { $pmArgs += @('--without', 'agent-browser') }
         if ($SkipComputerUse) { $pmArgs += @('--without', 'cua-driver') }
         Invoke-Logged "Installing dependencies (hash-verified via uv.lock)" { & $bootPy -m pm.cli @pmArgs }
-        if ($LASTEXITCODE) { Fail "dependency install failed" deps_install_failed }
+        if ($LASTEXITCODE) { Fail "dependency install failed"  }
     } finally {
         Pop-Location
     }
@@ -1342,7 +1319,7 @@ function Invoke-SourceCompletion([bool]$Desktop) {
     } finally {
         Pop-Location
     }
-    if ($code) { Fail "app products or command publication failed (exit $code)" products_build_failed }
+    if ($code) { Fail "app products or command publication failed (exit $code)"  }
     Write-Ok "app products and hermes command ready"
 }
 
@@ -1359,7 +1336,7 @@ function Publish-UserCommand {
     } finally {
         Pop-Location
     }
-    if ($code) { Fail "launcher staging failed" products_build_failed }
+    if ($code) { Fail "launcher staging failed"  }
     Set-LauncherUserPath $binDir
     Write-Ok "hermes command installed at $binDir"
 }
@@ -1442,8 +1419,7 @@ function Invoke-InstalledHermes([string[]]$CommandArgs) {
     $runtimeArgs = @($runtimeCommand | Select-Object -Skip 1) + $CommandArgs
     Invoke-Native { & $runtimeCommand[0] @runtimeArgs }
     if ($LASTEXITCODE) {
-        $class = @{ setup = 'setup_failed'; gateway = 'gateway_failed' }[$CommandArgs[0]]
-        Fail "hermes $($CommandArgs -join ' ') failed (exit $LASTEXITCODE)" $(if ($class) { $class } else { 'other' })
+        Fail "hermes $($CommandArgs -join ' ') failed (exit $LASTEXITCODE)"
     }
 }
 
@@ -1484,7 +1460,7 @@ function Confirm-DesktopArtifact {
             if (Test-Path $cand) { $desktopExe = $cand; break }
         }
         if (-not $desktopExe) {
-            Fail "desktop build produced no Hermes.exe under $desktopDir\release\*-unpacked" products_build_failed
+            Fail "desktop build produced no Hermes.exe under $desktopDir\release\*-unpacked"
         }
         Write-Ok "Desktop ready: $desktopExe"
 
@@ -1513,7 +1489,7 @@ function Confirm-DesktopArtifact {
 function Stage-Complete {
     $commit = $Commit
     if (-not $commit) {
-        if (-not (Ensure-Git)) { Fail "no pinned Git artifact for this Windows architecture" unsupported_platform }
+        if (-not (Ensure-Git)) { Fail "no pinned Git artifact for this Windows architecture"  }
         $commit = Invoke-Native { git -C $InstallDir rev-parse HEAD 2>$null }
     }
     if ($commit) {
@@ -1681,25 +1657,15 @@ if ($Stage) {
 
 # No -Stage: run the whole ladder — the same authoritative list the
 # manifest prints, so -IncludeDesktop inserts desktop here too.
-$script:InstallStarted = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-$script:InstallStage = "prerequisites"
-$script:InstallReceiptWritten = $false
 try {
     Write-Banner
     foreach ($s in $Stages) {
-        $script:InstallStage = $s.name
-        $script:FailureClass = ""
         Invoke-StageByName $s.name
     }
-    Write-InstallReceipt "success" "none" "none"
     Write-PathReloadHint
 } catch {
-    Write-InstallReceipt "failed" $script:InstallStage (Get-StageFailureClass)
     Write-Err "$_"
     if ($script:RunAsFile) { exit 1 }
     # Under iex: report failure without closing the user's window.
     $global:LASTEXITCODE = 1
-} finally {
-    # Ctrl-C stops the run without reaching catch; finally still runs (no-op after a receipt).
-    Write-InstallReceipt "failed" $script:InstallStage "interrupted"
 }

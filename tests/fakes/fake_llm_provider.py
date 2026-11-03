@@ -32,7 +32,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable, Union
 
-from hermes_cli.observability.shared_metrics_consent import OFFER_VERSION
 
 MODEL_ID = "fake-model"
 
@@ -445,7 +444,7 @@ def write_hermes_home(
         "  shared_metrics:\n"
         "    enabled: false\n"
         "    send: false\n"
-        f"    offer_version: {OFFER_VERSION}\n"
+        f"    offer_version: {2}\n"
         + extra_config,
         encoding="utf-8",
     )

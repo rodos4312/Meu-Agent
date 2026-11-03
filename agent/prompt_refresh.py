@@ -81,7 +81,6 @@ def rebuild_for_refresh(agent: Any, system_message: Any, conversation_history: A
     """Rebuild the session's prompt from current sources and persist it with ``epoch``."""
     from agent.prompt_builder import clear_skills_system_prompt_cache
     from agent.surface_switch import stage_surface_switch_note
-    from hermes_cli.observability.shared_metrics_efficiency import record_cache_break
 
     logger.info("Operator requested a system prompt refresh (epoch %d) for session %s; rebuilding it "
                 "from current SOUL.md, skills and context files (one-time prefix-cache break).",
@@ -92,7 +91,6 @@ def rebuild_for_refresh(agent: Any, system_message: Any, conversation_history: A
     # As in the Bot Chat capability refresh: build the index from disk, not a cached render.
     clear_skills_system_prompt_cache(clear_snapshot=True)
     agent._cached_system_prompt = agent._build_system_prompt(system_message)
-    record_cache_break(agent, "system_prompt_rebuild")
     stage_surface_switch_note(agent, agent._cached_system_prompt, conversation_history)
     db = getattr(agent, "_session_db", None)
     if db:

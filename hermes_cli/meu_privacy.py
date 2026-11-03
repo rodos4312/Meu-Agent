@@ -1,4 +1,4 @@
-"""Meu's fixed privacy policy; legacy consent cannot enable shared metrics."""
+"""Remove settings belonging to the retired Nous usage collector."""
 
 from __future__ import annotations
 
@@ -6,36 +6,29 @@ import copy
 from typing import Any
 
 
-def disable_shared_metrics(config: dict[str, Any]) -> dict[str, Any]:
-    """Return an independent config with explicit, persistent opt-outs."""
+def strip_retired_metrics(config: dict[str, Any]) -> dict[str, Any]:
+    """Return a detached document without the removed collector's settings."""
     result = copy.deepcopy(config)
     telemetry = result.get("telemetry")
-    if not isinstance(telemetry, dict):
-        telemetry = result["telemetry"] = {}
-    shared = telemetry.get("shared_metrics")
-    if not isinstance(shared, dict):
-        shared = telemetry["shared_metrics"] = {}
-    shared.update(enabled=False, send=False, endpoint="", offer_version=2)
+    if isinstance(telemetry, dict):
+        telemetry.pop("shared_metrics", None)
+        if not telemetry:
+            result.pop("telemetry", None)
     return result
 
 
 def private_config_changes(changes):
-    """Clamp documents and dotted writes, including attempts to unset the opt-out."""
+    """Migrate whole documents and dotted writes without touching other settings."""
     from dataclasses import replace
 
-    updates = dict(changes.set)
-    if changes.document is not None and not updates and not changes.unset:
-        return replace(changes, document=disable_shared_metrics(changes.document))
+    retired = "telemetry.shared_metrics"
+    updates = {key: value for key, value in changes.set.items()
+               if key != retired and not key.startswith(retired + ".")}
     if "telemetry" in updates:
-        updates["telemetry"] = disable_shared_metrics({"telemetry": updates["telemetry"]})["telemetry"]
-    if "telemetry.shared_metrics" in updates:
-        updates["telemetry.shared_metrics"] = disable_shared_metrics({})["telemetry"]["shared_metrics"]
-    for key, value in disable_shared_metrics({})["telemetry"]["shared_metrics"].items():
-        updates[f"telemetry.shared_metrics.{key}"] = value
+        updates["telemetry"] = strip_retired_metrics({"telemetry": updates["telemetry"]}).get("telemetry", {})
     return replace(
         changes,
-        document=disable_shared_metrics(changes.document) if changes.document is not None else None,
+        document=strip_retired_metrics(changes.document) if changes.document is not None else None,
         set=updates,
-        unset=tuple(key for key in changes.unset if not (
-            key in ("telemetry", "telemetry.shared_metrics") or key.startswith("telemetry.shared_metrics."))),
+        unset=tuple(dict.fromkeys((*changes.unset, retired))),
     )

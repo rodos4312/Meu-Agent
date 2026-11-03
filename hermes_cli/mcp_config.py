@@ -656,14 +656,6 @@ def cmd_mcp_add(args):
         _info("Cancelled.")
         return
 
-    def _record(saved: bool, failure_class: str = "config_rejected") -> None:
-        # A save only fails on a suspicious configuration (_save_mcp_server returns False).
-        if fresh:
-            from hermes_cli.mcp_catalog import record_mcp_install
-
-            record_mcp_install("url" if url else "local", None, "success" if saved else "failed",
-                               failure_class=None if saved else failure_class)
-
     if url:
         server_config["url"] = url
     else:
@@ -676,7 +668,6 @@ def cmd_mcp_add(args):
         server_config["connect_timeout"] = raw_connect_timeout
 
     if not _validate_or_warn(name, server_config):
-        _record(False)
         return
     if url and not _configure_http_auth(name, url, auth_type, server_config):
         return
@@ -695,14 +686,12 @@ def cmd_mcp_add(args):
             if saved:
                 _success(f"Saved '{name}' to config (disabled)")
                 _info("Fix the issue, then: hermes mcp test " + name)
-        _record(saved, probe_failure_class(exc))
         return
 
     if not tools:
         _warning("Server connected but reported no tools.")
         if _confirm("Save config anyway?", default=True):
             saved = _save_mcp_server(name, server_config)
-            _record(saved)
             if saved:
                 _success(f"Saved '{name}' to config")
         return
@@ -712,7 +701,6 @@ def cmd_mcp_add(args):
         return
     server_config["enabled"] = True
     saved = _save_mcp_server(name, server_config)
-    _record(saved)
     if saved:
         print()
         _success(
@@ -798,7 +786,7 @@ def probe_failure_class(exc: BaseException) -> str:
     """Extension-install class for a failed MCP probe, from the exception TYPE (the same tests
     :func:`_probe_failure_next_step` uses), never its message. Never raises: an exception whose own
     attribute hooks raise reads ``connect_failed`` instead of replacing the user's error."""
-    from hermes_cli.observability.shared_metrics_fields import tagged_failure_class
+    from hermes_cli.failure_class import tagged_failure_class
 
     if tagged := tagged_failure_class(exc):
         return tagged

@@ -374,7 +374,6 @@ _UPDATE_DEPENDENCIES = (
     "hermes_cli/gateway_multiplex_mode.py",
     "hermes_cli/plugin_catalog.py",
     "hermes_cli/steward.py",
-    "hermes_cli/observability/shared_metrics_update.py",
     "hermes_cli/main_install_repair.py",
     "hermes_logging.py",
     "hermes_platform/host/__init__.py",

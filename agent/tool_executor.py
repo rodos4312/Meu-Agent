@@ -63,7 +63,6 @@ from tools.tool_result_storage import (
     extract_persisted_path,
 )
 from tools.budget_config import BudgetConfig, DEFAULT_BUDGET, budget_for_context_window
-from hermes_cli.observability.shared_metrics_efficiency import note_tool_result, record_tool_batch
 
 # A tool result this large (raw stdout, file dumps) is the biggest allocation a turn ever drops.
 # The commit only flags it: the string is still referenced by the publish frames here, so the
@@ -1097,9 +1096,7 @@ def _commit_tool_result(
     pre-persist content for UI previews) or ``None`` when the flush failed (stop the batch).
     """
     function_name, function_args, tool_call_id, effective_task_id = ref.name, ref.args, ref.call_id, ref.task_id
-    from hermes_cli.observability.shared_metrics_harness import observe_tool_outcome
 
-    observe_tool_outcome(agent, function_name, is_error)
     if not (blocked or is_error):
         function_result = observe_onboarding_result(agent, function_name, function_args, function_result)
     if observed:
@@ -1141,7 +1138,6 @@ def _commit_tool_result(
             config=budget,
         )
     _record_persisted_path_for_stub(agent, tool_call_id, persisted_result)
-    note_tool_result(agent, function_name, tool_call_id, function_result, persisted_result)
 
     subdir_hints = agent._subdirectory_hints.check_tool_call(function_name, function_args)
     if subdir_hints:
@@ -1228,7 +1224,6 @@ def _finalize_tool_batch(agent, messages: list, effective_task_id: str, num_tool
     enforce_turn_budget(batch, env=get_active_env(effective_task_id), config=budget)
     plugin_live_notes.keep_after_turn_budget(agent, batch)
     sync_rewritten_tool_rows(agent, batch, contents_before)
-    record_tool_batch(agent, batch, contents_before)
     agent._apply_pending_steer_to_tool_results(messages, num_tools)
 
 

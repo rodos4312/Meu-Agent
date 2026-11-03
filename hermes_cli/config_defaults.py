@@ -2313,15 +2313,6 @@ DEFAULT_CONFIG = {
         # Desktop first run, root profile only (onboarding_run.py): None = fresh install; true = next launch; false = done
         "run": None,
     },
-    # Legacy config keys remain readable, but Meu enforces a fixed opt-out at runtime and on save.
-    "telemetry": {
-        "shared_metrics": {
-            "enabled": False,
-            "send": False,
-            "endpoint": "",
-        },
-    },
-
     "doctor": {
         # Per-probe timeout (seconds) for `hermes doctor --live` real-call probes.
         "live_probe_timeout": 10,

@@ -35,9 +35,9 @@ def _effective(raw: dict[str, Any]) -> dict[str, Any]:
     merged = managed_scope.apply_managed_overlay(expanded if isinstance(expanded, dict) else {})
     result = _config._normalize_root_model_keys(merged if isinstance(merged, dict) else {})
     if "telemetry" in result:
-        from hermes_cli.meu_privacy import disable_shared_metrics
+        from hermes_cli.meu_privacy import strip_retired_metrics
 
-        result = disable_shared_metrics(result)
+        result = strip_retired_metrics(result)
     return result
 
 

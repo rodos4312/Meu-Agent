@@ -141,18 +141,7 @@ def _emit_compression_attempt_telemetry(
         )
         _log_attempt_record(payload)
         publish_attempt(agent, payload)
-        from hermes_cli.observability.shared_metrics_events import finish_compression_attempt
 
-        finish_compression_attempt(
-            commit_status, payload.get("failure_class"), getattr(agent.context_compressor, "context_length", None), agent=agent,
-        )
-        state = getattr(compressor, "prepared_compaction", None)
-        spliced = payload.get("prepared_summary") or (
-            state is not None and state.spliced_attempt_id is not None and state.spliced_attempt_id == seed["attempt_id"])
-        if spliced and commit_status != "committed":
-            from hermes_cli.observability.shared_metrics_prepared_compaction import record_prepared_compaction
-
-            record_prepared_compaction("compaction_failed", failure_class=payload.get("failure_class") or "")
     except Exception as exc:
         logger.debug("failed to emit compression attempt telemetry: %s", exc, exc_info=True)
 
@@ -191,16 +180,6 @@ def _emit_bypassed_attempt_telemetry(
         publish_attempt(agent, payload)
     except Exception as exc:
         logger.debug("failed to emit compression attempt telemetry: %s", exc, exc_info=True)
-    finally:
-        # compress_context opened the thread-local shared-metric lifecycle before reaching this exit.
-        # Bypassed attempts are log-only, so retire that lifecycle explicitly; otherwise an unrelated
-        # pool-saturation emit on the same thread can consume its trigger and token count.
-        try:
-            from hermes_cli.observability.shared_metrics_events import discard_compression_attempt
-
-            discard_compression_attempt()
-        except Exception:
-            logger.debug("failed to discard bypassed compression metric", exc_info=True)
 
 
 def _emit_blocked_attempt_telemetry(

@@ -87,7 +87,7 @@ def _head(path: Path) -> str:
 def test_catalog_platform_mismatch_refuses_before_install(world):
     from hermes_platform.host.facts import os_family
     host = os_family()
-    other = "linux" if host == "windows" else "windows"
+    other = "linux" if host == "win32" else "windows"
     entry = pc_cat.PluginCatalogEntry(
         name="cat-plugin", repo=world["repo"].as_uri(), sha=world["sha1"],
         description="d", maintainer="t", platforms=[other],
@@ -162,15 +162,10 @@ def test_the_catalog_name_you_installed_with_works_for_every_later_verb(world, t
     assert "renamed-plugin" not in pc._get_enabled_set()
 
 
-def test_custom_install_records_an_anonymous_extension_install_and_reinstall_none(world, monkeypatch):
-    import hermes_cli.observability.shared_metrics_events as events
+def test_custom_install_and_catalog_reinstall_succeed(world):
 
-    calls = []
-    monkeypatch.setattr(events, "record_extension_install", lambda **kw: calls.append(kw))
     assert pc.dashboard_install_plugin(world["repo"].as_uri(), force=False, enable=False)["ok"]
     assert pc.dashboard_install_plugin("", force=True, enable=False, catalog_name="cat-plugin")["ok"]
-
-    assert calls == [{"kind": "plugin", "source": "local", "name": None, "outcome": "success"}]
 
 
 def test_owner_repo_hash_subdir_shorthand_resolves_like_the_catalog_spelling():
@@ -317,6 +312,7 @@ def test_update_of_a_subdir_install_keeps_files_the_user_created_or_edited(world
     assert not (target / "dashboard").exists() and not (target / "hooks" / "run.cjs").exists()
 
 
+@pytest.mark.require_symlinks
 def test_repin_keeps_a_wholly_ignored_data_dir_in_a_git_checkout(world):
     """A single ``!! data/`` status entry must preserve every file below that ignored directory."""
     repo = world["repo"]

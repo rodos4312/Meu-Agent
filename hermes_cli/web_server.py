@@ -609,8 +609,6 @@ async def _dashboard_selftest_loop() -> None:
         await _dashboard_selftest_once()
 
 
-
-
 # Action registries/spawner are owned by web_server_gateway; routers and tests reach them
 # there, so this module reads them through the module too (one patch seam).
 from hermes_cli import web_server_gateway as _gateway_mod
@@ -1502,9 +1500,6 @@ def start_server(
                 start_mcp_discovery_after_bind=start_mcp_discovery_after_bind,
                 ssh_lock_path=ssh_lock_path,
             )
-            if headless:
-                from hermes_cli.observability.shared_metrics_startup import record_process_ready
-                record_process_ready("serve_boot", background=True)
 
             await server.main_loop()
             if server.started:
