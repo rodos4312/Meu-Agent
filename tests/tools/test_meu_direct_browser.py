@@ -21,7 +21,6 @@ def isolated_browser(tmp_path, monkeypatch):
     def unexpected(*args, **kwargs):
         pytest.fail("Browser routing must not consult Nous or send an unexpected request")
 
-    monkeypatch.setattr("tools.managed_tool_gateway.resolve_managed_tool_gateway", unexpected)
     monkeypatch.setattr("hermes_cli.nous_account.get_nous_portal_account_info", unexpected)
     monkeypatch.setattr("requests.sessions.Session.request", unexpected)
     yield

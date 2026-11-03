@@ -8,10 +8,10 @@ vi.mock('@/store/session-control', () => ({ refreshSupportedSessionControlAfterT
 
 import type { GatewayEventName } from '@hermes/shared'
 
-import { connectorsListQueryKey } from '@/app/capabilities/connectors/data/keys'
-import { queryClient } from '@/lib/query-client'
 import { CanonicalDesktopProtocol } from '@/api/canonical-protocol'
+import { mcpOnboardingQueryKey, pluginServersQueryKey } from '@/app/capabilities/connectors/data/keys'
 import { createClientSessionState } from '@/lib/chat-runtime'
+import { queryClient } from '@/lib/query-client'
 import { $activeGatewayProfile } from '@/store/profile'
 import {
   $lastReadAtBySessionId,
@@ -217,21 +217,27 @@ describe('unread dot for a messaging turn Desktop sent', () => {
 })
 
 describe('connector refresh after an agent turn', () => {
-  it('invalidates only the completed turn connection and profile', () => {
-    const own = connectorsListQueryKey({ connectionId: 'remote-a', profile: 'work' })
-    const otherProfile = connectorsListQueryKey({ connectionId: 'remote-a', profile: 'personal' })
-    const otherConnection = connectorsListQueryKey({ connectionId: 'remote-b', profile: 'work' })
-    for (const key of [own, otherProfile, otherConnection]) queryClient.setQueryData(key, { connectors: [] })
-    try {
-      const ctx = context('message.complete')
-      ctx.event = { type: 'message.complete', connectionId: 'remote-a', profile: 'work' }
-      ctx.payload = { status: 'complete', text: 'completed' }
-      expect(handleMessageStreamEvent(ctx)).toBe(true)
-      expect(queryClient.getQueryState(own)?.isInvalidated).toBe(true)
-      expect(queryClient.getQueryState(otherProfile)?.isInvalidated).toBe(false)
-      expect(queryClient.getQueryState(otherConnection)?.isInvalidated).toBe(false)
-    } finally {
-      for (const key of [own, otherProfile, otherConnection]) queryClient.removeQueries({ queryKey: key, exact: true })
+  it.each([pluginServersQueryKey, mcpOnboardingQueryKey])(
+    'invalidates only the completed turn connection and profile (%s)',
+    keyFor => {
+      const own = keyFor({ connectionId: 'remote-a', profile: 'work' })
+      const otherProfile = keyFor({ connectionId: 'remote-a', profile: 'personal' })
+      const otherConnection = keyFor({ connectionId: 'remote-b', profile: 'work' })
+
+      for (const key of [own, otherProfile, otherConnection]) {queryClient.setQueryData(key, { connectors: [] })}
+
+      try {
+        const ctx = context('message.complete')
+        ctx.event = { type: 'message.complete', connectionId: 'remote-a', profile: 'work' }
+        ctx.payload = { status: 'complete', text: 'completed' }
+        expect(handleMessageStreamEvent(ctx)).toBe(true)
+        expect(queryClient.getQueryState(own)?.isInvalidated).toBe(true)
+        expect(queryClient.getQueryState(otherProfile)?.isInvalidated).toBe(false)
+        expect(queryClient.getQueryState(otherConnection)?.isInvalidated).toBe(false)
+      } finally {
+        for (const key of [own, otherProfile, otherConnection])
+          {queryClient.removeQueries({ queryKey: key, exact: true })}
+      }
     }
-  })
+  )
 })

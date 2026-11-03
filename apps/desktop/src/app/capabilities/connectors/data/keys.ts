@@ -1,59 +1,22 @@
 import { type ProfileScope, profileScopeKey } from '@/hermes'
 import { queryClient } from '@/lib/query-client'
 
-export type ConnectorRead = 'accounts' | 'catalog' | 'list' | 'policy' | 'tools'
-
 export const CONNECTORS_QUERY_ROOT = 'connectors'
-
-const SECOND = 1000
-const MINUTE = 60 * SECOND
-const HOUR = 60 * MINUTE
-
-interface ReadLifetime {
-  focusRefetch: boolean
-  staleTime: number
-}
-
-export const CONNECTOR_LIFETIMES = {
-  accounts: { focusRefetch: true, staleTime: 5 * MINUTE },
-  catalog: { focusRefetch: false, staleTime: 24 * HOUR },
-  list: { focusRefetch: true, staleTime: 5 * MINUTE },
-  policy: { focusRefetch: false, staleTime: 60 * SECOND },
-  tools: { focusRefetch: false, staleTime: 24 * HOUR }
-} satisfies Record<ConnectorRead, ReadLifetime>
-
 export const CONNECTOR_GC_TIME = Number.POSITIVE_INFINITY
+export const PLUGIN_SERVERS_STALE_TIME = 5 * 60 * 1000
 
 const scoped = (scope: ProfileScope, ...rest: string[]) =>
   [CONNECTORS_QUERY_ROOT, profileScopeKey(scope), ...rest] as const
 
-export const connectorsListQueryKey = (scope: ProfileScope) => scoped(scope, 'list')
-
-export const connectorsCatalogQueryKey = (scope: ProfileScope) => scoped(scope, 'catalog')
-
-export const connectorsAccountsQueryKey = (scope: ProfileScope) => scoped(scope, 'accounts')
-
-export const connectorsPolicyQueryKey = (scope: ProfileScope) => scoped(scope, 'policy')
-
-export const connectorToolsQueryKey = (scope: ProfileScope, slug: string) => scoped(scope, 'tools', slug)
-
 export const pluginServersQueryKey = (scope: ProfileScope) => scoped(scope, 'plugin-servers')
-
-export const PLUGIN_SERVERS_STALE_TIME = 5 * MINUTE
-
+export const mcpOnboardingQueryKey = (scope: ProfileScope) => scoped(scope, 'mcp-onboarding')
 export const pluginProbeQueryKey = (scope: ProfileScope, name: string) => scoped(scope, 'plugin-probe', name)
 
 export function invalidatePluginProbe(scope: ProfileScope, name: string): void {
   void queryClient.invalidateQueries({ queryKey: pluginProbeQueryKey(scope, name) })
 }
 
-export function invalidateConnectors(scope: ProfileScope, ...reads: [ConnectorRead, ...ConnectorRead[]]): void {
-  for (const read of reads) {
-    void queryClient.invalidateQueries({ queryKey: scoped(scope, read) })
-  }
-}
-
-export function invalidateConnectorApp(scope: ProfileScope, slug: string): void {
-  void queryClient.invalidateQueries({ queryKey: connectorToolsQueryKey(scope, slug) })
-  void queryClient.invalidateQueries({ queryKey: connectorsListQueryKey(scope) })
+export function invalidateMcpConnections(scope: ProfileScope): void {
+  void queryClient.invalidateQueries({ queryKey: pluginServersQueryKey(scope) })
+  void queryClient.invalidateQueries({ queryKey: mcpOnboardingQueryKey(scope) })
 }

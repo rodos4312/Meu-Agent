@@ -1,30 +1,6 @@
-import type { ConnectorAccountRow } from '@hermes/shared'
-
-export type ConnectorResidency = 'hosted' | 'local'
+export type ConnectorResidency = 'local'
 
 export type LocalServerStatus = 'error' | 'needs-auth' | 'off' | 'ok' | 'probing' | 'unknown'
-
-/** One hosted account; `disabled` marks an account a reconnect replaced. */
-export type AccountRow = ConnectorAccountRow
-
-export interface HostedConnectorInput {
-  accountLabel?: string
-  /** The app's live accounts, active first, then newest. */
-  accounts?: readonly AccountRow[]
-  connected: boolean
-  connectedAt?: string
-  connectionStatus?: string
-  description?: string
-  disabledTools?: readonly string[]
-  enabled: boolean
-  inCatalog?: boolean
-  orgLocked?: boolean
-  /** Accounts a reconnect replaced: listed, never counted, never offered for reconnect. */
-  retiredAccounts?: readonly AccountRow[]
-  slug: string
-  statusReason?: string
-  toolsOff?: number
-}
 
 export interface LocalServerInput {
   canAuthenticate?: boolean
@@ -98,20 +74,6 @@ export interface ConnectorReason {
 export type ConnectorVerb =
   'authenticate' | 'connect' | 'install' | 'openLogs' | 'reconnect' | 'stopWaiting' | 'tryAgain' | 'turnBackOn'
 
-export interface ConnectorWayHosted {
-  accountLabel?: string
-  accounts: readonly AccountRow[]
-  connected: boolean
-  connectedAt?: string
-  disabledTools?: readonly string[]
-  fact?: ConnectorFact
-  offBy?: ConnectorOffBy
-  reason?: ConnectorReason
-  retiredAccounts: readonly AccountRow[]
-  state: ConnectorState
-  verb?: ConnectorVerb
-}
-
 export interface ConnectorWayLocal {
   authType?: ConnectorAuthType
   entryName?: string
@@ -129,8 +91,9 @@ export interface ConnectorWayLocal {
   verb?: ConnectorVerb
 }
 
-export type ConnectorWays =
-  { hosted: ConnectorWayHosted; local: ConnectorWayLocal | null } | { hosted: null; local: ConnectorWayLocal }
+export interface ConnectorWays {
+  local: ConnectorWayLocal
+}
 
 export interface ConnectorCardModel {
   description?: string
@@ -173,8 +136,6 @@ export interface ConnectorPageModel {
   segment: ConnectorSegmentId
   segments: ConnectorSegmentModel[]
 }
-
-export type HostedPhase = 'failed' | 'loading' | 'ready' | 'signedOut' | 'unavailable'
 
 export interface ToolRowModel {
   categories: string[]

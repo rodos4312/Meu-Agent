@@ -33,34 +33,26 @@ def _call(server, profile_id, method, params):
     return reply if reply is not None else (done.wait(10) and written[0])
 
 
-def test_secondary_ticket_runs_connectors_in_its_own_profile(homes, monkeypatch):
-    import tools.connectors
-    import tools.connectors.managed
-    import tools.managed_tool_gateway
+def test_secondary_ticket_runs_mcp_in_its_own_profile(homes, monkeypatch):
     from hermes_constants import get_hermes_home
+    from hermes_cli import config
     server, launch, bee = homes
     seen = []
-
-    def rec(label):
-        seen.append((label, Path(str(get_hermes_home())).resolve()))
-
-    monkeypatch.setattr(tools.connectors, 'connectors_available', lambda *a, **k: True)
-    monkeypatch.setattr(tools.managed_tool_gateway, 'read_nous_access_token', lambda: 'token')
-    monkeypatch.setattr(tools.connectors.managed, 'managed_client',
-                        lambda **_: types.SimpleNamespace(list_connectors=lambda: rec('list') or []))
-    for method, params in (('connectors.list', {'owner': {'type': 'account'}}),):
-        _call(server, bee, method, params)
-    assert {label for label, _ in seen} == {'list'}, seen
-    assert {home for _, home in seen} == {bee.resolve()}, seen
-
-    # The launch profile's own ticket is unchanged.
+    def read_config(*args, **kwargs):
+        seen.append(Path(str(get_hermes_home())).resolve())
+        return {"mcp_servers": {}}
+    monkeypatch.setattr(config, "load_config", read_config)
+    reply = _call(server, bee, "mcp.servers.list", {})
+    assert "result" in reply, reply
+    assert seen and set(seen) == {bee.resolve()}
     seen.clear()
-    _call(server, launch, 'connectors.list', {'owner': {'type': 'account'}})
-    assert [home for _, home in seen] == [launch.resolve()]
+    reply = _call(server, launch, "mcp.servers.list", {})
+    assert "result" in reply, reply
+    assert seen and set(seen) == {launch.resolve()}
 
 
 def test_ticket_whose_home_vanished_is_refused_not_the_launch_profile(homes):
     server, _launch, bee = homes
     gone = bee.parent / 'gone'
-    reply = _call(server, gone, 'connectors.list', {'owner': {'type': 'account'}})
+    reply = _call(server, gone, 'mcp.servers.list', {})
     assert reply['error']['code'] == 4064, reply

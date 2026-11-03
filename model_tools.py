@@ -714,21 +714,15 @@ def _dispatch_bridge_tool(function_name: str, function_args: dict[str, Any],
     except Exception:
         current_defs = []
     args = function_args or {}
-    from tools.managed_gateway_identity import CallRef
-    call = CallRef(turn_id=ids.turn_id, tool_call_id=ids.tool_call_id) if ids else None
     if function_name == ts.TOOL_SEARCH_NAME:
-        return ts.dispatch_tool_search(args, current_tool_defs=current_defs, call=call), None
+        return ts.dispatch_tool_search(args, current_tool_defs=current_defs), None
     if function_name == ts.TOOL_DESCRIBE_NAME:
-        return ts.dispatch_tool_describe(args, current_tool_defs=current_defs, call=call), None
+        return ts.dispatch_tool_describe(args, current_tool_defs=current_defs), None
     # Session-scoped names for the error path below: a core tool stripped from this
     # session (clarify in a subagent) must not be told to "call it directly".
     underlying_name, underlying_args, err = ts.resolve_underlying_call(args, ts.session_tool_names(current_defs))
     if err or not underlying_name:
         return tool_error(err or "tool_call could not be resolved"), None
-    if underlying_name == ts.CONNECTOR_BATCH_SENTINEL:
-        if not ts.connections_in_scope(current_defs):
-            return tool_error("Connectors are not available in this session."), None
-        return None, (underlying_name, underlying_args)
     # Defense in depth: resolve_underlying_call only checks the global
     # registry; also require membership in the session-scoped catalog.
     # Session-gated GUI tools fail fast with their real reason (#120413):
@@ -826,9 +820,7 @@ def _execute_tool(function_name: str, function_args: dict[str, Any], original_ar
         dispatch_kwargs["user_task"] = user_task
 
     def _dispatch(next_args: dict[str, Any]) -> Any:
-        from tools.connectors import dispatch_connector_call, is_connector_name
-        if is_connector_name(function_name):
-            return dispatch_connector_call(function_name, next_args, ids.tool_call_id, ids.turn_id, ids.task_id)
+
         return registry.dispatch(function_name, next_args, **dispatch_kwargs)
 
     with _approval_observability(ids):
@@ -901,13 +893,6 @@ def handle_function_call(
         result, underlying = bridged
         if underlying is None:
             return _emit(result, duration_ms=_elapsed_ms(start))
-        from tools.connectors import CONNECTOR_BATCH_SENTINEL, dispatch_connector_batch
-        if underlying[0] == CONNECTOR_BATCH_SENTINEL:
-            return _emit(dispatch_connector_batch(
-                underlying[1]["calls"], ids, user_task=user_task,
-                enabled_tools=enabled_tools, middleware_trace=trace,
-                enabled_toolsets=enabled_toolsets, disabled_toolsets=disabled_toolsets,
-            ), duration_ms=_elapsed_ms(start))
         return handle_function_call(
             *underlying, **asdict(ids), user_task=user_task, enabled_tools=enabled_tools,
             skip_pre_tool_call_hook=skip_pre_tool_call_hook, skip_tool_request_middleware=skip_tool_request_middleware,
@@ -915,13 +900,9 @@ def handle_function_call(
             enabled_toolsets=enabled_toolsets, disabled_toolsets=disabled_toolsets,
         )
 
-    from tools.connectors import is_connector_name
-    from tools.connectors.gateway.names import parse_connector_name
-    if function_name == "manage_connections" or is_connector_name(function_name):
+    if function_name == "manage_connections":
         if "manage_connections" not in _select_tool_names(enabled_toolsets, disabled_toolsets, quiet_mode=True):
-            return _emit(tool_error("Connectors are not available in this session."))
-        if is_connector_name(function_name) and parse_connector_name(function_name) is None:
-            return _emit(tool_error("Malformed connector tool name; expected connectors__<connector>__{tool}."))
+            return _emit(tool_error("MCP connections are not available in this session."))
 
     original_args = dict(function_args)
     if not skip_tool_request_middleware:

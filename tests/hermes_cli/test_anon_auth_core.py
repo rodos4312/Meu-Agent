@@ -104,11 +104,11 @@ class TestExplicitProvision:
         assert anon_auth.is_guest_state(claimed_trial(monkeypatch))
         assert portal.minted == 1
         token = _load_auth_store()["providers"]["nous"]["anon_token"]
-        # A second provision is idempotent, and the runtime now serves nous/welcome on the welcome host.
+        # A second legacy provision is idempotent; Meu rejects the retired provider.
         anon_auth.ensure_portal_identity(explicit=True)
         from hermes_cli.runtime_provider import resolve_runtime_provider
-        runtime = resolve_runtime_provider(requested="nous", target_model=anon_auth.GUEST_MODEL)
-        assert runtime["base_url"].rstrip("/") == WELCOME
+        with pytest.raises(anon_auth.AuthError):
+            resolve_runtime_provider(requested="nous", target_model=anon_auth.GUEST_MODEL)
         assert resolve_provider("auto") == "nous"
         # A sibling profile adopts the same identity implicitly; no second create call.
         sibling = tmp_path / "sibling-profile"
@@ -264,7 +264,7 @@ class TestLogout:
         logout_command(SimpleNamespace(provider=None))
         assert _auth_file_path().read_bytes() == before
 
-    def test_logout_of_real_account_clears_shared_store(self, portal, tmp_path):
+    def test_retired_provider_logout_rejects_without_changing_legacy_store(self, portal, tmp_path):
         from types import SimpleNamespace
         from hermes_cli.auth import logout_command
         from hermes_cli.auth_nous import persist_nous_credentials
@@ -272,9 +272,11 @@ class TestLogout:
                                   "refresh_token": "rt-1", "expires_at": "2030-01-01T00:00:00+00:00",
                                   "auth_method": "oauth_device_code"})
         assert _shared_store(tmp_path).get("refresh_token") == "rt-1"
-        logout_command(SimpleNamespace(provider="nous"))
-        assert _shared_store(tmp_path) == {}
-        assert "nous" not in _load_auth_store().get("providers", {})
+        before = _shared_store(tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            logout_command(SimpleNamespace(provider="nous"))
+        assert exc.value.code == 1
+        assert _shared_store(tmp_path) == before
 
 
 class TestModelSwitchCopy:
@@ -356,8 +358,6 @@ class TestBootstrapNeverCreates:
         """status, provider resolution and the connector bearer are reads: with no identity they
         answer 'nothing' and touch no network."""
         monkeypatch.setattr("agent.bedrock_adapter.has_aws_credentials", lambda *_a, **_kw: False)
-        from tools.managed_tool_gateway import read_nous_access_token
-        assert read_nous_access_token() is None
         with pytest.raises(anon_auth.AuthError):
             resolve_provider("auto")
         from hermes_cli.main import _has_any_provider_configured
@@ -422,28 +422,3 @@ class TestIdentityOfRecordIsTheSharedStore:
         monkeypatch.setattr(auth_nous, "_nous_shared_store_lock", shared)
         anon_auth.ensure_portal_identity(explicit=True)
         assert order[:2] == ["profile", "shared"]
-
-
-class TestConnectorTokenPath:
-    def test_opt_out_hides_the_free_tier_from_connectors_including_cached_tokens(self, portal, monkeypatch):
-        anon_auth.ensure_portal_identity(explicit=True)
-        from tools import managed_tool_gateway as mtg
-        assert mtg.read_nous_access_token()  # now a cached, valid JWT exists
-        _write_config(monkeypatch, guest=False)
-        assert mtg.peek_nous_access_token() is None
-        assert mtg.read_nous_access_token() is None
-
-    def test_connector_path_replaces_a_dead_credential_once(self, portal):
-        first = anon_auth.ensure_portal_identity(explicit=True)
-        from hermes_cli.auth import _auth_store_lock, _save_auth_store
-        with _auth_store_lock():
-            store = _load_auth_store()
-            store["providers"]["nous"]["expires_at"] = "2000-01-01T00:00:00+00:00"
-            store["providers"]["nous"]["access_token"] = _jwt(exp=1)
-            _save_auth_store(store)
-        portal.dead_tokens.add(first["anon_token"])
-        from tools import managed_tool_gateway as mtg
-        token = mtg.read_nous_access_token()
-        assert token and token != _jwt(exp=1)
-        assert _load_auth_store()["providers"]["nous"]["anon_token"] != first["anon_token"]
-        assert portal.minted == 2

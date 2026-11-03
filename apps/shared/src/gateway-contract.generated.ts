@@ -736,22 +736,6 @@ export interface ConnectionRespondResult {
   status: 'ok'
   settled: boolean
 }
-export interface ConnectorsListParams {
-  profile?: string | null
-  owner: SessionOwner | AccountOwner
-}
-export interface ConnectorsListResult {
-  available: boolean
-  connectors: ConnectorRow[]
-}
-export interface ConnectorRow {
-  connector: string
-  enabled: boolean
-  connected: boolean
-  connection_status: 'pending' | 'active' | 'failed' | 'expired' | 'revoked' | 'inactive' | null
-  status_reason: string | null
-  gateway_disabled_tools: string[]
-}
 export interface ConnectorsConnectParams {
   profile?: string | null
   owner: SessionOwner | AccountOwner
@@ -760,7 +744,7 @@ export interface ConnectorsConnectParams {
   alias?: string | null
   connection_id?: string | null
 }
-/** ``methods_connectors._reissue`` / ``managed._off_desktop_result``: the operation the connect opened; ``status``/``note`` ride along from the tool result. */
+/** The current operation after retrying its failed targets. */
 export interface ConnectorsConnectResult {
   op_id: string
   seq: number
@@ -771,157 +755,6 @@ export interface ConnectorsConnectResult {
   targets: ConnectionOperationTarget[]
   status?: 'initiated' | 'settled' | null
   note?: string | null
-}
-export interface ConnectorToolsParams {
-  profile?: string | null
-  slug: string
-  refresh?: boolean
-}
-export interface ConnectorToolsResult {
-  connector: string
-  toolkit_version: string
-  etag: string
-  fetched_at: number
-  source: ConnectorToolsSource
-  stale: boolean
-  tools: ConnectorToolRow[]
-}
-export type ConnectorToolsSource = 'cache' | 'network' | 'revalidated'
-export interface ConnectorToolRow {
-  slug: string
-  name: string
-  description: string
-  facet: ConnectorToolFacet
-  hints: string[]
-  categories: string[]
-  no_auth: boolean
-  deprecated: boolean
-}
-export type ConnectorToolFacet = 'read' | 'write' | 'destructive' | 'unclassified'
-export interface ConnectorsCatalogResult {
-  connectors: ConnectorCatalogRow[]
-}
-export interface ConnectorCatalogRow {
-  slug: string
-  name: string
-  description: string
-  category: string
-  logo_url?: string | null
-}
-export interface ConnectorAccountsParams {
-  profile?: string | null
-  connector?: string | null
-}
-export interface ConnectorAccountsResult {
-  accounts: ConnectorAccountRow[]
-}
-export interface ConnectorAccountRow {
-  connection_id: string
-  connector: string
-  status: ConnectorAccountStatus
-  status_reason?: string | null
-  label: string
-  alias?: string | null
-  active: boolean
-  disabled?: boolean
-  created_at: string
-  updated_at: string
-}
-export type ConnectorAccountStatus = 'pending' | 'active' | 'failed' | 'expired' | 'revoked' | 'inactive'
-export interface ConnectorAccountsRemoveParams {
-  profile?: string | null
-  connection_id: string
-}
-export interface ConnectorAccountsRemoveResult {
-  connection_id: string
-  connector: string
-  status: 'removed'
-}
-export interface ConnectorAccountsRenameParams {
-  profile?: string | null
-  connection_id: string
-  alias: string
-}
-export interface ConnectorPolicyGetResult {
-  layers: ConnectorPolicyLayer[]
-  effective: ConnectorPolicyEffectiveUnrestricted | ConnectorPolicyEffectiveDenyAll | ConnectorPolicyEffectiveAllow | ConnectorPolicyEffectiveDeny
-}
-export interface ConnectorPolicyLayer {
-  kind: ConnectorPolicyLayerKind
-  revision: string
-  body: ConnectorPolicyUnrestrictedBody | ConnectorPolicyDenyAllBody | ConnectorPolicyAllowBody | ConnectorPolicyDenyBody
-}
-export type ConnectorPolicyLayerKind = 'org' | 'role' | 'member'
-export interface ConnectorPolicyUnrestrictedBody {
-  mode: 'unrestricted'
-}
-export interface ConnectorPolicyDenyAllBody {
-  mode: 'deny-all'
-}
-export interface ConnectorPolicyAllowBody {
-  mode: 'allow'
-  connectors: string[]
-  tools: Record<string, string[]>
-  tags?: ConnectorPolicyTags | null
-}
-export interface ConnectorPolicyTags {
-  enable?: string[] | null
-  disable?: string[] | null
-}
-export interface ConnectorPolicyDenyBody {
-  mode: 'deny'
-  disabled_connectors: string[]
-  tools: Record<string, string[]>
-  tags?: ConnectorPolicyTags | null
-}
-export interface ConnectorPolicyEffectiveUnrestricted {
-  version: 1
-  revision: string
-  issued_at_ms: number
-  mode: 'unrestricted'
-}
-export interface ConnectorPolicyEffectiveDenyAll {
-  version: 1
-  revision: string
-  issued_at_ms: number
-  mode: 'deny-all'
-}
-export interface ConnectorPolicyEffectiveAllow {
-  version: 1
-  revision: string
-  issued_at_ms: number
-  mode: 'allow'
-  connectors: string[]
-  tools: Record<string, string[]>
-  tags?: ConnectorPolicyTags | null
-}
-export interface ConnectorPolicyEffectiveDeny {
-  version: 1
-  revision: string
-  issued_at_ms: number
-  mode: 'deny'
-  disabled_connectors: string[]
-  tools: Record<string, string[]>
-  tags?: ConnectorPolicyTags | null
-}
-export interface ConnectorPolicySetParams {
-  profile?: string | null
-  change: ToolsChange | ConnectorChange
-  expected_revision: string
-}
-export interface ToolsChange {
-  type: 'tools'
-  connector: string
-  disabled_tools: string[]
-}
-export interface ConnectorChange {
-  type: 'connector'
-  connector: string
-  enabled: boolean
-}
-export interface ConnectorPolicySetResult {
-  revision: string
-  effective: ConnectorPolicyEffectiveUnrestricted | ConnectorPolicyEffectiveDenyAll | ConnectorPolicyEffectiveAllow | ConnectorPolicyEffectiveDeny
 }
 /** ``tools/bot_desktop/runtime.py::DesktopStatus`` plus the lease and the profile it speaks for. */
 export interface DisplayStatus {
@@ -5634,28 +5467,12 @@ export interface RpcMethods {
   'config.show': { params: ConfigShowParams; result: ConfigShowResult }
   /** Per-target outcomes from the card, and an optional Continue. */
   'connection.respond': { params: ConnectionRespondParams; result: ConnectionRespondResult }
-  /** The scoped member's hosted connector accounts, optionally filtered by connector slug. */
-  'connectors.accounts': { params: ConnectorAccountsParams; result: ConnectorAccountsResult }
-  /** Remove one hosted connector account owned by the scoped member. */
-  'connectors.accounts.remove': { params: ConnectorAccountsRemoveParams; result: ConnectorAccountsRemoveResult }
-  /** Name or rename one hosted connector account owned by the scoped member. */
-  'connectors.accounts.rename': { params: ConnectorAccountsRenameParams; result: ConnectorAccountRow }
-  /** The hosted connector catalog available to the scoped member. */
-  'connectors.catalog': { params: ProfileParams; result: ConnectorsCatalogResult }
-  /** Start or re-initiate authorization for named connectors on a session or account operation. */
+  /** Retry failed targets of a session-owned MCP or catalog operation. */
   'connectors.connect': { params: ConnectorsConnectParams; result: ConnectorsConnectResult }
-  /** Connector catalog + connection state for one session or profile account owner. */
-  'connectors.list': { params: ConnectorsListParams; result: ConnectorsListResult }
   /** The current snapshot of one open session or account operation. */
   'connectors.operation.status': { params: ConnectionOperationParams; result: ConnectionOperationStatus }
   /** The browser leg came back (hermes://connections/done): read the accounts now, not at the next tick. */
   'connectors.operation.wake': { params: ConnectionOperationParams; result: ConnectionWakeResult }
-  /** Policy layers for the scoped member, from organization to member scope. */
-  'connectors.policy.get': { params: ProfileParams; result: ConnectorPolicyGetResult }
-  /** Apply one scoped member connector or tool-list policy change. */
-  'connectors.policy.set': { params: ConnectorPolicySetParams; result: ConnectorPolicySetResult }
-  /** The scoped profile's cached or current tool list for one connector. */
-  'connectors.tools': { params: ConnectorToolsParams; result: ConnectorToolsResult }
   /** List/add/remove/pause/resume cron jobs in the (optionally profile-scoped) cron store. */
   'cron.manage': { params: CronManageParams; result: CronManageResult }
   /** Block/unblock NEW spawns globally (active children keep running); returns the new state. */
@@ -6075,17 +5892,9 @@ export const RPC_METHODS = [
   'config.set',
   'config.show',
   'connection.respond',
-  'connectors.accounts',
-  'connectors.accounts.remove',
-  'connectors.accounts.rename',
-  'connectors.catalog',
   'connectors.connect',
-  'connectors.list',
   'connectors.operation.status',
   'connectors.operation.wake',
-  'connectors.policy.get',
-  'connectors.policy.set',
-  'connectors.tools',
   'cron.manage',
   'delegation.pause',
   'delegation.status',

@@ -158,6 +158,10 @@ jobs:
           tests/hermes_cli/test_meu_privacy.py
           tests/tools/test_meu_direct_modal.py
           tests/tools/test_meu_direct_browser.py
+          tests/tools/test_meu_independent_connections.py
+          tests/tools/test_connectors_mcp.py
+          tests/tools/test_connectors_catalog.py
+          tests/tools/test_tool_search.py
           tests/tools/test_meu_direct_web.py
           tests/tools/test_meu_direct_media.py
           tests/tools/test_tts_openai_config.py
@@ -371,7 +375,8 @@ jobs:
           src/app/session/hooks/use-message-stream/gateway-event/lifecycle.test.ts
           src/app/session/hooks/use-message-stream/gateway-event/message-stream.test.ts
           src/app/capabilities/connectors/data/persist.test.ts
-          src/app/capabilities/connectors/data/queries-rules.test.tsx
+          src/components/assistant-ui/connector-directory-card.test.tsx
+          src/lib/connector-tools.test.ts
       - name: Verify model credentials and Auto behavior
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts

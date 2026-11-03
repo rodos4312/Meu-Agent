@@ -2,9 +2,7 @@ import type { ToolCallMessagePartProps } from '@assistant-ui/react'
 import type { ConnectionTargetState, ConnectorsConnectResult } from '@hermes/shared'
 import { useStore } from '@nanostores/react'
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
-import { useInRouterContext, useNavigate } from 'react-router'
 
-import { accountRenameRoute } from '@/app/capabilities/connectors/data/deep-link'
 import { useSessionView } from '@/app/chat/session-view'
 import { sessionRoute } from '@/app/routes'
 import { ConnectorDirectoryCard } from '@/components/assistant-ui/connector-directory-card'
@@ -441,7 +439,7 @@ export function ConnectorOffer({ owner, request }: ConnectorOfferProps) {
   )
 }
 
-/** One line per account Hermes named and connected; Rename opens that account's editor on the Connectors tab. */
+/** Read-only account names from historical conversations. */
 function NamedAccountNotices({ owner, targets }: { owner: ConnectionOwner; targets: readonly ConnectionTarget[] }) {
   const named = targets.filter(target => target.state === 'connected' && target.alias)
 
@@ -472,30 +470,10 @@ interface NamedAccountProps {
   owner: ConnectionOwner
 }
 
-function NamedAccountNotice({ alias, connectionId, name, owner }: NamedAccountProps) {
+function NamedAccountNotice({ alias, name }: NamedAccountProps) {
   const { t } = useI18n()
-  const inRouter = useInRouterContext()
 
-  return (
-    <p className="flex flex-wrap items-center gap-x-1.5 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-secondary)">
-      {t.connectors.namedAccount(connectorTitle(name), alias)}
-      {inRouter && connectionId ? (
-        <RenameAccountLink alias={alias} connectionId={connectionId} name={name} owner={owner} />
-      ) : null}
-    </p>
-  )
-}
-
-// useNavigate() throws outside a Router; the parent mounts this only inside one.
-function RenameAccountLink({ connectionId, name, owner }: NamedAccountProps) {
-  const { t } = useI18n()
-  const navigate = useNavigate()
-
-  return (
-    <Button onClick={() => navigate(accountRenameRoute(name, connectionId, owner))} size="inline" variant="textStrong">
-      {t.connectors.renameAccount}
-    </Button>
-  )
+  return <p>{t.connectors.namedAccount(connectorTitle(name), alias)}</p>
 }
 
 const MISSING_CALL_RESULT = { error: 'No result for this call.' }

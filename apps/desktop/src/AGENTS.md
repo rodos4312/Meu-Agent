@@ -105,6 +105,6 @@ the generic OAuth/API-key flow and authoritative runtime readiness.
 Local MCP display data is cached per gateway connection and profile by
 `src/app/capabilities/connectors/data/persist.ts`, independently of any Nous
 identity. Server seeds contain only names and enabled flags, never targets or
-credentials. Hosted account data remains in memory and is fetched from its owner;
-legacy identity-scoped caches are not used. A completed agent turn invalidates
-connector reads for that turn's connection/profile.
+credentials. Hosted account services and identity-scoped caches have been removed. A completed
+agent turn invalidates local MCP onboarding and plugin-server queries only for
+that turn's connection/profile.

@@ -3,10 +3,6 @@ import type { Translations } from '@/i18n/types'
 import type { ConnectorCardModel } from './types'
 
 export function connectorKindWord(card: ConnectorCardModel, copy: Translations['connectorsPage']['card']): string {
-  if (card.residency === 'hosted') {
-    return copy.kindManaged
-  }
-
   if (card.plugin) {
     return copy.kindPlugin(card.plugin)
   }

@@ -155,86 +155,21 @@ tools:
   tool_search: true   # equivalent to {enabled: auto}
 ```
 
-## Connectors (remote tools)
+## MCP and plugin tools
 
-The bridge also reaches **connectors**: remote tools served by the managed tool
-gateway. They are
-never registered locally: `tool_search` sends each query to the gateway, adds
-the gateway's hits to the local catalog as documents (tagged
-`source: "connectors"`, named `connectors__<connector>__<tool>`), and ranks
-both with the same BM25 pass and the same rarest-token rule, so `limit`
-caps the group as a whole and a connector tool that answers the query is
-never pushed out by local tools that share one word with it. The gateway
-call is bounded at 30 seconds; a slow or dark gateway degrades to local
-results only. `tool_describe` fetches connector schemas from the gateway,
-and `tool_call` sends each connector entry in a batch as its own gateway
-request, in input order (a tool name the gateway does not know under its
-conventional slug is retried once under the literal slug, so an entry can
-cost two requests). If a connector ever shipped both `GMAIL_X` and a literal
-`X`, both would compose to `connectors__gmail__X`, which runs `GMAIL_X`;
-search keeps that twin, drops the other, and logs a warning. Results splice back into the batch's original order
-with recomputed counts.
+The bridge searches the tools available in the current session, including tools
+registered by independent MCP servers and plugins. Search and schema lookup do
+not create a Nous identity or query a hosted connector catalog. Invocation uses
+the configured tool's own implementation and endpoint.
 
-```yaml
-tools:
-  connectors:
-    enabled: true   # false — never touch connector routes; the bridge
-                    # behaves exactly as if the feature didn't exist
-```
+Use `manage_connections` to install a bundled MCP catalog entry, enable an
+existing server, or authorize it. The profile's `tools.connectors.enabled`
+setting controls this management tool; it does not require an account.
 
-Connectors need a Nous identity. You do not have to sign in for one: if you
-have no Nous account, the first `manage_connections` action (or connecting an
-app from the desktop Connectors page) creates a free Nous identity for you, on
-every surface. Opening the Connectors page creates none: until an identity
-exists it lists the hosted apps from the Nous Portal's public catalog, which
-needs no sign-in.
-It does not change your model provider: outside builds that ship
-the Nous free tier it is used for connectors and managed tools only. Until it exists, `tool_search` sends nothing to the
-gateway and its result says that hosted connectors are not set up yet and
-that `manage_connections` sets them up. To opt out, set:
-
-```yaml
-nous:
-  guest: false
-```
-
-With that setting, or when the gateway does not serve connectors for a
-signed-in account, everything above is invisible: local search behaves exactly
-as described in the rest of this page, with no errors shown to the model.
-
-A connector call that needs an account you haven't linked returns a
-`CONNECTION_REQUIRED` error. The `manage_connections` tool lists connectors and
-their connection state and starts an authorization: in the desktop app the call
-shows a card, blocks until each app is connected or skipped, and reports the
-outcomes; elsewhere it returns a connect link per app for the user to open.
-Disconnecting an account is done by the user in the Portal. The same tool also installs, enables and authorizes
-local MCP servers from the catalog (targets with `mcp: true`); those actions
-never create a Nous identity.
-
-You can link more than one account of the same app, each with its own name
-(see [Multiple connector accounts](./tool-gateway.md#multiple-connector-accounts)).
-Once a connector has two or more active accounts, each of its tools takes a
-`connector_alias` argument whose allowed values are your account names, and the
-tool description lists them (`Accounts: home, work.`), so `tool_search` and
-`tool_describe` show them. A connector result entry carries `account`, the
-name the call ran under, when that account is named; the field is absent for
-an unnamed account.
-
-The desktop backend's account-list and disconnect APIs use the Portal's
-account-management service, including its organization membership checks and
-disconnect audit. An unavailable Portal does not fall back to direct gateway
-account management. Tool discovery, execution, and connection-status watching
-continue through the gateway; the model tool cannot disconnect an account.
-
-`tool_call` accepts a batch: `calls` is an array of `{name, arguments}`
-entries (a single call is an array of one). Each connector entry in a batch
-is dispatched as its own gateway request, one after another; local deferred
-tools stay one entry per `tool_call`. A multi-entry batch that names a local
-tool is rejected with a correction that restates the valid shape using the
-caller's own first entry, and a `calls` value emitted as a JSON string is
-parsed like the array form. Approvals settle per entry before
-dispatch, and a `/stop` between entries leaves the unstarted ones unsent
-(their slots report `INTERRUPTED`).
+`tool_call` accepts `calls`, an array of `{name, arguments}` entries. The agent
+expands batches into individual tool calls so approvals and interruption apply
+per entry. A direct bridge dispatch accepts one entry; multiple entries need
+the agent's normal batch expansion.
 
 ## When NOT to use it
 

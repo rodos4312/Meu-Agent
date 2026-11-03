@@ -1643,10 +1643,6 @@ class TestExplicitOpenaiSelectionError:
             "tools.tool_backend_helpers.resolve_openai_audio_api_key",
             lambda: None,
         )
-        monkeypatch.setattr(
-            "tools.managed_tool_gateway.resolve_managed_tool_gateway",
-            lambda vendor: None,
-        )
 
 
     def test_dispatch_returns_selection_specific_error(self, monkeypatch):

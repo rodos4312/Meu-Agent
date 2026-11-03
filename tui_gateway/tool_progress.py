@@ -239,7 +239,7 @@ def _tool_labels(name: str, args: dict) -> list[dict] | None:
 
 
 def _connector_tool_lifecycle(name: str, args: dict) -> bool:
-    from tools.connectors import is_connector_name
+    from tools.connectors.legacy_names import is_connector_name
 
     if name == "manage_connections" or is_connector_name(name):
         return True

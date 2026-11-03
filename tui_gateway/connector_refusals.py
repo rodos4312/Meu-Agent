@@ -18,12 +18,3 @@ REISSUE_REFUSALS = {
     NOT_ALLOWED: (4002, Reason.reissue_refused, "This target cannot be run again."),
     REFUSED: REISSUE_REFUSED,
 }
-
-
-def auth_refusal(exc):
-    """The refusal for a ``GatewayAuthError``."""
-    if exc.code in {"no_access", "ORG_ACCESS_DENIED"}:
-        return 4030, Reason.org_access_denied, "This account cannot manage connectors for this organization."
-    if exc.status == 401 or exc.code in {"invalid_token", "INVALID_TOKEN", "NO_TOKEN"}:
-        return 4032, Reason.needs_nous_auth, "Sign in to use connectors."
-    return 4030, Reason.forbidden_scope, "Connector access is not permitted for this account."

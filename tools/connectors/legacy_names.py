@@ -1,7 +1,4 @@
-"""Codec for model-facing connector tool names.
-
-Compose and parse bridge names only here. The composed-name collision resolves prefixed vendor slugs first everywhere.
-"""
+"""Read old connector names when displaying saved conversations. No transport or credentials."""
 
 from __future__ import annotations
 
@@ -9,24 +6,17 @@ from dataclasses import dataclass
 from typing import Optional
 
 __all__ = [
-    "CONNECTOR_BATCH_SENTINEL",
     "CONNECTOR_NAME_PREFIX",
     "ConnectorName",
-    "format_connector_name",
     "is_connector_name",
     "parse_connector_name",
-    "vendor_slug_candidates",
 ]
 
 CONNECTOR_NAME_PREFIX = "connectors__"
 
-# Planner sentinel, not a callable connector name.
-CONNECTOR_BATCH_SENTINEL = "connectors__execute"
-
 
 @dataclass(frozen=True)
 class ConnectorName:
-
     raw: str
     connector: str
     tool: str
@@ -48,14 +38,3 @@ def parse_connector_name(name: object) -> Optional[ConnectorName]:
     if prefix != "connectors" or not connector or not tool:
         return None
     return ConnectorName(raw=name, connector=connector, tool=tool)
-
-
-def format_connector_name(connector: str, tool: str) -> str:
-    prefix = f"{connector.upper()}_"
-    tool = tool.removeprefix(prefix)
-    return f"{CONNECTOR_NAME_PREFIX}{connector}__{tool}"
-
-
-def vendor_slug_candidates(connector: str, tool: str) -> tuple[str, ...]:
-    """Try the stripped conventional prefix before a literal vendor slug."""
-    return (f"{connector.upper()}_{tool}", tool)

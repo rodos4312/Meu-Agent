@@ -123,13 +123,13 @@ def test_local_batch_runs_once_per_entry_through_agent_and_persists_pairs(mcp_se
     assert any(sum(m["role"] == "tool" for m in s) == 2 for s in snapshots)
 
 
-def test_expansion_preserves_connector_batches_and_rejects_bad_envelopes():
+def test_expansion_rejects_bad_envelopes_and_preserves_provider_blocks():
     from agent.tool_call_batches import expand_local_tool_batches
-    from tools.connectors.gateway.config import MAX_CALLS_PER_DISPATCH
+    from agent.tool_call_batches import MAX_CALLS_PER_DISPATCH
 
     local = {"name": "mcp__fixture__read", "arguments": {"path": "alpha"}}
     remote = {"name": "connectors__drive__list", "arguments": {}}
-    for entries in ([remote, remote], [local], [local] * (MAX_CALLS_PER_DISPATCH + 1), [local, {}]):
+    for entries in ([local], [local] * (MAX_CALLS_PER_DISPATCH + 1), [local, {}]):
         call = _call(entries)
         original = call.function.arguments
         assert expand_local_tool_batches([call]) == [call]

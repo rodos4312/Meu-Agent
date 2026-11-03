@@ -24,10 +24,11 @@ BEATS = ("next", *flow.BEAT_IDS, "done")
 
 
 def _connected() -> dict:
-    from tools.connectors.display import connected_slugs
-    from tools.connectors.gateway.client import ConnectorClient
-
-    return {"connected": sorted(connected_slugs(ConnectorClient()))}
+    from hermes_cli.mcp_catalog import installed_servers
+    from tools.mcp_tool_discovery import get_mcp_status
+    from tools.mcp_tool_common import mcp_server_enabled
+    configured = {name: cfg for name, cfg in installed_servers().items() if mcp_server_enabled(cfg)}
+    return {"connected": sorted(row["name"] for row in get_mcp_status(configured) if row["connected"])}
 
 
 def _installed() -> dict:
@@ -93,11 +94,9 @@ def _result(step: flow.Step, beat: str | None = None, extra: str = "") -> str:
     return json.dumps({**step.result, **({"reminder": text} if text else {})}, ensure_ascii=False)
 
 
-def _connector_slugs() -> set[str] | None:
-    """The connectors this account can connect, as the card lists them; None when the list is unreachable."""
-    from tools.connectors.targets import hosted_names
-
-    return hosted_names()
+def _connector_slugs() -> set[str]:
+    from hermes_cli.mcp_catalog import list_catalog
+    return {entry.name for entry in list_catalog()}
 
 
 def _suggest_from(slugs: set[str] | None) -> str:

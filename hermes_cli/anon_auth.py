@@ -1,16 +1,9 @@
 """Nous free-tier identity: the ``anonymous`` auth method of the ``nous`` provider.
 
-The identity is created in two places: by the desktop's first install, which claims the welcome
-trial (``hermes_cli.welcome_trial``), and on the first hosted connector action for anyone without a
-Nous identity (``tools.connectors.gateway.config.ensure_guest_identity``, gated by ``guest_allowed``).
-Either mints an anonymous Nous account (``POST /api/anonymous/create``); its ``anon_`` credential is
-later exchanged for short-lived JWTs (``POST /api/anonymous/token``). The result is persisted as the
-singleton ``providers.nous``. Only a guest stamped with the trial claim carries inference
-(:func:`free_inference_active`), on every surface of the install once the desktop claimed it: chats,
-cron, side agents, workers, the CLI. Every other guest serves connectors and managed tools. In the resolver ladder (``resolve_provider``) a guest that
-carries inference sits directly above the implicit AWS Bedrock chain (NS-829): any explicit provider
-(env key, ``model.provider``, OpenRouter pool, a logged-in ``active_provider``) beats it, and the
-ladder never creates one.
+Legacy identity storage and exchange remain for compatibility while their remaining
+internal consumers are separated. Meu no longer exposes the desktop welcome-trial
+or hosted connector entry points. Status reads and provider resolution must never
+create an identity.
 
 Only two mechanics differ from an OAuth login and both are isolated behind ``is_guest_state``:
 token acquisition (re-exchange the ``anon_`` credential; there is no refresh token) and routing
@@ -674,14 +667,9 @@ def ensure_portal_identity(
     """Make sure this profile has a Nous identity (guest or account); mint a guest only if the shared
     store has none. Returns the ``providers.nous`` state, or None (disabled / failed once already).
 
-    ``explicit`` is required and must be True: the only callers are the first hosted connector action
-    (``tools.connectors.gateway.config.ensure_guest_identity``), the connectors dead-credential
-    replacement (``managed_tool_gateway._replace_dead_guest_token``) and the desktop's welcome-trial
-    claim (``welcome_trial.claim_desktop_free_tier``), which passes ``welcome_claim=True`` so a guest
-    it mints carries the stamp from its first write. Every other guest is minted with
-    ``welcome_claim: False`` and serves connectors only.
-    Nothing creates an identity as a side effect of reading status, resolving a provider or fetching a
-    connector bearer (NS-845 Q1.2).
+    ``explicit`` must be True. The former hosted connector and desktop trial entry
+    points have been removed; this legacy primitive is not a connection-management
+    path. Reading status or resolving a provider must not create an identity.
 
     Order: gate (``guest_allowed``) -> reconcile with the shared store -> mint. Locks are taken
     profile first, then shared, matching every other Nous path. Blocking, bounded by ``timeout_seconds``.

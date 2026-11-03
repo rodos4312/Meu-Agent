@@ -34,6 +34,7 @@ describe('local MCP persistence without a Nous identity', () => {
   it('keeps the latest catalog when two updates share a timestamp', () => {
     const stop = startConnectorPersistence()
     const key = [MCP_CATALOG_KEY[0], profileScopeKey(scope)]
+
     try {
       queryClient.setQueryData(key, { entries: [{ name: 'first' }] }, { updatedAt: 123 })
       const latest = { entries: [{ name: 'second' }] }

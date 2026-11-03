@@ -89,20 +89,6 @@ class TestNasRefusalCodes:
         assert "nous" not in _load_auth_store().get("providers", {})
         assert nas.creates() == 1
 
-    def test_a_locked_account_is_never_replaced_through_connectors_either(self, nas):
-        from hermes_cli.auth import _auth_store_lock, _save_auth_store
-        from tests.hermes_cli.anon_portal import make_jwt
-        from tools import managed_tool_gateway as mtg
-        anon_auth.ensure_portal_identity(explicit=True)
-        with _auth_store_lock():
-            store = _load_auth_store()
-            store["providers"]["nous"]["expires_at"] = "2000-01-01T00:00:00+00:00"
-            store["providers"]["nous"]["access_token"] = make_jwt(exp=1)
-            _save_auth_store(store)
-        nas.token_response = httpx.Response(403, json={"error": "account_locked"})
-        assert mtg.read_nous_access_token() is None
-        assert "nous" not in _load_auth_store().get("providers", {})
-        assert nas.creates() == 1
 
     def test_a_5xx_or_non_json_body_is_a_retryable_server_error(self, nas):
         nas.create_response = httpx.Response(500, text="<html>oops</html>")

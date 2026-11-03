@@ -1,13 +1,12 @@
-import type { ToolCallMessagePartProps } from '@assistant-ui/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { atom } from 'nanostores'
 import type { ReactNode } from 'react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type SessionView, SessionViewProvider } from '@/app/chat/session-view'
 import { ConnectorDirectoryCard } from '@/components/assistant-ui/connector-directory-card'
-import { ConnectorTool } from '@/components/assistant-ui/connector-tool'
 import { I18nProvider } from '@/i18n'
 import { $connectionRequests } from '@/store/connection-request'
 import { setPrimaryGateway, setPrimaryGatewayConnectionId } from '@/store/gateway'
@@ -15,26 +14,27 @@ import { _resetSessionOwnerHintsForTests, setSessionOwnerHint } from '@/store/se
 
 const SESSION_ID = 'session-1'
 
-const row = (connector: string, connected: boolean) => ({
-  connected,
-  connection_status: connected ? 'active' : null,
-  connector,
-  enabled: true,
-  gateway_disabled_tools: [],
-  status_reason: null
-})
-
 const REPLIES = new Map<string, object>([
-  ['connectors.accounts', { accounts: [] }],
-  ['connectors.catalog', { connectors: [] }],
   [
-    'connectors.list',
+    'mcp.servers.list',
     {
-      available: true,
-      connectors: [row('gmail', true), row('linear', false), row('notion', false), row('slack', false)]
+      servers: [
+        { name: 'paper', enabled: true },
+        { name: 'disabled', enabled: false },
+        { name: 'pending', enabled: true }
+      ]
     }
   ],
-  ['connectors.policy.get', { layers: [] }]
+  [
+    'mcp.servers.status',
+    {
+      servers: [
+        { name: 'paper', status: 'connected' },
+        { name: 'disabled', status: 'connected' },
+        { name: 'pending', status: 'connecting' }
+      ]
+    }
+  ]
 ])
 
 function gateway() {
@@ -72,15 +72,13 @@ function inChat(children: ReactNode) {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <I18nProvider configClient={null} initialLocale="en">
-        <SessionViewProvider value={view()}>{children}</SessionViewProvider>
+        <MemoryRouter>
+          <SessionViewProvider value={view()}>{children}</SessionViewProvider>
+        </MemoryRouter>
       </I18nProvider>
     </QueryClientProvider>
   )
 }
-
-// Each app is a toggle tile; its first line is the app name.
-const tileOrder = (container: HTMLElement) =>
-  [...container.querySelectorAll('button[aria-pressed]')].map(tile => tile.querySelector('.block')?.textContent)
 
 afterEach(() => {
   cleanup()
@@ -90,45 +88,26 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('ConnectorDirectoryCard', () => {
-  it('pins Suggested rows first in the given order, then the most used apps, and Continue reports the result', async () => {
-    gateway()
+describe('Independent MCP directory', () => {
+  it('reads only the owning gateway MCP methods and reports live enabled servers', async () => {
+    const request = gateway()
     const onContinue = vi.fn()
-
-    const { container } = inChat(<ConnectorDirectoryCard onContinue={onContinue} suggested={['slack', 'linear']} />)
-
-    await waitFor(() => expect(tileOrder(container)).toEqual(['Slack', 'Linear', 'Gmail', 'Notion']))
-    expect(screen.getByText('Suggested')).toBeTruthy()
-
+    inChat(<ConnectorDirectoryCard onContinue={onContinue} />)
+    await screen.findByText('paper')
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-
-    expect(onContinue).toHaveBeenCalledWith({
-      connected: ['gmail'],
-      newly_connected: [],
-      suggested: ['slack', 'linear']
-    })
+    expect(onContinue).toHaveBeenCalledWith({ connected: ['paper'], newly_connected: [], suggested: [] })
+    expect(new Set(request.mock.calls.map(([method]) => method))).toEqual(
+      new Set(['mcp.servers.list', 'mcp.servers.status'])
+    )
   })
 
-  it('collapses to one receipt line naming what the user connected once the call returns', () => {
-    const args = { action: 'display', connectors: ['slack'] }
-
-    const props: ToolCallMessagePartProps = {
-      addResult: vi.fn(),
-      args,
-      argsText: JSON.stringify(args),
-      isError: false,
-      respondToApproval: vi.fn(),
-      result: JSON.stringify({ connected: ['gmail', 'slack'], newly_connected: ['slack'], suggested: ['slack'] }),
-      resume: vi.fn(),
-      status: { type: 'complete' },
-      toolCallId: 'display-call-1',
-      toolName: 'manage_connections',
-      type: 'tool-call'
-    }
-
-    const { container } = inChat(<ConnectorTool {...props} />)
-
-    expect(screen.getByText('Connected: Slack')).toBeTruthy()
-    expect(tileOrder(container)).toEqual([])
+  it('shows a gateway failure and permits continuing without claiming a connection', async () => {
+    const request = gateway()
+    request.mockRejectedValue(new Error('MCP service unavailable'))
+    const onContinue = vi.fn()
+    inChat(<ConnectorDirectoryCard onContinue={onContinue} />)
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('MCP service unavailable'))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onContinue).toHaveBeenCalledWith({ connected: [], newly_connected: [], suggested: [] })
   })
 })

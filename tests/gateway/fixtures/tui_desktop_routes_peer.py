@@ -222,7 +222,6 @@ async def _connection_card(authority, ws, reader, sid, marker, receipt):
     from tools.connectors import live, run
     from tools.connectors.contract import Actor, TargetState
     from tools import connectors
-    from tools.connectors.gateway.errors import GatewayAuthError
     from tools.connectors.operation import ConnectionOperation, Target
 
     created = await rpc(ws, 'session.create', request_id='routes-card', source='gui', toolsets=['connections'],
@@ -253,13 +252,6 @@ async def _connection_card(authority, ws, reader, sid, marker, receipt):
     retried = await rpc(ws, 'connectors.connect', owner=owner, connectors=['linear'], reconnect=True)
     assert retried.get('result', {}).get('targets', [{}])[0].get('state') == 'initiated', retried
     assert seen == {'names': ['linear'], 'key': authority.sessions[sid].route, 'platform': 'local'}, seen
-
-    def auth_failure(op, names):
-        raise GatewayAuthError('expired', code='invalid_token', status=401)
-
-    run.reissue = auth_failure
-    refused = await rpc(ws, 'connectors.connect', owner=owner, connectors=['linear'], reconnect=True)
-    assert refused['error']['code'] == 4032 and refused['error']['data']['reason'] == 'NEEDS_NOUS_AUTH', refused
 
     def broken(op, names):
         raise OSError('transport down')

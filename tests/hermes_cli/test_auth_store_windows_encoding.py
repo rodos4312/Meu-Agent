@@ -70,8 +70,6 @@ def windows_default_encoding(monkeypatch):
     monkeypatch.setattr(Path, "read_text", _windows_read_text)
 
 
-
-
 # --- the bug: a non-ASCII label must survive save → load -------------------
 
 class TestAuthStoreEncodingRoundTrip:
@@ -135,7 +133,6 @@ class TestAuthStoreEncodingRoundTrip:
 
 
 # --- the fix: readers pass an explicit encoding ---------------------------
-
 
 
 # --- sibling readers of the same ~/.hermes/auth.json in other modules -------
@@ -278,34 +275,3 @@ class TestAuthJsonSiblingReaders:
         monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 
         assert main_mod._has_any_provider_configured() is True
-
-    def test_managed_tool_gateway_reads_non_ascii_nous_state(
-        self, hermes_home, windows_default_encoding
-    ):
-        """tools.managed_tool_gateway._read_nous_provider_state reads auth.json.
-
-        The Nous provider entry can carry a non-ASCII label. Under the
-        Windows-default-encoding fixture a no-encoding read raises and the
-        broad except swallows it, returning None — so the gateway treats
-        Nous as unconfigured.
-        """
-        store = {
-            "version": auth.AUTH_STORE_VERSION,
-            "providers": {
-                "nous": {
-                    "agent_key": "k",
-                    # Non-ASCII label → UTF-8 bytes cp1252 cannot decode.
-                    "label": "工作账号",
-                }
-            },
-        }
-        _write_utf8(hermes_home / "auth.json", store)
-
-        from tools.managed_tool_gateway import _read_nous_provider_state
-
-        nous = _read_nous_provider_state()
-        assert nous is not None
-        assert nous.get("agent_key") == "k"
-        # The non-ASCII label round-trips intact.
-        assert nous.get("label") == "工作账号"
-

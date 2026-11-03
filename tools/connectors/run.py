@@ -1,7 +1,6 @@
 """The one lifecycle every ``manage_connections`` operation follows, whatever the target kind.
 
-``run_operation`` mints the op, registers it in ``live``, lets the kind prepare its targets (a
-managed mint, an MCP catalog check), emits the card through the session callback, then loops:
+``run_operation`` mints the op, registers it in ``live``, lets the kind prepare its targets (an MCP catalog check), emits the card through the session callback, then loops:
 sleep on ``op.wake`` for at most one tick, run the kind's ``observe`` hook, settle when every
 target is resolved or the deadline passes. ``connection.respond`` reaches the loop by transitioning
 the op through ``live`` and setting ``wake``; ``/stop`` sets the thread interrupt flag."""
@@ -43,8 +42,8 @@ class Kind:
     result: Optional[Callable[[ConnectionOperation], dict[str, Any]]] = None
 
 
-def reissue(operation: ConnectionOperation, names: Sequence[str], *, initiator: Optional[str] = None) -> Optional[str]:
-    from tools.connectors.contract import Actor, TargetState, allowed
+def reissue(operation: ConnectionOperation, names: Sequence[str]) -> Optional[str]:
+    from tools.connectors.contract import TargetState, allowed
 
     targets = [operation.target(name) for name in names]
     if any(target is None for target in targets):
@@ -58,12 +57,6 @@ def reissue(operation: ConnectionOperation, names: Sequence[str], *, initiator: 
         return SETTLED
     if any(allowed(target.kind, target.state, TargetState.initiated) is None for target in targets):
         return NOT_ALLOWED
-    if targets[0].kind == "connector":
-        from tools.connectors.managed import CARD_RETRY, managed_client, mint
-
-        client = managed_client(creates_guest=True, initiator=initiator or CARD_RETRY, call=operation.call)
-        mint(client, operation, stale, reinitiate=True, actor=Actor.user)
-        return None
     from tools.connectors import catalog
     from tools.connectors.mcp import retry
 
@@ -73,12 +66,9 @@ def reissue(operation: ConnectionOperation, names: Sequence[str], *, initiator: 
 
 def apply_answer(operation: ConnectionOperation, raw: str) -> None:
     """Hand the card's answer to the module running this operation (a catalog install or an MCP
-    one); a managed operation's card only skips and continues, which the MCP fold also covers."""
-    from tools.connectors import catalog, display, mcp
+    one)."""
+    from tools.connectors import catalog, mcp
 
-    if isinstance(operation, display.DisplayOperation):
-        display.apply_answer(operation, raw)
-        return
     (catalog.apply_answer if catalog.owns(operation.op_id) else mcp.apply_answer)(operation, raw)
 
 

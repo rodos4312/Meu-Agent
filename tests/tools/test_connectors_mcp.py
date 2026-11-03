@@ -133,19 +133,6 @@ def _catalog(backend):
             registry._generation += 1
 
 
-class FakeClient:
-    def __init__(self):
-        self.calls = []
-
-    def list_connectors(self, **_):
-        self.calls.append("list")
-        return [{"connector": "gmail", "enabled": True, "connected": False}]
-
-    def connections(self, connectors, *, reinitiate=False):
-        self.calls.append(("connections", tuple(connectors), reinitiate))
-        return {"results": [{"connector": c, "status": "initiated", "connect_url": f"https://x/{c}"} for c in connectors]}
-
-
 def _mcp_target(name):
     return {"name": name, "mcp": True}
 
@@ -262,17 +249,10 @@ def test_registry_dispatch_never_blocks_and_never_reaches_a_card(backend):
     assert out["targets"][0]["state"] == TargetState.connected.value
 
 
-def test_a_managed_action_never_accepts_mcp_targets_and_vice_versa():
-    client = FakeClient()
-    out = json.loads(manage_connections(
-        {"action": "connect", "connectors": ["gmail", _linear()]}, client_factory=lambda: client))
-    assert "managed-connector action" in out["error"]
-    assert client.calls == []  # rejected before any gateway call
-
-    out = json.loads(manage_connections({"action": "install", "connectors": ["gmail", _linear()]}))
-    assert "must carry" in out["error"]
-
-
+def test_hosted_actions_are_rejected_before_mcp_work(backend):
+    out = json.loads(manage_connections({"action": "connect", "connectors": ["gmail", _linear()]}))
+    assert "Hosted accounts are not supported" in out["error"]
+    assert backend.calls == []
 
 
 def test_unknown_target_fields_are_rejected():
@@ -329,13 +309,9 @@ def test_setup_mcp_replay_shim_translates_to_an_mcp_target(backend):
     assert out["targets"][0]["state"] == TargetState.skipped.value
 
 
-
-
 # ---------------------------------------------------------------------------
 # deadline ownership
 # ---------------------------------------------------------------------------
-
-
 
 
 # ---------------------------------------------------------------------------

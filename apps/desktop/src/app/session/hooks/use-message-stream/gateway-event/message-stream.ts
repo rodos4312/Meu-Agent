@@ -1,6 +1,6 @@
 import { type BillingBlock, mergeUsage } from '@hermes/shared'
 
-import { invalidateConnectors } from '@/app/capabilities/connectors/data/keys'
+import { invalidateMcpConnections } from '@/app/capabilities/connectors/data/keys'
 import { noteTurnSettled } from '@/app/session/hooks/use-session-actions/settled-turns'
 import { burstVibeHearts } from '@/components/chat/vibe-hearts'
 import { translateNow } from '@/i18n'
@@ -428,12 +428,10 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     )
 
     if (payload?.status === 'complete') {
-      invalidateConnectors(
-        { connectionId: event.connectionId, profile: event.profile ?? deps.activeGatewayProfile },
-        'list',
-        'catalog',
-        'accounts'
-      )
+      invalidateMcpConnections({
+        connectionId: event.connectionId,
+        profile: event.profile ?? deps.activeGatewayProfile
+      })
     }
 
     // Structured billing wall forwarded by the gateway (out of credits /

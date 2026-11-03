@@ -102,9 +102,8 @@ def _respond(operation, answer):
 def _retry(authority, ref, operation, request):
     """The card's Try again, under the session's own context, as the sidecar ran it for its session."""
     from tools.connectors import run
-    from tools.connectors.gateway.errors import GatewayAuthError
     from tui_gateway.connector_refusals import (INVALID_PARAMS, REISSUE_REFUSALS, REISSUE_REFUSED, REQUEST_FAILED,
-                                                UNKNOWN_TARGET_REFUSAL, auth_refusal)
+                                                UNKNOWN_TARGET_REFUSAL)
     if not request.reconnect:
         raise ConnectorRefusal(*INVALID_PARAMS)
     for name in request.connectors:
@@ -119,8 +118,6 @@ def _retry(authority, ref, operation, request):
             reason = run.reissue(operation, request.connectors)
         except RuntimeStoreError:
             raise
-        except GatewayAuthError as exc:
-            raise ConnectorRefusal(*auth_refusal(exc)) from exc
         except Exception as exc:  # health: allow BLE001 -- the sidecar's _connector_guard: one named failure
             raise ConnectorRefusal(*REQUEST_FAILED) from exc
     if reason is not None:

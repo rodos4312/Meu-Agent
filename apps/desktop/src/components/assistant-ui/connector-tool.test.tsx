@@ -127,7 +127,7 @@ function Where() {
 }
 
 describe('ConnectorOffer named-account notice', () => {
-  it('says which name Hermes chose once the account connected, and Rename opens that account (by id) on the Connectors tab', () => {
+  it('keeps saved account names readable without offering the removed account editor', () => {
     const request = {
       ...REQUEST,
       settled: true,
@@ -146,13 +146,8 @@ describe('ConnectorOffer named-account notice', () => {
       </I18nProvider>
     )
 
-    expect(screen.getAllByText('Hermes named this Gmail account work.')).toHaveLength(1)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
-
-    expect(screen.getByTestId('where').textContent).toBe(
-      '/capabilities?tab=connectors&connector=gmail&profile=default&rename=ca_work'
-    )
+    expect(screen.getAllByText('Meu named this Gmail account work.')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Rename' })).toBeNull()
   })
 })
 

@@ -108,12 +108,9 @@ class TestBrowserUseStrictSelection:
 
     def test_vendor_selection_missing_key_errors_without_managed_call(self):
         provider = self._provider()
-        with patch("plugins.browser.browser_use.provider.get_secret", return_value=""), \
-             patch("tools.tool_backend_helpers.read_selection", return_value="browser-use"), \
-             patch("tools.managed_tool_gateway.resolve_managed_tool_gateway") as gw:
+        with patch('plugins.browser.browser_use.provider.get_secret', return_value=''), patch('tools.tool_backend_helpers.read_selection', return_value='browser-use'):
             with pytest.raises(ValueError) as exc:
                 provider._get_config()
-        gw.assert_not_called()
         assert "browser is configured to use browser-use" in str(exc.value)
         assert "BROWSER_USE_API_KEY" in str(exc.value)
 

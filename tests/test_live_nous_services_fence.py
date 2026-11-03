@@ -10,13 +10,12 @@ import socket
 import pytest
 
 
-def test_first_connector_action_in_a_test_home_mints_no_portal_guest():
+def test_retired_connector_action_mints_no_portal_guest():
+    import json
     from hermes_cli import anon_auth
-    from tools.connectors.gateway.config import ensure_guest_identity
-
-    failure = ensure_guest_identity()
-
-    assert failure and failure.startswith("Hosted connectors could not be set up.")
+    from tools.connectors.tool import manage_connections
+    result = json.loads(manage_connections({"action": "connect", "connectors": ["gmail"]}))
+    assert "Hosted accounts are not supported" in result["error"]
     assert not anon_auth.has_guest()
 
 

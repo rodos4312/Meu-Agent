@@ -26,7 +26,6 @@ const buildOverlayState = (): OverlayState => ({
   clarify: null,
   confirm: null,
   connection: null,
-  connectors: false,
   ambient: [],
   widget: null,
   journey: false,
@@ -52,7 +51,6 @@ const BLOCKING_KEYS = [
   'clarify',
   'confirm',
   'connection',
-  'connectors',
   'journey',
   'modelPicker',
   'pager',
@@ -123,7 +121,6 @@ export const $isBlocked = computed($overlayState, overlay => BLOCKING_KEYS.some(
  */
 export const hasFloatingPanel = (overlay: OverlayState): boolean =>
   Boolean(
-    overlay.connectors ||
     overlay.modelPicker ||
     overlay.pager ||
     overlay.petPicker ||
@@ -177,7 +174,6 @@ export const resetFlowOverlays = () =>
     agentsInitialHistoryIndex: $overlayState.get().agentsInitialHistoryIndex,
     ambient: $overlayState.get().ambient,
     connection: $overlayState.get().connection,
-    connectors: $overlayState.get().connectors,
     widget: $overlayState.get().widget,
     journey: $overlayState.get().journey,
     modelPicker: $overlayState.get().modelPicker,

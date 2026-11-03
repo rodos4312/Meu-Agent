@@ -16,14 +16,19 @@ export function mcpTargets(toolName: string, args: ToolCallMessagePart['result']
   }
 
   const input = recordOf(args)
-  const action = MCP_ACTIONS.find(a => a === input.action) ?? 'install'
+  const action = MCP_ACTIONS.find(a => a === input.action)
 
-  if (!Array.isArray(input.connectors)) {
+  if (!action || !Array.isArray(input.connectors)) {
     return []
   }
 
   return input.connectors.flatMap(entry => {
-    const name = isRecord(entry) && entry.mcp === true ? connectorText(entry.name)?.trim() : undefined
+    const name =
+      typeof entry === 'string'
+        ? entry.trim()
+        : isRecord(entry) && entry.mcp !== false
+          ? connectorText(entry.name)?.trim()
+          : undefined
 
     return name ? [{ action, name: name.toLowerCase() }] : []
   })

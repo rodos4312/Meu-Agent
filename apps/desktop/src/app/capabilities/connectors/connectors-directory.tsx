@@ -2,7 +2,6 @@ import { type ReactNode } from 'react'
 
 import { PanelEmpty } from '@/app/overlays/panel'
 import { Button } from '@/components/ui/button'
-import { ErrorBanner } from '@/components/ui/error-state'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useI18n } from '@/i18n'
 
@@ -19,13 +18,11 @@ export interface ConnectorsDirectoryProps {
   busyKey?: null | string
   cards: ConnectorCardModel[]
   filter: ConnectorsFilter
-  hostedFailed?: boolean
   loading?: boolean
   notices?: ReactNode
   onFilterChange: (next: ConnectorsFilter) => void
   onOpen: (card: ConnectorCardModel) => void
   onPrefetch?: (card: ConnectorCardModel) => void
-  onRetryHosted?: () => void
   onServerToggle?: (card: ConnectorCardModel, next: boolean) => void
   onVerb?: (card: ConnectorCardModel) => void
   selectedKey?: null | string
@@ -36,13 +33,11 @@ export function ConnectorsDirectory({
   busyKey = null,
   cards,
   filter,
-  hostedFailed = false,
   loading = false,
   notices,
   onFilterChange,
   onOpen,
   onPrefetch,
-  onRetryHosted,
   onServerToggle,
   onVerb,
   selectedKey = null
@@ -105,20 +100,10 @@ export function ConnectorsDirectory({
 
       {notices ? <div className="mt-(--capabilities-gap-controls) shrink-0 empty:hidden">{notices}</div> : null}
 
-      {hostedFailed && onRetryHosted ? (
-        <ErrorBanner className="mt-(--capabilities-gap-controls) shrink-0 items-center">
-          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-            <span className="font-medium">{copy.page.hostedFailedTitle}</span>
-            <span className="opacity-80">{copy.page.hostedFailedBody}</span>
-            <Button className="text-destructive" onClick={onRetryHosted} size="xs" variant="text">
-              {copy.page.retry}
-            </Button>
-          </span>
-        </ErrorBanner>
-      ) : null}
-
       {loading ? (
-        <div className="mt-(--capabilities-gap-lead)"><ToolsWash label={copy.page.loading} rows={10} /></div>
+        <div className="mt-(--capabilities-gap-lead)">
+          <ToolsWash label={copy.page.loading} rows={10} />
+        </div>
       ) : groups.length > 0 ? (
         <div className="capabilities-sections min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
           {groups.map(group => (
@@ -136,9 +121,7 @@ export function ConnectorsDirectory({
           ))}
         </div>
       ) : cards.length === 0 ? (
-        hostedFailed ? null : (
-          <PanelEmpty action={addYourOwn} icon="plug" title={copy.page.emptyTitle} />
-        )
+        <PanelEmpty action={addYourOwn} icon="plug" title={copy.page.emptyTitle} />
       ) : (
         <PanelEmpty
           action={

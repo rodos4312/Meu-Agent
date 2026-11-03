@@ -797,7 +797,6 @@ def _normalize_request(req: Any) -> tuple[Any, str, dict] | dict:
     return rid, method, params if params is not None else {}
 
 
-
 def _current_session_steer_authority(session_id: str) -> tuple[Transport | None, dict | None]:
     """Unforgeable steering authority for this RPC context: the public session id is only a lookup
     hint; authority requires the ContextVar-bound transport to be ATTACHED to the live in-memory record
@@ -816,9 +815,6 @@ def _current_session_steer_authority(session_id: str) -> tuple[Transport | None,
                 or not _session_transport_contains(session, transport)):
             return None, None
         return transport, session
-
-
-
 
 
 # ── Config I/O ────────────────────────────────────────────────────────
@@ -973,7 +969,6 @@ def _ask(method: str, sid: str, params: dict, timeout: float | None = 300) -> st
     return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
-
 def _clarify_timeout_seconds() -> float | None:
     """Clarify wait for the TUI/desktop bridge from the canonical config (gateway/CLI parity); 300s
     historical default if config can't be read; ``<= 0`` = unlimited → None (never auto-skip)."""
@@ -1108,8 +1103,6 @@ def _clear_pending(sid: str | None = None) -> None:
 
 
 # ── Agent factory ────────────────────────────────────────────────────
-
-
 
 
 def _live_session_agent_db(session: dict | None):
@@ -1257,8 +1250,6 @@ _DISPLAY_TOGGLE_KEYS = frozenset({"display.message_reactions", "display.in_app_t
 _BOOL_WORDS = {
     "1": True, "on": True, "true": True, "yes": True, "0": False, "off": False, "false": False, "no": False,
 }
-
-
 
 
 def _restart_slash_worker(sid: str, session: dict):
@@ -1608,8 +1599,6 @@ class _RuntimeFallbackResolution(NamedTuple):
     used_fallback: bool
 
 
-
-
 def _hydrate_session_cwd(sid: str, key: str, session_db, profile_home: str | None) -> None:
     """Adopt the stored row's cwd and fill missing Git metadata, or persist a fresh cwd."""
     owns_db, db = False, session_db
@@ -1660,8 +1649,6 @@ def _hydrate_session_cwd(sid: str, key: str, session_db, profile_home: str | Non
         if owns_db and db is not None:
             with contextlib.suppress(Exception):
                 db.close()
-
-
 
 
 # Pet helpers are fail-open throughout: a decode hiccup degrades to a static fallback rather than
@@ -2018,7 +2005,7 @@ from . import (
     methods_projects as _methods_projects, methods_session_foreign as _methods_session_foreign,
     methods_session_control as _methods_session_control, methods_subagents as _methods_subagents,
     methods_vault as _methods_vault,
-    methods_connectors as _methods_connectors, methods_connectors_account as _methods_connectors_account,
+    methods_connectors as _methods_connectors,
     methods_display as _methods_display, methods_display_watch as _methods_display_watch,
     methods_onboarding as _methods_onboarding, methods_i18n as _methods_i18n, methods_machine as _methods_machine,
     methods_plugin_catalog as _methods_plugin_catalog)
@@ -2033,7 +2020,7 @@ for _m in (
     _methods_config_set, _methods_complete, _methods_tools, _methods_tools_plugin_servers, _methods_profiles, _methods_images,
     _methods_bot_relay, _prompt_turn, _methods_projects, _methods_session_foreign,
     _methods_session_control, _methods_subagents, _methods_vault, _methods_connectors,
-    _methods_connectors_account, _methods_display, _methods_display_watch, _methods_onboarding,
+    _methods_display, _methods_display_watch, _methods_onboarding,
     _methods_i18n, _methods_machine, _methods_plugin_catalog):
     _m.register(sys.modules[__name__])
 del _m
