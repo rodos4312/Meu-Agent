@@ -12,7 +12,7 @@ import json
 import httpx
 import pytest
 
-from hermes_cli import anon_auth, anon_sign_in, free_tier_bootstrap
+from hermes_cli import anon_auth, free_tier_bootstrap
 from hermes_cli.auth import _load_auth_store
 
 from tests.hermes_cli.anon_portal import PORTAL, WELCOME, as_local_desktop_backend, claimed_trial, install_portal
@@ -224,33 +224,6 @@ class TestBootstrapRecord:
 
 
 # --- Signing in while the service misbehaves ------------------------------------------------------
-
-
-class TestSignInFailures:
-    @pytest.mark.parametrize("code,retry_after,retryable,needle", [
-        (anon_auth.ANON_RATE_LIMITED, 45, True, "busy"),
-        (anon_auth.ANON_GATE_PAUSED, 0, True, "busy"),
-        (anon_auth.ANON_UNREACHABLE, 0, True, "internet connection"),
-        (anon_auth.ANON_GATE_CLOSED, 0, False, "Nous account"),
-        (anon_auth.ANON_POW_REQUIRED, 0, False, "proof of work"),
-    ])
-    def test_a_service_verdict_keeps_its_code_wait_and_copy(self, code, retry_after, retryable, needle):
-        state = anon_sign_in._failed_from_exception(
-            anon_auth._anon_err("x", code, retry_after=retry_after or None))
-        assert state.kind == "failed" and state.reason == code
-        assert state.retryable is retryable
-        assert state.retry_after == retry_after
-        assert needle in state.copy
-        assert "Hermes " not in state.copy and "http" not in state.copy
-
-    def test_the_wire_failing_reads_as_unreachable(self):
-        state = anon_sign_in._failed_from_exception(httpx.ReadTimeout("slow"))
-        assert state.reason == anon_auth.ANON_UNREACHABLE and state.retryable is True
-
-    def test_an_unnamed_local_failure_keeps_the_generic_copy_and_its_terminal_detail(self):
-        state = anon_sign_in._failed_from_exception(RuntimeError("bad CA bundle"))
-        assert state.reason == "" and state.copy == anon_sign_in.UPGRADE_NOT_COMPLETED
-        assert "bad CA bundle" in state.copy_terminal
 
 
 # --- The dev-only host override ------------------------------------------------------------------

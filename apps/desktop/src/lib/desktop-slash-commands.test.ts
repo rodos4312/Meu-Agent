@@ -152,10 +152,11 @@ describe('desktop slash command curation', () => {
     expect(isDesktopSlashCommand('/my-skill')).toBe(true)
   })
 
-  it('does not run /login on desktop before the catalog is loaded', () => {
+  it('does not reserve the retired login name against user extensions', () => {
     rememberDesktopCommandsCatalog(undefined)
-    expect(isDesktopSlashCommand('/login')).toBe(false)
-    expect(desktopSlashUnavailableMessage('/login')).not.toBeNull()
+    expect(resolveDesktopCommand('/login')).toBeNull()
+    expect(isDesktopSlashCommand('/login')).toBe(true)
+    expect(desktopSlashUnavailableMessage('/login')).toBeNull()
   })
 
   it('routes /compress through the session-compression action', () => {

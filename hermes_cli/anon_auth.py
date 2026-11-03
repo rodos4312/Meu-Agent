@@ -16,9 +16,8 @@ Only two mechanics differ from an OAuth login and both are isolated behind ``is_
 token acquisition (re-exchange the ``anon_`` credential; there is no refresh token) and routing
 (the welcome inference host, single model ``nous/welcome``).
 
-Users are never shown the words guest / anonymous / account for this state: surfaces say
-"Nous · free tier". Two user-facing verbs reach the same flow, both keeping the identity's
-connectors: ``hermes auth upgrade`` in a terminal and ``/login`` inside a chat.
+The legacy identity interpreter remains for tool-gateway compatibility. Meu no longer exposes
+the Nous account sign-in commands; recovery hints point to supported provider setup.
 
 Lifecycle lives in ONE primitive, :func:`_reconcile_and_provision`: adopt what the shared store already
 holds, else mint under the shared-store lock. :func:`ensure_portal_identity` (connectors) and the
@@ -59,7 +58,11 @@ PREVIEW_FULL_CONNECTORS_ENV = "HERMES_PREVIEW_FULL_CONNECTORS"
 GUEST_MINT_TIMEOUT_SECONDS = 5.0
 # Copy shared by every surface that names the free tier (R-USR-1): never guest / anonymous / account.
 FREE_TIER_LABEL = "Nous · free tier"
-UPGRADE_HINT = "Run `hermes auth upgrade` to sign in with a Nous account, or /login inside a chat."
+UPGRADE_HINT = "Run `hermes model` to configure a supported provider."
+FREE_TIER_RATE_LIMIT_CARD = (
+    "The legacy Nous allowance is exhausted. Configure a supported provider in model settings.")
+FREE_TIER_RATE_LIMIT_CHAT = FREE_TIER_RATE_LIMIT_CARD + " Choose a supported provider with /model."
+
 FREE_TIER_NOT_SIGNED_IN = (
     "You're not signed in. Free inference and connectors are always on. "
     "Run `hermes auth` to sign in with a Nous account.")
@@ -798,19 +801,19 @@ _WELCOME_ROUTE_COPY = {
     # Only reachable when the route heal (``turn_recovery._recover_welcome_tier``) could not move
     # the session: the one cause left is a user-set NOUS_INFERENCE_BASE_URL naming the paid host.
     "anon_on_paid_host": "This install is set to use a different Nous server (NOUS_INFERENCE_BASE_URL). "
-                         "Unset it to use the free model, or sign in. {signin}",
+                         "Choose a supported provider. {signin}",
     "named_on_welcome_host": "This Nous account needs to reconnect. {model_hint}",
     "tier_disabled": "Using Hermes without signing in is switched off right now. "
-                     "Sign in to keep chatting, it's free. {signin}",
+                     "Choose a supported provider. {signin}",
     # Only reachable when re-exchanging the free credential failed (``turn_recovery._recover_welcome_tier``).
     "session_expired": "Hermes couldn't renew its connection to the free model. "
-                       "Send your message again, or sign in to keep chatting, it's free. {signin}",
+                       "Choose a supported provider. {signin}",
 }
-# The sign-in door, phrased for a chat surface (slash command) and for a terminal.
-_SIGNIN_CHAT = "To sign in: /login."
-_SIGNIN_TERMINAL = "To sign in: `hermes auth upgrade`."
-_MODEL_HINT_CHAT = "Run /model and pick the Nous row again."
-_MODEL_HINT_TERMINAL = "Run `hermes model` and pick the Nous row again."
+# Recovery for legacy routes uses supported provider selection.
+_SIGNIN_CHAT = "Choose a supported provider with /model."
+_SIGNIN_TERMINAL = "Choose a supported provider with `hermes model`."
+_MODEL_HINT_CHAT = "Choose a supported provider with /model."
+_MODEL_HINT_TERMINAL = "Choose a supported provider with `hermes model`."
 # Terminal copy for a free-model outage once the retries are spent (5xx, transport failure).
 FREE_TIER_OUTAGE_COPY = ("The free model is having trouble responding right now. "
                          "Try sending your message again in a minute.")
@@ -842,9 +845,8 @@ def parse_welcome_refusal(body: Any) -> Optional[dict[str, Any]]:
 def welcome_refusal_copy(refusal: dict[str, Any], *, model: str = "", in_chat: bool = True, door: bool = True) -> str:
     """User copy for a structured welcome-tier refusal: what happened and the one way forward.
 
-    Never guest / anonymous / claim; ``in_chat`` picks ``/login`` over the terminal verb.
-    ``door=False`` leaves the "To sign in: …" tail off, for a surface that renders the sign-in as
-    a button beside the sentence (the desktop's error card)."""
+    ``in_chat`` chooses the chat model command over the terminal command.
+    ``door=False`` omits the command hint for surfaces with their own model controls."""
     signin = (_SIGNIN_CHAT if in_chat else _SIGNIN_TERMINAL) if door else ""
     reason = str(refusal.get("reason") or "")
     alternates = refusal.get("alternates") or []
@@ -854,19 +856,19 @@ def welcome_refusal_copy(refusal: dict[str, Any], *, model: str = "", in_chat: b
     if reason == "model_not_free":
         what = f"{model} isn't" if model else "That model isn't"
         return (f"{what} available without signing in, so Hermes uses {serves} for now. "
-                f"Sign in for more models. {signin}").rstrip()
+                f"{signin}").rstrip()
     if reason == "feature_not_free":
-        return f"That isn't available without signing in. Sign in to use it, it's free. {signin}".rstrip()
+        return f"That feature is unavailable on this legacy route. {signin}".rstrip()
     if reason == "at_capacity":
-        return ("Chatting without signing in is really busy right now. Sign in to skip the queue, "
-                f"it's free, or try again in {wait}. {signin}").rstrip()
+        return ("The legacy free-model service is busy. "
+                f"Try again in {wait}. {signin}").rstrip()
     if reason == "admission_closed":
-        return ("Chatting without signing in is full right now. Sign in to keep going, "
-                f"it's free, or try again in {wait}. {signin}").rstrip()
+        return ("The legacy free-model service is full. "
+                f"Try again in {wait}. {signin}").rstrip()
     if reason == "rate_limited":
         return (f"You've used up the allowance for chatting without signing in. It refreshes in {wait}. "
-                f"Sign in for a bigger allowance, it's free. {signin}").rstrip()
-    return f"Hermes couldn't send that without signing in. Signing in is free. {signin}".rstrip()
+                f"{signin}").rstrip()
+    return f"The legacy service refused this request. {signin}".rstrip()
 
 
 def welcome_route_refusal(status: Any, message: Any, base_url: Any = None) -> Optional[str]:
@@ -1016,35 +1018,7 @@ def _save_guest_state(auth_store: dict[str, Any], state: dict[str, Any], source_
 
 # --- Sign-in completion: the account state from a token grant, and the config settle -------------
 #
-# Every Nous sign-in is the plain device-code login (``anon_sign_in.run_sign_in``). The free tier it
-# replaces hands its apps over in ``guest_handoff`` after the save. User-facing copy never says
-# guest / anonymous / claim.
-
-UPGRADED_AUTH_METHOD = "oauth_device_code"
-
-
-def _account_state_from_token(
-    token_data: dict[str, Any], *, portal_base_url: str, client_id: str, scope: Optional[str], verify: Any,
-    timeout_seconds: float,
-) -> dict[str, Any]:
-    """The ``providers.nous`` shape for the signed-in account (same fields the device-code login writes)."""
-    from hermes_cli.auth import PROVIDER_REGISTRY, _coerce_ttl_seconds, _optional_base_url, _tls_state_from_verify
-    from hermes_cli.auth_nous import _NOUS_EMPTY_AGENT_KEY_FIELDS, _iso_after, refresh_nous_oauth_from_state
-    now = datetime.now(UTC)
-    ttl = _coerce_ttl_seconds(token_data.get("expires_in", 0))
-    inference_url = (
-        _optional_base_url(token_data.get("inference_base_url"))
-        or PROVIDER_REGISTRY["nous"].inference_base_url.rstrip("/"))
-    state = {
-        "portal_base_url": portal_base_url, "inference_base_url": inference_url,
-        "client_id": client_id, "scope": token_data.get("scope") or scope,
-        "token_type": token_data.get("token_type", "Bearer"),
-        "access_token": token_data["access_token"], "refresh_token": token_data.get("refresh_token"),
-        "obtained_at": now.isoformat(), "expires_at": _iso_after(now, ttl), "expires_in": ttl,
-        "tls": _tls_state_from_verify(verify), **_NOUS_EMPTY_AGENT_KEY_FIELDS}
-    state = refresh_nous_oauth_from_state(state, timeout_seconds=timeout_seconds, force_refresh=False)
-    state["auth_method"] = UPGRADED_AUTH_METHOD
-    return state
+# Legacy Tool Gateway account settlement.
 
 
 def settle_after_upgrade(account_state: dict[str, Any]) -> dict[str, Any]:
@@ -1058,7 +1032,7 @@ def settle_after_upgrade(account_state: dict[str, Any]) -> dict[str, Any]:
     same pick as ``GET /api/model/recommended-default``), through the same config write a plain Nous
     login uses. A config on the user's own model and host is left alone.
 
-    Every sign-in completion (CLI ``hermes auth upgrade``, the desktop poller) calls this once, after
+    The remaining Tool Gateway login calls this once after
     ``persist_nous_credentials``. Returns ``{"model": str, "changed": bool}``: ``model`` is the default
     the config now carries (``""`` when it carries none); ``changed`` says whether this call wrote it.
     Never raises: a failed pick or write is logged and reported as ``changed: False`` so the sign-in
@@ -1098,55 +1072,3 @@ def settle_after_upgrade(account_state: dict[str, Any]) -> dict[str, Any]:
         logger.warning("sign-in completion: could not update the default model: %s", exc)
         return {"model": current, "changed": False}
     return {"model": model, "changed": True}
-
-
-def _poll_for_token(*args, **kwargs) -> dict[str, Any]:
-    """Keep both the sign-in module seam and the device-flow seam live at call time."""
-    from hermes_cli.auth_device_flow import _poll_for_token as poll
-    return poll(*args, **kwargs)
-
-
-def persist_nous_credentials(*args, **kwargs):
-    """Keep the existing auth_nous persistence seam behind the sign-in entry point."""
-    from hermes_cli.auth_nous import persist_nous_credentials as persist
-    return persist(*args, **kwargs)
-
-
-# Public sign-in imports remain here for existing callers and module-attribute patches.
-# The flow imports this module only inside calls, so either module can be imported first.
-from hermes_cli.anon_sign_in import (
-    AlreadySignedIn,
-    Cancelled,
-    Code,
-    Completed,
-    FREE_TIER_RATE_LIMIT_CARD,
-    FREE_TIER_RATE_LIMIT_CHAT,
-    Failed,
-    LOGIN_BUSY_ELSEWHERE,
-    LOGIN_COMMAND,
-    LOGIN_DM_ONLY,
-    LOGIN_NOT_ALLOWED,
-    LOGIN_STARTING,
-    SignInState,
-    TimedOut,
-    UPGRADE_ALREADY_SIGNED_IN,
-    UPGRADE_CANCELLED,
-    UPGRADE_DO_NOT_SHARE,
-    UPGRADE_NOT_COMPLETED,
-    UPGRADE_NO_DEFAULT_CHAT,
-    UPGRADE_NO_DEFAULT_TERMINAL,
-    UPGRADE_START,
-    UPGRADE_TIMED_OUT,
-    UPGRADE_WAITING,
-    UPGRADE_WAITING_UP_TO,
-    Waiting,
-    _default_persist_guard,
-    format_wait_line,
-    run_sign_in,
-)
-from hermes_cli.anon_sign_in_cli import (
-    drain_sign_in_copy,
-    render_sign_in_cli,
-    render_sign_in_cli_code,
-    upgrade_guest,
-)

@@ -307,56 +307,6 @@ def _ask(prompt: str, reader: Callable[[str], str] | None = None) -> str | None:
         return None
 
 
-def _add_nous_oauth_credential(args, provider: str) -> PooledCredential:
-    """``hermes auth add nous --type oauth``: shared-credential import, else device-code login."""
-    custom_label = (getattr(args, "label", None) or "").strip() or None
-    timeout = getattr(args, "timeout", None) or 15.0
-
-    def _persist(creds: dict, what: str) -> PooledCredential:
-        # `--label` is embedded into providers.nous so label_from_token doesn't overwrite it on every
-        # subsequent load_pool("nous").
-        from hermes_cli.anon_auth import settle_after_upgrade
-        from hermes_cli.guest_handoff import drain, result_lines
-        entry = auth_mod.persist_nous_credentials(creds, label=custom_label)
-        handoff = drain()  # a replaced free tier hands its apps over once the save lands
-        settle_after_upgrade(creds)  # a config left on the free tier's route moves to the account
-        shown_label = entry.label if entry is not None else label_from_token(
-            creds.get("access_token", ""), f"{provider}-oauth-1")
-        print(f'{what} {provider} OAuth {"device-code " if what == "Saved" else ""}credentials: "{shown_label}"')
-        for line in (line for view in handoff for line in result_lines(view)):
-            print(f"  {line}")
-        return entry
-
-    # Codex-style auto-import: a shared Nous credential at <hermes-root>/shared/nous_auth.json
-    # (written by any previous login) makes `hermes --profile <name> auth add nous --type oauth`
-    # a one-tap operation for multi-profile users.
-    from hermes_cli.anon_auth import is_guest_state
-
-    if (shared := auth_mod._read_shared_nous_state()) and not is_guest_state(shared):
-        try:
-            found = f"Found existing Nous OAuth credentials at {auth_mod._nous_shared_store_path()}"
-        except RuntimeError:
-            found = "Found existing shared Nous OAuth credentials"
-        print()
-        print(found)
-        do_import = _ask("Import these credentials? [Y/n]: ")
-        if do_import is None or do_import.lower() in {"", "y", "yes"}:
-            print("Rehydrating Nous session from shared credentials...")
-            rehydrated = auth_mod._try_import_shared_nous_state(timeout_seconds=timeout)
-            if rehydrated is not None:
-                return _persist(rehydrated, "Imported")
-            # Expired refresh_token, portal down, etc. — fall through to device-code.
-            print("Could not refresh shared credentials — falling back to device-code login.")
-
-    creds = auth_mod._nous_device_code_login(
-        portal_base_url=getattr(args, "portal_url", None),
-        inference_base_url=getattr(args, "inference_url", None),
-        client_id=getattr(args, "client_id", None), scope=getattr(args, "scope", None),
-        open_browser=not getattr(args, "no_browser", False), timeout_seconds=timeout,
-        insecure=bool(getattr(args, "insecure", False)), ca_bundle=getattr(args, "ca_bundle", None))
-    return _persist(creds, "Saved")
-
-
 def _unsuppress_provider_sources(provider: str) -> None:
     """Clear ALL suppressions for this provider — re-adding a credential is a strong signal the
     user wants auth re-enabled. Covers env:* (shell-exported vars), provider CLI tokens, claude_code,
@@ -428,8 +378,6 @@ def auth_add_command(args) -> None:
 def _add_credential(args, provider: str, pool, requested_type: str) -> PooledCredential:
     if requested_type == AUTH_TYPE_API_KEY:
         return _add_api_key_credential(args, provider, pool)
-    if provider == "nous":
-        return _add_nous_oauth_credential(args, provider)
 
     spec = _OAUTH_ADD_SPECS.get(provider)
     if spec is None:
@@ -905,18 +853,10 @@ def _interactive_strategy() -> None:
     print(f"Set {provider} strategy to: {strategy}")
 
 
-def auth_upgrade_command(args) -> None:
-    """``hermes auth upgrade``: sign the free tier into a Nous account, keeping its connectors."""
-    from hermes_cli.anon_auth import upgrade_guest
-    code = upgrade_guest(args)
-    if code:
-        raise SystemExit(code)
-
-
 _AUTH_ACTIONS = {
     "add": auth_add_command, "list": auth_list_command, "remove": auth_remove_command,
     "reset": auth_reset_command, "priority": auth_priority_command, "refresh": auth_refresh_command, "status": auth_status_command,
-    "logout": auth_logout_command, "upgrade": auth_upgrade_command}
+    "logout": auth_logout_command}
 
 
 def auth_command(args) -> None:

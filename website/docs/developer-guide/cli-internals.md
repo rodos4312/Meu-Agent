@@ -112,81 +112,18 @@ weeks, months and years. The combined timeout is capped below the native signed
 unit limits cannot overflow subprocess polling. Zero/unknown/infinite phase
 limits use the bounded fallback. This does not change active-turn drain settings.
 
-## Nous sign-in
+## Retired Nous sign-in
 
-Every Nous sign-in is the plain device-code login. Sign-in completion is one function,
-`settle_after_upgrade`, called once per completion: it moves a config on the welcome route to the
-account's host and the tier's recommended default (`models.recommended_nous_default_model`, shared
-with `GET /api/model/recommended-default`).
+Meu has removed `auth upgrade`, `/login`, the dedicated Nous account-login picker,
+and their CLI/gateway workers. Supported providers keep `hermes auth add <provider>`
+and the common `hermes model` setup. The Nous web OAuth routes are also absent.
 
-The shared flow, states, and copy live in `anon_sign_in.py`; CLI rendering lives in
-`anon_sign_in_cli.py`. `anon_auth.py` keeps identity and settlement, and re-exports the sign-in
-API. The flow resolves identity and persistence collaborators through `anon_auth` at call time to
-preserve module-attribute monkeypatch seams.
-
-The sign-in itself is one composition: `anon_auth.run_sign_in()` yields `SignInState`s (`Code`,
-`Waiting`, `Completed`, `Cancelled`, `TimedOut`, `Failed`, `AlreadySignedIn`). It requests a device
-code, polls the token endpoint on one deadline (an expired code is `TimedOut`), saves the account,
-runs `settle_after_upgrade` exactly once, and never lets a persist or settle failure escape as an
-exception: it becomes `Failed`. It works with or without a free tier on disk. `Completed.email`
-comes from the access token's `email` claim; `Completed.handoff` carries the guest handoff's result
-lines (what moved, what to reconnect) and `Completed.handoff_status` the latest record as fields
-(`guest_handoff.wire_status`: the public view plus those `lines`), for a surface that renders the
-result itself. Every state carries its own `.copy` (the chat form, which
-never contains a raw exception, a URL or a `hermes` verb) and `.copy_terminal`, so no caller maps a
-reason to a string. `cancelled()` is checked at least once a second inside the token poll and once more
-before the save; a cancel always wins and nothing is saved. TLS verification comes from
-`_resolve_verify`, so `HERMES_CA_BUNDLE` and friends apply. `scope` is entered only around the
-precondition and persist blocks, never across a `yield` or a network wait, because
-`run_in_executor` does not carry contextvars. `replace_account=True` lets a signed-in install sign in
-again (the desktop's "connect another account"); otherwise a signed-in install gets
-`AlreadySignedIn` before any network. `upgrade_guest` (`hermes auth upgrade`), the CLI and TUI
-`/login`, the gateway `/login` and the desktop start route are renderers over it; a surface that
-needs the cancel check and the save to be atomic passes `persist_guard`. `hermes model` and
-`hermes auth add nous` keep `_login_nous` (it carries `--portal-url`, `--ca-bundle`, `--insecure`
-and the shared-store import); that is the same plain device login, and it prints the handoff result
-the same way. Every sign-in that saves an account (`run_sign_in`, `_login_nous`, `hermes auth add
-nous`, the billing step-up, the tool-setup login) calls `settle_after_upgrade` itself once its locks
-are released; the handoff runner never settles.
-
-### Guest handoff after a sign-in
-
-When any writer saves a Nous account over a free-tier identity, `hermes_cli/guest_handoff.py` hands
-that identity's connected apps to the account: `POST /api/anonymous/claim {"token": "<anon_...>"}`
-with the account's own Bearer token. Nothing asks the user first; the result is shown afterwards
-(`hermes auth status nous`; the desktop reads it from the sign-in poll's `handoff_status` and, while a
-move is still retrying, from the `GET /api/providers/oauth/nous/handoff?since=&wait=` long-poll, which
-answers once the record's `updated_at` changes). Two halves:
-
-- `note_replacement` runs at the two lowest write seams (`auth._store_provider_state` and
-  `auth_nous._write_shared_nous_state`) under the caller's auth-store locks and only writes a pending
-  record. Records live in `guest_handoff.json` beside the shared Nous store, keyed by a hash of the
-  `anon_` credential, so profiles sharing one free-tier identity share one record and one claim.
-- Only a sign-in changes which identity the shared store holds. Every `_write_shared_nous_state`
-  caller declares `renewal`: a token refresh (`renewal=True`) never replaces another identity there
-  (identity = the guest's `anon_` credential, or the account's JWT `sub`), so a refresh of one
-  profile's account never replaces a guest another profile minted. That refresh is kept beside the
-  held identity under `renewal`, where sibling profiles on the same account read their next
-  single-use refresh token.
-- `drain` makes one attempt per due record of this profile and returns what each did. It sends a
-  request, so it runs only outside the auth-store locks: every sign-in surface calls it right after
-  its save (`run_sign_in` after its `persist_guard` is released), and so do a free-tier reconcile,
-  `hermes auth status` and `hermes auth upgrade`. It only moves apps; config completion
-  (`settle_after_upgrade`) stays with the sign-in that saved the account.
-- Meu has removed the process-wide Nous token keepalive and guest-handoff retry worker.
-  The remaining legacy hosted-account paths below are pending removal; no periodic worker
-  is started for them by the agent, gateway or web server.
-- Each attempt is counted and the record leased (not due for about 30 s) in one locked write before
-  the request leaves, so a lost answer still counts and two runs never send the same record.
-
-Answers: `claimed` records what moved (and refreshes the account token only when
-`cohort_carried`; an answer without `connectors` reads as unknown, never "nothing moved");
-`unknown_token` is Gone, read as "probably moved" after an earlier attempt (a lost success);
-`already_retired` is Gone too. Only codes no later attempt can change are final
-(`client_not_allowed`, `account_locked`, `invalid_request`). Every other answer, 401 and unknown
-codes included, and every transport failure retries after 1 minute, 10 minutes, 1 hour and 6 hours
-(Retry-After honoured), then the record is Failed. A Claimed record is never reopened, and user copy
-never shows a server code; app slugs show as display names (`tools.tool_labels.app_title`).
+Legacy identity, account refresh and Tool Gateway compatibility still live in `anon_auth.py`,
+`auth_nous.py` and `nous_subscription.py`. The remaining tool login calls
+`settle_after_upgrade` after saving credentials. `guest_handoff.py` records account
+replacement and supports explicit draining; it has no background retry worker.
+These remaining consumers must be removed together, without changing generic OAuth,
+plugin lifecycle or the user's model selection.
 
 ## Process identity: never infer it from argv substrings
 

@@ -128,14 +128,14 @@ class TestRefusalCopy:
         assert anon_auth.parse_welcome_refusal({"reason": "nope"}) is None
         assert anon_auth.parse_welcome_refusal("not a dict") is None
 
-    def test_copy_names_the_served_model_and_the_sign_in(self):
+    def test_copy_names_the_served_model_and_supported_provider_setup(self):
         refusal = anon_auth.parse_welcome_refusal({"reason": "model_not_free", "alternates": ["nous/welcome"]})
         chat = anon_auth.welcome_refusal_copy(refusal, model="gpt-5", in_chat=True)
         assert "gpt-5" in chat and "nous/welcome" in chat and chat.endswith(anon_auth._SIGNIN_CHAT)
         card = anon_auth.welcome_refusal_copy(refusal, model="gpt-5", in_chat=True, door=False)
         assert chat == f"{card} {anon_auth._SIGNIN_CHAT}"   # door=False drops exactly the tail
         terminal = anon_auth.welcome_refusal_copy(refusal, model="gpt-5", in_chat=False)
-        assert "`hermes auth upgrade`" in terminal and "/login" not in terminal
+        assert "`hermes model`" in terminal and "/login" not in terminal
 
 
     @pytest.mark.parametrize("copy_fn, args", [

@@ -2,19 +2,18 @@
 
 The guest handoff only moves apps; moving a config left on the free tier's route (the welcome model
 on the welcome host) to the account is each sign-in's own completion step, run once the auth-store
-locks are released. Driven against the fake portal ``hermes auth upgrade`` is tested with.
+locks are released. Driven against the shared offline portal fixture.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 import pytest
 
 from hermes_cli import anon_auth, auth_nous
 from tests.hermes_cli.test_guest_handoff import holds_auth_locks
-from tests.hermes_cli.test_anon_upgrade import (
+from tests.hermes_cli.legacy_portal_fixtures import (
     EMAIL, FREE_PICK, INFERENCE, PORTAL, REFRESH_TOKEN, WELCOME, _jwt, _model_config, _write_model_config,
     free_account, portal)
 
@@ -28,19 +27,14 @@ def _account() -> dict:
             "expires_at": (datetime.now(UTC) + timedelta(minutes=15)).isoformat()}
 
 
-def _auth_add(monkeypatch):
-    from hermes_cli import auth_commands
-    auth_commands._add_nous_oauth_credential(SimpleNamespace(label=None, timeout=None, no_browser=True), "nous")
-
-
 def _tool_login(monkeypatch):
     from hermes_cli import nous_subscription
     monkeypatch.setattr(nous_subscription, "_confirm", lambda prompt: True)
     assert nous_subscription._run_nous_portal_login_only(capability="Web search") is True
 
 
-@pytest.mark.parametrize("surface", [_auth_add, _tool_login],
-                         ids=["auth add nous", "tool setup login"])
+@pytest.mark.parametrize("surface", [_tool_login],
+                         ids=["tool setup login"])
 def test_the_sign_in_settles_the_config_once_after_its_locks_are_released(
         portal, free_account, monkeypatch, surface):
     from hermes_cli import auth
@@ -64,8 +58,8 @@ def test_the_sign_in_settles_the_config_once_after_its_locks_are_released(
     assert model_cfg["base_url"] == INFERENCE.rstrip("/")
 
 
-@pytest.mark.parametrize("surface", [_auth_add, _tool_login],
-                         ids=["auth add nous", "tool setup login"])
+@pytest.mark.parametrize("surface", [_tool_login],
+                         ids=["tool setup login"])
 def test_the_terminal_sign_in_prints_what_moved(portal, free_account, monkeypatch, capsys, surface):
     from hermes_cli import auth
     anon_auth.ensure_portal_identity(explicit=True)

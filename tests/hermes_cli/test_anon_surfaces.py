@@ -9,7 +9,6 @@ rendering.
 from __future__ import annotations
 
 import base64
-import dataclasses
 import json
 import re
 import time
@@ -146,41 +145,6 @@ def test_guest_whose_lookup_fails_still_gets_the_sign_in_copy(isolated_store, mo
     info = nous_account.get_nous_portal_account_info()
     assert info.error is not None and info.is_anonymous_tier
     assert nous_account.format_nous_portal_entitlement_message(info) == nous_account.FREE_TIER_NEEDS_ACCOUNT
-
-
-_HANDOFF_VIEWS = [
-    *({"state": "claimed", "account_email": "person@example.test", "connectors_kind": kind,
-       "moved_toolkits": ["gmail"], "dropped_toolkits": ["slack"]} for kind in ("moved", "conflict", "none")),
-    # The retrying line names Hermes as a subject ("Hermes keeps trying"), not a command; it is not checked here.
-    {"state": "failed", "error": "no_destination"}, {"state": "gone", "probably_moved": True},
-]
-
-
-def test_no_chat_copy_of_any_sign_in_state_leaks_a_terminal_verb_or_a_forbidden_word():
-    placeholders = {
-        "link": "https://example.test/sign-in",
-        "code": "code-1",
-        "expires_in": 900,
-        "interval": 1,
-        "email": "person@example.test",
-        "model": "model-1",
-        "model_changed": True,
-        "reason": "unknown",
-        "detail": "private detail",
-        "retry_after": 0.0,
-        # Every handoff result line a completed sign-in can carry.
-        "handoff": tuple(line for view in _HANDOFF_VIEWS for line in guest_handoff.result_lines(view)),
-        "handoff_status": guest_handoff.wire_status(_HANDOFF_VIEWS[0]),
-    }
-    forbidden = re.compile(r"claim|nous portal|anonymous|guest", re.IGNORECASE)
-    terminal_or_url = re.compile(r"hermes |https?://", re.IGNORECASE)
-
-    for state_type in anon_auth.SignInState.__subclasses__():
-        kwargs = {field.name: placeholders[field.name] for field in dataclasses.fields(state_type)}
-        copy = state_type(**kwargs).copy
-        assert _FORBIDDEN.search(copy) is None, state_type.__name__
-        assert forbidden.search(copy) is None, state_type.__name__
-        assert terminal_or_url.search(copy) is None, state_type.__name__
 
 
 def test_the_paid_tool_notice_switches_wording_inside_a_chat():

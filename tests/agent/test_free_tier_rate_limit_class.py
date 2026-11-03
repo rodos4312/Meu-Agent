@@ -64,7 +64,7 @@ def _result(agent, error, classified, status):
 
 
 @pytest.mark.parametrize("case_id,status,body,headers,kind,breaker", CASES, ids=[c[0] for c in CASES])
-def test_anonymous_refusals_all_offer_sign_in(case_id, status, body, headers, kind, breaker):
+def test_anonymous_refusals_offer_supported_provider_setup(case_id, status, body, headers, kind, breaker):
     agent = _agent(make_jwt())
     error = _error(status, body, headers)
     classified = classify_api_error(error, provider="nous", model=MODEL, base_url=WELCOME, api_key=agent.api_key)
@@ -74,7 +74,7 @@ def test_anonymous_refusals_all_offer_sign_in(case_id, status, body, headers, ki
     assert is_long_welcome_rate_limit(classified.error_context) is breaker
     result = _result(agent, error, classified, status)
     assert result["free_tier"]["kind"] == kind
-    assert result["final_response"].endswith("To sign in: /login.")
+    assert result["final_response"].endswith("Choose a supported provider with /model.")
     assert "fallback add" not in result["final_response"]
     surface = build_error_surface_from_result(result, provider="nous", model=MODEL)
     assert surface["code"] == f"free_tier_{kind}"
@@ -88,7 +88,7 @@ def test_named_account_same_response_is_not_a_free_tier_refusal(case_id, status,
     assert "welcome_refusal" not in classified.error_context
     result = _result(agent, error, classified, status)
     assert "free_tier" not in result
-    assert "To sign in: /login." not in result["final_response"]
+    assert "Choose a supported provider with /model." not in result["final_response"]
 
 
 def test_anonymous_402_off_the_welcome_host_keeps_ordinary_402_handling():

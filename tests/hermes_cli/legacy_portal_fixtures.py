@@ -1,23 +1,16 @@
-"""``hermes auth upgrade``: the plain device-code sign-in, then the free tier's apps move over.
-
-Driven through a fake portal covering the device-code endpoints plus the free tier's claim
-endpoint, so the wire contract (device code, token grant persisted over the guest singleton, one
-claim authorized by the new account) is exercised rather than mocked away.
-"""
+"""Offline portal fixtures for the remaining legacy tool-gateway compatibility tests."""
 
 from __future__ import annotations
 
 import base64
 import json
 import time
-from types import SimpleNamespace
 from urllib.parse import parse_qs
 
 import httpx
 import pytest
 
 from hermes_cli import anon_auth
-from hermes_cli.auth import _auth_file_path, _load_auth_store
 
 WELCOME = "https://welcome-api.nousresearch.com/v1"
 INFERENCE = "https://inference-api.nousresearch.com/v1"
@@ -120,74 +113,6 @@ def portal(monkeypatch, tmp_path):
     return fake
 
 
-def _shared_store(tmp_path) -> dict:
-    p = tmp_path / "shared-store" / "nous_auth.json"
-    return json.loads(p.read_text()) if p.exists() else {}
-
-
-def _args():
-    return SimpleNamespace(no_browser=True, timeout=None)
-
-
-class TestUpgrade:
-    def test_the_plain_device_login_runs_then_one_claim_moves_the_apps(self, portal):
-        guest = anon_auth.ensure_portal_identity(explicit=True)
-        assert anon_auth.upgrade_guest(_args()) == 0
-        paths = [p for _, p in portal.calls]
-        assert not [p for p in paths if "promotion" in p]
-        assert paths.index("/api/oauth/device/code") < paths.index("/api/oauth/token") < paths.index("/api/anonymous/claim")
-        assert len(portal.claims) == 1
-        bearer, body = portal.claims[0]
-        assert body == {"token": guest["anon_token"]}
-        assert bearer.startswith("Bearer ") and bearer != f"Bearer {guest.get('access_token')}"
-
-    def test_signs_in_with_no_free_tier_on_disk_and_sends_no_claim(self, portal, capsys):
-        assert anon_auth.upgrade_guest(_args()) == 0
-        assert f"Signed in as {EMAIL}." in capsys.readouterr().out
-        assert portal.claims == [] and portal.minted == 0
-        assert not anon_auth.is_guest_state(_load_auth_store()["providers"]["nous"])
-
-    def test_completed_sign_in_keeps_no_free_tier_fields_and_prints_what_moved(self, portal, capsys, tmp_path):
-        guest = anon_auth.ensure_portal_identity(explicit=True)
-        assert _shared_store(tmp_path).get("anon_token") == guest["anon_token"]
-        code = anon_auth.upgrade_guest(_args())
-        out = capsys.readouterr().out
-        assert code == 0
-        assert f"Signed in as {EMAIL}." in out
-        assert f"Your apps moved to {EMAIL}: Gmail." in out
-        lowered = out.lower()
-        for banned in ("guest", "anonymous", "claim"):
-            assert banned not in lowered, f"{banned!r} leaked into user-facing output:\n{out}"
-        store = _load_auth_store()
-        state = store["providers"]["nous"]
-        assert store["active_provider"] == "nous"
-        assert "anon_token" not in state
-        assert state.get("auth_method") != anon_auth.ANON_AUTH_METHOD
-        assert not anon_auth.is_guest_state(state)
-        assert state["refresh_token"] == REFRESH_TOKEN
-        shared = _shared_store(tmp_path)
-        assert shared.get("refresh_token") == REFRESH_TOKEN
-        assert "anon_token" not in shared
-
-
-    def test_the_terminal_device_login_prints_what_moved(self, portal, monkeypatch, capsys):
-        import argparse
-        from hermes_cli import auth_nous
-        from hermes_cli.auth import PROVIDER_REGISTRY
-        anon_auth.ensure_portal_identity(explicit=True)
-        account = {"access_token": _jwt(sub="nas_user:9", client_id="hermes-cli", account_tier="free", email=EMAIL),
-                   "refresh_token": REFRESH_TOKEN, "portal_base_url": PORTAL, "inference_base_url": INFERENCE,
-                   "client_id": "hermes-cli", "expires_in": 900}
-        monkeypatch.setattr(auth_nous, "_offer_shared_nous_import", lambda timeout: None)
-        monkeypatch.setattr(auth_nous, "_nous_device_code_login", lambda **kw: dict(account))
-        monkeypatch.setattr(auth_nous, "_pick_nous_model_after_login", lambda *a: None)
-
-        auth_nous._login_nous(argparse.Namespace(no_browser=True, timeout=15.0), PROVIDER_REGISTRY["nous"])
-
-        assert f"Your apps moved to {EMAIL}: Gmail." in capsys.readouterr().out
-        assert len(portal.claims) == 1
-
-
 FREE_PICK = "upstage/solar-pro4:free"
 
 
@@ -214,41 +139,3 @@ def _write_model_config(model_cfg: dict) -> None:
 def _model_config() -> dict:
     from hermes_cli.config import load_config_readonly
     return dict(load_config_readonly().get("model") or {})
-
-
-class TestSignInCompletionSettlesTheModel:
-    def test_config_on_the_free_tier_route_moves_to_the_account_host_and_the_recommended_free_model(
-            self, portal, free_account, capsys):
-        anon_auth.ensure_portal_identity(explicit=True)
-        # What picking the free-tier row leaves behind: the welcome model pinned to the welcome host.
-        _write_model_config({"provider": "nous", "default": anon_auth.GUEST_MODEL, "base_url": WELCOME})
-        assert anon_auth.upgrade_guest(_args()) == 0
-        model_cfg = _model_config()
-        assert model_cfg["default"] == FREE_PICK
-        assert model_cfg["base_url"] == INFERENCE.rstrip("/")
-        assert not anon_auth.route_is_welcome_host(model_cfg["base_url"])
-        assert f"Default model is now {FREE_PICK}." in capsys.readouterr().out
-
-    def test_config_on_the_users_own_model_is_left_alone(self, portal, free_account, capsys):
-        anon_auth.ensure_portal_identity(explicit=True)
-        own = {"provider": "openrouter", "default": "anthropic/claude-sonnet-4"}
-        _write_model_config(own)
-        assert anon_auth.upgrade_guest(_args()) == 0
-        assert {k: _model_config().get(k) for k in own} == own
-        assert "Default model is now" not in capsys.readouterr().out
-
-    def test_no_eligible_recommendation_leaves_no_default_rather_than_a_model_the_account_may_not_use(
-            self, portal, free_account, monkeypatch, capsys):
-        from hermes_cli import models as m
-        anon_auth.ensure_portal_identity(explicit=True)
-        _write_model_config({"provider": "nous", "default": anon_auth.GUEST_MODEL, "base_url": WELCOME})
-        def _portal_down():
-            raise RuntimeError("recommended models unavailable")
-        monkeypatch.setattr(m, "recommended_nous_default_model", _portal_down)
-        assert anon_auth.upgrade_guest(_args()) == 0
-        model_cfg = _model_config()
-        assert "default" not in model_cfg
-        assert model_cfg["base_url"] == INFERENCE.rstrip("/")
-        out = capsys.readouterr().out
-        assert "Default model is now" not in out
-        assert "run `hermes model` to pick one" in out

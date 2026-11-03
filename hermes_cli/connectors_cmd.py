@@ -9,7 +9,7 @@ from typing import Any, Callable, NoReturn
 
 _POLL_SECONDS = 2.0
 _DONE_STATES = frozenset({"connected", "skipped", "failed", "expired", "not_connected"})
-_SIGN_IN = "Run `hermes auth upgrade` to sign in."
+_SIGN_IN = "Nous account sign-in is not available in Meu. Run `hermes tools` to configure supported tools."
 
 
 class _CommandError(Exception):

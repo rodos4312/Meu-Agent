@@ -28,6 +28,7 @@ on:
       - 'tests/tools/test_memory_tool.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
       - 'tests/hermes_cli/test_meu_setup_commands.py'
+      - 'tests/hermes_cli/test_meu_retired_login.py'
       - 'tests/hermes_cli/test_setup_quick_import.py'
       - 'tests/hermes_cli/test_meu_config_without_feature_metrics.py'
       - 'tests/hermes_cli/test_meu_removed_metrics_routes.py'
@@ -154,6 +155,7 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
           tests/hermes_cli/test_meu_setup_commands.py
+          tests/hermes_cli/test_meu_retired_login.py
           tests/hermes_cli/test_setup_quick_import.py
           tests/hermes_cli/test_meu_config_without_feature_metrics.py
           tests/hermes_cli/test_meu_nous_routes.py

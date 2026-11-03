@@ -266,7 +266,7 @@ export function closeFreeTierSignIn() {
 
 // The reasons the backend names on a non-approved terminal poll: an expired
 // code, and the account service's `anon_*` verdicts when it was busy,
-// unreachable or refused mid sign-in (`hermes_cli/anon_sign_in.py`). Anything
+// unreachable or refused mid sign-in. Anything
 // else falls through to the generic error screen, which shows the backend's
 // own message.
 const FAILURE_BY_REASON: Record<string, FreeTierSignInFailure> = {

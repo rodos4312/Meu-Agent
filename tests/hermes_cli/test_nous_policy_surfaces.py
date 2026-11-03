@@ -6,7 +6,6 @@ Portal's ``recommended-models`` endpoint; neither source is authenticated.
 
 from __future__ import annotations
 
-import argparse
 
 import pytest
 
@@ -27,68 +26,6 @@ def no_policy(monkeypatch):
     """An unrestricted org — lists must come through untouched."""
     monkeypatch.setattr(models_pricing, "nous_policy_allowed_ids", lambda **_k: None)
 
-class TestLoginNous:
-
-    def _run(self, monkeypatch, tmp_path):
-        import hermes_cli.auth as auth_mod
-        from hermes_cli import auth_nous
-        import hermes_cli.nous_subscription as ns
-
-        seen: dict = {}
-        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-        monkeypatch.setattr(
-            auth_mod,
-            "_nous_device_code_login",
-            lambda **_k: {
-                "access_token": "tok",
-                "agent_key": "key",
-                "inference_base_url": "https://inference.example.com",
-                "portal_base_url": "https://portal.example.com",
-                "refresh_token": "r",
-                "token_expires_at": 9999999999,
-            },
-        )
-        monkeypatch.setattr(
-            auth_nous,
-            "_nous_device_code_login",
-            lambda **_k: {
-                "access_token": "tok",
-                "agent_key": "key",
-                "inference_base_url": "https://inference.example.com",
-                "portal_base_url": "https://portal.example.com",
-                "refresh_token": "r",
-                "token_expires_at": 9999999999,
-            },
-        )
-        monkeypatch.setattr(models_mod, "get_curated_nous_model_ids", lambda: list(CURATED))
-        monkeypatch.setattr(models_pricing, "get_pricing_for_provider", lambda _p: {})
-        monkeypatch.setattr(models_mod, "check_nous_free_tier", lambda **_k: None)
-        monkeypatch.setattr(
-            models_mod,
-            "union_with_portal_paid_recommendations",
-            lambda ids, pricing, _portal: (list(ids), pricing),
-        )
-        monkeypatch.setattr(ns, "prompt_enable_tool_gateway", lambda _c: None)
-
-        def _capture(model_ids, **kwargs):
-            seen["model_ids"] = list(model_ids)
-
-        monkeypatch.setattr(auth_mod, "_prompt_model_selection", _capture)
-
-        args = argparse.Namespace(
-            portal_url=None, inference_url=None, client_id=None, scope=None,
-            no_browser=True, timeout=15.0, ca_bundle=None, insecure=False,
-        )
-        auth_mod._login_nous(args, auth_mod.PROVIDER_REGISTRY["nous"])
-        return seen
-
-    def test_hidden_model_is_not_offered(self, monkeypatch, tmp_path, policy):
-        assert self._run(monkeypatch, tmp_path).get("model_ids") == ["vendor/allowed"]
-
-    def test_unrestricted_org_sees_the_full_curated_list(
-        self, monkeypatch, tmp_path, no_policy
-    ):
-        assert self._run(monkeypatch, tmp_path).get("model_ids") == CURATED
 
 class TestModelSwitchPicker:
     """The ``/model`` picker's nous branch (``list_authenticated_providers``)."""
@@ -113,27 +50,10 @@ class TestModelSwitchPicker:
         rows = ms.list_authenticated_providers(max_models=10)
         return next((r for r in rows if r["slug"] == "nous"), None)
 
-    def test_hidden_model_is_filtered(self, monkeypatch, policy):
-        row = self._rows(monkeypatch)
-        assert row is not None, "nous row should be listed"
-        assert "vendor/blocked" not in row["models"]
-        assert "vendor/allowed" in row["models"]
 
-    def test_unrestricted_org_keeps_both(self, monkeypatch, no_policy):
-        row = self._rows(monkeypatch)
-        assert row is not None
-        assert set(CURATED) <= set(row["models"])
+    def test_stale_nous_credentials_do_not_restore_a_removed_provider(self, monkeypatch, no_policy):
+        assert self._rows(monkeypatch) is None
 
-    def test_filter_survives_a_failed_recommendation_fetch(self, monkeypatch, policy):
-        """The filter sits outside the try wrapping the Portal union."""
-
-        def _boom(_p):
-            raise RuntimeError("portal down")
-
-        monkeypatch.setattr(models_pricing, "get_pricing_for_provider", _boom)
-        row = self._rows(monkeypatch)
-        assert row is not None
-        assert "vendor/blocked" not in row["models"]
 
 class TestRecommendedDefaultEndpoint:
     """This endpoint picks a model the user never sees chosen."""
@@ -201,14 +121,6 @@ class TestNousPrefetch:
     """The nous disk-cache entry is write-only, so prefetching it is a round
     trip for nothing."""
 
-class TestPolicyNoticeIsShown:
-
-    def test_login_prints_it(self, monkeypatch, tmp_path, policy, capsys):
-        import hermes_cli.nous_account as account_mod
-
-        monkeypatch.setattr(account_mod, "nous_policy_present", lambda: True)
-        TestLoginNous()._run(monkeypatch, tmp_path)
-        assert account_mod.nous_policy_notice(removed=True) in capsys.readouterr().out
 
 class TestAuxFallbackRespectsPolicy:
     """Steps 2-4 of the aux ladder are policy-blind: `resolve_aux_model` queries
