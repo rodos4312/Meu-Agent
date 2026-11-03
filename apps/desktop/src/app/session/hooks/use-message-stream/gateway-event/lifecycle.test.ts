@@ -81,13 +81,13 @@ describe('handleLifecycleEvent setup.ready', () => {
     vi.useRealTimers()
   })
 
-  it('claims the event and triggers one free-tier refresh plus one readiness evaluation from the active source', async () => {
+  it('claims the event and refreshes readiness without Nous RPCs from the active source', async () => {
     const requestGateway = await mountedStatusSnapshot()
 
     expect(handleLifecycleEvent(setupReadyContext(true))).toBe(true)
     await flushAsync()
 
-    expect(callsTo(requestGateway, 'free_tier.status')).toHaveLength(1)
+    expect(requestGateway.mock.calls.some(([method]) => method.startsWith('free_tier.'))).toBe(false)
     expect(callsTo(requestGateway, 'setup.runtime_check')).toHaveLength(1)
     expect(callsTo(requestGateway, 'setup.status')).toHaveLength(1)
     // The push is a readiness seam, not a status tick.

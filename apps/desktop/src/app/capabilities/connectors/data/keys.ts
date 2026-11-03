@@ -11,16 +11,15 @@ const HOUR = 60 * MINUTE
 
 interface ReadLifetime {
   focusRefetch: boolean
-  persist: boolean
   staleTime: number
 }
 
 export const CONNECTOR_LIFETIMES = {
-  accounts: { focusRefetch: true, persist: false, staleTime: 5 * MINUTE },
-  catalog: { focusRefetch: false, persist: true, staleTime: 24 * HOUR },
-  list: { focusRefetch: true, persist: true, staleTime: 5 * MINUTE },
-  policy: { focusRefetch: false, persist: false, staleTime: 60 * SECOND },
-  tools: { focusRefetch: false, persist: true, staleTime: 24 * HOUR }
+  accounts: { focusRefetch: true, staleTime: 5 * MINUTE },
+  catalog: { focusRefetch: false, staleTime: 24 * HOUR },
+  list: { focusRefetch: true, staleTime: 5 * MINUTE },
+  policy: { focusRefetch: false, staleTime: 60 * SECOND },
+  tools: { focusRefetch: false, staleTime: 24 * HOUR }
 } satisfies Record<ConnectorRead, ReadLifetime>
 
 export const CONNECTOR_GC_TIME = Number.POSITIVE_INFINITY
@@ -52,11 +51,6 @@ export function invalidateConnectors(scope: ProfileScope, ...reads: [ConnectorRe
   for (const read of reads) {
     void queryClient.invalidateQueries({ queryKey: scoped(scope, read) })
   }
-}
-
-/** A sign-in changed the account the apps ride on, in whichever profile it ran: drop every cached read. */
-export function invalidateAllConnectors(): void {
-  void queryClient.invalidateQueries({ queryKey: [CONNECTORS_QUERY_ROOT] })
 }
 
 export function invalidateConnectorApp(scope: ProfileScope, slug: string): void {

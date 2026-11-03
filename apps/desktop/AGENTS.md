@@ -163,9 +163,15 @@ actually run rather than inventing a command; when in doubt, read the scripts.
 
 If any answer is "not sure," that's the part to go verify.
 
-## Nous free tier: state is pulled, never latched in the renderer
+## Provider setup and local connector persistence
 
-`free_tier.status` / `free_tier.ack_notice` are the only source: the ready screen and the own-key
-strip render the same `notice_pending` state, with no localStorage latch, and every entry point
-opens the one sign-in dialog. Branch on `free_tier_row` / `free_tier`, never on provider display
-names. Long form: `ENGINEERING.md`.
+The retired Nous free-tier sign-in, offer, handoff and challenge-window flows are
+removed. Do not restore their RPC polling or renderer state. Provider setup uses
+the generic OAuth/API-key flow and authoritative runtime readiness.
+
+Local MCP display data is cached per gateway connection and profile by
+`src/app/capabilities/connectors/data/persist.ts`, independently of any Nous
+identity. Server seeds contain only names and enabled flags, never targets or
+credentials. Hosted account data remains in memory and is fetched from its owner;
+legacy identity-scoped caches are not used. A completed agent turn invalidates
+connector reads for that turn's connection/profile.

@@ -139,15 +139,7 @@ export const arOverrides = {
   desktop: arChat.desktop,
   errors: arDiagnostics.errors,
   tips: arChat.tips,
-  ui: arCommon.ui,
-  freeTier: {
-    offer: {
-      heading: 'واصل مع Meu',
-      body: 'أنت تستخدم الحصة المجانية. إذا واصلت استخدام Meu فستبدأ بمواجهة حدود الاستخدام. سجّل الدخول بحساب Nous مجاني للحصول على حصة أكبر.',
-      signIn: 'تسجيل الدخول',
-      notNow: 'ليس الآن'
-    }
-  }
+  ui: arCommon.ui
 } satisfies TranslationOverrides
 
 export const ar = defineLocale(arOverrides)

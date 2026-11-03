@@ -176,15 +176,7 @@ export const zhHantOverrides = {
   desktop: zhHantChat.desktop,
   errors: zhHantDiagnostics.errors,
   tips: zhHantChat.tips,
-  ui: zhHantCommon.ui,
-  freeTier: {
-    offer: {
-      heading: '繼續使用 Meu',
-      body: '你正在使用免費額度。繼續使用 Meu 的話，你會開始遇到限制。登入免費的 Nous 帳戶，即可獲得更多額度。',
-      signIn: '登入',
-      notNow: '暫不'
-    }
-  }
+  ui: zhHantCommon.ui
 } satisfies TranslationOverrides
 
 export const zhHant = defineLocale(zhHantOverrides)

@@ -354,59 +354,6 @@ export interface SetupRuntimeCheckResult {
   free_tier_route?: boolean | null
   profile?: string | null
 }
-/** ``available`` = an identity exists AND the tier is on; whether inference runs on it is ``setup.runtime_check.free_tier_route``'s question. */
-export interface FreeTierStatusResult {
-  has_guest: boolean
-  enabled: boolean
-  available: boolean
-  notice_pending: boolean
-  model: string
-  label: string
-  error?: string | null
-  error_code?: string | null
-  retryable?: boolean | null
-  retry_after?: number | null
-  challenge?: FreeTierChallengePayload | null
-  nudge_due_in?: number | null
-  connector_nudge_due_in?: number | null
-}
-/** ``hermes_cli/anon_challenge.py::BrowserChallenge.as_payload``: the ``free_tier.challenge`` event, and ``free_tier.status``'s ``challenge`` field for a client that connected after it. */
-export interface FreeTierChallengePayload {
-  type: 'browser'
-  url: string
-  required: boolean
-  expires_in: number
-  message: string
-  attempt?: number
-  [key: string]: unknown
-}
-export interface FreeTierChallengeResultParams {
-  profile?: string | null
-  url: string
-  attempt?: number
-  outcome: 'done' | 'failed' | 'closed' | 'timeout' | 'refused' | 'error' | 'unsupported'
-}
-export interface FreeTierChallengeResult {
-  accepted: boolean
-}
-export interface FreeTierProvisionResult {
-  has_guest: boolean
-  enabled: boolean
-  error?: string | null
-  error_code?: string | null
-  retryable?: boolean | null
-  retry_after?: number | null
-}
-export interface FreeTierAckNoticeResult {
-  acked: boolean
-}
-export interface FreeTierClaimNudgeParams {
-  profile?: string | null
-  kind?: 'trial' | 'connector'
-}
-export interface FreeTierClaimNudgeResult {
-  claimed: boolean
-}
 export interface ModelOptionsParams {
   profile?: string | null
   session_id?: string | null
@@ -5225,6 +5172,16 @@ export interface SetupReadyPayload {
   finished_at: number
   [key: string]: unknown
 }
+/** ``hermes_cli/anon_challenge.py::BrowserChallenge.as_payload``: the ``free_tier.challenge`` event from the legacy identity client. */
+export interface FreeTierChallengePayload {
+  type: 'browser'
+  url: string
+  required: boolean
+  expires_in: number
+  message: string
+  attempt?: number
+  [key: string]: unknown
+}
 /** Every ``_emit("error", …)`` site sets exactly ``message``. */
 export interface ErrorPayload {
   message: string
@@ -5725,16 +5682,6 @@ export interface RpcMethods {
   'display.thumbnail': { params: ProfileParams; result: DisplayThumbnailResult }
   /** Stage a non-image file into the session workspace and hand back its @file: ref. */
   'file.attach': { params: FileAttachParams; result: FileAttachResult }
-  /** Mark the one-time availability notice as shown on the free-tier identity. */
-  'free_tier.ack_notice': { params: ProfileParams; result: FreeTierAckNoticeResult }
-  /** Report a browser window outcome for the matching pending attempt; mint remains authoritative. */
-  'free_tier.challenge_result': { params: FreeTierChallengeResultParams; result: FreeTierChallengeResult }
-  /** Claim the due sign-in offer; true for exactly one caller each time an offer comes due. */
-  'free_tier.claim_nudge': { params: FreeTierClaimNudgeParams; result: FreeTierClaimNudgeResult }
-  /** Explicit retry of the free-tier identity mint when the boot bootstrap could not create it. */
-  'free_tier.provision': { params: ProfileParams; result: FreeTierProvisionResult }
-  /** Pure read of the focused profile's free-tier identity state (no network, no side effects). */
-  'free_tier.status': { params: ProfileParams; result: FreeTierStatusResult }
   /** What THIS build enforces (a client withholds a feature unless advertised). */
   'gateway.capabilities': { params: PingParams; result: GatewayCapabilitiesResult }
   /** Resolve one exact pending approval raised by a local or peer room member. */
@@ -6152,11 +6099,6 @@ export const RPC_METHODS = [
   'display.switchSandboxImage',
   'display.thumbnail',
   'file.attach',
-  'free_tier.ack_notice',
-  'free_tier.challenge_result',
-  'free_tier.claim_nudge',
-  'free_tier.provision',
-  'free_tier.status',
   'gateway.capabilities',
   'groups.approve',
   'groups.attachment.download',

@@ -43,7 +43,6 @@ export interface ToolsListProps {
   onRemove?: () => void
   onRetry: () => void
   onRetryRules?: () => void
-  onSignIn?: () => void
   preview?: boolean
   readOnly?: boolean
   rulesSignedOut?: boolean
@@ -71,7 +70,6 @@ export function ToolsList(props: ToolsListProps) {
         editor={props.editor}
         onReload={props.onReload}
         onRemove={props.onRemove}
-        onSignIn={props.onSignIn}
         phase={phase}
       />
     )
@@ -90,7 +88,6 @@ function ToolsListBody(props: ToolsListProps) {
     editor,
     listKey,
     onRetryRules,
-    onSignIn,
     preview = false,
     readOnly = false,
     rulesSignedOut = false,
@@ -151,7 +148,6 @@ function ToolsListBody(props: ToolsListProps) {
         appOffName={appOff ? connectorName : undefined}
         frozen={readOnly || appOff}
         onRetryRules={onRetryRules}
-        onSignIn={onSignIn}
         preview={preview}
         rulesSignedOut={rulesSignedOut}
         signedOut={signedOut}
@@ -194,7 +190,6 @@ function StatusColumn({
   editor,
   onReload,
   onRemove,
-  onSignIn,
   phase
 }: {
   connectorName: string
@@ -202,7 +197,6 @@ function StatusColumn({
   editor: ToolsEditor
   onReload: () => void
   onRemove?: () => void
-  onSignIn?: () => void
   phase: ToolsStatusPhase
 }) {
   const act = {
@@ -211,8 +205,7 @@ function StatusColumn({
       editor.discard()
       onReload()
     },
-    remove: onRemove,
-    signIn: onSignIn
+    remove: onRemove
   } satisfies Record<ToolsStatusAction, (() => void) | undefined>
 
   return (
@@ -244,26 +237,10 @@ function UnavailableLine({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-function SignInLine({ onSignIn }: { onSignIn: () => void }) {
-  const { t } = useI18n()
-
-  return (
-    <Line
-      action={
-        <Button onClick={onSignIn} size="inline" variant="textStrong">
-          {t.connectorsPage.page.signIn}
-        </Button>
-      }
-      label={t.connectorsPage.tools.staleSignIn}
-    />
-  )
-}
-
 function FrozenLines({
   appOffName,
   frozen,
   onRetryRules,
-  onSignIn,
   preview,
   rulesSignedOut,
   signedOut
@@ -271,7 +248,6 @@ function FrozenLines({
   appOffName?: string
   frozen: boolean
   onRetryRules?: () => void
-  onSignIn?: () => void
   preview: boolean
   rulesSignedOut: boolean
   signedOut: boolean
@@ -279,10 +255,8 @@ function FrozenLines({
   return (
     <>
       {frozen && !preview ? (
-        <RulesLine appOffName={appOffName} onRetryRules={onRetryRules} onSignIn={onSignIn} signedOut={rulesSignedOut} />
+        <RulesLine appOffName={appOffName} onRetryRules={onRetryRules} signedOut={rulesSignedOut} />
       ) : null}
-
-      {signedOut && onSignIn ? <SignInLine onSignIn={onSignIn} /> : null}
     </>
   )
 }
@@ -290,12 +264,10 @@ function FrozenLines({
 function RulesLine({
   appOffName,
   onRetryRules,
-  onSignIn,
   signedOut
 }: {
   appOffName?: string
   onRetryRules?: () => void
-  onSignIn?: () => void
   signedOut: boolean
 }) {
   const { t } = useI18n()
@@ -308,11 +280,7 @@ function RulesLine({
   return (
     <Line
       action={
-        signedOut && onSignIn ? (
-          <Button onClick={onSignIn} size="inline" variant="textStrong">
-            {copy.page.signIn}
-          </Button>
-        ) : onRetryRules ? (
+        onRetryRules ? (
           <Button onClick={onRetryRules} size="inline" variant="textStrong">
             {copy.page.retry}
           </Button>

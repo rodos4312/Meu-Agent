@@ -34,6 +34,7 @@ on:
       - 'tests/hermes_cli/test_meu_removed_metrics_routes.py'
       - 'tests/tui_gateway/test_meu_removed_metrics.py'
       - 'tests/tui_gateway/test_meu_removed_payments.py'
+      - 'tests/tui_gateway/test_meu_retired_free_tier.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
       - 'tests/scripts/install/test_meu_installer_privacy.py'
       - 'tests/scripts/install/test_meu_pinned_upgrade.py'
@@ -169,7 +170,7 @@ jobs:
           tests/agent/test_billing_links.py
           tests/agent/test_credits_usage_window.py
           tests/tui_gateway/test_session_usage_account_lines.py
-          tests/tui_gateway/test_free_tier_rpc.py
+          tests/tui_gateway/test_meu_retired_free_tier.py
           tests/tui_gateway/test_legacy_fallback_ticket_profile_verbs.py
           tests/hermes_cli/test_webapp_socket_profile_scope.py
           tests/hermes_cli/test_guest_handoff.py
@@ -333,6 +334,16 @@ jobs:
       - name: Verify localization and memory command usability
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/i18n src/lib/desktop-slash-commands.test.ts
+      - name: Verify setup and local tools without Nous free-tier flows
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project ui --maxWorkers 2
+          src/store/onboarding.test.ts
+          src/app/shell/hooks/use-status-snapshot.test.ts
+          src/app/session/hooks/use-message-stream/gateway-event/lifecycle.test.ts
+          src/app/session/hooks/use-message-stream/gateway-event/message-stream.test.ts
+          src/app/capabilities/connectors/data/persist.test.ts
+          src/app/capabilities/connectors/data/queries-rules.test.tsx
       - name: Verify model credentials and Auto behavior
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts

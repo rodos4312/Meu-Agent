@@ -15,7 +15,6 @@ import { useContextBreakdown } from '@/app/shell/hooks/use-context-breakdown'
 import { useFocusedSessionRow } from '@/app/shell/hooks/use-focused-session-row'
 import { useSystemResourcesStatusbarItem } from '@/app/shell/system-resources-statusbar'
 import { $paneVisible } from '@/components/pane-shell/tree/store'
-import { Badge } from '@/components/ui/badge'
 import { Codicon } from '@/components/ui/codicon'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { useI18n } from '@/i18n'
@@ -44,8 +43,6 @@ import { cn } from '@/lib/utils'
 import { resolveVersionStatus } from '@/lib/version-status'
 import type { ApprovalModeRequester } from '@/store/approval-mode'
 import { copyFilePath, revealFile, shouldOfferLocalReveal } from '@/store/file-actions'
-import { $freeTierSignInOpen, $freeTierStatus, FREE_TIER_MODEL } from '@/store/free-tier'
-import { openFreeTierSignIn } from '@/store/free-tier-sign-in'
 import { requestGatewayForProfile } from '@/store/gateway'
 import { revealFileInTree } from '@/store/layout'
 import { $activeGatewayProfile } from '@/store/profile'
@@ -77,7 +74,7 @@ import {
   $updateStatus,
   openUpdateOverlayFor
 } from '@/store/updates'
-import type { FreeTierStatus, StatusResponse, UsageStats } from '@/types/hermes'
+import type { StatusResponse, UsageStats } from '@/types/hermes'
 
 import { CRON_ROUTE, SETTINGS_ROUTE, WEBHOOKS_ROUTE } from '../../routes'
 import type { StatusbarItem } from '../statusbar-controls'
@@ -124,11 +121,6 @@ function versionItem(
   }
 }
 
-/** The free model a trial runs on, named on the Sign in chip; null for a guest without the trial. */
-function freeTierTrialModel(status: FreeTierStatus | null): string | null {
-  return status?.available ? status.model || FREE_TIER_MODEL : null
-}
-
 // health: allow CC FUNC_LINES -- usage-window plans: one status-bar gauge item, hidden for every other account; this hook was over both targets on main
 export function useStatusbarItems({
   agentsOpen,
@@ -147,7 +139,6 @@ export function useStatusbarItems({
 }: StatusbarItemsOptions) {
   const { t } = useI18n()
   const copy = t.shell.statusbar
-  const freeTierCopy = t.freeTier
   const fileMenu = t.fileMenu
   const primaryActiveSessionId = useStore($activeSessionId)
   const activeGatewayProfile = useStore($activeGatewayProfile)
@@ -190,14 +181,6 @@ export function useStatusbarItems({
       .reduce((sum, [, items]) => sum + failedSubagentCount(items), 0)
   )
 
-  // Backend truth for the free-tier chip. Refreshed on the ambient status
-  // cadence (use-status-snapshot), never polled from here.
-  const freeTier = useStore($freeTierStatus)
-  // The chip is the standing invitation to sign in. It rests while a guided
-  // setup is running, so the chat the user is in has no second call to action,
-  // and comes back when the setup ends.
-  const freeTierSignInOpen = useStore($freeTierSignInOpen)
-  const trialModel = freeTierTrialModel(freeTier)
   const updateStatus = useStore($updateStatus)
   const updateApply = useStore($updateApply)
   const backendUpdateStatus = useStore($backendUpdateStatus)
@@ -534,31 +517,6 @@ export function useStatusbarItems({
         variant: 'menu'
       },
       {
-        // The model id is the quiet part; the sign-in is the action, so it is
-        // solid and set off by a gap instead of touching the label.
-        detail: (
-          <span className="inline-flex items-center gap-2">
-            {trialModel && <span className="font-mono text-[0.625rem] text-muted-foreground/70">{trialModel}</span>}
-            {/* The class merger drops Badge's own leading-none behind the size's
-                font-size class, so the badge grows to the inherited 1.5 leading and
-                overhangs an 11px label. Restating it here keeps it 11.6px tall. */}
-            <Badge className="leading-none" size="xs" variant="solid">
-              {freeTierCopy.signIn}
-            </Badge>
-          </span>
-        ),
-        // Shown while a guest identity exists (the trial, or apps without it): the
-        // identity carrying the connectors, and the persistent way in to the sign-in.
-        hidden: !freeTierSignInOpen,
-        icon: <Codicon name="account" size="0.75rem" />,
-        id: 'free-tier',
-        label: freeTierCopy.providerName,
-        onSelect: () => openFreeTierSignIn(),
-        title: trialModel ? freeTierCopy.statusLabel(trialModel) : freeTierCopy.providerName,
-        toggleLabel: copy.toggleFreeTier,
-        variant: 'action'
-      },
-      {
         hidden: !currentCwd,
         icon: <FolderOpen className="size-3" />,
         id: 'workspace-cwd',
@@ -652,13 +610,10 @@ export function useStatusbarItems({
       copy,
       currentCwd,
       focusedWorkspaceRemote,
-      freeTierCopy,
       fileMenu.copyPath,
       fileMenu.revealFileManager,
       fileMenu.revealInSidebar,
       offerLocalReveal,
-      trialModel,
-      freeTierSignInOpen,
       gatewayMenuContent,
       gatewayClassName,
       gatewayHealth,

@@ -1,13 +1,12 @@
-import type { ConnectorAccountRow, ConnectorToolsResult } from '@hermes/shared'
+import type { ConnectorAccountRow } from '@hermes/shared'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { GATEWAY_NOT_CONNECTED_MESSAGE } from '@/api/client'
 import type { ProfileScope } from '@/hermes'
 import { translateNow } from '@/i18n'
 import { isMissingRpcMethod, isOutOfSyncRpcParams } from '@/lib/gateway-rpc'
 import { queryClient } from '@/lib/query-client'
-import { $freeTierTurnCompleted, noteFreeTierAppConnected } from '@/store/free-tier-sign-in'
 import { notifyError } from '@/store/notifications'
 
 import { hostedPhase } from '../derive'
@@ -35,7 +34,6 @@ import {
   PLUGIN_SERVERS_STALE_TIME,
   pluginServersQueryKey
 } from './keys'
-import { clearPersisted, seedOptions } from './persist'
 import {
   asConnectorError,
   connectorAccounts,
@@ -76,23 +74,14 @@ export interface HostedConnectorsView {
 }
 
 export function useHostedConnectors(scope: ProfileScope): HostedConnectorsView {
-  const listSeed = useMemo(() => seedOptions<Awaited<ReturnType<typeof listConnectors>>>(scope, 'list'), [scope])
-
-  const catalogSeed = useMemo(
-    () => seedOptions<Awaited<ReturnType<typeof connectorCatalog>>>(scope, 'catalog'),
-    [scope]
-  )
-
   const list = useQuery({
     ...read('list'),
-    ...listSeed,
     queryFn: () => listConnectors(scope).catch(reportVersionSkew),
     queryKey: connectorsListQueryKey(scope)
   })
 
   const catalog = useQuery({
     ...read('catalog'),
-    ...catalogSeed,
     queryFn: () => connectorCatalog(scope),
     queryKey: connectorsCatalogQueryKey(scope)
   })
@@ -106,28 +95,6 @@ export function useHostedConnectors(scope: ProfileScope): HostedConnectorsView {
   // Rules exist only for an identity. The page list is empty until one does (no token, no gateway
   // read), so rules are asked for once it has rows.
   const listed = (list.data?.connectors.length ?? 0) > 0
-
-  // The identity can appear outside this page (an agent connect in a chat). Until the list has rows,
-  // every finished turn or connect re-reads the list, catalog and accounts, which then move to the signed-in routes.
-  useEffect(
-    () =>
-      listed
-        ? undefined
-        : $freeTierTurnCompleted.listen(() => invalidateConnectors(scope, 'list', 'catalog', 'accounts')),
-    [listed, scope]
-  )
-
-  // A list read is where the backend first sees an app this page never watched connect (an
-  // authorization past the watch, a connect by link) and arms the sign-in offer; re-read when it is due.
-  // Only after a read from the backend: saved or cached rows arrive before the read that arms it.
-  const anyConnected = list.data?.connectors.some(connector => connector.connected) ?? false
-  const readFromBackend = list.isFetchedAfterMount && !list.isFetching
-
-  useEffect(() => {
-    if (anyConnected && readFromBackend) {
-      noteFreeTierAppConnected()
-    }
-  }, [anyConnected, readFromBackend, list.dataUpdatedAt])
 
   const policy = useQuery({
     ...read('policy'),
@@ -162,12 +129,6 @@ export function useHostedConnectors(scope: ProfileScope): HostedConnectorsView {
   })
 
   const blanked = phase === 'signedOut' || phase === 'unavailable'
-
-  useEffect(() => {
-    if (phase === 'signedOut') {
-      clearPersisted(scope)
-    }
-  }, [phase, scope])
 
   const listSlugs = useMemo(
     () => new Set(blanked ? [] : (list.data?.connectors ?? []).flatMap(row => (row.connector ? [row.connector] : []))),
@@ -222,7 +183,6 @@ function reportVersionSkew(cause: unknown): never {
 export function connectorToolsQueryOptions(scope: ProfileScope, slug: string) {
   return {
     ...read('tools'),
-    ...seedOptions<ConnectorToolsResult>(scope, 'tools', slug),
     queryFn: () => connectorTools(scope, slug),
     queryKey: connectorToolsQueryKey(scope, slug)
   }

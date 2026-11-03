@@ -4,7 +4,12 @@ import { $localModelsEnabled } from '@/store/local-models-flag'
 import * as notifications from '@/store/notifications'
 import { markOnboardingDecided } from '@/store/onboarding-presence'
 
-import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext, refreshOnboarding } from './onboarding'
+import {
+  $desktopOnboarding,
+  type DesktopOnboardingState,
+  type OnboardingContext,
+  refreshOnboarding
+} from './onboarding'
 
 markOnboardingDecided()
 
@@ -21,8 +26,7 @@ function coldState(): DesktopOnboardingState {
     requested: false,
     firstRunSkipped: false,
     manual: false,
-    localEndpoint: false,
-    freeTierReady: false
+    localEndpoint: false
   }
 }
 

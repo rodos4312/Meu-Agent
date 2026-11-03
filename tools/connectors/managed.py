@@ -65,26 +65,8 @@ def managed_client(*, creates_guest: bool, initiator: Optional[str] = AGENT_TOOL
 
 
 def managed_kind(client: Any, action: str, force: bool) -> Kind:
-    noted: set[str] = set()
-
-    def noting(step: Callable[[ConnectionOperation], None]) -> Callable[[ConnectionOperation], None]:
-        def run(operation: ConnectionOperation) -> None:
-            step(operation)
-            _note_connected(operation, noted)
-        return run
-
-    return Kind(prepare=noting(_prepare(client, action, force)),
-                observe=noting(lambda operation: _observe(client, operation)), note=NOTE)
-
-
-def _note_connected(operation: ConnectionOperation, noted: set[str]) -> None:
-    """Each app that connects counts once toward the connector sign-in offer."""
-    fresh = {t.name for t in operation.targets if t.state == TargetState.connected} - noted
-    if fresh:
-        from hermes_cli.free_tier_offer import note_app_connected
-
-        noted.update(fresh)
-        note_app_connected()
+    return Kind(prepare=_prepare(client, action, force),
+                observe=lambda operation: _observe(client, operation), note=NOTE)
 
 
 def _status_by_slug(client: Any) -> dict[str, dict[str, Any]]:
@@ -356,9 +338,7 @@ def _no_card_result(client: Any, action: str, targets: list[HostedTarget], force
 
 def _status_result(client: Any, connectors: list[str]) -> str:
     items = client.list_connectors()
-    from hermes_cli.free_tier_offer import note_connected_apps_seen
 
-    note_connected_apps_seen(items)
     known = {str(i.get("connector", "")).lower() for i in items}
     unknown = {name: _unknown_slug(name, known) for name in connectors if name not in known}
     if connectors:

@@ -96,12 +96,15 @@ reads/writes a stored pointer), `canonical-chat-creation.test.ts`, `canonical-ch
 `bot-row-opens-canonical-chat.test.ts`, `hide-bot-chats.test.ts`; plus repo-root
 `tests/tui_gateway/test_profiles_list_canonical_session.py`.
 
-## Free tier surfaces (`src/store/free-tier*.ts`, Billing, statusbar chip, onboarding ready screen)
+## Provider setup and local connector persistence
 
-`$freeTierStatus` mirrors `free_tier.status` (pull; refreshed with the status snapshot and after a
-sign-in). `deriveBillingView` branches on `billing.free_tier_account` BEFORE `logged_in` (status
-`free_tier`: notice + one Sign in, Plan/Model/Connectors summary, no payment or usage rows); the
-`logged_out` notice's Sign in opens the same dialog, never a portal link (a link writes no
-credential). The sign-in dialog is a single claimed owner (first mount wins, like the
-real-profile consent prompt); its states map 1:1 to the poll route's `status` + `reason`. Copy is the ruled free-tier copy: never
-"guest", "anonymous", "claim" or "Nous Portal" in user-facing text.
+The retired Nous free-tier sign-in, offer, handoff and challenge-window flows are
+removed. Do not restore their RPC polling or renderer state. Provider setup uses
+the generic OAuth/API-key flow and authoritative runtime readiness.
+
+Local MCP display data is cached per gateway connection and profile by
+`src/app/capabilities/connectors/data/persist.ts`, independently of any Nous
+identity. Server seeds contain only names and enabled flags, never targets or
+credentials. Hosted account data remains in memory and is fetched from its owner;
+legacy identity-scoped caches are not used. A completed agent turn invalidates
+connector reads for that turn's connection/profile.

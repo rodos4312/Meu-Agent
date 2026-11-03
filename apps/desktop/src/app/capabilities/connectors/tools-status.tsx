@@ -26,7 +26,7 @@ export function ToolsWash({ label, rows = 8 }: { label?: string; rows?: number }
 type PageCopy = Translations['connectorsPage']
 type ToolsCopy = PageCopy['tools']
 
-export type ToolsStatusAction = 'keepMine' | 'reload' | 'remove' | 'signIn'
+export type ToolsStatusAction = 'keepMine' | 'reload' | 'remove'
 export type ToolsStatusPhase = 'conflict' | 'gone' | 'needsAuth' | 'off' | 'signedOut'
 
 interface StatusContext {
@@ -72,7 +72,7 @@ const STATUS: StatusTable = {
     title: (copy, { connectorName }) => copy.offTitle(connectorName)
   },
   signedOut: {
-    actions: [{ id: 'signIn', label: copy => copy.page.signIn }],
+    actions: [],
     body: copy => copy.signedOutBody,
     icon: 'sign-in',
     title: copy => copy.signedOutTitle

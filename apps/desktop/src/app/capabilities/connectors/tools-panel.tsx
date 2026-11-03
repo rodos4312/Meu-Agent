@@ -26,7 +26,6 @@ export interface HostedToolsPanelProps {
   disabledTools?: readonly string[]
   onDisconnect: () => void
   onRetryRules?: () => void
-  onSignIn: () => void
   policy: ConnectorPolicyView
   readOnly?: boolean
   rulesSignedOut?: boolean
@@ -39,7 +38,6 @@ export function HostedToolsPanel({
   disabledTools = [],
   onDisconnect,
   onRetryRules,
-  onSignIn,
   policy,
   readOnly = false,
   rulesSignedOut = false,
@@ -78,7 +76,6 @@ export function HostedToolsPanel({
       onRemove={onDisconnect}
       onRetry={tools.retry}
       onRetryRules={onRetryRules}
-      onSignIn={onSignIn}
       preview={!settled(card.ways.hosted)}
       readOnly={readOnly}
       rulesSignedOut={rulesSignedOut}

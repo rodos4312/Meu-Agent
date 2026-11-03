@@ -3503,55 +3503,6 @@ export const zhOverrides = {
 
   onboarding: zhOnboarding,
 
-  // Not yet translated — English fallbacks so the free-tier surfaces stay
-  // readable until a zh pass lands.
-  freeTier: {
-    providerRowTitle: 'Nous · 免费层',
-    providerRowPitch: '登录 Nous 账户以解锁更多模型和工具。',
-    readyTitle: 'Meu 已就绪。',
-    readyCaption: '免费 · 含连接器',
-    begin: '开始',
-    signInInstead: '改为登录 Nous 账户',
-    otherProviders: '其他提供方',
-    stripTitle: '免费的 Nous 推理和连接器现已可用。',
-    stripBody: '打开模型选择器试用，或登录 Nous 账户。',
-    openModelPicker: '打开模型选择器',
-    dismiss: '关闭',
-    providerName: 'Nous',
-    statusLabel: model => `Nous · ${model}`,
-    signIn: '登录',
-    signInHeading: '登录 Nous 账户以解锁更多模型和工具。',
-    settingUp: '正在设置免费推理…',
-    finishInBrowser: '在浏览器中完成',
-    doNotShare: '请勿分享此代码。',
-    openPageAgain: '重新打开页面',
-    waiting: '等待登录…',
-    finishingHeading: '正在完成登录…',
-    finishingBody: '已在浏览器中批准。正在获取账户令牌。',
-    signedInAsLabel: '已登录为',
-    signedIn: '已登录。',
-    completedBody: '现在由你的账户提供推理和工具。',
-    reconnect: '重新连接',
-    openConnectors: '打开连接器',
-    defaultModel: '默认模型',
-    change: '更改',
-    done: '完成',
-    notNow: '暂不',
-    tryAgain: '重试',
-    didNotComplete: '登录未完成',
-    timedOutHeading: '登录超时',
-    timedOutBody: '代码未在有效期内使用。你仍在免费层。',
-    errorBody: '登录未完成；请重试。',
-    alreadySignedInHeading: '已登录。',
-    alreadySignedInBody: '此 Meu 已登录 Nous 账户。',
-    offer: {
-      heading: '继续使用 Meu',
-      body: '你正在使用免费额度。继续使用 Meu 的话，你会开始遇到限制。登录免费的 Nous 账户，即可获得更多额度。',
-      signIn: '登录',
-      notNow: '暂不'
-    }
-  },
-
   modelPicker: {
     title: '切换模型',
     current: '当前：',

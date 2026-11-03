@@ -1,5 +1,6 @@
 import { type BillingBlock, mergeUsage } from '@hermes/shared'
 
+import { invalidateConnectors } from '@/app/capabilities/connectors/data/keys'
 import { noteTurnSettled } from '@/app/session/hooks/use-session-actions/settled-turns'
 import { burstVibeHearts } from '@/components/chat/vibe-hearts'
 import { translateNow } from '@/i18n'
@@ -11,7 +12,6 @@ import { triggerHaptic } from '@/lib/haptics'
 import { billingCtaLabel, clearBillingBlock, runBillingRecovery, setBillingBlock } from '@/store/billing-block'
 import { clearSettledClarifyRequest } from '@/store/clarify'
 import { setSessionCompacting } from '@/store/compaction'
-import { noteFreeTierTurnComplete } from '@/store/free-tier-sign-in'
 import { notify } from '@/store/notifications'
 import { flashPetActivity, markPetUnread, setPetActivity } from '@/store/pet'
 import { clearAllPrompts } from '@/store/prompts'
@@ -428,7 +428,12 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     )
 
     if (payload?.status === 'complete') {
-      noteFreeTierTurnComplete()
+      invalidateConnectors(
+        { connectionId: event.connectionId, profile: event.profile ?? deps.activeGatewayProfile },
+        'list',
+        'catalog',
+        'accounts'
+      )
     }
 
     // Structured billing wall forwarded by the gateway (out of credits /

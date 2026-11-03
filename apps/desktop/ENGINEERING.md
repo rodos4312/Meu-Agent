@@ -166,22 +166,15 @@ reopens the gesture-less forced-navigation class the advisory closed.
 - Root geometry variables are not theme changes. Authored custom CSS can depend
   on those variables, so it must retain full repaint notifications.
 
-## Nous free tier: state is pulled, never latched in the renderer
+## Provider setup and local connector persistence
 
-The free tier (a Nous identity with no account, `hermes_cli/anon_auth.py`) reaches the renderer
-through one JSON-RPC pair: `free_tier.status` (has_guest, enabled, available,
-notice_pending, model, label) read from local auth state with zero network, and
-`free_tier.ack_notice`, which persists the one-time notice flag on the identity itself. The
-first-launch ready screen and the own-key strip are the SAME state rendered for two situations,
-keyed on `notice_pending`; there is no localStorage latch, so the CLI and the desktop cannot
-disagree about whether the notice was shown. Sign-in goes through the existing
-`POST /api/providers/oauth/nous/start` + poll route, which the dialog long-polls (`?wait=`: the
-backend answers once the session leaves `pending`; the loop never asks again sooner than 2 s, so an
-older backend that answers at once is not hammered). On completion it reports `reason`,
-`account_email`, `model` and `handoff_status` (what the replaced free tier's apps did, with the
-backend's own copy in `lines`); a move still retrying is followed through the
-`/api/providers/oauth/nous/handoff` long-poll until it settles or the dialog closes. Every entry
-point (Billing, status chip, ready screen) opens the one free-tier sign-in dialog, and a Nous sign-in
-from the onboarding picker that moved apps shows the same result screen once onboarding leaves the
-screen (onboarding paints above every dialog). Never branch on
-provider display names: the picker row carries `free_tier_row`, status cards carry `free_tier`.
+The retired Nous free-tier sign-in, offer, handoff and challenge-window flows are
+removed. Do not restore their RPC polling or renderer state. Provider setup uses
+the generic OAuth/API-key flow and authoritative runtime readiness.
+
+Local MCP display data is cached per gateway connection and profile by
+`src/app/capabilities/connectors/data/persist.ts`, independently of any Nous
+identity. Server seeds contain only names and enabled flags, never targets or
+credentials. Hosted account data remains in memory and is fetched from its owner;
+legacy identity-scoped caches are not used. A completed agent turn invalidates
+connector reads for that turn's connection/profile.
