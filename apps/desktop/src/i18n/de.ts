@@ -504,29 +504,6 @@ export const deOverrides = {
     }
   },
   ...deNotices,
-  sendDiagnostics: {
-    title: 'Diagnosedaten an Nous senden',
-    privacyNotice:
-      'Damit laden Sie ein Debug-Paket in den internen Nous-Speicher hoch (kein öffentliches Paste). Es enthält Systeminfos (Betriebssystem, Versionen, Provider, welche API-Keys konfiguriert sind – niemals die Keys selbst) sowie vollständige Agent-, Gateway- und Desktop-Logs (bis zu 512 KB je Datei), die sehr wahrscheinlich Gesprächsinhalte, Tool-Ausgaben und Dateipfade enthalten. Geheimnisse werden vor dem Upload geschwärzt. Das Paket ist nur für Nous-Mitarbeitende und freigeschaltete Discord-Moderatoren einsehbar und wird nach 14 Tagen automatisch gelöscht.',
-    upload: 'Hochladen',
-    uploading: 'Wird hochgeladen…',
-    cancel: 'Abbrechen',
-    close: 'Schließen',
-    copyLink: 'Link kopieren',
-    uploadIdFallback: id => `Kein Link zurückgegeben — zitiere die Upload-ID ${id} im Support`,
-    doneTitle: 'Diagnosedaten gesendet',
-    doneDescription:
-      'Ihr Paket wurde privat hochgeladen. Teilen Sie den Link unten in Ihrem Support-Thread, damit das Team Ihre Logs sehen kann.',
-    failedTitle: 'Hochladen fehlgeschlagen',
-    failedHint:
-      'Sie können auch `hermes debug share --nous` im Terminal ausführen oder `hermes debug share --local`, um den Bericht ohne Hochladen auszugeben.',
-    handoffLead: 'Diskussion hier fortsetzen:',
-    links: {
-      github: 'GitHub Issues',
-      portal: 'Nous-Portal-Support',
-      discord: 'Discord'
-    }
-  },
   titlebar: {
     hideSidebar: 'Sidebar ausblenden',
     showSidebar: 'Sidebar einblenden',
@@ -4740,7 +4717,6 @@ export const deOverrides = {
       errorOpenLogs: 'Logs öffnen',
       errorOpenLogsFailed: 'Der Logs-Ordner konnte nicht geöffnet werden',
       errorOpenDesktopLogs: 'Desktop-Logs öffnen',
-      errorSendDiagnostics: 'Diagnose senden',
       filesChanged: count => (count === 1 ? '1 Datei geändert' : `${count} Dateien geändert`),
       reviewChanges: 'Prüfen',
       readAloudFailed: 'Vorlesen fehlgeschlagen',
@@ -5205,7 +5181,6 @@ export const deOverrides = {
     boundaryDesc:
       'In dieser Ansicht ist ein unerwarteter Fehler aufgetreten. Ihre Chats und Einstellungen sind sicher.',
     boundaryDetails: 'Details',
-    sendDiagnostics: 'Diagnosedaten senden',
     reloadWindow: 'Fenster neu laden',
     openLogs: 'Logs öffnen'
   },

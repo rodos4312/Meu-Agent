@@ -76,6 +76,7 @@ export async function preflightStateDb({
         : args,
       hiddenWindowsChildOptions({
         encoding: 'utf8',
+        env: { ...process.env, HERMES_HOME: home },
         timeout: stateDbPreflightTimeoutMs(home),
         windowsVerbatimArguments: viaCmd
       })

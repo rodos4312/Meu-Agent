@@ -2,6 +2,8 @@ interface FirstRunSetupBackend {
   activeRoot?: string
   kind?: string
   platform?: string
+  /** A verified existing installation is being advanced to the packaged revision. */
+  upgrade?: boolean
   /** What the local setup card represents: 'none' = installer offer, the rest = use existing. */
   local?: 'none' | 'installed' | 'bundled'
 }
@@ -60,7 +62,7 @@ export function createFirstRunSetupGate({
   }
 
   const shouldGate = (backend?: FirstRunSetupBackend | null) =>
-    Boolean(backend && backend.kind === 'bootstrap-needed' && !localBootstrapConfirmed)
+    Boolean(backend && backend.kind === 'bootstrap-needed' && !backend.upgrade && !localBootstrapConfirmed)
 
   const wait = async (backend?: FirstRunSetupBackend | null) => {
     if (!shouldGate(backend)) {

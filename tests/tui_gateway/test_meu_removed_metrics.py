@@ -8,6 +8,7 @@ from tui_gateway import contracts, server
 
 
 @pytest.mark.parametrize("method,params", [
+    ("diagnostics.share_nous", {"error_context": "private local error", "extra_files": {"desktop.log": "private"}}),
     ("shared_metrics.status", {}),
     ("shared_metrics.set", {"enabled": True, "send": True, "first_run": True}),
     ("shared_metrics.slash_command", {"command": "skills"}),

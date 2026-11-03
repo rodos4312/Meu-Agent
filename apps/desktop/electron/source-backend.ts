@@ -41,7 +41,14 @@ export async function resolveSourceInstallationBackend(
 
   const shell: boolean = isWindows && /\.(cmd|bat)$/i.test(launcher)
   const command: string = shell ? `"${launcher}"` : launcher
-  const env: NodeJS.ProcessEnv = buildDesktopBackendEnv({ currentEnv: options.env ?? process.env })
+  // The GUI's selected home can differ from its inherited shell environment.
+  // Probe the same PM store that the returned command will actually use.
+  const currentEnv = { ...(options.env ?? process.env), ...(options.hermesHome ? { HERMES_HOME: options.hermesHome } : {}) }
+
+  const env: NodeJS.ProcessEnv = {
+    ...buildDesktopBackendEnv({ currentEnv }),
+    ...(options.hermesHome ? { HERMES_HOME: options.hermesHome } : {})
+  }
 
   try {
     await execProbe(command, ['--version'], {

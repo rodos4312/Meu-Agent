@@ -5090,7 +5090,7 @@ async function ensureRuntime(
   }
 
   if (backend.kind === 'bootstrap-needed') {
-    rememberLog('[bootstrap] no Meu install found; starting first-launch bootstrap')
+    rememberLog(`[bootstrap] ${backend.upgrade ? 'upgrading existing Meu installation' : 'starting Meu installation'}`)
 
     if (!backend.upgrade && (await handOffWindowsBootstrapRecovery('bootstrap-needed'))) {
       const handoffError: Error & { isBootstrapFailure?: boolean; bootstrapHandedOff?: boolean } = new Error(

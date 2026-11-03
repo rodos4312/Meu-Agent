@@ -93,6 +93,8 @@ describe('ErrorBoundary assistant-ui lookup recovery', () => {
     }
 
     expect(screen.getByRole(RELOAD_WINDOW.role, { name: RELOAD_WINDOW.name })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open logs' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send diagnostics' })).toBeNull()
     expect(recoveryWarningCount(warnSpy.mock.calls)).toBe(3)
     expect(vi.getTimerCount()).toBe(0)
   })

@@ -49,7 +49,6 @@ async def test_local_session_debug_local_returns_the_report_without_uploading(te
     guard = _NoNetwork()
     bundle = {'report': 'REDACTED-REPORT-BODY', 'agent.log': 'FULL-LOG'}
     with patch('hermes_cli.debug.upload_to_pastebin', guard), \
-            patch('hermes_cli.diagnostics_upload.share_to_nous', guard), \
             patch('hermes_cli.debug._schedule_auto_delete', guard), \
             patch('hermes_cli.debug.collect_share_bundle', return_value=bundle), \
             patch.object(socket.socket, 'connect', guard):
@@ -77,7 +76,6 @@ async def test_messaging_debug_local_is_refused_without_uploading():
     """``/debug local`` from a chat is a named refusal pointing at bare ``/debug``; nothing is uploaded."""
     guard = _NoNetwork()
     with patch('hermes_cli.debug.upload_to_pastebin', guard), \
-            patch('hermes_cli.diagnostics_upload.share_to_nous', guard), \
             patch('hermes_cli.debug._schedule_auto_delete', guard), \
             patch('hermes_cli.debug._best_effort_sweep_expired_pastes', guard), \
             patch('hermes_cli.debug.collect_debug_report', guard), \
@@ -93,7 +91,6 @@ async def test_local_debug_local_real_collector_opens_no_socket(tmp_path, monkey
     monkeypatch.setenv('HERMES_HOME', str(tmp_path))
     guard = _NoNetwork()
     with patch('hermes_cli.debug.upload_to_pastebin', guard), \
-            patch('hermes_cli.diagnostics_upload.share_to_nous', guard), \
             patch.object(socket.socket, 'connect', guard), \
             patch.object(socket.socket, 'connect_ex', guard), \
             patch('socket.create_connection', guard):

@@ -531,26 +531,6 @@ export interface Translations extends NoticeTranslations {
     dismiss: string
   }
 
-  sendDiagnostics: {
-    title: string
-    privacyNotice: string
-    upload: string
-    uploading: string
-    cancel: string
-    close: string
-    copyLink: string
-    uploadIdFallback: (id: string) => string
-    doneTitle: string
-    doneDescription: string
-    failedTitle: string
-    failedHint: string
-    handoffLead: string
-    links: {
-      discord: string
-      github: string
-      portal: string
-    }
-  }
 
   titlebar: {
     hideSidebar: string
@@ -3741,7 +3721,6 @@ export interface Translations extends NoticeTranslations {
       errorOpenLogs: string
       errorOpenLogsFailed: string
       errorOpenDesktopLogs: string
-      errorSendDiagnostics: string
       filesChanged: (count: number) => string
       reviewChanges: string
       readAloudFailed: string
@@ -4018,7 +3997,6 @@ export interface Translations extends NoticeTranslations {
     boundaryTitle: string
     boundaryDesc: string
     boundaryDetails: string
-    sendDiagnostics: string
     reloadWindow: string
     openLogs: string
   }

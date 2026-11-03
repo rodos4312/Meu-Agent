@@ -152,6 +152,9 @@ jobs:
           tests/hermes_cli/test_meu_privacy.py
           tests/hermes_cli/test_meu_nous_routes.py
           tests/hermes_cli/test_meu_removed_metrics_routes.py
+          tests/hermes_cli/test_meu_removed_diagnostics.py
+          tests/hermes_cli/test_debug.py
+          tests/gateway/test_local_debug_never_uploads.py
           tests/tui_gateway/test_meu_removed_payments.py
           tests/agent/test_account_usage_fetch.py
           tests/agent/test_billing_links.py
@@ -305,12 +308,18 @@ jobs:
       - name: Verify Meu release origin, signatures and update recovery
         working-directory: apps/desktop
         run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs
-      - name: Verify update notifications require an explicit install choice
+      - name: Verify installed-home isolation and upgrade setup behavior
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $env:HERMES_PYTHON = (Get-Command python).Source
+          npx vitest run --project electron --maxWorkers 2 electron/source-backend-home.test.ts electron/first-run-setup-gate.test.ts electron/meu-runtime-upgrade.test.ts electron/pre-update-backup-config.test.ts electron/updater/state-db-preflight.test.ts
+      - name: Verify update notification and consent behavior
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/store/meu-updates.test.ts src/store/updates.test.ts src/components/update-status.test.tsx src/app/updates-overlay.manual.test.tsx src/lib/update-notes.test.ts
       - name: Verify removed Nous surfaces and provider credential recovery
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts src/app/session/hooks/use-message-stream/gateway-event/status.test.ts
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts src/components/error-boundary.test.tsx src/app/contrib/wiring-background-queue-drain.test.tsx src/app/session/hooks/use-message-stream/gateway-event/status.test.ts
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/app/session/hooks/use-prompt-actions/index.test.tsx src/app/session/hooks/use-prompt-actions/submission-destination.test.tsx src/store/notifications.test.ts src/components/version-details.test.tsx src/app/settings/about-settings.test.tsx
@@ -449,13 +458,13 @@ jobs:
           extras: '[]'
       - name: Install locked rehearsal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Download the pinned public dev.13 baseline
+      - name: Download the pinned public dev.14 baseline
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'meu-baseline-candidate'
           New-Item -ItemType Directory -Path $baseline | Out-Null
-          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.13'
-          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.13-win-x64.exe')) {
+          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.14'
+          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.14-win-x64.exe')) {
             Invoke-WebRequest -Uri "$release/$file" -OutFile (Join-Path $baseline $file) -TimeoutSec 180
           }
           # The rehearsal driver verifies the manifest signature and installer hashes before execution.

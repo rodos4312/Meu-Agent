@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { test } from 'vitest'
+import { test, vi } from 'vitest'
 
 import { preflightStateDb, stateDbPreflightTimeoutMs } from './state-db-preflight'
 
@@ -97,11 +97,14 @@ test('a managed installation runs the snapshot through the installation launcher
   // exactly what the runtime passes it — `--run-module hermes_cli.backup_sqlite
   // <home>` — and publish the snapshot like the real launcher does.
   const shim: string = path.join(shims, process.platform === 'win32' ? 'hermes.cmd' : 'hermes')
+  const scopedScript = path.join(shims, 'scoped-snapshot.py')
+  fs.writeFileSync(scopedScript,
+    `import os, sys, runpy\nassert os.environ.get('HERMES_HOME') == sys.argv[1], 'wrong snapshot data home'\nsys.argv = [${JSON.stringify(script)}, sys.argv[1]]\nrunpy.run_path(sys.argv[0], run_name='__main__')\n`)
   fs.writeFileSync(
     shim,
     process.platform === 'win32'
-      ? `@echo off\r\n"${python}" -I -S "${script}" %3\r\n`
-      : `#!/bin/sh\nexec "${python}" -I -S "${script}" "$3"\n`
+      ? `@echo off\r\n"${python}" -I -S "${scopedScript}" %3\r\n`
+      : `#!/bin/sh\nexec "${python}" -I -S "${scopedScript}" "$3"\n`
   )
 
   if (process.platform !== 'win32') {
@@ -165,23 +168,24 @@ test('an older selected checkout without the snapshot helper refuses before back
 
 test('the deadline grows with the main database and WAL, but stays bounded', (): void => {
   const home: string = fs.mkdtempSync(path.join(os.tmpdir(), 'preflight-budget-'))
+  const stat = vi.spyOn(fs, 'statSync')
 
   try {
     const floor = stateDbPreflightTimeoutMs(home)
 
-    for (const name of ['state.db', 'state.db-wal']) {
-      fs.writeFileSync(path.join(home, name), '')
-      fs.truncateSync(path.join(home, name), 2 * 1024 ** 3)
-    }
+    // File metadata is enough: truncating a 100 GB file allocates real disk on Windows.
+    const sizes = new Map(['state.db', 'state.db-wal'].map(name => [path.join(home, name), 2 * 1024 ** 3]))
+    stat.mockImplementation(file => ({ size: sizes.get(String(file)) ?? 0 }) as fs.Stats)
 
     const withWal = stateDbPreflightTimeoutMs(home)
-    fs.unlinkSync(path.join(home, 'state.db-wal'))
+    sizes.delete(path.join(home, 'state.db-wal'))
     const withoutWal = stateDbPreflightTimeoutMs(home)
     assert.ok(floor >= 5 * 60_000)
     assert.ok(withWal > withoutWal && withoutWal > floor)
-    fs.truncateSync(path.join(home, 'state.db'), 100 * 1024 ** 3)
+    sizes.set(path.join(home, 'state.db'), 100 * 1024 ** 3)
     assert.ok(stateDbPreflightTimeoutMs(home) <= 30 * 60_000)
   } finally {
+    stat.mockRestore()
     fs.rmSync(home, { recursive: true, force: true })
   }
 })

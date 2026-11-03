@@ -3,12 +3,24 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import { createFirstRunSetupGate } from './first-run-setup-gate'
+import { meuUpgradeBackend } from './meu-runtime-upgrade'
 
 const bootstrapBackend = {
   activeRoot: '/tmp/hermes-home/hermes-agent',
   kind: 'bootstrap-needed',
   platform: 'linux'
 }
+
+test('an identified existing-install upgrade bypasses the first-install choice without confirming future fresh installs', async () => {
+  const prompts = []
+  const gate = createFirstRunSetupGate({ promptChoice: backend => prompts.push(backend), stuckAfterMs: 0 })
+  const upgrade = meuUpgradeBackend(['gateway', 'ensure'], '/existing/meu', null)
+  assert.equal(gate.shouldGate(upgrade), false)
+  assert.equal(await gate.wait(upgrade), 'continue-local')
+  assert.deepEqual(prompts, [])
+  assert.equal(gate.hasWaiter(), false)
+  assert.equal(gate.shouldGate(bootstrapBackend), true)
+})
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))

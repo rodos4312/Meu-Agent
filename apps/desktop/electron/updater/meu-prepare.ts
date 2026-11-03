@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import type { ResolvedHermesBackend } from '../meu-runtime-upgrade'
 import { readPreUpdateBackupEnabled } from '../pre-update-backup-config'
 import { resolveInstallationLauncher } from '../updater-process'
+
 import { preflightStateDb } from './state-db-preflight'
 
 const exec = promisify(execFile)
@@ -21,7 +22,10 @@ export interface MeuPrepareDeps {
 /** Preserve existing backup preferences and the canonical gateway's busy refusal. */
 export async function prepareMeuUpdate(deps: MeuPrepareDeps): Promise<void> {
   // A gateway-only client has no local installation to snapshot or stop.
-  if (!fs.existsSync(path.join(deps.root, 'hermes_cli', 'main.py'))) return
+  if (!fs.existsSync(path.join(deps.root, 'hermes_cli', 'main.py'))) {
+    return
+  }
+
   if (
     await readPreUpdateBackupEnabled(
       deps.resolveBackend(['config', 'get', 'updates.pre_update_backup', '--json']),
@@ -30,7 +34,11 @@ export async function prepareMeuUpdate(deps: MeuPrepareDeps): Promise<void> {
   ) {
     const managed = fs.existsSync(path.join(deps.root, 'pm'))
     const launcher = managed ? resolveInstallationLauncher(deps.root, true, deps.home) : null
-    if (managed && !launcher) throw new Error('Meu installation launcher is missing; repair before updating.')
+
+    if (managed && !launcher) {
+      throw new Error('Meu installation launcher is missing; repair before updating.')
+    }
+
     await preflightStateDb({
       home: deps.home,
       log: deps.log,
@@ -39,11 +47,15 @@ export async function prepareMeuUpdate(deps: MeuPrepareDeps): Promise<void> {
       script: path.join(deps.root, 'hermes_cli', 'backup_sqlite.py')
     })
   }
+
   const backend = await deps.resolveBackend(['gateway', 'stop'])
-  if (!backend.command || backend.bootstrap || backend.shell)
+
+  if (!backend.command || backend.bootstrap || backend.shell) {
     throw new Error('Cannot safely stop this Meu backend for an update.')
+  }
+
   await exec(backend.command, backend.args, {
-    env: backend.env,
+    env: { ...process.env, ...backend.env, HERMES_HOME: deps.home },
     cwd: deps.root,
     windowsHide: true,
     timeout: 60_000,
