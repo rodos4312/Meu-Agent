@@ -4,6 +4,14 @@ title: "Nous Portal"
 description: "One subscription, 300+ frontier models, and the Tool Gateway — the recommended way to run Hermes Agent"
 ---
 
+:::warning Upstream reference — not Meu setup
+Meu has removed the Nous Portal command, its setup flow and background account keepalive.
+The instructions below describe upstream Hermes and do not apply to Meu. Use `hermes model`
+to configure a supported provider such as DeepSeek. Remaining hosted-account compatibility
+code is being retired separately.
+:::
+
+
 # Nous Portal
 
 [Nous Portal](https://portal.nousresearch.com) is Nous Research's unified subscription gateway and **the recommended way to run Hermes Agent**. One OAuth login replaces the juggling act of separate accounts, API keys, and billing relationships across every model lab, search API, image generator, and browser provider you'd otherwise need to wire up by hand.
@@ -237,12 +245,10 @@ The OAuth refresh token is stored separately at `~/.hermes/auth.json` (not in `c
 
 Hermes mints a short-lived JWT from your stored Portal refresh token on each inference call rather than reusing a long-lived API key. The token lifecycle is fully automatic — refresh, mint, retry on transient 401 — and you never see it.
 
-Long-running gateway and dashboard processes also run a background keepalive that refreshes the token before it expires, so idle agents don't pay a 401 round-trip on their first request of each credential lifetime. The keepalive derives its tick from the lifetime the Portal actually issued (several ticks per lifetime), bounded above by:
-
-```yaml
-nous:
-  keepalive_interval_seconds: 900   # upper bound on the tick; 0 disables the keepalive
-```
+Meu no longer starts a background Nous token keepalive. Its configuration setting is removed
+when a profile is loaded or saved. The Portal setup command and Nous model setup flow have also
+been removed; use `hermes model` to configure a supported provider. The remaining content on this
+page describes legacy upstream integration paths, not Meu's setup interface.
 
 If the Portal invalidates the refresh token (password change, manual revoke, session expiry), the invalid refresh token is **quarantined locally** so Hermes stops replaying it and you don't see a stream of identical 401s. The next call surfaces a clear "re-authentication required" message. Run `hermes auth add nous` to log in again; the quarantine clears on the next successful login.
 

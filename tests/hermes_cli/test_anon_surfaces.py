@@ -1,9 +1,9 @@
-"""Nous free tier on the read-only display surfaces and the keepalive.
+"""Legacy Nous account rendering on the remaining read-only surfaces.
 
 Contract (R-USR-1): wherever a free-tier identity renders (``hermes auth status nous``,
-``hermes auth list``, ``hermes status``, ``hermes portal info``) the user sees the free-tier label
+``hermes auth list``, ``hermes status``) the user sees the free-tier label
 plus the upgrade hint, and never the internal identity vocabulary. A real account keeps its normal
-rendering. The keepalive has nothing to keep alive for the free tier and must not start a thread.
+rendering.
 """
 
 from __future__ import annotations
@@ -23,8 +23,6 @@ from hermes_cli import (
     auth_commands,
     guest_handoff,
     nous_account,
-    nous_auth_keepalive,
-    portal_cli,
     status_auth,
 )
 from hermes_cli.auth import _load_auth_store
@@ -95,8 +93,6 @@ def _render_all(capsys) -> dict[str, str]:
     ctx = SimpleNamespace(config={}, nous_logged_in=False, nous_inference_present=False, nous_account_info=None)
     status_auth._render_auth_providers(ctx)
     out["hermes status"] = capsys.readouterr().out
-    portal_cli._cmd_status(SimpleNamespace())
-    out["portal info"] = capsys.readouterr().out
     return out
 
 
@@ -150,34 +146,6 @@ def test_guest_whose_lookup_fails_still_gets_the_sign_in_copy(isolated_store, mo
     info = nous_account.get_nous_portal_account_info()
     assert info.error is not None and info.is_anonymous_tier
     assert nous_account.format_nous_portal_entitlement_message(info) == nous_account.FREE_TIER_NEEDS_ACCOUNT
-
-
-def test_keepalive_does_not_start_for_free_tier(isolated_store, monkeypatch):
-    started: list = []
-
-    class _Thread:
-        def __init__(self, *args, **kwargs):
-            self._name = kwargs.get("name")
-        def start(self):
-            started.append(self._name)
-        def is_alive(self):
-            return True
-        def join(self, timeout=None):
-            pass
-    monkeypatch.setattr(nous_auth_keepalive.threading, "Thread", _Thread)
-    monkeypatch.setattr(nous_auth_keepalive, "_keepalive_thread", None)
-    from hermes_cli import guest_handoff
-    monkeypatch.setattr(guest_handoff, "_worker_thread", None)
-
-    _write_auth(_guest_state())
-    assert nous_auth_keepalive.start_nous_auth_keepalive(interval_seconds=900) is None
-    # The free-tier handoff retry worker runs in a guest process too; the token keepalive does not.
-    assert started == ["nous-guest-handoff"]
-
-    _write_auth(_account_state())
-    thread = nous_auth_keepalive.start_nous_auth_keepalive(interval_seconds=900)
-    assert thread is not None and started == ["nous-guest-handoff", "nous-auth-keepalive"]
-    monkeypatch.setattr(nous_auth_keepalive, "_keepalive_thread", None)
 
 
 _HANDOFF_VIEWS = [

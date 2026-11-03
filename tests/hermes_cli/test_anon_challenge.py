@@ -234,13 +234,11 @@ class TestWhoWaits:
             anon_challenge.present(challenge)
         assert capsys.readouterr().err == ""
 
-    def test_the_keepalive_and_the_status_paint_are_background_callers(self, nas, presented):
+    def test_the_status_paint_is_a_background_caller(self, nas, presented):
         from hermes_cli.auth_nous import _compute_nous_auth_status
-        from hermes_cli.nous_auth_keepalive import refresh_nous_auth_keepalive_once
         assert anon_auth.is_guest_state(anon_auth.ensure_portal_identity(explicit=True))
         nas.challenge_required = True
         nas.challenge_never_clears = True
-        assert refresh_nous_auth_keepalive_once() is False
         _compute_nous_auth_status()
         assert "/api/anonymous/challenge/status" not in [p for _, p in nas.calls]
 

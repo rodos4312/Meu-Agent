@@ -169,18 +169,6 @@ class TestUpgrade:
         assert shared.get("refresh_token") == REFRESH_TOKEN
         assert "anon_token" not in shared
 
-    def test_hermes_model_signs_a_connector_free_tier_in_instead_of_refusing(self, portal, monkeypatch, capsys):
-        from hermes_cli import model_setup_flows
-        from tests.hermes_cli.anon_portal import as_local_desktop_backend
-        as_local_desktop_backend(monkeypatch)
-        assert anon_auth.guest_without_free_tier(anon_auth.ensure_portal_identity(explicit=True))
-        logins = []
-        monkeypatch.setattr(model_setup_flows, "_run_login", lambda login_fn, *args: logins.append(args))
-
-        model_setup_flows._model_flow_nous({})
-
-        assert len(logins) == 1
-        assert anon_auth.UPGRADE_HINT not in capsys.readouterr().out
 
     def test_the_terminal_device_login_prints_what_moved(self, portal, monkeypatch, capsys):
         import argparse

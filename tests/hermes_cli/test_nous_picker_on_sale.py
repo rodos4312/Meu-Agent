@@ -12,7 +12,6 @@ from unittest.mock import MagicMock
 
 import hermes_cli.models as models_mod
 import hermes_cli.models_pricing as mp
-from hermes_cli import model_setup_flows
 from hermes_cli import model_switch_providers as msp
 from hermes_cli.models import union_with_nous_on_sale_models
 from hermes_cli.models_pricing import fetch_models_with_pricing
@@ -97,17 +96,6 @@ def test_gui_picker_org_policy_still_narrows_on_sale_models(monkeypatch):
     assert "sale/x" not in msp._nous_picker_model_ids({"nous": ["nous/a"]}, False)
 
 
-def test_cli_setup_flow_and_gui_picker_agree(monkeypatch):
-    """``hermes model`` and the GUI/in-chat picker list the same Nous models for a paid account."""
-    pricing = {"nous/a": dict(_LIST), "sale/x": _sale(80), "sale/y": _sale(30)}
-    _stub_portal(monkeypatch, free_tier=False, pricing=pricing)
-    monkeypatch.setattr(mp, "nous_policy_allowed_ids", lambda **kw: None)
-
-    cli = model_setup_flows._nous_model_catalog(False, "", ["nous/a"], pricing)
-    assert cli is not None
-    assert cli[0] == msp._nous_picker_model_ids({"nous": ["nous/a"]}, False)
-
-
 def _login_picker_ids(monkeypatch, *, free_tier: bool, pricing: dict, allowed=None) -> list:
     """Model ids the post-login picker (``hermes auth add nous`` / re-auth) offers."""
     from hermes_cli import auth_nous
@@ -145,14 +133,12 @@ def test_post_login_picker_org_policy_still_narrows_on_sale_models(monkeypatch):
     assert ids == ["curated/only"]
 
 
-def test_all_three_paid_pickers_agree(monkeypatch):
-    """Sign-in picker, ``hermes model`` and the GUI/in-chat picker list the same paid Nous models."""
+def test_login_and_gui_paid_pickers_agree(monkeypatch):
+    """The remaining legacy sign-in and GUI picker helpers list the same paid Nous models."""
     pricing = {"curated/only": dict(_LIST), "sale/x": _sale(80), "sale/y": _sale(30)}
     login = _login_picker_ids(monkeypatch, free_tier=False, pricing=pricing)
-    cli = model_setup_flows._nous_model_catalog(False, "", ["curated/only"], pricing)
     gui = msp._nous_picker_model_ids({"nous": ["curated/only"]}, False)
-    assert cli is not None
-    assert login == cli[0] == gui == ["curated/only", "sale/x", "sale/y"]
+    assert login == gui == ["curated/only", "sale/x", "sale/y"]
 
 
 def test_skips_generation_models_on_sale(monkeypatch):

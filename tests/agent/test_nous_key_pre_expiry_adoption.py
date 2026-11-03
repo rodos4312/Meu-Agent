@@ -7,7 +7,7 @@ started the proactive keepalive, and nothing adopted a fresh key before a reques
 import base64
 import json
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from agent.client_lifecycle import ClientLifecycleMixin
 
@@ -75,22 +75,3 @@ def test_same_key_back_from_the_store_is_not_readopted():
     with patch("hermes_cli.auth.resolve_nous_runtime_credentials", return_value={"api_key": key, "base_url": agent.base_url}):
         assert agent._adopt_nous_key_before_expiry() is False
     assert agent.adopted == []
-
-
-def test_keepalive_thread_starts_when_an_agent_routes_to_nous(monkeypatch, tmp_path):
-    """Real construction path: the CLI process builds agents through AIAgent, never through the gateway boot."""
-    from run_agent import AIAgent
-
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hh"))
-    started = []
-    monkeypatch.setattr("hermes_cli.nous_auth_keepalive.start_nous_auth_keepalive", lambda: started.append(1))
-    # Tool discovery and the SDK client are irrelevant to the keepalive wiring and dominate runtime.
-    monkeypatch.setattr("model_tools.get_tool_definitions", lambda *a, **k: [])
-    monkeypatch.setattr("model_tools.check_toolset_requirements", lambda *a, **k: {})
-    monkeypatch.setattr("agent.process_bootstrap.OpenAI", MagicMock())
-    AIAgent(api_key="k", base_url="https://inference-api.nousresearch.com/v1", provider="nous",
-            model="anthropic/claude-fable-5.1", quiet_mode=True, skip_context_files=True, skip_memory=True)
-    assert started == [1]
-    AIAgent(api_key="k", base_url="https://openrouter.ai/api/v1", provider="openrouter",
-            model="anthropic/claude-fable-5.1", quiet_mode=True, skip_context_files=True, skip_memory=True)
-    assert started == [1]

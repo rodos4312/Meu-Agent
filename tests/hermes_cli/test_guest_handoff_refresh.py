@@ -8,7 +8,6 @@ profile that had logged out of the account adopted it again from the store.
 from __future__ import annotations
 
 import os
-from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -84,7 +83,7 @@ def test_a_sign_in_over_the_guest_in_the_shared_store_still_hands_it_over(portal
     assert _gh._only_record()["state"] == "claimed"
 
 
-def test_a_keepalive_refresh_does_not_sign_a_logged_out_profile_back_in(portal, monkeypatch, tmp_path):
+def test_a_token_refresh_does_not_sign_a_logged_out_profile_back_in(portal, monkeypatch, tmp_path):
     """Two profiles on one account; the first logs out and mints a guest; the second refreshes."""
     from hermes_cli import anon_auth, auth
     first, second = os.environ["HERMES_HOME"], tmp_path / "second-profile"
@@ -94,12 +93,14 @@ def test_a_keepalive_refresh_does_not_sign_a_logged_out_profile_back_in(portal, 
     _gh._persist(_gh._account())
 
     monkeypatch.setenv("HERMES_HOME", first)
-    auth.logout_command(SimpleNamespace(provider="nous"))
+    # Exercise retained store isolation directly; Nous is no longer a CLI provider.
+    from hermes_cli.auth_nous import _clear_shared_nous_state
+    assert auth.clear_provider_auth("nous")
+    _clear_shared_nous_state("logout")
     anon = _gh._mint_guest()
 
     monkeypatch.setenv("HERMES_HOME", str(second))
-    from hermes_cli import nous_auth_keepalive
-    assert nous_auth_keepalive.refresh_nous_auth_keepalive_once(min_access_ttl_seconds=10**9)
+    _refresh_access_token()
 
     monkeypatch.setenv("HERMES_HOME", first)
     state = anon_auth.ensure_portal_identity(explicit=True)
@@ -130,7 +131,10 @@ def test_profiles_sharing_an_account_stay_in_step_while_the_store_holds_a_guest(
         assert anon_auth.ensure_portal_identity(explicit=True)["refresh_token"] == "rt_1"   # adopts the account
 
     monkeypatch.setenv("HERMES_HOME", first)
-    auth.logout_command(SimpleNamespace(provider="nous"))
+    # Exercise retained store isolation directly; Nous is no longer a CLI provider.
+    from hermes_cli.auth_nous import _clear_shared_nous_state
+    assert auth.clear_provider_auth("nous")
+    _clear_shared_nous_state("logout")
     anon = _gh._mint_guest()
     for home in (second, first, third):   # the guest's own token refresh sits between the two
         monkeypatch.setenv("HERMES_HOME", str(home))

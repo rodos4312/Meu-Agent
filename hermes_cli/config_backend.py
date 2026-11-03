@@ -247,14 +247,14 @@ class FileBackend:
 
     def boot(self, home: Path) -> None:
         # Migrate existing profiles once at boot; read-only config normalization also strips the retired settings.
-        from hermes_cli.meu_privacy import strip_retired_metrics
+        from hermes_cli.meu_privacy import strip_retired_settings
 
         if not self.exists(home):
             return
         try:
             raw = self.read_user_doc(home)
             if isinstance(raw, dict):
-                private = strip_retired_metrics(raw)
+                private = strip_retired_settings(raw)
                 if private != raw:
                     write_config_document(self.config_path(home), private)
         except Exception:

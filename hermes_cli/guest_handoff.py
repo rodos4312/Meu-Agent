@@ -11,7 +11,7 @@ shown afterwards. Two halves:
   Nous state replaces a guest. It writes a pending record and does no network. Records sit beside
   the shared Nous store, keyed by a hash of the ``anon_`` credential.
 - :func:`drain` makes one attempt per due record, outside every lock: each sign-in surface calls it
-  after its save, and the retry worker, ``hermes auth status`` and ``hermes auth upgrade`` call it
+  after its save; retained legacy account commands can call it
   for a move a transient error left retrying.
 
 User copy never says guest / anonymous / claim.
@@ -265,52 +265,6 @@ def _apply(record: dict[str, Any], outcome: str, payload: dict[str, Any], retry_
     if record["state"] in (CLAIMED, GONE):
         record.pop("anon_token", None)  # retired credential: nothing left to retry with
     return record
-
-
-# --- The worker: retries a transient failure in a long-lived process ------------------------------
-
-_WORKER_FIRST_TICK_SECONDS = 15.0
-_WORKER_INTERVAL_SECONDS = 60.0
-_worker_lock = threading.Lock()
-_worker_stop = threading.Event()
-_worker_thread: Optional[threading.Thread] = None
-
-
-def start_worker() -> threading.Thread:
-    """Start the process-wide retry worker (idempotent)."""
-    global _worker_thread
-    with _worker_lock:
-        if _worker_thread is not None and _worker_thread.is_alive():
-            return _worker_thread
-        _worker_stop.clear()
-        # health: allow HX012 -- process-wide worker for the process's own profile; it must not inherit the starter's scope
-        _worker_thread = threading.Thread(target=_worker_loop, daemon=True, name="nous-guest-handoff")
-        _worker_thread.start()
-        return _worker_thread
-
-
-def stop_worker(timeout: float = 5.0) -> None:
-    global _worker_thread
-    with _worker_lock:
-        thread = _worker_thread
-        _worker_stop.set()
-    if thread is not None and thread.is_alive():
-        thread.join(timeout=timeout)
-    with _worker_lock:
-        if _worker_thread is thread:
-            _worker_thread = None
-
-
-def _worker_loop() -> None:
-    from tui_gateway.launch_profile_policy import launch_profile_scope_if_multiplexed
-    wait = _WORKER_FIRST_TICK_SECONDS
-    while not _worker_stop.wait(wait):
-        try:
-            with launch_profile_scope_if_multiplexed():
-                drain()
-        except Exception:
-            logger.warning("Free-tier handoff retry tick failed; the records stay for the next one", exc_info=True)
-        wait = _WORKER_INTERVAL_SECONDS
 
 
 # --- Read side: status for the surfaces -----------------------------------------------------------

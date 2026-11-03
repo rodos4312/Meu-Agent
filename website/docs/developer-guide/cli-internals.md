@@ -173,9 +173,9 @@ answers once the record's `updated_at` changes). Two halves:
   its save (`run_sign_in` after its `persist_guard` is released), and so do a free-tier reconcile,
   `hermes auth status` and `hermes auth upgrade`. It only moves apps; config completion
   (`settle_after_upgrade`) stays with the sign-in that saved the account.
-- A move a transient error left retrying is finished by a retry worker that every long-lived Nous
-  process starts (`start_nous_auth_keepalive` starts it, guest or not); each tick drains the
-  process's own profile.
+- Meu has removed the process-wide Nous token keepalive and guest-handoff retry worker.
+  The remaining legacy hosted-account paths below are pending removal; no periodic worker
+  is started for them by the agent, gateway or web server.
 - Each attempt is counted and the record leased (not due for about 30 s) in one locked write before
   the request leaves, so a lost answer still counts and two runs never send the same record.
 

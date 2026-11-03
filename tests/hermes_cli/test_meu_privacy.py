@@ -16,12 +16,13 @@ import pytest
 from hermes_cli import config, lifecycle, plugins
 from hermes_cli.config_backend import Changes, FileBackend, write_changes, write_config_document, write_config_keys
 from hermes_cli.config_effective import load_user_config_effective
-from hermes_cli.meu_privacy import strip_retired_metrics
+from hermes_cli.meu_privacy import strip_retired_settings
 
 
 LEGACY = {
     "model": {"provider": "deepseek", "default": "deepseek-v4-pro", "base_url": "https://api.deepseek.com/v1"},
     "memory": {"enabled": True},
+    "nous": {"keepalive_interval_seconds": 900},
     "telemetry": {"shared_metrics": {
         "enabled": True, "send": True, "endpoint": "https://telemetry.nousresearch.com/v1/telemetry",
     }},
@@ -34,19 +35,20 @@ def _read(path):
 
 def _assert_private(raw):
     assert "shared_metrics" not in (raw.get("telemetry") or {})
+    assert "keepalive_interval_seconds" not in (raw.get("nous") or {})
 
 
 @pytest.mark.parametrize("document", [{}, LEGACY, {"telemetry": {"shared_metrics": {"enabled": False}}}])
 def test_retired_settings_are_removed_without_mutating_input(document):
     before = json.dumps(document)
-    cleaned = strip_retired_metrics(document)
+    cleaned = strip_retired_settings(document)
     _assert_private(cleaned)
     assert json.dumps(document) == before
-    assert strip_retired_metrics(cleaned) == cleaned
+    assert strip_retired_settings(cleaned) == cleaned
 
 
 def test_other_telemetry_settings_are_not_erased():
-    cleaned = strip_retired_metrics({"telemetry": {"plugin_option": 3, "shared_metrics": {"enabled": True}}})
+    cleaned = strip_retired_settings({"telemetry": {"plugin_option": 3, "shared_metrics": {"enabled": True}}})
     assert cleaned == {"telemetry": {"plugin_option": 3}}
 
 
@@ -73,8 +75,9 @@ def test_every_writer_removes_legacy_settings(tmp_path, monkeypatch, writer):
     writers = {
         "document": lambda: write_config_document(path, LEGACY),
         "keys": lambda: write_config_keys(path, {
-            "telemetry.shared_metrics.enabled": True, "telemetry.shared_metrics.send": True}),
-        "changes": lambda: write_changes(path, Changes(set={"telemetry": LEGACY["telemetry"]})),
+            "telemetry.shared_metrics.enabled": True, "telemetry.shared_metrics.send": True,
+            "nous.keepalive_interval_seconds": 5}),
+        "changes": lambda: write_changes(path, Changes(set={"telemetry": LEGACY["telemetry"], "nous": LEGACY["nous"]})),
         "save": lambda: config.save_config(config.load_config()),
         "unset": lambda: write_config_keys(path, {"telemetry": None}),
     }
@@ -146,3 +149,12 @@ def test_lifecycle_keeps_plugins_without_network_or_collector_files(tmp_path, mo
 def test_removed_collector_has_no_callable_entry_point(module):
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("hermes_cli.observability." + module)
+
+
+def test_effective_config_removes_keepalive_without_a_telemetry_section(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump({"nous": {"keepalive_interval_seconds": 5, "other": 1}}), encoding="utf-8")
+    effective = load_user_config_effective(path)
+    _assert_private(effective)
+    assert effective["nous"]["other"] == 1

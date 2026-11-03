@@ -321,22 +321,6 @@ def test_a_busy_store_lock_leaves_the_move_for_a_later_run(portal, monkeypatch):
     assert _only_record()["state"] == "claimed"
 
 
-def test_the_retry_worker_binds_the_launch_profile(portal, monkeypatch):
-    import threading
-    from agent.secret_scope import current_secret_scope, is_multiplex_active, set_multiplex_active
-    from hermes_cli import guest_handoff
-    ticked, scopes = threading.Event(), []
-    monkeypatch.setattr(guest_handoff, "_WORKER_FIRST_TICK_SECONDS", 0.0)
-    monkeypatch.setattr(guest_handoff, "drain", lambda: (scopes.append(current_secret_scope()), ticked.set()))
-    previous = is_multiplex_active()
-    set_multiplex_active(True)
-    try:
-        guest_handoff.start_worker()
-        assert ticked.wait(5)
-    finally:
-        guest_handoff.stop_worker()
-        set_multiplex_active(previous)
-    assert scopes[0] is not None
 
 
 def test_a_run_while_an_attempt_is_in_flight_sends_nothing(portal):
@@ -374,16 +358,6 @@ def test_gone_on_a_first_attempt_reads_as_neutral(portal):
     assert guest_handoff.status_lines(guest_handoff.handoff_status()) == ["Nothing left to move from the free tier."]
 
 
-def test_a_long_lived_process_with_a_guest_still_runs_the_handoff_worker(portal, monkeypatch):
-    from hermes_cli import guest_handoff, nous_auth_keepalive
-    monkeypatch.setattr(nous_auth_keepalive, "get_provider_auth_state",
-                        lambda _p: {"auth_method": "anonymous", "anon_token": "anon_x"})
-    try:
-        nous_auth_keepalive.start_nous_auth_keepalive()
-        assert guest_handoff._worker_thread is not None and guest_handoff._worker_thread.is_alive()
-    finally:
-        nous_auth_keepalive.stop_nous_auth_keepalive()
-    assert guest_handoff._worker_thread is None
 
 
 def test_a_guest_token_still_cached_from_a_connector_call_does_not_skip_the_move(portal):

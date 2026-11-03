@@ -32,7 +32,7 @@ def test_secret_source_label_names_an_external_source(monkeypatch):
 def test_plugin_validate_treats_the_helpers_as_public(tmp_path):
     (tmp_path / "plugin.yaml").write_text("name: fake-provider\nkind: model-provider\n")
     (tmp_path / "__init__.py").write_text(
-        "from hermes_cli.model_setup import persist_model_selection, note_setup_failure\n"
+        "from hermes_cli.model_setup import persist_model_selection\n"
         "from agent.secret_scope import secret_source_label\n"
         "from hermes_cli.model_setup_flows_common import _persist_model\n")
     assert private_import_findings(tmp_path) == ["__init__.py:3 hermes_cli.model_setup_flows_common._persist_model"]

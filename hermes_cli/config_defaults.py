@@ -2647,10 +2647,6 @@ DEFAULT_CONFIG = {
     },
 
     "nous": {
-        # Upper bound (seconds) on the Nous auth keepalive tick, which derives from the
-        # server-issued credential lifetime (raising above it has no effect). 0 disables the
-        # keepalive thread.
-        "keepalive_interval_seconds": 900,
         # anthropic_wire: which Portal route carries anthropic/* models. "chat" =
         # /v1/chat/completions (default for now); "native" = /v1/messages, the Anthropic
         # Messages wire (signed thinking passthrough, native cache_control scopes); "auto" =
