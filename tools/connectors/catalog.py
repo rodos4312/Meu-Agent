@@ -79,9 +79,9 @@ class HostInstaller:
     installer."""
 
     def plugin_entry(self, name: str) -> Any:
-        from hermes_cli.plugin_catalog import get_live_catalog_entry
+        from hermes_cli.plugin_catalog import get_catalog_entry
 
-        return get_live_catalog_entry(name)
+        return get_catalog_entry(name)
 
     def refuse(self, entry: Any) -> None:
         """Raise with the installer's own text when the catalog would refuse this entry here."""

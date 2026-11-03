@@ -181,32 +181,6 @@ def _prompt_unauthorized_access(platform_key: str) -> None:
         _gw().print_info("  Skipped — configure later with 'hermes gateway setup'")
 
 
-def _telegram_auto_setup(token_var: str) -> tuple[bool, object]:
-    """Offer the managed-bot QR flow. Returns (token_saved, owner_user_id)."""
-    print()
-    _gw()._print_info_lines(
-        "  Telegram can be configured automatically with a managed bot:",
-        "  [1] Automatic (scan QR → confirm in Telegram → done)", "  [2] Manual BotFather token",
-    )
-    if _gw().prompt("  Choice [1/2]", default="1").strip() != "1":
-        return False, None
-    try:
-        from hermes_cli.telegram_managed_bot import (
-            auto_setup_telegram_bot_result, is_valid_telegram_bot_token,
-        )
-    except ImportError:
-        _gw().print_warning("  Automatic setup is unavailable in this install.")
-        return False, None
-    result = auto_setup_telegram_bot_result()
-    if result and is_valid_telegram_bot_token(result.token):
-        _gw().save_env_value(token_var, result.token)
-        _gw().print_success("  Saved TELEGRAM_BOT_TOKEN")
-        return True, result.owner_user_id
-    if result:
-        _gw().print_warning("  Automatic setup returned an invalid Telegram token.")
-    print()
-    _gw().print_info("  Falling back to manual setup...")
-    return False, None
 
 
 def _clean_discord_ids(cleaned: str) -> str:
@@ -271,8 +245,6 @@ def _setup_standard_platform(platform: dict):
         return
 
     auto_token_saved, auto_owner_user_id = False, None
-    if platform.get("key") == "telegram":
-        auto_token_saved, auto_owner_user_id = _telegram_auto_setup(token_var)
 
     allowed_val_set = None  # Track if user set an allowlist (for home channel offer)
 

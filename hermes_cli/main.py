@@ -1830,7 +1830,6 @@ cmd_dump = _forward_command("cmd_dump", "hermes_cli.dump", "run_dump", doc='Dump
 cmd_debug = _forward_command("cmd_debug", "hermes_cli.debug", "run_debug", doc='Debug tools (share report, etc.).')
 cmd_skin = _forward_command("cmd_skin", "hermes_cli.skin_cmd", "skin_command", doc='Skin management (list / use / set).')
 cmd_import = _forward_command("cmd_import", "hermes_cli.backup", "run_import", forward_return=True, doc='Restore a Hermes backup from a zip file.')
-cmd_dashboard_register = _forward_command("cmd_dashboard_register", "hermes_cli.dashboard_register", "cmd_dashboard_register", doc='Register a self-hosted dashboard OAuth client with Nous Portal.')
 cmd_webapp = _forward_command("cmd_webapp", "hermes_cli.webapp_launcher", "cmd_webapp", forward_return=True, doc='Open the browser-hosted Desktop the gateway serves.')
 cmd_gateway_enroll = _forward_command("cmd_gateway_enroll", "hermes_cli.gateway_enroll", "cmd_gateway_enroll", doc='Enroll a self-hosted gateway with a relay connector.')
 cmd_prompt_size = _forward_command("cmd_prompt_size", "hermes_cli.prompt_size", "cmd_prompt_size", doc='Show a byte/char breakdown of the system prompt + tool schemas.')
@@ -3355,7 +3354,7 @@ def _build_cli_parser():
     build_profile_parser(subparsers, cmd_profile=cmd_profile)
     build_completion_parser(subparsers, cmd_completion=cmd_completion, parser=parser)
     build_dashboard_parser(
-        subparsers, cmd_dashboard=cmd_dashboard, cmd_dashboard_register=cmd_dashboard_register)
+        subparsers, cmd_dashboard=cmd_dashboard)
     build_webapp_parser(subparsers, cmd_webapp=cmd_webapp)
     # "desktop" is canonical (Hermes-Setup.exe tells users to run it, so it
     # must be the name --help shows); "gui" is a deprecated alias.

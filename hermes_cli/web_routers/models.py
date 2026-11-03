@@ -171,9 +171,6 @@ async def get_model_options(
         return await run_in_threadpool(_build_payload_scoped)
 
 
-def _nous_recommended_default() -> dict:
-    from hermes_cli.models import recommended_nous_default_model
-    return recommended_nous_default_model()
 
 
 @router.get("/api/model/recommended-default")
@@ -188,16 +185,6 @@ def get_recommended_default_model(provider: str = "", profile: Optional[str] = N
     Nous; ``model`` may be empty (caller degrades gracefully)."""
     slug = (provider or "").strip().lower()
 
-    if slug == "nous":
-        try:
-            # The tier, Portal URL and recommendation caches are all per profile home.
-            with _config_profile_scope(profile):
-                return _nous_recommended_default()
-        except HTTPException:
-            raise  # an unknown ?profile= is the scope's 404, not an empty recommendation
-        except Exception:
-            _log.exception("GET /api/model/recommended-default (nous) failed")
-            return {"provider": "nous", "model": "", "free_tier": None}
 
     try:
         from hermes_cli.inventory import build_models_payload, load_picker_context

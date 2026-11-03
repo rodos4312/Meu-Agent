@@ -17,12 +17,7 @@ from typing import Any, Dict, List, Optional
 from utils import normalize_proxy_env_vars
 
 from agent.anthropic_credentials import _is_oauth_token, anthropic_route_is_oauth, is_native_anthropic_host
-from agent.anthropic_endpoints import (
-    _base_url_needs_context_1m_beta, _is_azure_anthropic_endpoint, _is_kimi_coding_endpoint,
-    _is_minimax_anthropic_endpoint, _is_nous_portal_endpoint, _is_opencode_endpoint,
-    _is_third_party_anthropic_endpoint, _model_name_is_kimi_family, _normalize_base_url_text,
-    _requires_bearer_auth,
-)
+from agent.anthropic_endpoints import _base_url_needs_context_1m_beta, _is_azure_anthropic_endpoint, _is_kimi_coding_endpoint, _is_minimax_anthropic_endpoint, _is_opencode_endpoint, _is_third_party_anthropic_endpoint, _model_name_is_kimi_family, _normalize_base_url_text, _requires_bearer_auth
 from agent.anthropic_message_convert import (
     convert_messages_to_anthropic, convert_tools_to_anthropic, normalize_model_name,
 )
@@ -370,7 +365,7 @@ def _beta_header(betas: list) -> dict[str, str]:
 def _attribution_headers() -> dict[str, str]:
     """Same client-attribution set sent to OpenRouter / Vercel AI Gateway / Fireworks."""
     return {
-        "HTTP-Referer": "https://hermes-agent.nousresearch.com", "X-Title": "Hermes Agent",
+        "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent", "X-Title": "Meu",
         "User-Agent": f"HermesAgent/{get_version_info().base_version}",
     }
 
@@ -665,8 +660,7 @@ def build_anthropic_kwargs(
     anthropic_tools = convert_tools_to_anthropic(tools) if tools else []
     # Nous Portal routes on its own catalog ids (``anthropic/claude-opus-4.8``); normalizing would
     # make the model unresolvable there (prefix AND dots kept).
-    if not _is_nous_portal_endpoint(base_url):
-        model = normalize_model_name(model, preserve_dots=preserve_dots)
+    model = normalize_model_name(model, preserve_dots=preserve_dots)
     # Non-positive/non-finite values fail locally instead of 400-ing upstream.
     effective_max_tokens = _resolve_anthropic_messages_max_tokens(max_tokens, model, context_length=context_length)
     if context_length and effective_max_tokens > context_length:

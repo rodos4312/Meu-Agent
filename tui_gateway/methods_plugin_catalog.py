@@ -21,7 +21,7 @@ _profile_scoped = _registry.profile_scoped
 @method("plugins.catalog.lookup")
 @_profile_scoped
 def _(rid, params: dict) -> dict:
-    from hermes_cli.plugin_catalog import load_catalog_live, match_removed, resolved_removed_entries
+    from hermes_cli.plugin_catalog import load_catalog, match_removed, resolved_removed_entries
     from hermes_cli.plugins_cmd_catalog import looks_like_catalog_name
 
     name = str(params.get("name") or "").strip()
@@ -29,7 +29,7 @@ def _(rid, params: dict) -> dict:
         return _ok(rid, {"status": "invalid_name"})
     # The loaders never raise: a dead host falls back to the cache, then to the in-tree catalog.
     # Nothing readable at all is "unavailable", never a guess.
-    entries = load_catalog_live()
+    entries = load_catalog()
     if not entries:
         return _ok(rid, {"status": "unavailable"})
     entry = next((e for e in entries if e.name == name), None)
@@ -39,6 +39,36 @@ def _(rid, params: dict) -> dict:
         return _ok(rid, {"status": "unknown"})
     return _ok(rid, {"status": "found", "entry": {"name": entry.name, "repo": entry.repo, "sha": entry.sha,
                                                   "subdir": entry.subdir, "tier": entry.tier}})
+
+
+@method("capabilities.catalog")
+@_profile_scoped
+def _(rid, params: dict) -> dict:
+    from hermes_cli.plugin_catalog import load_catalog, match_removed, resolved_removed_entries
+    from tools.skills_hub_official import OptionalSkillSource
+
+    kind = params.get("kind")
+    if kind == "skills":
+        entries = [{"name": m.name, "description": m.description, "source": m.source,
+                    "identifier": m.identifier, "tags": m.tags, "repo": m.repo}
+                   for m in OptionalSkillSource()._scan_all()]
+    elif kind == "plugins":
+        removed = resolved_removed_entries()
+        entries = []
+        for entry in load_catalog():
+            if match_removed(entry.name, removed) or match_removed(entry.repo, removed):
+                continue
+            row = entry.to_dict()
+            row["docsUrl"] = row.pop("docs_url")
+            row["requiresHermes"] = row.pop("requires_hermes")
+            caps = row["capabilities"]
+            row["capabilities"] = {"providesTools": caps["provides_tools"],
+                "providesHooks": caps["provides_hooks"], "providesMiddleware": caps["provides_middleware"],
+                "requiresEnv": caps["requires_env"]}
+            entries.append(row)
+    else:
+        raise ValueError("Catalog kind must be skills or plugins")
+    return _ok(rid, {"entries": entries})
 
 
 def register(server) -> None:

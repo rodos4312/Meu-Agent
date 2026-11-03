@@ -1,4 +1,4 @@
-"""Real bootstrap downloads preserve the pin across an upstream outage."""
+"""Real bootstrap downloads use original sources and reject mismatched hashes."""
 import hashlib
 import io
 import json
@@ -60,20 +60,20 @@ def test_windows_download_uses_only_verified_candidates(tmp_path, server, mode):
     script = tmp_path / "driver.ps1"
     script.write_text(
         f". '{ROOT / 'scripts/install.ps1'}' -HermesHome '{tmp_path / 'home'}' -InstallDir '{tmp_path / 'repo'}'\n"
-        f"Invoke-VerifiedDownload -Url '{primary}' -MirrorUrl '{mirror}' -Sha256 '{digest}' -OutFile '{destination}'\n",
+        f"Invoke-VerifiedDownload -Url '{primary}' -Sha256 '{digest}' -OutFile '{destination}'\n",
         encoding="utf-8",
     )
     result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)],
                             capture_output=True, text=True, timeout=60, check=False)
-    if mode in ("primary", "missing"):
+    if mode == "primary":
         assert result.returncode == 0, result.stdout + result.stderr
         assert destination.read_bytes() == body
     else:
         assert result.returncode != 0
         assert primary in result.stdout + result.stderr
         if mode == "both-missing":
-            assert mirror in result.stdout + result.stderr
-    assert server[0].requests == (["/primary", "/mirror"] if mode in ("missing", "both-missing") else ["/primary"])
+            assert mirror not in result.stdout + result.stderr
+    assert server[0].requests == ["/primary"]
 
 
 @pytest.mark.platforms("windows")
@@ -122,24 +122,23 @@ ensure_uv
 """
     env = {**os.environ, "HERMES_HOME": str(tmp_path / "home"), "HOME": str(tmp_path / "home"), "HERMES_RUNTIME_DIR": str(tmp_path / "tools")}
     result = subprocess.run(["bash", "-c", script], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60, check=False)
-    assert (result.returncode == 0) == (mode in ("primary", "missing")), result.stdout + result.stderr
+    assert (result.returncode == 0) == (mode == "primary"), result.stdout + result.stderr
     if mode == "corrupt":
         assert "digest mismatch" in result.stderr
     if mode == "both-missing":
-        assert primary in result.stderr and mirror in result.stderr
-    assert server[0].requests == (["/primary", "/mirror"] if mode in ("missing", "both-missing") else ["/primary"])
+        assert primary in result.stderr and mirror not in result.stderr
+    assert server[0].requests == ["/primary"]
 
 
 @pytest.mark.platforms("windows")
 def test_generated_windows_pins_match_the_shared_authority(tmp_path):
-    from pm.artifact_mirror import mirror_url
     script = tmp_path / "pins.ps1"
     script.write_text(
         f". '{ROOT / 'scripts/install.ps1'}' -HermesHome '{tmp_path / 'home'}'\n"
         "@{uv=$script:UvPinFiles; git=$script:GitPinFiles} | ConvertTo-Json -Depth 5 -Compress\n",
         encoding="utf-8",
     )
-    result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-File", str(script)], capture_output=True, text=True, timeout=30, check=False)
+    result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, timeout=30, check=False)
     assert result.returncode == 0, result.stderr
     emitted = json.loads(result.stdout)
     lock = json.loads((ROOT / "pm/lock.json").read_text(encoding="utf-8"))["packages"]
@@ -147,7 +146,8 @@ def test_generated_windows_pins_match_the_shared_authority(tmp_path):
         assert targets
         for target, pin in targets.items():
             authority = lock[name]["artifacts"][target]
-            assert (pin["Url"], pin["Sha256"], pin["MirrorUrl"]) == (authority["url"], authority["sha256"], mirror_url(authority["sha256"]))
+            assert (pin["Url"], pin["Sha256"]) == (authority["url"], authority["sha256"])
+            assert "MirrorUrl" not in pin
 
 
 @pytest.mark.platforms("posix")

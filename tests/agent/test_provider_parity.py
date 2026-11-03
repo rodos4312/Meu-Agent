@@ -346,7 +346,7 @@ class TestBuildApiKwargsAIGateway:
 
 class TestBuildApiKwargsNousPortal:
     def test_includes_nous_product_tags(self, monkeypatch):
-        from agent.portal_tags import nous_portal_tags
+        from agent.conversation_affinity import nous_portal_tags
         agent = _make_agent(
             monkeypatch,
             "nous",

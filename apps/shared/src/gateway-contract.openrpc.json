@@ -169,6 +169,24 @@
       }
     },
     {
+      "name": "capabilities.catalog",
+      "summary": "Bundled skills and reviewed plugin catalog, read locally for the owning profile.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CapabilitiesCatalogParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CapabilitiesCatalogResult"
+        }
+      }
+    },
+    {
       "name": "clarify.lock",
       "summary": "Lock one answer of a batch clarify request (editable until every question is locked).",
       "params": [
@@ -9176,6 +9194,54 @@
         "title": "CanonicalVoiceStopped",
         "type": "object"
       },
+      "CapabilitiesCatalogParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "kind": {
+            "enum": [
+              "skills",
+              "plugins"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "CapabilitiesCatalogParams",
+        "type": "object"
+      },
+      "CapabilitiesCatalogResult": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "CapabilitiesCatalogResult",
+        "type": "object"
+      },
       "CapabilityEntry": {
         "additionalProperties": false,
         "properties": {
@@ -14773,47 +14839,6 @@
           "content"
         ],
         "title": "ForeignTurn",
-        "type": "object"
-      },
-      "FreeTierChallengePayload": {
-        "additionalProperties": true,
-        "description": "``hermes_cli/anon_challenge.py::BrowserChallenge.as_payload``: the ``free_tier.challenge``\nevent from the legacy identity client.",
-        "properties": {
-          "type": {
-            "const": "browser",
-            "title": "Type",
-            "type": "string"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
-          },
-          "required": {
-            "title": "Required",
-            "type": "boolean"
-          },
-          "expires_in": {
-            "title": "Expires In",
-            "type": "integer"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "attempt": {
-            "default": 0,
-            "title": "Attempt",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "type",
-          "url",
-          "required",
-          "expires_in",
-          "message"
-        ],
-        "title": "FreeTierChallengePayload",
         "type": "object"
       },
       "GatewayCapabilitiesResult": {
@@ -20892,7 +20917,7 @@
       },
       "NotificationShowPayload": {
         "additionalProperties": false,
-        "description": "``agent/credits_tracker.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s\nslow-build notice. ``level``: info | warn | error | success; ``kind``: sticky | ttl | agent.\n``detail``: the full text behind a short ``text`` (the low-disk auto-prune question): Desktop shows\nit in the toast's expandable body, the Ink TUI prints it into the transcript.",
+        "description": "``agent/notices.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s\nslow-build notice. ``level``: info | warn | error | success; ``kind``: sticky | ttl | agent.\n``detail``: the full text behind a short ``text`` (the low-disk auto-prune question): Desktop shows\nit in the toast's expandable body, the Ink TUI prints it into the transcript.",
         "properties": {
           "text": {
             "title": "Text",
@@ -36022,92 +36047,6 @@
         "title": "SetupPluginsCard",
         "type": "object"
       },
-      "SetupReadyPayload": {
-        "additionalProperties": true,
-        "description": "``hermes_cli/free_tier_bootstrap.py::SetupRecord.as_payload``.",
-        "properties": {
-          "provider_configured": {
-            "title": "Provider Configured",
-            "type": "boolean"
-          },
-          "inference_provider": {
-            "title": "Inference Provider",
-            "type": "string"
-          },
-          "free_tier_account": {
-            "title": "Free Tier Account",
-            "type": "boolean"
-          },
-          "free_tier_route": {
-            "title": "Free Tier Route",
-            "type": "boolean"
-          },
-          "has_identity": {
-            "title": "Has Identity",
-            "type": "boolean"
-          },
-          "other_providers": {
-            "title": "Other Providers",
-            "type": "boolean"
-          },
-          "error": {
-            "default": "",
-            "title": "Error",
-            "type": "string"
-          },
-          "error_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Error Code"
-          },
-          "retryable": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Retryable"
-          },
-          "retry_after": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Retry After"
-          },
-          "finished_at": {
-            "title": "Finished At",
-            "type": "number"
-          }
-        },
-        "required": [
-          "provider_configured",
-          "inference_provider",
-          "free_tier_account",
-          "free_tier_route",
-          "has_identity",
-          "other_providers",
-          "finished_at"
-        ],
-        "title": "SetupReadyPayload",
-        "type": "object"
-      },
       "SetupRuntimeCheckParams": {
         "additionalProperties": false,
         "properties": {
@@ -43625,18 +43564,6 @@
       ]
     },
     {
-      "name": "free_tier.challenge",
-      "summary": "The account service wants a browser challenge cleared before the free-tier token exchange (broadcast); the desktop loads ``url`` in a hidden window.",
-      "params": [
-        {
-          "name": "payload",
-          "schema": {
-            "$ref": "#/components/schemas/FreeTierChallengePayload"
-          }
-        }
-      ]
-    },
-    {
       "name": "gateway.ready",
       "summary": "First frame of a connection: the resolved skin, the change-event capability and the replay epoch.",
       "params": [
@@ -44076,18 +44003,6 @@
           "name": "payload",
           "schema": {
             "$ref": "#/components/schemas/ChangeSignalPayload"
-          }
-        }
-      ]
-    },
-    {
-      "name": "setup.ready",
-      "summary": "The free-tier bootstrap finished (broadcast); the desktop's setup gate reads the record.",
-      "params": [
-        {
-          "name": "payload",
-          "schema": {
-            "$ref": "#/components/schemas/SetupReadyPayload"
           }
         }
       ]

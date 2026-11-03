@@ -1,7 +1,6 @@
 """Where Remote Config may send a credential (the plane bearer, the IdP client secret).
 
-The plane URL and the IdP token URL are operator-selected (D19: the plane defaults to
-``https://config-config.nousresearch.com`` and an on-prem deployment points it elsewhere), so this
+The plane URL and the IdP token URL must be configured by the operator. This
 is a transport policy, not an allow-list of hosts:
 
 - ``https`` only; plain ``http`` only to a loopback host (tests, local development);

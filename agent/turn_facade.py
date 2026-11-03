@@ -44,7 +44,7 @@ class TurnFacadeMixin:
         from agent.aux_accounting import reset_accounting_context, set_accounting_context
         from agent.auxiliary_client import scoped_runtime_main
         from agent.conversation_loop import run_conversation
-        from agent.portal_tags import (
+        from agent.conversation_affinity import (
             reset_affinity_scope, reset_conversation_context, set_affinity_scope,
             set_conversation_context,
         )

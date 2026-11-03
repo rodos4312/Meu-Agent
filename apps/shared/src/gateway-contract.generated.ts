@@ -3942,6 +3942,13 @@ export interface PluginCatalogLookupEntry {
   subdir: string
   tier?: string
 }
+export interface CapabilitiesCatalogParams {
+  profile?: string | null
+  kind: 'skills' | 'plugins'
+}
+export interface CapabilitiesCatalogResult {
+  entries: Record<string, unknown>[]
+}
 export interface GroupsAttachmentUploadParams {
   profile?: string | null
   room_id: string
@@ -4990,31 +4997,6 @@ export interface OnboardingEndedPayload {
   outcome: OnboardingOutcome
 }
 export type OnboardingOutcome = 'done' | 'skipped' | 'replaced' | 'deleted'
-/** ``hermes_cli/free_tier_bootstrap.py::SetupRecord.as_payload``. */
-export interface SetupReadyPayload {
-  provider_configured: boolean
-  inference_provider: string
-  free_tier_account: boolean
-  free_tier_route: boolean
-  has_identity: boolean
-  other_providers: boolean
-  error?: string
-  error_code?: string | null
-  retryable?: boolean | null
-  retry_after?: number | null
-  finished_at: number
-  [key: string]: unknown
-}
-/** ``hermes_cli/anon_challenge.py::BrowserChallenge.as_payload``: the ``free_tier.challenge`` event from the legacy identity client. */
-export interface FreeTierChallengePayload {
-  type: 'browser'
-  url: string
-  required: boolean
-  expires_in: number
-  message: string
-  attempt?: number
-  [key: string]: unknown
-}
 /** Every ``_emit("error", …)`` site sets exactly ``message``. */
 export interface ErrorPayload {
   message: string
@@ -5226,7 +5208,7 @@ export interface TodoUpdatedPayload {
   todos: unknown[]
   revision: number
 }
-/** ``agent/credits_tracker.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s slow-build notice. ``level``: info | warn | error | success; ``kind``: sticky | ttl | agent. ``detail``: the full text behind a short ``text`` (the low-disk auto-prune question): Desktop shows it in the toast's expandable body, the Ink TUI prints it into the transcript. */
+/** ``agent/notices.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s slow-build notice. ``level``: info | warn | error | success; ``kind``: sticky | ttl | agent. ``detail``: the full text behind a short ``text`` (the low-disk auto-prune question): Desktop shows it in the toast's expandable body, the Ink TUI prints it into the transcript. */
 export interface NotificationShowPayload {
   text: string
   level: string
@@ -5441,6 +5423,8 @@ export interface RpcMethods {
   'bot_relay.roster.sync': { params: BotRelayRosterSyncParams; result: BotRelayRosterSyncResult }
   /** Inspect, attach to, or drop the CDP browser the tools use; ``messages`` narrate a connect. */
   'browser.manage': { params: BrowserManageParams; result: BrowserManageResult }
+  /** Bundled skills and reviewed plugin catalog, read locally for the owning profile. */
+  'capabilities.catalog': { params: CapabilitiesCatalogParams; result: CapabilitiesCatalogResult }
   /** Lock one answer of a batch clarify request (editable until every question is locked). */
   'clarify.lock': { params: ClarifyLockParams; result: ClarifyLockResult }
   /** Run ``hermes <argv>`` non-interactively and capture its output; ``blocked`` explains a refusal. */
@@ -5879,6 +5863,7 @@ export const RPC_METHODS = [
   'bot_relay.reply',
   'bot_relay.roster.sync',
   'browser.manage',
+  'capabilities.catalog',
   'clarify.lock',
   'cli.exec',
   'client.capabilities',
@@ -6314,8 +6299,6 @@ export interface BackendGatewayEventMap {
   'display.status': DisplayStatusPayload
   /** A session-level failure outside a turn (agent init, model switch, compression, resume). */
   error: ErrorPayload
-  /** The account service wants a browser challenge cleared before the free-tier token exchange (broadcast); the desktop loads ``url`` in a hidden window. */
-  'free_tier.challenge': FreeTierChallengePayload
   /** First frame of a connection: the resolved skin, the change-event capability and the replay epoch. */
   'gateway.ready': GatewayReadyPayload
   /** The turn ended: final text, usage and outcome. */
@@ -6390,8 +6373,6 @@ export interface BackendGatewayEventMap {
   'session.usage': SessionUsagePayload
   /** state.db moved; refetch the session list. */
   'sessions.changed': ChangeSignalPayload
-  /** The free-tier bootstrap finished (broadcast); the desktop's setup gate reads the record. */
-  'setup.ready': SetupReadyPayload
   /** A skill root moved (installed/removed elsewhere); refetch commands.catalog from the gateway. */
   'skills.changed': ChangeSignalPayload
   /** The active skin moved (name switch or live colour edit); repaint from this palette. */
@@ -6456,7 +6437,6 @@ export const GATEWAY_EVENT_TYPES = [
   'display.lease',
   'display.status',
   'error',
-  'free_tier.challenge',
   'gateway.ready',
   'message.complete',
   'message.delta',
@@ -6494,7 +6474,6 @@ export const GATEWAY_EVENT_TYPES = [
   'session.title',
   'session.usage',
   'sessions.changed',
-  'setup.ready',
   'skills.changed',
   'skin.changed',
   'status.update',

@@ -75,7 +75,6 @@ def world(client, tmp_path, monkeypatch):
                                           description="d", maintainer="t")]
 
     monkeypatch.setattr(pc_cat, "load_catalog", lambda catalog_dir=None: _entries())
-    monkeypatch.setattr(pc_cat, "fetch_live_catalog", lambda **_: None)  # in-tree only, no network
     monkeypatch.setattr(pc_cat, "load_removed_list", lambda catalog_dir=None: list(state["removed"]))
     return {"repo": repo, "sha1": sha1, "sha2": sha2, "plugins_dir": plugins_dir, "state": state}
 
@@ -99,7 +98,7 @@ def test_catalog_platform_mismatch_refuses_before_install(world):
 
 
 def test_catalog_name_installs_pinned_sha_with_sidecar_then_update_repins(world, monkeypatch):
-    entry = pc_cat.get_live_catalog_entry("cat-plugin")
+    entry = pc_cat.get_catalog_entry("cat-plugin")
     assert entry is not None
     target, _m, name = cat.install_catalog_entry(entry, force=False)
     assert name == "cat-plugin"
@@ -199,7 +198,7 @@ def test_in_tree_sidecar_cannot_forge_catalog_provenance(world, tmp_path):
     state = cat.installed_catalog_state({"evil-plugin": {"dir": str(target), "runtime_status": None}})
     assert state["entries"][0]["installed"] is False
     # Control: a real catalog install is still recognised through the metadata record.
-    real, _m, _n = cat.install_catalog_entry(pc_cat.get_live_catalog_entry("cat-plugin"), force=False)
+    real, _m, _n = cat.install_catalog_entry(pc_cat.get_catalog_entry("cat-plugin"), force=False)
     assert cat.catalog_annotation(real) == f"catalog:community@{world['sha1'][:8]}"
 
 
@@ -225,7 +224,7 @@ def test_url_install_of_an_archived_handoff_repo_is_repinned_to_its_catalog_entr
 def test_ref_install_records_installed_sha_so_update_is_offered(world):
     """`install NAME --ref X` checks out X, not the reviewed pin; provenance must say X so list/TUI flag the
     drift and `update` re-pins instead of answering 'already at catalog pin'."""
-    entry = pc_cat.get_live_catalog_entry("cat-plugin")
+    entry = pc_cat.get_catalog_entry("cat-plugin")
     target, _m, _n = cat.install_catalog_entry(entry, force=False, ref=world["sha2"])
     assert _head(target) == world["sha2"]
     assert cat.read_catalog_sidecar(target)["sha"] == world["sha2"]
@@ -235,7 +234,7 @@ def test_ref_install_records_installed_sha_so_update_is_offered(world):
 
 
 def test_repin_keeps_local_files_backs_up_edits_and_follows_manifest_rename(world, monkeypatch):
-    entry = pc_cat.get_live_catalog_entry("cat-plugin")
+    entry = pc_cat.get_catalog_entry("cat-plugin")
     target, _m, _n = cat.install_catalog_entry(entry, force=False)
     (target / "config.yaml").write_text("api_key: real\n")                      # installer/user data
     (target / "__init__.py").write_text("def register(ctx):\n    pass  # mine\n")  # tracked edit
@@ -318,7 +317,7 @@ def test_repin_keeps_a_wholly_ignored_data_dir_in_a_git_checkout(world):
     repo = world["repo"]
     (repo / ".gitignore").write_text("data/\n.venv/\nnode_modules/\n")
     world["state"]["pin"] = _commit(repo, "ignore data")
-    target = cat.install_catalog_entry(pc_cat.get_live_catalog_entry("cat-plugin"), force=False)[0]
+    target = cat.install_catalog_entry(pc_cat.get_catalog_entry("cat-plugin"), force=False)[0]
     assert (target / ".git").exists()
 
     (target / "data" / "db").mkdir(parents=True)
@@ -472,7 +471,7 @@ def test_annotated_tag_pin_keeps_reviewed_trust_and_reads_as_at_pin(world, monke
     seen = {}
     real_scan = pc._scan_plugin_tree
     monkeypatch.setattr(pc, "_scan_plugin_tree", lambda *a, **k: seen.update(k) or real_scan(*a, **k))
-    entry = pc_cat.get_live_catalog_entry("cat-plugin")
+    entry = pc_cat.get_catalog_entry("cat-plugin")
     target, _m, _n = cat.install_catalog_entry(entry, force=False)
     assert _head(target) == world["sha1"] and seen["reviewed_pin"] is True
     sidecar = cat.read_catalog_sidecar(target)
@@ -489,7 +488,7 @@ def test_repin_that_widens_the_plugin_requires_consent_on_every_surface(world, m
     """A new pin adding tools / a Desktop half is a new grant: the dashboard/TUI answer consent_required
     with the delta and touch nothing; a retry with consent applies it; the CLI asks y/N and a decline
     leaves the tree at the old pin. A pin that widens nothing (sha2) needs no consent."""
-    entry = pc_cat.get_live_catalog_entry("cat-plugin")
+    entry = pc_cat.get_catalog_entry("cat-plugin")
     target, _m, _n = cat.install_catalog_entry(entry, force=False)
     repo = world["repo"]
     (repo / "plugin.yaml").write_text("name: cat-plugin\nversion: 3.0.0\ndescription: d\nprovides_tools: [shell_out]\n")
@@ -513,7 +512,7 @@ def test_repin_that_widens_the_plugin_requires_consent_on_every_surface(world, m
 
 def test_catalog_rows_maps_resolves_the_live_catalog_once(monkeypatch):
     """``_plugin_rows`` needs pins, versions and titles together; taking them via the three single-map
-    helpers pays the whole ``load_catalog_live()`` pass — git probe, ~300 catalog YAMLs, prefer-in-tree
+    helpers pays the whole ``load_catalog()`` pass — git probe, ~300 catalog YAMLs, prefer-in-tree
     merges — three times per inventory request (#125683). ``catalog_rows_maps`` must resolve once and
     stay best effort like the per-map helpers: an empty triple on failure."""
     calls = []
@@ -525,14 +524,14 @@ def test_catalog_rows_maps_resolves_the_live_catalog_once(monkeypatch):
                 pc_cat.PluginCatalogEntry(name="b", repo="https://github.com/o/r2", sha="b" * 40,
                                           description="d", maintainer="t")]
 
-    monkeypatch.setattr(cat, "load_catalog_live", fake_live)
+    monkeypatch.setattr(cat, "load_catalog", fake_live)
     assert cat.catalog_rows_maps() == ({"a": "a" * 40, "b": "b" * 40}, {"a": "1.2.3"}, {"a": "Alpha"})
     assert len(calls) == 1
 
     def boom():
         raise RuntimeError("catalog unavailable")
 
-    monkeypatch.setattr(cat, "load_catalog_live", boom)
+    monkeypatch.setattr(cat, "load_catalog", boom)
     assert cat.catalog_rows_maps() == ({}, {}, {})
 
 

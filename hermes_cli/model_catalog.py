@@ -23,13 +23,8 @@ from utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CATALOG_URL = (
-    "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json")
-# The Docusaurus site sits behind Vercel, which occasionally 403s non-browser clients (bot
-# challenge); the raw GitHub copy is the same manifest and is not bot-gated.
-DEFAULT_CATALOG_FALLBACK_URLS: tuple[str, ...] = (
-    "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/website/static/api/model-catalog.json",
-)
+DEFAULT_CATALOG_URL = ""
+DEFAULT_CATALOG_FALLBACK_URLS: tuple[str, ...] = ()
 DEFAULT_TTL_MINUTES = 20
 # Legacy key, honoured only when the user set it explicitly; ``ttl_minutes`` is the shipped default.
 DEFAULT_TTL_HOURS = DEFAULT_TTL_MINUTES / 60.0
@@ -251,7 +246,7 @@ def get_catalog(*, force_refresh: bool = False) -> dict[str, Any]:
     """Parsed model catalog manifest, or ``{}`` on failure — never raises, so the CLI works offline
     (callers treat a missing provider/model as "use the in-repo fallback")."""
     cfg = _load_catalog_config()
-    if not cfg["enabled"]:
+    if not cfg["enabled"] or not cfg["url"]:
         return {}
     ttl_seconds = max(0.0, cfg["ttl_hours"] * 3600.0)
     disk_data, disk_mtime = _read_disk_cache()
@@ -298,15 +293,8 @@ def refresh_catalogs() -> bool:
     clear_fetch_backoff()  # provider overrides are re-asked too, not only the forced manifest
     catalog = get_catalog(force_refresh=True)
     try:
-        from agent.secret_scope import get_secret
-        from hermes_cli.anon_auth import current_nous_state, is_guest_state
-        from hermes_cli.auth import read_credential_pool
-        from hermes_cli.models import _resolve_nous_portal_url, fetch_nous_recommended_models, fetch_openrouter_models
-
+        from hermes_cli.models import fetch_openrouter_models
         fetch_openrouter_models(force_refresh=True)
-        logins = [current_nous_state(), *read_credential_pool("nous")]
-        if any(e and not is_guest_state(e) for e in logins) or get_secret("NOUS_API_KEY"):
-            fetch_nous_recommended_models(_resolve_nous_portal_url(), force_refresh=True)
     except Exception:
         logger.debug("provider catalog refresh failed", exc_info=True)
     return bool(catalog)
@@ -315,7 +303,7 @@ def refresh_catalogs() -> bool:
 def _fetch_provider_override(provider: str) -> dict[str, Any] | None:
     """If ``model_catalog.providers.<name>.url`` is set, fetch that instead."""
     cfg = _load_catalog_config()
-    if not cfg["enabled"]:
+    if not cfg["enabled"] or not cfg["url"]:
         return None
     provider_cfg = cfg["providers"].get(provider)
     if not isinstance(provider_cfg, dict):
@@ -355,9 +343,6 @@ def get_curated_openrouter_models() -> list[tuple[str, str]] | None:
     return [(mid, str(m.get("description") or "")) for mid, m in rows] or None
 
 
-def get_curated_nous_models() -> list[str] | None:
-    """Nous Portal's curated model ids from the manifest."""
-    return [mid for mid, _ in _block_ids(_get_provider_block("nous"))] or None
 
 
 def _default_model_from_block(block: dict[str, Any] | None) -> str | None:

@@ -771,7 +771,7 @@ _SSH_HINT_LOOPBACK = (
     "         ssh -N -L {port}:127.0.0.1:{port} <user>@<this-host>\n"
     "       then open the URL above and let it redirect normally.\n"
     "\n"
-    "  See: https://hermes-agent.nousresearch.com/docs/guides/oauth-over-ssh\n")
+    "  See: https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/guides/oauth-over-ssh\n")
 
 
 def _announce_authorization_url(
@@ -932,13 +932,8 @@ def remove_oauth_tokens(server_name: str, *, hermes_home: str | Path | None = No
     logger.info("OAuth tokens removed for '%s'", server_name)
 
 
-# CIMD (OAuth Client ID Metadata Documents): the client_id IS an HTTPS URL the server fetches for our
-# name/logo/redirect URIs, replacing per-install DCR. The SDK does the protocol; Hermes only decides
-# eligibility. Published from ``website/static/oauth/client-metadata.json``; the github.io origin is
-# deliberate — servers MUST NOT follow redirects when fetching it, and hermes-agent.nousresearch.com/docs/* 301s here.
-_CIMD_CLIENT_METADATA_URL = "https://nousresearch.github.io/hermes-agent/docs/oauth/client-metadata.json"
-# Loopback ports/hosts declared in that document (exact match, so no ephemeral port under CIMD);
-# below Linux's 32768 ephemeral floor. tests/tools/test_mcp_cimd.py keeps them in sync.
+# CIMD uses a document explicitly configured by the deployment. Without one,
+# use dynamic client registration; never present another vendor's client identity.
 _CIMD_PORTS = (27890, 27891, 27892, 27893, 27894)
 _CIMD_REDIRECT_HOSTS = frozenset({"127.0.0.1", "localhost"})
 
@@ -997,7 +992,7 @@ def _maybe_use_cimd(cfg: dict, storage: HermesTokenStorage | None = None) -> tup
     """``(client_id URL, pinned callback port)``, or None to use DCR. Each ineligibility case means the
     redirect URI is not one the document declares, the client identity is already settled, or the
     server is known not to want a document — a metadata URL would be rejected."""
-    url = cfg.get("client_metadata_url") or _CIMD_CLIENT_METADATA_URL
+    url = cfg.get("client_metadata_url") or ""
     ineligible = (
         cfg.get("cimd") is False
         or not _is_valid_cimd_url(url)

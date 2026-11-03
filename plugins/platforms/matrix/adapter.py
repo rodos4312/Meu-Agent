@@ -1717,7 +1717,7 @@ class MatrixAdapter(BasePlatformAdapter):
             provider_label = get_label(current_provider)
         except Exception:
             provider_label = current_provider
-        from hermes_cli.model_picker_usage import picker_row_suffix
+        from hermes_cli.model_picker_labels import picker_row_suffix
         rows_by_slug = {str(p.get("slug") or ""): p for p in providers or []}
         plan_lines = [f"⚠️ {p['plan_line']}" for p in providers or [] if p.get("plan_line")]
         unknown = t("platform.shared.unknown")

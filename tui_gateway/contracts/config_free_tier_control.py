@@ -151,22 +151,6 @@ method("setup.runtime_check", params=SetupRuntimeCheckParams, result=SetupRuntim
        doc="Strict provider check through the same runtime resolution the agent uses on session creation.")
 
 
-# ── free tier ─────────────────────────────────────────────────────────────────────────────────
-
-
-class FreeTierChallengePayload(OpenModel):
-    """``hermes_cli/anon_challenge.py::BrowserChallenge.as_payload``: the ``free_tier.challenge``
-    event from the legacy identity client."""
-
-    type: Literal["browser"]
-    url: str
-    # False = the account service is measuring, not enforcing: run it hidden, never reveal it.
-    required: bool
-    expires_in: int
-    message: str
-    attempt: int = 0
-
-
 # ── model.options ─────────────────────────────────────────────────────────────────────────────
 
 

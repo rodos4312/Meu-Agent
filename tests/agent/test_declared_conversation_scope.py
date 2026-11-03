@@ -21,7 +21,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent.portal_tags import (
+from agent.conversation_affinity import (
     get_affinity_scope,
     reset_affinity_scope,
     reset_conversation_context,

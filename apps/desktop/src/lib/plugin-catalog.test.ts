@@ -25,7 +25,7 @@ describe('lookupPluginCatalogEntry', () => {
     const found = { name: 'aihubmix', repo: 'https://github.com/AIhubmix/mono', sha: SHA, subdir: 'aihubmix' }
     const request = vi.fn<CatalogRequest>(async () => ({ status: 'found', entry: found }))
 
-    await expect(lookupPluginCatalogEntry(' aihubmix ', { fetchImpl: noFetch, request })).resolves.toEqual({
+    await expect(lookupPluginCatalogEntry(' aihubmix ', { request })).resolves.toEqual({
       ok: true,
       entry: found
     })
@@ -43,7 +43,7 @@ describe('lookupPluginCatalogEntry', () => {
     [undefined, 'unavailable']
   ] as const)('backend %j → %s, with no fetch', async (reply, error) => {
     await expect(
-      lookupPluginCatalogEntry('weather', { fetchImpl: noFetch, request: replying(reply) })
+      lookupPluginCatalogEntry('weather', { request: replying(reply) })
     ).resolves.toEqual({
       ok: false,
       error
@@ -53,14 +53,14 @@ describe('lookupPluginCatalogEntry', () => {
   it('refuses a non-catalog name before asking anyone', async () => {
     const request = vi.fn<CatalogRequest>(async () => ({ status: 'found' }))
 
-    await expect(lookupPluginCatalogEntry('../etc', { fetchImpl: noFetch, request })).resolves.toEqual({
+    await expect(lookupPluginCatalogEntry('../etc', { request })).resolves.toEqual({
       ok: false,
       error: 'invalid_name'
     })
     expect(request).not.toHaveBeenCalled()
   })
 
-  it('falls back to the direct feed only when the backend predates the lookup', async () => {
+  it('reports an old backend without fetching any remote feed', async () => {
     const feed = [{ name: 'weather', repo: 'https://github.com/x/weather', sha: SHA, subdir: '' }]
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(feed)))
 
@@ -68,11 +68,11 @@ describe('lookupPluginCatalogEntry', () => {
       throw new JsonRpcGatewayError('method not found: plugins.catalog.lookup', { code: JSON_RPC_METHOD_NOT_FOUND })
     }
 
-    await expect(lookupPluginCatalogEntry('weather', { fetchImpl, request })).resolves.toMatchObject({
-      ok: true,
-      entry: { name: 'weather', repo: 'https://github.com/x/weather' }
+    await expect(lookupPluginCatalogEntry('weather', { request })).resolves.toMatchObject({
+      ok: false,
+      error: 'unavailable'
     })
-    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('reads an unreachable backend as unavailable, without fetching', async () => {
@@ -80,7 +80,7 @@ describe('lookupPluginCatalogEntry', () => {
       throw new Error('Hermes gateway unavailable for profile "default"')
     }
 
-    await expect(lookupPluginCatalogEntry('weather', { fetchImpl: noFetch, request })).resolves.toEqual({
+    await expect(lookupPluginCatalogEntry('weather', { request })).resolves.toEqual({
       ok: false,
       error: 'unavailable'
     })

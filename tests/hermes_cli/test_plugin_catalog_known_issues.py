@@ -67,7 +67,7 @@ def test_install_summary_shows_known_issues(monkeypatch):
     from hermes_cli.plugins_cmd_install import dashboard_install_plugin
 
     entry = _entry(known_issues=["Local embedded mode is not supported on PM-managed Hermes."])
-    monkeypatch.setattr("hermes_cli.plugins_cmd_catalog.get_live_catalog_entry", lambda _n: entry)
+    monkeypatch.setattr("hermes_cli.plugins_cmd_catalog.get_catalog_entry", lambda _n: entry)
     monkeypatch.setattr(
         "hermes_cli.plugins_cmd._resolve_git_url",
         lambda _i: ("https://github.com/vectorize-io/hindsight.git", None))

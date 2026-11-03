@@ -1417,14 +1417,6 @@ def _route_from_model_input(st: _Switch) -> Optional[ModelSwitchResult]:
     # Steps d.5 / e only apply while the request is still unrouted on the current provider.
     if st.resolved_alias or resolved_in_current_catalog or st.target_provider != current_provider:
         return None
-    if current_provider == "nous":
-        # The welcome host serves nous/welcome only; a model outside it needs an account or a key.
-        # Never hop to another provider on the user's behalf here (there is no key to hop to).
-        from hermes_cli.anon_auth import GUEST_MODEL, route_is_welcome_host
-        if route_is_welcome_host(st.current_base_url) and st.new_model != GUEST_MODEL:
-            return st.fail(
-                f"{st.new_model} needs a Nous account or an API key. "
-                "Use /login to sign in, or /model to pick another provider.")
     config_routed = _route_configured_provider(st)  # d.5 — deliberately NOT gated on ``not is_custom``
     if isinstance(config_routed, ModelSwitchResult):
         return config_routed
@@ -1699,19 +1691,12 @@ def _opencode_api_mode(provider: str, model: str, api_key: str) -> str:
     return opencode_model_api_mode(provider, model)
 
 
-def _nous_api_mode(provider: str, model: str, api_key: str) -> str:
-    # Portal serves anthropic/* on /v1/messages and everything else on /chat/completions;
-    # re-derive from the FINAL model so alias clears / empty fallbacks cannot leave Claude on the
-    # OpenAI wire.
-    from hermes_cli.providers import nous_api_mode
-    return nous_api_mode(model)
 
 
 # Per-provider api_mode overrides applied after validation, keyed on the final target provider
 # (the key sets are disjoint, so exactly one — or none — fires).
 _PROVIDER_API_MODE_OVERRIDES: dict[str, Any] = {
-    **dict.fromkeys(("opencode-zen", "opencode-go", "opencode"), _opencode_api_mode),
-    **dict.fromkeys(("nous", "nous-portal", "nousresearch"), _nous_api_mode)}
+    **dict.fromkeys(("opencode-zen", "opencode-go", "opencode"), _opencode_api_mode)}
 
 
 def model_derived_api_mode(provider: str, model: str, api_key: str = "") -> Optional[str]:
@@ -1755,8 +1740,6 @@ def _build_switch_result(st: _Switch) -> ModelSwitchResult:
     model_info = get_model_info(st.target_provider, st.new_model, allow_network=True)
 
     warnings = [w for w in (st.validation.get("message"), _check_hermes_model_warning(st.new_model)) if w]
-    from hermes_cli.model_picker_usage import large_model_notice
-    usage_notice = large_model_notice(st.new_model, st.target_provider, fetch=True) or ""
 
     # Carry the switched provider's request_overrides (custom_providers ``extra_body`` such as
     # chat_template_kwargs) so the gateway applies them like the default-provider path does.
@@ -1771,7 +1754,7 @@ def _build_switch_result(st: _Switch) -> ModelSwitchResult:
         success=True, new_model=st.new_model, target_provider=st.target_provider,
         provider_changed=st.provider_changed, api_key=st.api_key, base_url=st.base_url, api_mode=st.api_mode,
         request_overrides=dict(request_overrides or {}), warning_message=" | ".join(warnings) if warnings else "",
-        usage_notice=usage_notice, provider_label=st.provider_label, resolved_via_alias=st.resolved_alias, capabilities=capabilities,
+        provider_label=st.provider_label, resolved_via_alias=st.resolved_alias, capabilities=capabilities,
         runtime_capabilities={
             k: v for k, v in runtime_capabilities.items() if isinstance(k, str) and isinstance(v, bool)},
         model_info=model_info, is_global=st.is_global, alias_endpoint_applied=st.alias_endpoint_applied)

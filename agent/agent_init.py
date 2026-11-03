@@ -321,26 +321,13 @@ def _resolve_api_mode(agent, api_mode, provider_name, base_url):
         host.startswith("bedrock-runtime.") and base_url_host_matches(url, "amazonaws.com")
     ):
         agent.api_mode = "bedrock_converse"
-    elif agent.provider in {"nous", "nous-portal", "nousresearch"}:
-        # Portal is dual-wire (anthropic/* → Messages, else chat_completions); covers direct
-        # AIAgent construction without a resolved runtime.
-        from hermes_cli.providers import nous_api_mode
-        agent.api_mode = nous_api_mode(agent.model)
     else:
-        # Host-mandated wire check — LAST, so the provider-slug rewrites above always win.
-        # Covers api.meta.ai → codex_responses (prompt caching: 0% on chat vs 93-99%).
-        # URL-driven, not provider-name-driven: `providers.meta` may point anywhere.
         try:
-            # Note: provider="meta" without an api.meta.ai base_url (or with a non-api.meta.ai base_url)
-            # intentionally falls through to chat_completions here. The wire protocol for Meta is URL-driven
-            # BY DESIGN, not provider-name-driven, because user config `providers.meta` may point at any
-            # OpenAI-compatible endpoint, and forcing `codex_responses` on the provider name alone would
-            # break custom endpoints named "meta" that do not host the Responses API. See #63425.
             from hermes_cli.providers import host_mandated_api_mode as _host_mandated_api_mode
-            _mandated = _host_mandated_api_mode(base_url or "")
+            _mandated = _host_mandated_api_mode(base_url or '')
         except Exception:
             _mandated = None
-        agent.api_mode = _mandated if _mandated is not None else "chat_completions"
+        agent.api_mode = _mandated if _mandated is not None else 'chat_completions'
 
 
 def _finalize_routing(agent, api_mode, credential_pool):
@@ -373,8 +360,6 @@ def _finalize_routing(agent, api_mode, credential_pool):
 
     # Nous model policy follows the ROUTE (the welcome host serves one model); a credential-pool
     # swap can change the route later, so ``_swap_credential`` applies the same helper again.
-    from hermes_cli.anon_auth import pin_model_for_route
-    agent.model = pin_model_for_route(agent.provider, agent.base_url, agent.model)
 
     # Auto-upgrade to Responses for GPT-5.x-style models and direct OpenAI URLs, unless
     # api_mode was explicit, the runtime is ACP (`acp://` clients route themselves, no
@@ -463,34 +448,7 @@ _CONTROL_STATE: dict[str, Any] = {
 }
 
 # Per-turn bookkeeping: budgets, activity tracking, rate-limit/credits telemetry.
-_TURN_STATE: dict[str, Any] = {
-    # Intermediate pressure warnings made models give up early; ordinary conversations
-    # remain opt-in. Dispatcher workers receive a bounded completion checkpoint.
-    "_iteration_budget_warning_injected": False,
-    "_budget_exhausted_injected": False,
-    "_budget_grace_call": False,
-    "_run_budget_started_at": None,  # set by turn_context.prepare_turn when a budget is active
-    "_run_budget_wrapup_injected": False,  # one-shot latch for the 80% wrap-up notice
-    # Activity tracking (API call / tool / stream chunk) for the gateway timeout handler and
-    # "still working" notifications. Named provenances are stamped only by compression writers.
-    "_last_activity_ts": lambda: time.time(),
-    "_last_activity_desc": "initializing",
-    "_last_activity_provenance": ActivityProvenance.UNKNOWN,
-    "_session_activity_last_persist_mono": 0.0,  # rate-limits durable SessionDB stamps
-    "_current_tool": None,
-    "_api_call_count": 0,
-    # Opt-out for the between-turns MCP refresh; set on forks that need byte-identical tools[].
-    "_skip_mcp_refresh": False,
-    # Registry generation of the tool snapshot (set in _load_tools): a late refresh rejects
-    # a stale rebuild instead of clobbering a newer one.
-    "_tool_snapshot_generation": 0,
-    "_rate_limit_state": None,  # from x-ratelimit-* headers; read by /usage
-    # Credits tracking (dev-only, HERMES_DEV_CREDITS) from x-nous-credits-* headers; session
-    # start is latched on the first header so cumulative spend can be reported.
-    "_credits_state": None,
-    "_credits_session_start_micros": None,
-    "_or_cache_hits": 0,  # X-OpenRouter-Cache-Status: HIT count
-}
+_TURN_STATE: dict[str, Any] = {'_iteration_budget_warning_injected': False, '_budget_exhausted_injected': False, '_budget_grace_call': False, '_run_budget_started_at': None, '_run_budget_wrapup_injected': False, '_last_activity_ts': lambda: time.time(), '_last_activity_desc': 'initializing', '_last_activity_provenance': ActivityProvenance.UNKNOWN, '_session_activity_last_persist_mono': 0.0, '_current_tool': None, '_api_call_count': 0, '_skip_mcp_refresh': False, '_tool_snapshot_generation': 0, '_rate_limit_state': None, '_or_cache_hits': 0}
 
 # Session persistence state.
 _SESSION_STATE: dict[str, Any] = {
@@ -568,8 +526,6 @@ def _init_turn_state(agent, run_budget_seconds):
     # Wall-clock run budget per turn: constructor arg wins, else agent.run_budget_seconds
     # (in _apply_agent_section). None = fully off (no clock reads, injection, or capping).
     agent.run_budget_seconds = _normalize_run_budget_seconds(run_budget_seconds)
-    from agent.credits_tracker import new_credits_latch
-    agent._credits_latch = new_credits_latch()  # threshold-notice latch (sticky keys + gates)
 
 
 def _setup_logging(agent):

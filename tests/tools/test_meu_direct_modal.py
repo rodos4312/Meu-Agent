@@ -19,7 +19,6 @@ def isolated_account(tmp_path, monkeypatch):
     def unexpected(*args, **kwargs):
         pytest.fail("Modal configuration must not contact Nous or perform an HTTP request")
 
-    monkeypatch.setattr("hermes_cli.nous_account.get_nous_portal_account_info", unexpected)
     monkeypatch.setattr("requests.sessions.Session.request", unexpected)
 
 

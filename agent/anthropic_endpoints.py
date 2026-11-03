@@ -104,20 +104,6 @@ def _is_deepseek_anthropic_endpoint(base_url: str | None) -> bool:
     return base_url_host_matches(base_url or "", "api.deepseek.com") and "/anthropic" in _normalized_lower(base_url)
 
 
-def _is_nous_portal_endpoint(base_url: str | None) -> bool:
-    """Nous Portal's Anthropic Messages route (Bearer JWT, verbatim catalog ids, native
-    thinking-signature replay). Trusted hosts only: prod ``inference-api.nousresearch.com`` or the
-    operator-set ``NOUS_INFERENCE_BASE_URL`` host (exact hostname equality, so neither lookalike
-    domains nor sibling hosts of the override match)."""
-    if base_url_host_matches(base_url or "", "inference-api.nousresearch.com"):
-        return True
-    try:
-        from hermes_cli.auth import _nous_inference_env_override
-        override = _nous_inference_env_override()
-    except Exception:
-        return False
-    override_host = base_url_hostname(override) if override else ""
-    return bool(override_host) and base_url_hostname(base_url or "") == override_host
 
 
 def _requires_bearer_auth(base_url: str | None) -> bool:
@@ -126,8 +112,7 @@ def _requires_bearer_auth(base_url: str | None) -> bool:
     hostname matching (not substring) so ``evil.com/palantirfoundry`` paths don't trigger it."""
     normalized = _normalized_lower(base_url)
     return (
-        _is_nous_portal_endpoint(base_url)
-        or normalized.startswith(_MINIMAX_ANTHROPIC_PREFIXES)
+        normalized.startswith(_MINIMAX_ANTHROPIC_PREFIXES)
         or "azure.com" in normalized
         or base_url_host_matches(normalized, "palantirfoundry.com")
         or base_url_host_matches(normalized, "api.commandcode.ai")

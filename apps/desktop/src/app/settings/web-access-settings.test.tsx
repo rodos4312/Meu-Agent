@@ -41,7 +41,7 @@ const OFF: WebAccessStatus = {
   gateway: { reason: null, state: 'off', url: null },
   lan_address: '192.168.1.50',
   mode: null,
-  nous_signed_in: true,
+  auth_configured: true,
   port: 9120,
   public_url: ''
 }
@@ -81,7 +81,7 @@ afterEach(() => {
 
 describe('WebAccessSettings', () => {
   it('offers Start only with a Nous account to sign in with', async () => {
-    const signedOut = renderPane({ ...OFF, nous_signed_in: false })
+    const signedOut = renderPane({ ...OFF, auth_configured: false })
 
     expect((await screen.findByRole('button', { name: 'Start' })).hasAttribute('disabled')).toBe(true)
     signedOut.unmount()

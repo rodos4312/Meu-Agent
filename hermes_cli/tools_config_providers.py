@@ -12,7 +12,7 @@ from hermes_cli.cli_output import (
 )
 from hermes_cli.colors import Colors, color
 from hermes_cli.config import cfg_get, get_env_value, load_config, save_config, save_env_value
-from tools.tool_backend_helpers import NOUS_MANAGED_PROVIDER, fal_key_is_configured
+from tools.tool_backend_helpers import fal_key_is_configured
 from tools.transcription_common import STT_MODEL_CATALOG, STT_MODEL_CONFIG_KEY
 from utils import base_url_hostname, is_truthy_value
 
@@ -308,7 +308,7 @@ def _web_tier_matches(provider: dict, config: dict) -> bool:
 def _web_serving_backends(config: dict) -> set:
     """Backend names serving web search / extract as configured: each capability's own
     ``web.<cap>_backend`` override first, else the shared ``web.backend`` (``tools/web_tools.py``
-    dispatch order; legacy ``use_gateway: true`` reads as the managed ``nous`` selection).
+    dispatch order).
     Lower-cased and stripped like the dispatchers."""
     raw_web_cfg = config.get("web")
     web_cfg = raw_web_cfg if isinstance(raw_web_cfg, dict) else {}
@@ -317,7 +317,7 @@ def _web_serving_backends(config: dict) -> set:
         value = web_cfg.get(key)
         return value.lower().strip() if isinstance(value, str) else ""
 
-    shared = NOUS_MANAGED_PROVIDER if is_truthy_value(web_cfg.get("use_gateway"), default=False) else _name("backend")
+    shared = _name("backend")
     serving = {_name(key) or shared for key in ("search_backend", "extract_backend")}
     serving.discard("")
     return serving

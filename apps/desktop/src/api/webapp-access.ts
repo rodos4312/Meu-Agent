@@ -13,7 +13,7 @@ export interface WebAccessStatus {
   lan_address: null | string
   /** Who the configured web app serves; `local` is a loopback bind, reachable from this computer only. */
   mode: 'local' | null | WebAccessMode
-  nous_signed_in: boolean
+  auth_configured: boolean
   port: number
   public_url: string
   /** The newest restart of this gateway exited without replacing it; `pid` is the `restart_pid` that

@@ -1435,7 +1435,7 @@ export const en: Translations = {
       sshErrHostKey:
         'The host key has CHANGED since you last connected. Verify this is expected, then run ssh-keygen -R <host> and reconnect.',
       sshErrNotInstalled:
-        'Meu is not installed on the remote host. Install it there (curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh) or set the Meu path.',
+        'Meu is not installed on the remote host. Install it there (curl -fsSL https://raw.githubusercontent.com/rodos4312/Meu-Agent/dev/meu-foundation/scripts/install.sh | sh) or set the Meu path.',
       sshErrPlatform:
         'Unsupported remote platform. Meu Desktop SSH mode supports Linux, macOS, and Windows remote hosts.',
       sshErrTimeout: 'SSH connection timed out. The host may be unreachable or asleep.',

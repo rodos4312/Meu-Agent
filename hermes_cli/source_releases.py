@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from html.parser import HTMLParser
 import json
 import logging
 import re
@@ -13,8 +12,7 @@ import urllib.request
 from hermes_cli.update_channel import STABLE_TAG_RE, is_canary_tag
 
 logger = logging.getLogger(__name__)
-_PUBLIC_BASE = "https://hermes-assets.nousresearch.com"
-OFFICIAL_REPOSITORY = "NousResearch/hermes-agent"
+OFFICIAL_REPOSITORY = "rodos4312/Meu-Agent"
 _GITHUB_ORIGIN = re.compile(
     r"^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)"
     r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$", re.IGNORECASE,
@@ -65,23 +63,12 @@ class SourceTarget:
         return f"{self.channel} v{self.version} ({self.commit[:12]})" if self.commit else self.channel
 
 
-def _resolve_channel(name: str, repository: str):
-    """The only adapter to the validated requested/terminal records and manifest.
-
-    ChannelReader owns HTTPS, authority and digests. The source adapter below
-    admits its retirement constraints before any checkout operation. No legacy
-    GitHub fallback is allowed when a record is unavailable; the one exception
-    is an unpublished ``main`` record, which resolves to the main branch.
-    """
-    from hermes_cli.release_channels import ChannelReader
-
-    return ChannelReader(_PUBLIC_BASE, repository=repository).resolve(name)
 
 
 def resolve_source_target(channel: str, git_cmd=None, cwd=None, *, repository=None,
                           forward_only: bool = False) -> SourceTarget:
     """Resolve a subscription: stable from GitHub releases, main from the git branch,
-    preview channels (e.g. ``pm-preview``) through their R2 records.
+    canary from published prereleases. Hosted preview channel records are retired.
 
     ``forward_only`` (an unchosen default subscription) pins a checkout that already
     contains the release to its own HEAD, so the update is a no-op instead of a downgrade.
@@ -153,29 +140,10 @@ def _resolve_source_target(channel: str, git_cmd=None, cwd=None, *, repository=N
         # network that answers it with 403 instead of 404 (regional WAFs) must not stop
         # an install from following the branch it is on.
         return SourceTarget(channel, channel, repository, branch="main")
-    resolved = _resolve_channel(channel, repository)
-    terminal = resolved.terminal
-    if terminal["repository"].lower() != repository.lower():
-        raise ValueError("Channel repository does not match this source installation")
-    destination = validate_name(terminal["name"])
-    if terminal["policy"] == "source-branch":
-        if resolved.requested["state"] == "retired":
-            raise ValueError("Source retirement requires a published destination commit")
-        delivery = terminal["delivery"]
-        if delivery["kind"] != "source-branch":
-            raise ValueError("Channel has no source-branch delivery")
-        return SourceTarget(channel, destination, repository, branch=delivery["branch"])
-    if resolved.manifest is None:
-        raise ValueError(f"No build published for channel {destination}")
-    request = resolved.manifest["request"]
-
-    commit = request["commit"]
-    if not isinstance(commit, str) or not _SHA.fullmatch(commit):
-        raise ValueError("Channel build has no exact source commit")
-    if resolved.requested["state"] == "retired":
-        _refuse_retirement_downgrade(request, terminal, git_cmd, cwd)
-    return SourceTarget(channel, destination, repository, commit=commit,
-                        version=request["sourceVersion"], build_id=request["buildId"])
+    if channel == "canary":
+        tag, commit = _resolve_release(channel, git_cmd, cwd, repository=repository)
+        return SourceTarget(channel, channel, repository, commit=commit, version=tag.removeprefix("v"))
+    raise ValueError(f"Unsupported source channel: {channel}. Use stable or main; desktop previews use Meu updates.")
 
 
 def _describe_release_failure(failure: BaseException) -> str:
@@ -194,81 +162,15 @@ def _resolve_stable(repository: str, git_cmd=None, cwd=None) -> SourceTarget:
     No R2 record or pointer is consulted; publishing the release is the only promotion.
     """
     try:
-        tag, commit = _resolve_release("stable", git_cmd, cwd, repository=repository, pointer=False)
+        tag, commit = _resolve_release("stable", git_cmd, cwd, repository=repository)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         logger.warning("Could not resolve the stable source release: %s", exc)
         raise ValueError(_describe_release_failure(exc)) from exc
     return SourceTarget("stable", "stable", repository, commit=commit, version=str(tag).removeprefix("v"))
 
 
-def _refuse_retirement_downgrade(request: dict, terminal: dict, git_cmd, cwd) -> None:
-    """Qualification of preview data is not permission to roll back newer source."""
-    from pathlib import Path
-    import tomllib
-
-    if cwd is None:
-        return
-    version_file = Path(cwd) / "pyproject.toml"
-    if version_file.exists():
-        with version_file.open("rb") as file:
-            project = tomllib.load(file).get("project")
-        installed_version = project.get("version") if isinstance(project, dict) else None
-        if not isinstance(installed_version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", installed_version, re.ASCII):
-            raise ValueError("Source retirement cannot verify the installed source version")
-        if tuple(map(int, installed_version.split("."))) > tuple(map(int, request["sourceVersion"].split("."))):
-            raise ValueError("Source retirement would downgrade a newer source version; select the destination channel explicitly")
-    if git_cmd is not None:
-        from hermes_cli.source_check import source_git_env
-
-        result = subprocess.run(
-            [*git_cmd, "rev-list", "--ancestry-path", f"{request['commit']}..HEAD"], cwd=cwd,
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
-            stdin=subprocess.DEVNULL, env=source_git_env(),
-            check=False,
-        )
-        # The target need not exist locally before the updater's fetch. When it
-        # does, any descendants prove that this pinned build would roll us back.
-        if result.returncode == 0 and result.stdout.strip():
-            raise ValueError("Source retirement would downgrade a newer source commit; select the destination channel explicitly")
-        if terminal["head"]["sequence"] > request["sequence"]:
-            # Shallow checkouts may lack the qualified commit, even when HEAD is
-            # today's stable build. Read it with the protocol's full digest checks.
-            current_manifest = _resolve_channel(terminal["name"], request["repository"]).manifest
-            if current_manifest is None:
-                raise ValueError("Source retirement cannot verify the current destination build")
-            current = current_manifest["request"]
-            installed = subprocess.run(
-                [*git_cmd, "rev-parse", "HEAD"], cwd=cwd, check=True,
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
-                stdin=subprocess.DEVNULL, env=source_git_env(),
-            ).stdout.strip()
-            if installed == current["commit"] and installed != request["commit"]:
-                raise ValueError("Source retirement would downgrade the newer destination build; select the destination channel explicitly")
 
 
-def _read(url: str, *, missing_ok: bool = False) -> str | None:
-    request = urllib.request.Request(url, headers={
-        "User-Agent": "hermes-update", "Cache-Control": "no-cache",
-        "Accept": "application/json, text/html",
-    })
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return response.read(2 * 1024 * 1024).decode("utf-8-sig")
-    except urllib.error.HTTPError as exc:
-        if missing_ok and exc.code == 404:
-            return None
-        raise
-
-
-class _BuildMetadata(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.tags = []
-
-    def handle_starttag(self, tag, attrs):
-        fields = dict(attrs)
-        if tag == "meta" and fields.get("name") == "hermes-build":
-            self.tags.append(fields.get("content"))
 
 
 def _valid_tag(tag, channel: str) -> bool:
@@ -316,41 +218,16 @@ def _published_fallback(channel: str, base: str) -> dict:
     raise ValueError(f"No published {channel} release")
 
 
-def _release_pointer(channel: str) -> tuple[str | None, str | None]:
-    # Stable's completion job writes this before publishing the GitHub draft.
-    # Publication is checked separately, so that interval fails closed.
-    if channel == "stable":
-        text = _read(f"{_PUBLIC_BASE}/releases/stable/release-candidates.json", missing_ok=True)
-        if text is not None:
-            data = json.loads(text)
-            if (not isinstance(data, dict) or not _valid_tag(data.get("tag"), channel)
-                    or not isinstance(data.get("commit"), str) or not _SHA.fullmatch(data["commit"])):
-                raise ValueError("Invalid stable release pointer")
-            return data["tag"], data["commit"]
-    text = _read(f"{_PUBLIC_BASE}/releases/{channel}/index.html", missing_ok=True)
-    if text is None:
-        return None, None
-    page = _BuildMetadata()
-    page.feed(text)
-    if len(page.tags) != 1 or not _valid_tag(page.tags[0], channel):
-        raise ValueError(f"Invalid {channel} release pointer")
-    return page.tags[0], None
 
 
-def _resolve_release(channel: str, git_cmd=None, cwd=None, *, repository=None,
-                     pointer: bool = True) -> tuple[str, str]:
+def _resolve_release(channel: str, git_cmd=None, cwd=None, *, repository=None) -> tuple[str, str]:
     """``resolve_source_release`` that raises the failure instead of returning ``(None, None)``."""
     if channel not in ("stable", "canary"):
         raise ValueError(f"Not a release channel: {channel}")
     repository = repository or source_repository(git_cmd, cwd)
     base = f"https://api.github.com/repos/{repository}"
-    tag, pinned_sha = (_release_pointer(channel)
-                       if pointer and repository.lower() == OFFICIAL_REPOSITORY.lower() else (None, None))
-    if tag is None:
-        release = _published_fallback(channel, base)
-        tag = release["tag_name"]
-    else:
-        release = _json(f"{base}/releases/tags/{tag}")
+    release = _published_fallback(channel, base)
+    tag = release["tag_name"]
     if not _published(release, channel) or release["tag_name"] != tag:
         raise ValueError(f"{tag} is not a published {channel} release")
     commit = _json(f"{base}/commits/{tag}")
@@ -371,24 +248,13 @@ def _resolve_release(channel: str, git_cmd=None, cwd=None, *, repository=None,
                     if len(parts := line.split()) == 2)
         if refs.get(ref + "^{}", refs.get(ref)) != sha:
             raise ValueError(f"Origin tag {tag} does not match the published release commit")
-    if pinned_sha is not None and sha != pinned_sha:
-        raise ValueError(f"Release {tag} no longer matches its published commit")
     return tag, sha
 
 
-def resolve_source_release(channel: str, git_cmd=None, cwd=None, *, repository=None,
-                           pointer: bool = True) -> tuple[str | None, str | None]:
-    """Read published stable/canary release metadata (not channel discovery).
-
-    The source updater's ``stable`` reads it with ``pointer=False``: GitHub's latest
-    published release only. With ``pointer`` the R2 channel pointers outrank GitHub's
-    release listing. A malformed pointer,
-    draft, or tag/commit mismatch is not permission to select a different build.
-    ``git_cmd`` resolves the selected tag on origin; ZIP callers omit it and
-    resolve the same tag through GitHub's commit endpoint.
-    """
+def resolve_source_release(channel: str, git_cmd=None, cwd=None, *, repository=None) -> tuple[str | None, str | None]:
+    """Read published GitHub releases and verify the origin tag's exact commit."""
     try:
-        return _resolve_release(channel, git_cmd, cwd, repository=repository, pointer=pointer)
+        return _resolve_release(channel, git_cmd, cwd, repository=repository)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         logger.warning("Could not resolve the %s source release: %s", channel, exc)
         return None, None

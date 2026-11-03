@@ -125,8 +125,9 @@ def _is_remote_cwd_shape(raw: str) -> bool:
     """An ssh working directory the remote shell can resolve: ``~``, ``~/…`` or absolute (a relative one would be
     stored and git-probed relative to the gateway's own cwd)."""
     from hermes_cli.config import _is_ssh_remote_tilde_cwd
+    import posixpath
 
-    return _is_ssh_remote_tilde_cwd("ssh", raw) or os.path.isabs(raw)
+    return _is_ssh_remote_tilde_cwd("ssh", raw) or posixpath.isabs(raw) or os.path.isabs(raw)
 
 
 def _is_container_path(raw: str) -> bool:

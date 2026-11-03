@@ -8,6 +8,8 @@ Every ``mcp.servers.*``, ``mcp.catalog``, ``skills.manage`` and ``plugins.manage
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from .base import JsonValue, Params, Result, WireEnum
@@ -913,3 +915,15 @@ class PluginCatalogLookupResult(Result):
 method("plugins.catalog.lookup", params=PluginCatalogLookupParams, result=PluginCatalogLookupResult,
        doc="One curated plugin-catalog entry by name, from the backend's live catalog (cached, with the "
            "in-tree fallback and kill list); backs hermes://plugin/install?catalog= deep links.")
+
+
+class CapabilitiesCatalogParams(ProfileParams):
+    kind: Literal["skills", "plugins"]
+
+
+class CapabilitiesCatalogResult(Result):
+    entries: list[dict[str, JsonValue]]
+
+
+method("capabilities.catalog", params=CapabilitiesCatalogParams, result=CapabilitiesCatalogResult,
+       doc="Bundled skills and reviewed plugin catalog, read locally for the owning profile.")

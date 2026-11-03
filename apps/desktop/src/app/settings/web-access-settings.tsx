@@ -221,7 +221,7 @@ function WebAccessForm({ queryKey, status, w }: FormProps): ReactElement {
   const phase = phaseOf(status)
   const lanUrl = status.lan_address ? `http://${status.lan_address}:${status.port}` : null
   const url = phase === 'off' ? chosenAddress(status, lanUrl, mode, publicUrl) : addressOf(status, lanUrl)
-  const ready = status.nous_signed_in && (mode === 'lan' ? Boolean(lanUrl) : publicUrl.trim().startsWith('https://'))
+  const ready = status.auth_configured && (mode === 'lan' ? Boolean(lanUrl) : publicUrl.trim().startsWith('https://'))
 
   const apply = (next: WebAccessStatus): void => {
     queryClient.setQueryData(queryKey, next)
@@ -367,7 +367,7 @@ function pillLabel(phase: Phase, busy: Busy, w: WebAccessTranslations): string {
 
 function describe(phase: Phase, status: WebAccessStatus, w: WebAccessTranslations): string {
   const descriptions: Record<Phase, string> = {
-    off: status.nous_signed_in ? w.notRunningDetail : w.needsNous,
+    off: status.auth_configured ? w.notRunningDetail : w.needsSignIn,
     pendingOff: w.pendingOff,
     pendingOn: w.pendingOn,
     serving: status.mode === 'public' ? w.runningPublic : status.mode === 'local' ? w.runningLocal : w.runningLan,

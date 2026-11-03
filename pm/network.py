@@ -19,7 +19,6 @@ _ATTEMPTS = 4
 _MAX_DELAY = 30.0
 _MAX_RECOVERY_DELAY = 300.0
 _HTTP_RETRY = frozenset({408, 429, 500, 502, 503, 504})
-_R2_HOSTS = frozenset({"hermes-assets.nousresearch.com"})
 _NETWORK_ERRNOS = frozenset({
     errno.ECONNABORTED, errno.ECONNREFUSED, errno.ECONNRESET,
     errno.ENETDOWN, errno.ENETRESET, errno.ENETUNREACH,
@@ -59,9 +58,7 @@ def edge_block(exc: BaseException) -> str | None:
     host = urllib.parse.urlsplit(exc.filename or "").hostname or ""
     if headers.get("x-vercel-mitigated"):
         cdn = "Vercel"
-    elif headers.get("cf-mitigated") or (
-            host in _R2_HOSTS and (headers.get("server") or "").lower() == "cloudflare"
-            and not headers.get("cf-cache-status")):
+    elif headers.get("cf-mitigated"):
         cdn = "Cloudflare"
     else:
         return None

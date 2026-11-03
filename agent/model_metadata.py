@@ -440,20 +440,7 @@ def _is_custom_endpoint(base_url: str) -> bool:
 
 # Host substring -> provider. Profiles claim further hosts through ``hostnames`` /
 # ``metadata_hostnames`` (``providers.profile_for_host``), resolved per home at lookup time.
-_URL_TO_PROVIDER: dict[str, str] = {
-    "api.openai.com": "openai", "chatgpt.com": "openai", "api.anthropic.com": "anthropic",
-    "api.z.ai": "zai", "open.bigmodel.cn": "zai",
-    "api.moonshot.ai": "kimi-coding", "api.moonshot.cn": "kimi-coding-cn", "api.kimi.com": "kimi-coding",
-    "api.stepfun.ai": "stepfun", "api.stepfun.com": "stepfun", "api.arcee.ai": "arcee", "api.minimax": "minimax",
-    "dashscope.aliyuncs.com": "alibaba", "dashscope-intl.aliyuncs.com": "alibaba", "portal.qwen.ai": "qwen-oauth",
-    "openrouter.ai": "openrouter", "generativelanguage.googleapis.com": "gemini",
-    "inference-api.nousresearch.com": "nous", "api.deepseek.com": "deepseek",
-    "api.fireworks.ai": "fireworks", "opencode.ai": "opencode-go", "api.x.ai": "xai",
-    "integrate.api.nvidia.com": "nvidia", "api.xiaomimimo.com": "xiaomi", "xiaomimimo.com": "xiaomi",
-    "api.gmi-serving.com": "gmi", "api.novita.ai": "novita",
-    "tokenhub.tencentmaas.com": "tencent-tokenhub", "api.lkeap.cloud.tencent.com": "tencent-tokenplan",
-    "ollama.com": "ollama-cloud",
-}
+_URL_TO_PROVIDER: dict[str, str] = {'api.openai.com': 'openai', 'chatgpt.com': 'openai', 'api.anthropic.com': 'anthropic', 'api.z.ai': 'zai', 'open.bigmodel.cn': 'zai', 'api.moonshot.ai': 'kimi-coding', 'api.moonshot.cn': 'kimi-coding-cn', 'api.kimi.com': 'kimi-coding', 'api.stepfun.ai': 'stepfun', 'api.stepfun.com': 'stepfun', 'api.arcee.ai': 'arcee', 'api.minimax': 'minimax', 'dashscope.aliyuncs.com': 'alibaba', 'dashscope-intl.aliyuncs.com': 'alibaba', 'portal.qwen.ai': 'qwen-oauth', 'openrouter.ai': 'openrouter', 'generativelanguage.googleapis.com': 'gemini', 'api.deepseek.com': 'deepseek', 'api.fireworks.ai': 'fireworks', 'opencode.ai': 'opencode-go', 'api.x.ai': 'xai', 'integrate.api.nvidia.com': 'nvidia', 'api.xiaomimimo.com': 'xiaomi', 'xiaomimimo.com': 'xiaomi', 'api.gmi-serving.com': 'gmi', 'api.novita.ai': 'novita', 'tokenhub.tencentmaas.com': 'tencent-tokenhub', 'api.lkeap.cloud.tencent.com': 'tencent-tokenplan', 'ollama.com': 'ollama-cloud'}
 
 # Auto-extend with provider-profile hostnames not already mapped.
 try:
@@ -1926,38 +1913,6 @@ def _resolve_codex_oauth_context_length_with_source(model: str, access_token: st
     return _apply_verified_bump(hit[1], "fallback", catalog_max) if hit else (None, "")
 
 
-def _resolve_nous_context_length(model: str, base_url: str = "", api_key: str = "") -> tuple[Optional[int], str]:
-    """``(context_length, source)`` for a Nous Portal model: portal /v1/models is authoritative
-    ("portal"). Fallback matches OR's prefixed ids against the bare Nous id with dot/dash
-    normalisation ("openrouter" — callers must NOT persist it, or a portal blip freezes the wrong value)."""
-    if base_url:
-        portal_ctx = _resolve_endpoint_context_length(model, base_url, api_key=api_key)
-        if portal_ctx is not None:
-            return portal_ctx, "portal"
-    metadata = fetch_model_metadata()
-    def _safe_ctx(or_id: str, entry: dict) -> Optional[int]:
-        """Context length minus the known stale 32K underreports (same guard as step 6)."""
-        ctx = entry.get("context_length")
-        if ctx is not None and ctx <= 32768 and _model_name_suggests_stale_32k_underreport(or_id):
-            logger.info("Rejecting OpenRouter metadata context=%s for %r (known 32K underreport, Nous path); falling through to hardcoded defaults", ctx, or_id)
-            return None
-        return ctx
-    model_lower, normalized = model.lower(), _normalize_model_version(model).lower()
-    def _pairs(or_id: str):
-        bare = or_id.split("/", 1)[1] if "/" in or_id else or_id
-        return ((bare.lower(), model_lower), (_normalize_model_version(bare).lower(), normalized))
-    def _exact(or_id: str) -> bool:
-        return any(candidate == query for candidate, query in _pairs(or_id))
-    def _prefix(or_id: str) -> bool:
-        return any(candidate.startswith(query) and (len(candidate) == len(query) or candidate[len(query)] in "-:.") for candidate, query in _pairs(or_id))
-    # Direct id, then exact bare-id match (with dot/dash normalisation), then prefix match on a
-    # separator boundary — separate passes so any exact hit beats every prefix hit.
-    for matcher in (lambda or_id: or_id == model, _exact, _prefix):
-        for or_id, entry in metadata.items():
-            ctx = _safe_ctx(or_id, entry) if matcher(or_id) else None
-            if ctx is not None:
-                return ctx, "openrouter"
-    return None, ""
 
 
 def _validate_cached_context_length(model: str, base_url: str, cached: int, *, api_key: str = "") -> Optional[int]:
@@ -1981,9 +1936,6 @@ def _validate_cached_context_length(model: str, base_url: str, cached: int, *, a
             return None
     # Nous Portal: /v1/models is authoritative. Bypass (don't drop) the cache so step
     # 5b reconciles OR-seeded entries without touching disk when the portal is down.
-    if _infer_provider_from_url(base_url) == "nous":
-        logger.debug("Bypassing persistent cache for %s@%s (Nous portal authoritative)", model, base_url)
-        return None
 
     # For local endpoints, run the probe that respects configured Modelfile context values first.
     # _query_local_context_length prefers num_ctx from Modelfile, while _query_ollama_api_show returns the
@@ -2162,10 +2114,7 @@ def _resolve_provider_aware_context_length(model: str, base_url: str, api_key: s
     # 5b/5c. Nous portal and Codex OAuth (lower limits than the direct API for the same slug; its
     # own /models is authoritative). Persist ONLY the authoritative source ("portal" / "live"): an
     # OR-fallback or static-table value cached on a blip would be frozen in by step 1 forever.
-    sourced = {
-        "nous": lambda: _resolve_nous_context_length(model, base_url=base_url or "", api_key=api_key or "") + ("portal",),
-        "openai-codex": lambda: _resolve_codex_oauth_context_length_with_source(model, access_token=api_key or "", base_url=base_url or "") + ("live",),
-    }.get(effective_provider)
+    sourced = {'openai-codex': lambda: _resolve_codex_oauth_context_length_with_source(model, access_token=api_key or '', base_url=base_url or '') + ('live',)}.get(effective_provider)
     if sourced is not None:
         ctx, source, persist_on = sourced()
         if ctx:

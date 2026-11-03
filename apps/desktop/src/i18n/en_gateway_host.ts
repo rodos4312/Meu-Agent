@@ -18,7 +18,7 @@ export const enGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Restart needed',
     unavailable: 'Unavailable',
     notRunningDetail: 'Start it to open Meu from another device.',
-    needsNous: 'Sign in to your Nous account under Providers first.',
+    needsSignIn: "Configure a dashboard sign-in provider first.",
     runningLan: 'Open this address on a device on the same network.',
     runningPublic: 'Served through your URL.',
     runningLocal: 'Only this computer can open it. Stop it, then start it again to open it from other devices.',

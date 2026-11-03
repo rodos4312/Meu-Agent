@@ -26,7 +26,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "api_server": {
         "name": "API server",
         "description": "Expose Hermes as an OpenAI-compatible HTTP API for tools like Open WebUI.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/",
+        "docs_url": "https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging",
         "env_vars": (
             "API_SERVER_ENABLED", "API_SERVER_KEY", "API_SERVER_PORT", "API_SERVER_HOST",
             "API_SERVER_MODEL_NAME",
@@ -36,13 +36,13 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "webhook": {
         "name": "Webhooks",
         "description": "Receive events from GitHub, GitLab, and other webhook sources.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/webhooks/",
+        "docs_url": "https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/webhooks.md",
         "env_vars": ("WEBHOOK_ENABLED", "WEBHOOK_PORT", "WEBHOOK_SECRET"), "required_env": (),
     },
     "msgraph_webhook": {
         "name": "Microsoft Graph Webhook",
         "description": "Receive Microsoft Graph change notifications (Teams meetings, Outlook, …).",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/msgraph-webhook",
+        "docs_url": "https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/msgraph-webhook.md",
         "required_env": (),
     },
     "relay": {
@@ -225,78 +225,3 @@ def _whatsapp_onboarding_payload(pairing_id: str, record: _WhatsAppOnboardingSes
 def _restart_gateway_after_whatsapp_onboarding(profile: Optional[str] = None) -> dict[str, Any]:
     from hermes_cli.web_server_gateway import _restart_gateway_after
     return _restart_gateway_after(profile, what="WhatsApp onboarding", label="WhatsApp onboarding")
-
-
-_TELEGRAM_ONBOARDING_DEFAULT_URL = "https://setup.hermes-agent.nousresearch.com"
-
-
-@dataclass
-class _TelegramOnboardingPairing:
-    poll_token: str
-    expires_at: str
-    expires_at_ts: float
-    bot_token: str | None = None
-    bot_username: str | None = None
-    owner_user_id: str | None = None
-
-
-_telegram_onboarding_pairings: dict[str, _TelegramOnboardingPairing] = {}
-_telegram_onboarding_lock = threading.RLock()
-
-
-def _telegram_onboarding_base_url() -> str:
-    return os.getenv("TELEGRAM_ONBOARDING_URL", _TELEGRAM_ONBOARDING_DEFAULT_URL).strip().rstrip("/")
-
-
-def _telegram_onboarding_error_message(error: str, fallback: str) -> str:
-    return {
-        "not_found": "Telegram pairing was not found. Start a new setup.",
-        "expired": "Telegram setup expired. Start a new setup.",
-        "claimed": "Telegram setup was already claimed. Start a new setup.",
-        "unauthorized": "Telegram setup service rejected this request.",
-        "telegram_manager_bot_token_not_configured": "Telegram setup service is not configured.",
-        "telegram_token_fetch_failed": "Telegram could not finish bot setup. Try again.",
-    }.get(error, fallback)
-
-
-_TELEGRAM_UNAVAILABLE = "Telegram setup service is unavailable. Try again shortly."
-_TELEGRAM_INVALID = "Telegram setup service returned an invalid response."
-
-
-def _telegram_onboarding_request_sync(
-    method: str, path: str, *, body: dict[str, Any] | None = None, bearer_token: str | None = None
-) -> dict[str, Any]:
-    import httpx
-    headers = {"Accept": "application/json", "User-Agent": hermes_user_agent("HermesDashboard")}
-    request_kwargs: dict[str, Any] = {}
-    if body is not None:
-        headers["Content-Type"] = "application/json"
-        request_kwargs["json"] = body
-    if bearer_token:
-        headers["Authorization"] = f"Bearer {bearer_token}"
-    try:
-        with httpx.Client(timeout=httpx.Timeout(10.0)) as client:
-            response = client.request(method, f"{_telegram_onboarding_base_url()}{path}", headers=headers, **request_kwargs)
-            response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        try:
-            parsed = exc.response.json()
-        except Exception:
-            parsed = {}
-        error = str(parsed.get("error") or parsed.get("status") or "")
-        detail = _telegram_onboarding_error_message(error, "Telegram setup service returned an error.")
-        if error in {"expired", "claimed"}:
-            status_code = 410
-        else:
-            status_code = 404 if exc.response.status_code == 404 else 502
-        raise HTTPException(status_code=status_code, detail=detail) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=_TELEGRAM_UNAVAILABLE) from exc
-
-    try:
-        parsed = response.json()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=_TELEGRAM_INVALID) from exc
-    if not isinstance(parsed, dict):
-        raise HTTPException(status_code=502, detail=_TELEGRAM_INVALID)
-    return parsed

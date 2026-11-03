@@ -431,7 +431,7 @@ def _format_privileged_intents_guidance(*, needs_members: bool) -> str:
             "Fix: https://discord.com/developers/applications → your application "
             "→ Bot → Privileged Gateway Intents → enable the intent(s) listed "
             "above → Save Changes, then restart the gateway.",
-            "Docs: https://hermes-agent.nousresearch.com/docs/user-guide/messaging/discord",
+            "Docs: https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/discord.md",
         ]
     )
     return "\n".join(lines)
@@ -6601,7 +6601,7 @@ def _define_discord_view_classes() -> None:
                 for i in range(0, len(models), _DISCORD_SELECT_MAX_OPTIONS)
             ][: _DISCORD_SELECT_MAX_ROWS - 2]
             placeholder_base = t("platform.discord.picker.model_placeholder", provider=provider.get("name", provider_slug))
-            from hermes_cli.model_picker_usage import picker_row_suffix
+            from hermes_cli.model_picker_labels import picker_row_suffix
             for idx, chunk in enumerate(chunks):
                 options = [
                     discord.SelectOption(

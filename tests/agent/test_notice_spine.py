@@ -12,7 +12,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 
-from agent.credits_tracker import AgentNotice
+from agent.notices import AgentNotice
 from run_agent import AIAgent
 
 

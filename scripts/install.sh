@@ -20,8 +20,8 @@ set -u
 # hygiene can't break the locked sync the way it used to before pm owned it.
 export UV_NO_CONFIG=1
 
-REPO_URL="${HERMES_REPO_URL:-https://github.com/NousResearch/hermes-agent.git}"
-BRANCH="main"
+REPO_URL="${HERMES_REPO_URL:-https://github.com/rodos4312/Meu-Agent.git}"
+BRANCH="dev/meu-foundation"
 INSTALL_COMMIT=""
 # The update channel to install: stable (the latest published release, the default for the
 # official repository's main line) or main (every commit). An explicit choice is persisted.
@@ -249,32 +249,26 @@ uv_bootstrap_pin() {
     case "$1" in
         linux-x64)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
             UV_PIN_SHA256="f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f"
             ;;
         linux-arm64)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-gnu.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403"
             UV_PIN_SHA256="4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403"
             ;;
         linux-x64-musl)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-musl.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/57ef9d9ccb01fb1bd998df995b0dd221b52f7d7841fbea93f2d4463bf61fb7a9"
             UV_PIN_SHA256="57ef9d9ccb01fb1bd998df995b0dd221b52f7d7841fbea93f2d4463bf61fb7a9"
             ;;
         linux-arm64-musl)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-musl.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/7906c79adb21c81abd559841ba76bb1d9af9d791acac7a041b2972e03ae16538"
             UV_PIN_SHA256="7906c79adb21c81abd559841ba76bb1d9af9d791acac7a041b2972e03ae16538"
             ;;
         darwin-x64)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-apple-darwin.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66"
             UV_PIN_SHA256="b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66"
             ;;
         darwin-arm64)
             UV_PIN_URL="https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-apple-darwin.tar.gz"
-            UV_PIN_MIRROR="https://hermes-assets.nousresearch.com/upstream/sha256/743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73"
             UV_PIN_SHA256="743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73"
             ;;
         *)
@@ -355,21 +349,9 @@ ensure_uv() {
         _tmp="$(mktemp -d 2>/dev/null || echo "/tmp/hermes-uv-bootstrap.$$")"
         mkdir -p "$_tmp"
         local _fetched_from="$UV_PIN_URL"
-        # Only network availability failures permit trying identical mirrored bytes.
-        if curl -LsSf "$UV_PIN_URL" -o "$_tmp/uv.tar.gz"; then
-            :
-        else
-            local _curl_status=$?
-            case "$_curl_status" in
-                5|6|7|18|22|28|52|55|56) ;;
-                *) rm -rf "$_tmp"; fail "failed to download pinned uv from $UV_PIN_URL (curl $_curl_status)" ;;
-            esac
-            if [ -n "${UV_PIN_MIRROR:-}" ] && curl -LsSf "$UV_PIN_MIRROR" -o "$_tmp/uv.tar.gz"; then
-                _fetched_from="$UV_PIN_MIRROR"
-            else
-                rm -rf "$_tmp"
-                fail "failed to download pinned uv from $UV_PIN_URL or ${UV_PIN_MIRROR:-no mirror}"
-            fi
+        if ! curl -LsSf "$UV_PIN_URL" -o "$_tmp/uv.tar.gz"; then
+            rm -rf "$_tmp"
+            fail "failed to download pinned uv from $UV_PIN_URL"
         fi
         local _digest
         if command -v sha256sum >/dev/null 2>&1; then
@@ -410,7 +392,7 @@ check_platform() {
     # install the phone cannot run (no Android wheels in the lock). The
     # signed APT package is the only supported shape there.
     if [ -n "${TERMUX_VERSION:-}" ] || case "${PREFIX:-}" in *com.termux/files/usr*) true ;; *) false ;; esac; then
-        fail "Termux is installed from its APT repository, not install.sh: pkg install hermes-agent (setup: https://hermes-agent.nousresearch.com/docs/getting-started/termux)"
+        fail "Termux is installed from its APT repository, not install.sh: pkg install hermes-agent (setup: https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/getting-started/termux.md)"
     fi
     case "$(uname -s 2>/dev/null)" in
         Linux*) : ;;
@@ -614,7 +596,7 @@ chosen_channel() {
 # hermes_cli.update_channel.default_channel decides.
 is_official_repo() {
     printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
-        | grep -Eq '^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)nousresearch/hermes-agent(\.git)?/?$'
+        | grep -Eq '^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)rodos4312/meu-agent(\.git)?/?$'
 }
 
 # The latest published stable release (vX.Y.Z), the release `hermes update` resolves for the
@@ -624,11 +606,11 @@ is_official_repo() {
 latest_stable_release() {
     local tag
     tag="$(curl -fsSL --connect-timeout 5 --max-time 20 -H 'Accept: application/vnd.github+json' \
-        https://api.github.com/repos/NousResearch/hermes-agent/releases/latest 2>/dev/null \
+        https://api.github.com/repos/rodos4312/Meu-Agent/releases/latest 2>/dev/null \
         | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
     if ! valid_stable_tag "$tag"; then
         tag="$(curl -fsSI --connect-timeout 5 --max-time 20 \
-            https://github.com/NousResearch/hermes-agent/releases/latest 2>/dev/null \
+            https://github.com/rodos4312/Meu-Agent/releases/latest 2>/dev/null \
             | tr -d '\r' | sed -n 's#^[Ll]ocation:.*/releases/tag/\([^/]*\)$#\1#p' | tail -n 1)"
     fi
     if ! valid_stable_tag "$tag"; then

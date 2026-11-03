@@ -912,7 +912,7 @@ class TestLightpandaPickerRow:
         from hermes_cli.tools_config import _write_provider_config
 
         config = {"browser": {"cloud_provider": "browserbase"}}
-        _write_provider_config(self._row("Lightpanda"), config, managed_feature=None)
+        _write_provider_config(self._row("Lightpanda"), config)
         assert config["browser"]["cloud_provider"] == "local"
         assert config["browser"]["engine"] == "lightpanda"
 
@@ -920,7 +920,7 @@ class TestLightpandaPickerRow:
         from hermes_cli.tools_config import _write_provider_config
 
         config = {"browser": {"cloud_provider": "local", "engine": "lightpanda"}}
-        _write_provider_config(self._row("Local Browser"), config, managed_feature=None)
+        _write_provider_config(self._row("Local Browser"), config)
         assert config["browser"]["engine"] == "auto"
 
     def test_active_row_follows_engine(self):

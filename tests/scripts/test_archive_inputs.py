@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from pm.artifact_mirror import object_key
+from scripts.ci.archive_inputs import object_key
 from pm.downloader import HashError
 from scripts.ci import archive_inputs as inputs
 from scripts.releases import r2

@@ -445,12 +445,7 @@ def _resolve_relay_identity_token() -> str:
     token_url, client_id, client_secret, scope = (env[k] for k in _IDP_KEYS)
 
     if not token_url:
-        from hermes_cli.auth import resolve_nous_access_token
-
-        # Only the Nous refresh is scoped: the gateway config read above and the IdP modes below
-        # keep resolving ``${VAR}`` refs from the launch env, as they always have.
-        with _launch_profile_scope():
-            return resolve_nous_access_token()
+        raise RuntimeError("Configure gateway.idp.token_url before enrolling a relay.")
 
     if not client_id and not client_secret:
         # Mode 1b — plain GET; the body is the token, raw or JSON-enveloped.

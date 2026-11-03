@@ -85,7 +85,6 @@ def installation(tmp_path, monkeypatch):
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    monkeypatch.setattr(source_releases, "_PUBLIC_BASE", f"http://127.0.0.1:{server.server_port}")
     original = urllib.request.urlopen
 
     def local(request, *args, **kwargs):
@@ -237,74 +236,37 @@ def test_explicit_and_current_branch_heal_only_after_confirmed_absence(installat
     assert requests == []
 
 
-@pytest.mark.parametrize("selection", ["explicit", "configured", "current", "detached"])
-def test_dynamic_source_channel_preserves_branch_precedence(installation, selection):
+@pytest.mark.parametrize("explicit", [True, False])
+def test_retired_dynamic_channel_cannot_choose_an_update(installation, explicit):
     from hermes_cli.source_check import check_for_updates
 
-    _root, linked, home, _base, head, responses, requests, git = installation
-    name = "branch-" + uuid4().hex[:12]
-    channel_path = f"/releases/channels/{name}.json"
-    responses[channel_path] = (200, source_channel(name, "fixture/fork", "channel-default"))
-    branch_file = home / "desktop-update.json"
-    if selection in {"explicit", "configured"}:
-        branch_file.write_text(json.dumps({"branch": "desktop-choice"}))
-    if selection == "detached":
-        git("checkout", "--detach", cwd=linked)
-    expected = {"explicit": "explicit-choice", "configured": "desktop-choice",
-                "current": "feature/gui", "detached": "channel-default"}[selection]
-    branch_path = f"/repos/fixture/fork/commits/{expected.replace('/', '%2F')}"
+    _root, linked, home, _base, head, responses, requests, _git = installation
+    branch_path = "/repos/fixture/fork/commits/explicit-choice"
     responses[branch_path] = (200, head)
-
-    status = check_for_updates(install_root=linked, home=home, channel=name,
-                              branch="explicit-choice" if selection == "explicit" else None,
-                              branch_config_path=branch_file)
-    assert status.get("branch") == expected, status
-    assert status.get("targetSha") == head, status
-    assert status["behind"] == 0
-    assert requests == ([] if selection == "explicit" else [channel_path]) + [branch_path]
+    status = check_for_updates(install_root=linked, home=home, channel="preview-old",
+                              branch="explicit-choice" if explicit else None)
+    if explicit:
+        assert status.get("targetSha") == head
+        assert requests == [branch_path]
+    else:
+        assert status.get("error") == "release-unavailable"
+        assert "targetSha" not in status
+        assert requests == []
 
 
 # An unpublished ``main`` record is not a channel failure: main IS the source
 # branch, so the check keeps following a branch via git, with the usual branch
 # precedence (test_unpublished_main_record_follows_the_branch below).
-@pytest.mark.parametrize("name,failure", [
-    ("canary", "missing"),
-    (None, "missing"), (None, "malformed"), (None, "foreign"), (None, "unpublished"),
-])
-def test_channel_failure_never_probes_or_heals_a_branch(installation, name, failure):
+def test_unpublished_canary_does_not_fall_back_to_a_branch(installation):
     from hermes_cli.source_check import check_for_updates
 
-    _root, linked, home, _base, head, responses, requests, _git = installation
-    name = name or "preview-" + uuid4().hex[:12]
-    channel_path = f"/releases/channels/{name}.json"
-    body = source_channel(name, "fixture/fork")
-    code = 200
-    if failure == "missing":
-        code = 404
-    elif failure == "malformed":
-        body = "not JSON"
-    elif failure == "foreign":
-        body["repository"] = "NousResearch/hermes-agent"
-    else:
-        body["policy"] = "preview"
-        del body["delivery"]
-        body["identity"] = {
-            "token": "a" * 16, "displayName": "Fixture", "appNamePascal": "Fixture",
-            "artifactNamePascal": "Fixture", "appId": "ai.fixture.preview",
-            "msixAppIdWithOrg": "Fixture.Preview", "cliName": "fixture-preview",
-            "windowsExecutableName": "Fixture",
-        }
-    responses[channel_path] = (code, body)
-    responses["/repos/fixture/fork/commits/main"] = (200, head)
-    branch_file = home / "desktop-update.json"
-    branch_file.write_text(json.dumps({"branch": "deleted"}))
-    status = check_for_updates(install_root=linked, home=home, channel=name,
-                              branch_config_path=branch_file)
-    assert status.get("error") == "release-unavailable", status
+    _root, linked, home, _base, _head, responses, requests, _git = installation
+    releases_path = "/repos/fixture/fork/releases?per_page=100&page=1"
+    responses[releases_path] = (200, [])
+    status = check_for_updates(install_root=linked, home=home, channel="canary")
+    assert status.get("error") == "release-unavailable"
     assert "targetSha" not in status
-    assert status["behind"] is None
-    assert requests == [channel_path]
-    assert json.loads(branch_file.read_text())["branch"] == "deleted"
+    assert requests == [releases_path]
 
 
 def test_main_follows_the_branch_without_reading_a_channel_record(installation):
@@ -338,8 +300,8 @@ def test_running_revision_is_not_applied_to_an_explicit_target(installation, mon
     assert check_for_updates(install_root=linked, home=home)["currentSha"] == head
     # Default invocation retains the Nix revision probe even without a Git checkout.
     monkeypatch.setattr("hermes_cli.config.get_project_root", lambda: home)
-    responses[MAIN_CHANNEL] = (200, source_channel("main", "NousResearch/hermes-agent"))
-    responses["/repos/NousResearch/hermes-agent/commits/main"] = (200, "e" * 40)
+    responses[MAIN_CHANNEL] = (200, source_channel("main", "rodos4312/Meu-Agent"))
+    responses["/repos/rodos4312/Meu-Agent/commits/main"] = (200, "e" * 40)
     assert check_for_updates(home=home)["behind"] == 0
 
 
@@ -472,7 +434,7 @@ def test_embedded_revision_keeps_https_ref_advertisement_recovery(installation, 
     monkeypatch.setenv("HERMES_REVISION", head)
     monkeypatch.setattr("hermes_cli.config.get_project_root", lambda: home)
     monkeypatch.setattr("hermes_cli.config.detect_install_method", lambda root: "nix")
-    responses[MAIN_CHANNEL] = (200, source_channel("main", "NousResearch/hermes-agent"))
+    responses[MAIN_CHANNEL] = (200, source_channel("main", "rodos4312/Meu-Agent"))
     original = subprocess.run
     probes = []
 
@@ -485,7 +447,7 @@ def test_embedded_revision_keeps_https_ref_advertisement_recovery(installation, 
     monkeypatch.setattr(subprocess, "run", advertise)
     assert check_for_updates(home=home)["behind"] == 0
     assert len(probes) == 1
-    assert "https://github.com/NousResearch/hermes-agent.git" in probes[0][0]
+    assert "https://github.com/rodos4312/Meu-Agent.git" in probes[0][0]
     assert probes[0][1]["stdin"] == subprocess.DEVNULL
     assert probes[0][1]["env"]["GIT_TERMINAL_PROMPT"] == "0"
 
@@ -509,13 +471,13 @@ def test_malformed_optional_changelog_and_cache_do_not_hide_the_update(installat
                         f"/repos/fixture/fork/compare/{head}...{'a' * 40}"] * 2
 
 
-@pytest.mark.parametrize("repository,heals", [("NousResearch/hermes-agent", True), ("fixture/fork", False)])
+@pytest.mark.parametrize("repository,heals", [("rodos4312/Meu-Agent", True), ("fixture/fork", False)])
 def test_official_ssh_healing_uses_public_https_without_retargeting_forks(installation, monkeypatch, repository, heals):
     from hermes_cli.source_check import check_for_updates
     from hermes_cli.update_channel import set_install_channel
     root, linked, home, _base, head, responses, _requests, git = installation
     git("remote", "set-url", "origin", f"git@github.com:{repository}.git")
-    git("config", f"url.{root.as_uri()}.insteadOf", "https://github.com/NousResearch/hermes-agent.git")
+    git("config", f"url.{root.as_uri()}.insteadOf", "https://github.com/rodos4312/Meu-Agent.git")
     # The branch heal is a main-channel concern; an official checkout's default is stable.
     set_install_channel("main", linked)
     monkeypatch.setenv("GIT_SSH_COMMAND", "false")
@@ -581,7 +543,7 @@ def test_stable_release_the_checkout_already_contains_is_a_rollback(installation
     git("tag", "v1.2.3", shas[release], cwd=bare)
     git("remote", "set-url", "origin", str(bare))
     git("checkout", "-q", "--detach", shas[on])
-    api = "/repos/NousResearch/hermes-agent"
+    api = "/repos/rodos4312/Meu-Agent"
     responses[f"{api}/releases/latest"] = (200, {"draft": False, "prerelease": False, "tag_name": "v1.2.3"})
     responses[f"{api}/commits/v1.2.3"] = (200, {"sha": shas[release]})
 
@@ -623,7 +585,7 @@ def test_stable_release_the_updater_refuses_is_held_not_offered(
     git("checkout", "-q", "main")
     if ledgered:
         _ledgered_store(sibling)
-    api = "/repos/NousResearch/hermes-agent"
+    api = "/repos/rodos4312/Meu-Agent"
     responses[f"{api}/releases/latest"] = (200, {"draft": False, "prerelease": False, "tag_name": "v1.2.3"})
     responses[f"{api}/commits/v1.2.3"] = (200, {"sha": release})
 
@@ -679,15 +641,15 @@ def test_an_unfetched_release_is_judged_from_github(installation, tmp_path, monk
     git("remote", "set-url", "origin", str(bare))
     assert subprocess.run(["git", "cat-file", "-e", f"{release}^{{commit}}"], cwd=root,
                           stderr=subprocess.DEVNULL, check=False).returncode != 0
-    api = "/repos/NousResearch/hermes-agent"
+    api = "/repos/rodos4312/Meu-Agent"
     responses[f"{api}/releases/latest"] = (200, {"draft": False, "prerelease": False, "tag_name": "v1.2.3"})
     responses[f"{api}/commits/v1.2.3"] = (200, {"sha": release})
     responses[f"{api}/compare/{git('rev-parse', 'HEAD')}...{release}"] = (200, {"status": "diverged"})
     responses[f"{api}/git/trees/{release}"] = (200, {"truncated": False, "tree": [
         {"path": "hermes_state.py", "type": "blob"}, {"path": "hermes_state_common.py", "type": "blob"},
         {"path": "run_agent.py", "type": "blob"}]})
-    responses[f"/NousResearch/hermes-agent/{release}/hermes_state.py"] = (200, "from hermes_state_common import *\n")
-    responses[f"/NousResearch/hermes-agent/{release}/hermes_state_common.py"] = (
+    responses[f"/rodos4312/Meu-Agent/{release}/hermes_state.py"] = (200, "from hermes_state_common import *\n")
+    responses[f"/rodos4312/Meu-Agent/{release}/hermes_state_common.py"] = (
         200, "SCHEMA_SQL = 'CREATE TABLE IF NOT EXISTS sessions (id)'\n")
     if ledgered:
         _ledgered_store(home)

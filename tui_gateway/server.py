@@ -1319,11 +1319,6 @@ def _get_usage(agent) -> dict:
         from tools.async_delegation import active_count as _async_active_count
         usage["active_subagents"] = _async_active_count()
     # Dev-only live credits-spent readout, gated on HERMES_DEV_CREDITS so the payload stays clean otherwise.
-    if is_truthy_value(os.environ.get("HERMES_DEV_CREDITS")):
-        with contextlib.suppress(Exception):
-            spent = agent.get_credits_spent_micros()
-            if spent is not None:
-                usage["dev_credits_spent_micros"] = int(spent)
     return usage
 
 

@@ -82,9 +82,6 @@ async def start(connection, ref, params):
                                           retire)
         finally:
             discards.ids.difference_update(plan['replaced'])
-        if plan['claimed'] is not None:
-            from hermes_cli import free_tier_bootstrap
-            await asyncio.to_thread(free_tier_bootstrap.refresh_record)
         _withdraw_setup_cards(authority, [sid for sid in plan['replaced'] if sid not in deleted])
         chat = SessionRef(authority.profile_id, stored)
         await connection.resume(chat, {})
@@ -104,11 +101,10 @@ def _choose_run(authority, request):
     from agent.onboarding_flow import Facts
     from agent.onboarding_record import load, open_session_ids
     from agent.onboarding_text import opening_prompt
-    from hermes_cli.auth_constants import AuthError
     db = authority.db
     open_ids = open_session_ids(db)
     stored = None if request.rerun or request.fresh_launch else next(iter(open_ids), None)
-    plan = {'stored': stored, 'open_ids': open_ids, 'claimed': None, 'facts': None, 'opening': None,
+    plan = {'stored': stored, 'open_ids': open_ids, 'facts': None, 'opening': None,
             'replaced': [sid for sid in open_ids if sid != stored]}
     if stored is not None:
         facts = Facts.from_stored(load(db, stored)['facts'])
@@ -119,31 +115,22 @@ def _choose_run(authority, request):
     plan['facts'] = read_facts(facts_source=request.facts_source.value, locale=request.locale)
     if not request.rerun:
         try:
-            plan['claimed'] = _claim_before_run(assume_fresh=request.assume_fresh)
-        except AuthError as exc:
-            logger.info('onboarding.start: welcome trial not claimed: %s', exc)
-            raise OnboardingRefusal(5079, str(exc)) from exc
+            _prepare_first_run()
         except _NoModelForTheRun as exc:
             logger.info('onboarding.start: no chat opened: %s', exc)
             raise OnboardingRefusal(5080, str(exc)) from exc
     return plan
 
 
-def _claim_before_run(*, assume_fresh):
-    """``onboarding.run: true`` on disk before the welcome-trial claim, so a crash after the claim still
-    opens onboarding next launch."""
-    from hermes_cli import anon_auth
+def _prepare_first_run():
+    from hermes_cli.process_identity import serves_local_desktop_now
     from hermes_cli.onboarding_run import set_run
-    from hermes_cli.welcome_trial import claim_desktop_free_tier, provider_configured
-    if not anon_auth.on_local_desktop_backend():
-        # A CLI or TUI holds a native ticket too: its start schedules nothing. A rerun (Settings, any
-        # Desktop) never claims and never reaches here.
+    from hermes_cli.main import _has_any_provider_configured
+    if not serves_local_desktop_now():
         raise _NoModelForTheRun('First-run onboarding starts only in the Desktop app on this machine.')
     set_run(True)
-    claimed = claim_desktop_free_tier(assume_fresh=assume_fresh)
-    if claimed is None and not (anon_auth.free_inference_active() or provider_configured()):
-        raise _NoModelForTheRun('The welcome trial is not available here, and no provider is set up.')
-    return claimed
+    if not _has_any_provider_configured(strict_profile_scope=True):
+        raise _NoModelForTheRun('Set up a model provider before starting onboarding.')
 
 
 async def _create_chat(connection):

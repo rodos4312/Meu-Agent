@@ -22,7 +22,7 @@
 #                         `hermes update --set-channel`
 [CmdletBinding(PositionalBinding=$false)]
 param(
-    [string]$Branch = "main",
+    [string]$Branch = "dev/meu-foundation",
     [string]$Commit = "",
     [string]$Channel = $(if ($env:HERMES_INSTALL_CHANNEL) { $env:HERMES_INSTALL_CHANNEL } else { "" }),
     [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }),
@@ -76,7 +76,7 @@ $script:BoundParams = $PSBoundParameters
 # Under iex, script scope is the caller's session and outlives a run; start
 # each run without the previous run's answer (see Set-LauncherUserPath).
 $script:BinDirOnCallerPath = $null
-$RepoUrl = if ($env:MEU_AGENT_MODE -eq "1") { "https://github.com/rodos4312/Meu-Agent.git" } elseif ($env:HERMES_REPO_URL) { $env:HERMES_REPO_URL } else { "https://github.com/NousResearch/hermes-agent.git" }
+$RepoUrl = if ($env:MEU_AGENT_MODE -eq "1") { "https://github.com/rodos4312/Meu-Agent.git" } elseif ($env:HERMES_REPO_URL) { $env:HERMES_REPO_URL } else { "https://github.com/rodos4312/Meu-Agent.git" }
 
 # --- BEGIN GENERATED: bootstrap pins (scripts/gen-bootstrap-pins.py) ---
 # Derived from pm/lock.json. DO NOT EDIT BY HAND:
@@ -85,12 +85,10 @@ $script:UvPinVersion = "0.13.5"
 $script:UvPinFiles = @{
     "win32-x64" = @{
         Url    = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-pc-windows-msvc.zip"
-        MirrorUrl = "https://hermes-assets.nousresearch.com/upstream/sha256/a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a"
         Sha256 = "a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a"
     }
     "win32-arm64" = @{
         Url    = "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-pc-windows-msvc.zip"
-        MirrorUrl = "https://hermes-assets.nousresearch.com/upstream/sha256/09f47edf90726084a70f9426f6e3ca4f46e9bf7cbf23b1716ec64d60b055fae3"
         Sha256 = "09f47edf90726084a70f9426f6e3ca4f46e9bf7cbf23b1716ec64d60b055fae3"
     }
 }
@@ -99,12 +97,10 @@ $script:GitPinVersion = "2.53.0+3"
 $script:GitPinFiles = @{
     "win32-x64" = @{
         Url    = "https://github.com/git-for-windows/git/releases/download/v2.53.0.windows.3/PortableGit-2.53.0.3-64-bit.7z.exe"
-        MirrorUrl = "https://hermes-assets.nousresearch.com/upstream/sha256/b365da794b1d2225eb24d5f5e09ef7792cfd5fa26c3a3586210280c80dff3a2a"
         Sha256 = "b365da794b1d2225eb24d5f5e09ef7792cfd5fa26c3a3586210280c80dff3a2a"
     }
     "win32-arm64" = @{
         Url    = "https://github.com/git-for-windows/git/releases/download/v2.53.0.windows.3/PortableGit-2.53.0.3-arm64.7z.exe"
-        MirrorUrl = "https://hermes-assets.nousresearch.com/upstream/sha256/0db54010054c01f35501cf69e1e32d3710138ecb934d188bd77093afed24300e"
         Sha256 = "0db54010054c01f35501cf69e1e32d3710138ecb934d188bd77093afed24300e"
     }
 }
@@ -397,43 +393,17 @@ function Invoke-VerifiedDownload {
     param(
         [Parameter(Mandatory = $true)][string]$Url,
         [Parameter(Mandatory = $true)][string]$Sha256,
-        [Parameter(Mandatory = $true)][string]$OutFile,
-        [string]$MirrorUrl = ""
+        [Parameter(Mandatory = $true)][string]$OutFile
     )
-    $urls = @($Url)
-    if ($MirrorUrl -and $MirrorUrl -ne $Url) { $urls += $MirrorUrl }
-    $httpFailure = ""
-    foreach ($candidate in $urls) {
-        try {
-            Invoke-DownloadWithProgress -Uri $candidate -OutFile $OutFile
-        } catch {
-            $errorType = $_.Exception.GetType().FullName
-            if ($_.Exception -is [System.Net.WebException]) {
-                # Windows PowerShell 5.1: DNS/connect/HTTP failures.
-                if ($_.Exception.Status -in @('TrustFailure', 'SecureChannelFailure')) { throw }
-            } elseif ($errorType -eq 'System.Net.Http.HttpRequestException') {
-                # pwsh 7: DNS/connect failures. A TLS trust failure arrives
-                # with an AuthenticationException inside and is never a routing
-                # problem. (Matched by name: 5.1 may not load System.Net.Http.)
-                $inner = $_.Exception.InnerException
-                if ($inner -and $inner.GetType().FullName -eq 'System.Security.Authentication.AuthenticationException') { throw }
-            } elseif ($errorType -ne 'Microsoft.PowerShell.Commands.HttpResponseException') {
-                throw
-            }
-            $httpFailure = $_.Exception.Message
-            continue
-        }
-        $digest = (Get-FileHash -Path $OutFile -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($digest -eq $Sha256.ToLowerInvariant()) { return }
-        Remove-Item -Path $OutFile -Force -ErrorAction SilentlyContinue
-        # Wrong bytes = tampering or a corrupt mirror, not a routing problem.
-        Fail "download digest mismatch for $candidate (expected $Sha256, got $digest)"
+    try {
+        Invoke-DownloadWithProgress -Uri $Url -OutFile $OutFile
+    } catch {
+        Fail "failed to download from $Url : $($_.Exception.Message)"
     }
-    $tried = $urls -join " or "
-    if ($httpFailure) {
-        Fail "failed to download from $tried : $httpFailure"
-    }
-    Fail "failed to download from $tried"
+    $digest = (Get-FileHash -LiteralPath $OutFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($digest -eq $Sha256.ToLowerInvariant()) { return }
+    Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue
+    Fail "download digest mismatch for $Url (expected $Sha256, got $digest)"
 }
 
 # Best-effort: how big is $Uri, per the server? Returns 0 when the server
@@ -536,7 +506,7 @@ function Get-Uv {
     try {
         New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
         $zipPath = Join-Path $tmpDir "uv.zip"
-        Invoke-VerifiedDownload -Url $pin.Url -MirrorUrl $pin.MirrorUrl -Sha256 $pin.Sha256 -OutFile $zipPath
+        Invoke-VerifiedDownload -Url $pin.Url -Sha256 $pin.Sha256 -OutFile $zipPath
         $extractDir = Join-Path $tmpDir "unpacked"
         Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
         # The zip carries uv.exe (+ uvx.exe) at the root or under one
@@ -569,7 +539,7 @@ function Get-PinnedGit {
     try {
         New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
         $sfxPath = Join-Path $tmpDir "portable-git.7z.exe"
-        Invoke-VerifiedDownload -Url $pin.Url -MirrorUrl $pin.MirrorUrl -Sha256 $pin.Sha256 -OutFile $sfxPath
+        Invoke-VerifiedDownload -Url $pin.Url -Sha256 $pin.Sha256 -OutFile $sfxPath
         $extractDir = Join-Path $tmpDir "unpacked"
         New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
         # PortableGit's self-extracting 7z carries its own extractor: stock
@@ -867,13 +837,13 @@ function Get-LatestStableRelease([string]$Origin) {
     $pattern = '^v(0|[1-9]\d{0,2})\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'  # update_channel.STABLE_TAG_RE
     $tag = ''
     try {
-        $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/NousResearch/hermes-agent/releases/latest' `
+        $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/rodos4312/Meu-Agent/releases/latest' `
             -Headers @{ Accept = 'application/vnd.github+json'; 'User-Agent' = 'hermes-installer' } -TimeoutSec 20
         $tag = "$($release.tag_name)"
     } catch { }
     if ($tag -cnotmatch $pattern) {
         try {
-            $request = [Net.HttpWebRequest]::Create('https://github.com/NousResearch/hermes-agent/releases/latest')
+            $request = [Net.HttpWebRequest]::Create('https://github.com/rodos4312/Meu-Agent/releases/latest')
             $request.Method = 'HEAD'
             $request.AllowAutoRedirect = $false
             $request.Timeout = 20000
@@ -899,7 +869,7 @@ function Get-StableTarget([string]$Origin) {
     if ($Commit -or $Channel -ceq 'main') { return '' }
     if ($Channel -cne 'stable') {
         if ($Branch -cne 'main') { return '' }
-        if ($Origin -notmatch '^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)NousResearch/hermes-agent(\.git)?/?$') { return '' }
+        if ($Origin -notmatch '^(https://github\.com/|git@github\.com:|ssh://git@github\.com/)rodos4312/Meu-Agent(\.git)?/?$') { return '' }
     }
     $release = Get-LatestStableRelease $Origin
     if ($release) { return $release }

@@ -163,7 +163,7 @@ def test_catalog_entry_is_inspected_at_its_reviewed_pin(tmp_path, sentinel, monk
     pin = _git(repo, "rev-parse", "HEAD")
     _commit(repo, {"desktop/plugin.js": "export default {}\n"})  # newer than the pin
     entry = SimpleNamespace(name="demo", install_identifier=repo.as_uri(), sha=pin)
-    monkeypatch.setattr(plugins_cmd_catalog, "get_live_catalog_entry", lambda name: entry if name == "demo" else None)
+    monkeypatch.setattr(plugins_cmd_catalog, "get_catalog_entry", lambda name: entry if name == "demo" else None)
 
     pinned = inspect_plugin_source("ignored/identifier", catalog_name="demo")
     unknown = inspect_plugin_source("", catalog_name="missing")

@@ -32,7 +32,6 @@ def client(monkeypatch, tmp_path, _isolate_hermes_home):
     (catalog_dir / "removed.yaml").write_text(yaml.safe_dump({"removed": [
         {"name": "bad-plugin", "repo": "https://github.com/evil/bad-plugin", "reason": "exfiltrated env vars"}]}))
     monkeypatch.setattr(pc_cat, "get_catalog_dir", lambda: catalog_dir)
-    monkeypatch.setattr(pc_cat, "fetch_live_catalog", lambda **_: None)
 
     c = TestClient(app)
     c.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN

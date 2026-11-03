@@ -18,7 +18,7 @@ export const deGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Neustart nötig',
     unavailable: 'Nicht verfügbar',
     notRunningDetail: 'Starte ihn, um Meu von einem anderen Gerät aus zu öffnen.',
-    needsNous: 'Melde dich zuerst unter Anbieter bei deinem Nous-Konto an.',
+    needsSignIn: "Konfiguriere zuerst einen Anmeldeanbieter für das Dashboard.",
     runningLan: 'Öffne diese Adresse auf einem Gerät im selben Netzwerk.',
     runningPublic: 'Über deine URL bereitgestellt.',
     runningLocal: 'Nur dieser Computer kann die Web-App öffnen. Stoppe sie und starte sie erneut, um sie von anderen Geräten aus zu öffnen.',

@@ -18,12 +18,7 @@ from typing import Any, Dict, Optional
 from agent.api_error_summary import is_provider_stream_parse_error
 from agent.error_classifier import RETRYABLE_CLIENT_REASONS, FailoverReason, classify_api_error
 from agent.turn_overflow import recover_from_overflow
-from agent.turn_recovery import (
-    _NONRETRYABLE_LABELS, abort_turn_on_interrupt, compute_error_backoff, free_tier_cooldown_ends_turn,
-    interruptible_backoff_sleep, log_api_error_attempt,
-    max_retries_exhausted_result, nonretryable_client_error_result, recover_after_classification,
-    recover_before_classification, route_classified_error, settle_delivered_partial,
-)
+from agent.turn_recovery import _NONRETRYABLE_LABELS, abort_turn_on_interrupt, compute_error_backoff, interruptible_backoff_sleep, log_api_error_attempt, max_retries_exhausted_result, nonretryable_client_error_result, recover_after_classification, recover_before_classification, route_classified_error, settle_delivered_partial
 
 logger = logging.getLogger("agent.conversation_loop")
 
@@ -93,14 +88,6 @@ def handle_api_error(
     # "ran out for this model" / "payment paused" state is only visible on the blocking response itself
     # (the stream path captures headers after the stream opens, which a 402 never does). Fail-open.
     # Usage-window responses only: every other account keeps main's behaviour (no capture here).
-    if status_code in (402, 403) and getattr(agent, "provider", "") == "nous":
-        try:
-            from agent.credits_tracker import response_is_usage_window
-            response = getattr(api_error, "response", None)
-            if response_is_usage_window(response):
-                agent._capture_credits(response, refused=True)
-        except Exception:
-            logger.debug("credits ▸ header capture on %s failed (fail-open)", status_code, exc_info=True)
 
     # Process is exiting mid-flight: retries/rotation/fallbacks are futile and the
     # retry trace spams the shell. One log line.
@@ -368,10 +355,6 @@ def settle_unrecovered_error(
     # An attended session on the free model does not sit through a long cooldown: end the attempt
     # cycle now (fallback, else the reset time and the ways forward); the copy counts attempts made.
     attempts_made = min(retry_count, max_retries)
-    if is_rate_limited and retry_count < max_retries and free_tier_cooldown_ends_turn(agent, api_error, _base):
-        logger.info("%sFree-tier cooldown outlasts the attended wait — ending retries after attempt %s",
-                    agent.log_prefix, retry_count)
-        retry_count = max_retries
     if retry_count >= max_retries:
         # Before fallback, rebuild the primary client once per API call block for
         # transient transport errors (stale pool, TCP reset).

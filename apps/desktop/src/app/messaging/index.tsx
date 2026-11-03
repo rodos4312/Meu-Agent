@@ -22,7 +22,6 @@ import {
   type MessagingPlatformUpdate,
   type PairingUser,
   revokePairing,
-  type TelegramOnboardingApplyResponse,
   updateMessagingPlatform
 } from '@/hermes'
 import { type Translations, useI18n } from '@/i18n'
@@ -48,7 +47,6 @@ import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { AllowlistField } from './allowlist-field'
 import { PlatformAvatar } from './platform-icon'
-import { TelegramQrSetup } from './telegram-qr-setup'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -451,54 +449,6 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     }
   }
 
-  // QR onboarding wrote the token + allowlist and asked the backend to restart
-  // the gateway. restart_started only means the child spawned; watch its exit
-  // so a failed restart lands in the banner instead of a silent "stopped".
-  async function handleTelegramApplied(result: TelegramOnboardingApplyResponse) {
-    await refreshPlatforms(true)
-
-    if (result.restart_started) {
-      const connectedBot = result.bot_username ? `${m.states.connected}: @${result.bot_username}` : null
-
-      notify({
-        kind: 'success',
-        title: m.setupSaved('Telegram'),
-        message: [connectedBot, m.telegramQr.savedRestarting].filter(Boolean).join(' · ')
-      })
-      setRestartNeeded(false)
-      const ok = await watchGatewayRestartOutcome()
-
-      if (!ok) {
-        setRestartNeeded(true)
-        notify({
-          kind: 'error',
-          title: m.restartFailedManual,
-          message: m.restartFailedManualDetail,
-          action: { label: m.restartAgain, onClick: () => void runGatewayRestart() },
-          secondaryAction: {
-            label: m.openLogs,
-            onClick: () => void window.hermesDesktop?.revealLogs?.().catch(() => undefined)
-          }
-        })
-      }
-
-      void refreshPlatforms(true)
-
-      return
-    }
-
-    if (result.needs_restart) {
-      // Backend could not spawn the restart (or is too old to try): fall back
-      // to the app's own restart action, same as the manual-save path.
-      await restartGatewayNow()
-
-      if (result.restart_error) {
-        notifyError(new Error(result.restart_error), m.telegramQr.savedRestartFailed(`: ${result.restart_error}`))
-        setRestartNeeded(true)
-      }
-    }
-  }
-
   // Approve/revoke paint from a snapshot immediately, then let the
   // authoritative refresh have the last word. A failed write restores the
   // snapshot so the row never silently disappears on an error.
@@ -640,11 +590,9 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                       }))
                     }
                     onRevoke={setPendingRevoke}
-                    onTelegramApplied={result => void handleTelegramApplied(result)}
                     pending={pendingByPlatform[selected.id] ?? []}
                     platform={selected}
                     saving={saving}
-                    scopeProfile={scopeProfile}
                   />
                 )}
               </DetailColumn>
@@ -722,11 +670,9 @@ function PlatformDetail({
   onClear,
   onEdit,
   onRevoke,
-  onTelegramApplied,
   pending,
   platform,
   saving,
-  scopeProfile
 }: {
   approved: PairingUser[]
   approving: null | string
@@ -735,11 +681,9 @@ function PlatformDetail({
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
   onRevoke: (user: PairingUser) => void
-  onTelegramApplied: (result: TelegramOnboardingApplyResponse) => void
   pending: PairingUser[]
   platform: MessagingPlatformInfo
   saving: string | null
-  scopeProfile: string | undefined
 }) {
   const { t } = useI18n()
   const m = t.messaging
@@ -831,15 +775,6 @@ function PlatformDetail({
                 title={pairingLabel(user)}
               />
             ))}
-          </div>
-        </section>
-      )}
-
-      {platform.id === 'telegram' && (
-        <section>
-          <SectionTitle>{m.telegramQr.quickSetup}</SectionTitle>
-          <div className="mt-3">
-            <TelegramQrSetup onApplied={onTelegramApplied} platform={platform} scopeProfile={scopeProfile} />
           </div>
         </section>
       )}

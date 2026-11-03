@@ -591,7 +591,7 @@ def register(ctx):
     ctx.register_platform(
         name="irc",
         dashboard_description="Relay messages between an IRC channel (or DMs) and Hermes.",
-        docs_url="https://hermes-agent.nousresearch.com/docs/user-guide/messaging/irc",
+        docs_url="https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/irc.md",
         label="IRC",
         adapter_factory=IRCAdapter,
         check_fn=check_requirements,

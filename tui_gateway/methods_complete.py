@@ -358,11 +358,8 @@ def _(rid, params: dict) -> dict:
     # Under the profile scope the save publishes into the addressed profile's secret scope (and the
     # shared os.environ only for the launch profile), so the refreshed inventory below sees it.
     save_provider_env_credential(env_var, api_key)
-    # The launch profile's boot record may still say "nothing configured"; the gated picker's own chat
-    # waits on setup.status, so the fresh key must move the record (+ setup.ready). reconcile_record
-    # leaves it alone when the bound home is another profile's.
-    from hermes_cli.free_tier_bootstrap import reconcile_record
-    reconcile_record()
+    from hermes_cli.onboarding_due import invalidate
+    invalidate()
     # Shared inventory builder (lock-step with model.options / dashboard); picker_hints carries `authenticated`.
     from hermes_cli.inventory import build_models_payload
     payload = build_models_payload(_model_picker_context(_session_agent(params)), picker_hints=True, max_models=50)

@@ -264,7 +264,7 @@ def interactive_setup() -> None:
         "1. Open https://discord.com/developers/applications → New Application",
         "2. Open the Bot page → Reset Token → copy the token",
         "Hermes checks the token, the intents and the invite link for you next.",
-        "Guide: https://hermes-agent.nousresearch.com/docs/user-guide/messaging/discord",
+        "Guide: https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/discord.md",
     ):
         print_info(line)
     token, check = _prompt_checked_token(prompt)

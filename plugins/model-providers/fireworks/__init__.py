@@ -34,8 +34,8 @@ fireworks = FireworksProfile(
     # Attribution headers (canonical Hermes set); via default_headers so they
     # survive switch_model and credential rotation.
     default_headers=LazyHeaders({
-        "HTTP-Referer": "https://hermes-agent.nousresearch.com",
-        "X-Title": "Hermes Agent",
+        "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent",
+        "X-Title": "Meu",
         "User-Agent": lambda: hermes_user_agent("HermesAgent"),
     }),
     default_aux_model="accounts/fireworks/models/glm-5p2",

@@ -74,7 +74,7 @@ def _resolve_source(identifier: str, catalog_name: Optional[str]) -> tuple[str, 
     revision = None
     if catalog_name:
         from hermes_cli import plugins_cmd_catalog as catalog
-        entry = catalog.get_live_catalog_entry(catalog_name)
+        entry = catalog.get_catalog_entry(catalog_name)
         if entry is None:
             raise pc.PluginOperationError(f"'{catalog_name}' is not in the Hermes plugin catalog.")
         identifier, revision = entry.install_identifier, entry.sha or None

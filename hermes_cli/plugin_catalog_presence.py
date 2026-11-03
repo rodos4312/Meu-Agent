@@ -126,12 +126,12 @@ def presence(entry: Any) -> Presence:
 
 def _onboarding_catalog() -> list:
     """Catalog entries curated for onboarding (``onboarding: true``) that this OS can run."""
-    from hermes_cli.plugin_catalog import load_catalog_live
+    from hermes_cli.plugin_catalog import load_catalog
     from hermes_cli.plugins_cmd_catalog import normalized_platforms
     from hermes_platform.host.facts import os_family
 
     here = os_family()
-    return [entry for entry in load_catalog_live()
+    return [entry for entry in load_catalog()
             if entry.onboarding and (not entry.platforms or here in normalized_platforms(entry.platforms))]
 
 
@@ -163,12 +163,12 @@ def presence_for(names: list[str]) -> list[dict[str, Any]]:
     catalog description's disclosure. A name the live catalog does not carry (unknown or removed) is dropped."""
     from concurrent.futures import ThreadPoolExecutor
 
-    from hermes_cli.plugin_catalog import load_catalog_live
+    from hermes_cli.plugin_catalog import load_catalog
     from hermes_cli.plugins_cmd_catalog import normalized_platforms
     from hermes_platform.host.facts import os_family
 
     here = os_family()
-    by_name = {entry.name: entry for entry in load_catalog_live()}
+    by_name = {entry.name: entry for entry in load_catalog()}
     entries = [by_name[name] for name in dict.fromkeys(names) if name in by_name
                and (not by_name[name].platforms or here in normalized_platforms(by_name[name].platforms))]
     if not entries:

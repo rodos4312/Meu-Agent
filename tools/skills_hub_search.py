@@ -17,84 +17,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from tools.skills_hub_clawhub import ClawHubSource
 from tools.skills_hub_github import GitHubAuth, GitHubSource, _filter_results_by_provider, _provider_filter_of
 from tools.skills_hub_models import SkillMeta, SkillSource, TRUST_RANK, _dedupe_by_trust, hub
-from tools.skills_hub_official import HermesIndexSource, OptionalSkillSource
+from tools.skills_hub_official import OptionalSkillSource
 from tools.skills_hub_skillssh import SkillsShSource
 from tools.skills_hub_sources import BrowseShSource, LobeHubSource, UrlSource, WellKnownSkillSource
 
 # Log-record parity with the origin module.
 logger = logging.getLogger("tools.skills_hub")
-
-HERMES_INDEX_URL = "https://hermes-agent.nousresearch.com/docs/api/skills-index.json"
-HERMES_INDEX_TTL = 6 * 3600  # 6 hours
-
-
-def _hermes_index_cache_file() -> Path:
-    from tools.skills_hub import _index_cache_dir
-    return _index_cache_dir() / "hermes-index.json"
-
-
-def _load_hermes_index() -> Optional[dict]:
-    """Fetch the centralized skills index (docs site, rebuilt daily), cached
-    locally for HERMES_INDEX_TTL; on any failure serve the stale cache.
-
-    Brotli is deliberately NOT negotiated: the index is tens of MB and httpx's
-    streaming Brotli decoder (brotlicffi, pinned for Discord attachments) raises
-    DecodingError on payloads this size — which surfaced as a silently empty
-    Skills Hub. gzip/deflate first; the identity retry covers proxies that
-    ignore the header and return Brotli anyway.
-    """
-    from tools.skills_hub import _read_json_if_fresh
-    cache_file = _hermes_index_cache_file()
-    cached = _read_json_if_fresh(cache_file, HERMES_INDEX_TTL)
-    if cached is not None:
-        return cached
-    data = None
-    for accept_encoding in ("gzip, deflate", "identity"):
-        try:
-            resp = hub()._skills_hub_http_get(
-                HERMES_INDEX_URL, timeout=15, follow_redirects=True,
-                headers={"Accept-Encoding": accept_encoding},
-            )
-            if resp.status_code != 200:
-                logger.debug("Hermes index fetch returned %d", resp.status_code)
-                return _load_stale_index_cache()
-            data = resp.json()
-            break
-        except httpx.DecodingError as e:
-            logger.debug("Hermes index decode failed (Accept-Encoding=%s): %s", accept_encoding, e)
-        except (httpx.HTTPError, json.JSONDecodeError) as e:
-            logger.debug("Hermes index fetch failed: %s", e)
-            return _load_stale_index_cache()
-    if not isinstance(data, dict) or "skills" not in data:
-        return _load_stale_index_cache()
-    try:
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text(json.dumps(data), encoding="utf-8")
-    except OSError:
-        pass
-    return data
-
-
-def _load_stale_index_cache() -> Optional[dict]:
-    """Fall back to the cache regardless of age when the network fetch fails."""
-    from tools.skills_hub import _read_json_if_fresh
-    return _read_json_if_fresh(_hermes_index_cache_file(), float("inf"))
-
-
-# External API sources the centralized index already covers; skipped when the
-# index is available and no source filter is active (~70 GitHub calls/search
-# for unauthenticated users otherwise).
-_API_SOURCE_IDS = frozenset({"github", "skills-sh", "clawhub", "lobehub", "well-known"})
-# Consulted only when the index answered a non-empty query with nothing: the
-# index is rebuilt asynchronously and lags the registries, so a skill that is
-# live on skills.sh may not be in it yet. GitHub stays out — one miss (a typo)
-# would burn an unauthenticated user's whole hourly GitHub budget.
-_INDEX_MISS_FALLBACK_IDS = _API_SOURCE_IDS - {"github"}
-# Cap on the fallback pass. ClawHub can take minutes; without its own budget
-# every unfiltered miss (a typo) would stall CLI/TUI/dashboard for the callers'
-# full 30 s ``overall_timeout`` where the index alone answered instantly.
-_INDEX_MISS_FALLBACK_BUDGET = 8.0
-
 
 def create_source_router(auth: Optional[GitHubAuth] = None) -> list[SkillSource]:
     """All configured source adapters, in priority order."""
@@ -103,7 +31,6 @@ def create_source_router(auth: Optional[GitHubAuth] = None) -> list[SkillSource]
         auth = GitHubAuth()
     return [
         OptionalSkillSource(auth=auth),   # official optional skills (highest priority)
-        HermesIndexSource(auth=auth),     # centralized index (search + resolved install paths)
         SkillsShSource(auth=auth),
         WellKnownSkillSource(),
         UrlSource(),                      # direct HTTP(S) URL to a SKILL.md
@@ -121,7 +48,7 @@ def _search_one_source(
     try:
         # These sources mix providers in one catalog. Narrow before their top-N
         # cut so another provider cannot crowd every requested match out.
-        if provider_filter and isinstance(src, (HermesIndexSource, GitHubSource)):
+        if provider_filter and isinstance(src, GitHubSource):
             return src.source_id(), src.search(query, limit=limit, provider_filter=provider_filter)
         return src.source_id(), src.search(query, limit=limit)
     except Exception as e:
@@ -130,47 +57,11 @@ def _search_one_source(
 
 
 def _select_active_sources(sources: list[SkillSource], source_filter: str) -> list[SkillSource]:
-    """Sources to query for ``source_filter``.
-
-    A provider filter (nvidia/openai/...) is not a source id — the data lives
-    in the index/github source under ``extra.provider`` — so it selects like
-    "all". Mixed-provider sources narrow before their top-N cut; the walker
-    cuts every source's results. "official" is always queried alongside an
-    explicit source filter.
-    """
+    """Query independent registries directly, retaining bundled optional skills."""
     effective = "all" if _provider_filter_of(source_filter) else source_filter
-    index_available = effective == "all" and any(
-        src.source_id() == "hermes-index" and getattr(src, "is_available", False) for src in sources
-    )
-    active: list[SkillSource] = []
-    for src in sources:
-        sid = src.source_id()
-        if effective != "all" and sid != effective and sid != "official":
-            continue
-        if index_available and sid in _API_SOURCE_IDS:
-            continue
-        active.append(src)
-    return active
+    return [src for src in sources if effective == "all" or src.source_id() in (effective, "official")]
 
 
-def _index_miss_fallback_sources(
-    sources: list[SkillSource], active: list[SkillSource], query: str, source_counts: dict[str, int],
-    provider_filter: str = "",
-) -> list[SkillSource]:
-    """Registries to consult after the index stood in for them and found nothing.
-
-    Empty for a browse (no query), when the index was not consulted (no skip
-    happened), when it returned matches, or when it did not answer at all
-    (timed out: no budget is left and the registries would only be blamed as
-    late without being asked). Also empty under a provider filter
-    (``--source nvidia``): the fallback registries carry no ``extra.provider``,
-    so their results would all be cut and the calls would only burn budget.
-    """
-    if not query.strip() or provider_filter or not any(src.source_id() == "hermes-index" for src in active):
-        return []
-    if source_counts.get("hermes-index") != 0:
-        return []
-    return [src for src in sources if src.source_id() in _INDEX_MISS_FALLBACK_IDS and src not in active]
 
 
 def _fan_out(
@@ -250,11 +141,6 @@ def parallel_search_sources(
     deadline = time.monotonic() + overall_timeout
     _fan_out(active, query, per_source_limits, provider_filter, deadline, on_source_done,
              all_results, source_counts, timed_out_ids)
-    fallback = _index_miss_fallback_sources(sources, active, query, source_counts, provider_filter)
-    if fallback:
-        fallback_deadline = min(deadline, time.monotonic() + _INDEX_MISS_FALLBACK_BUDGET)
-        _fan_out(fallback, query, per_source_limits, provider_filter, fallback_deadline, on_source_done,
-                 all_results, source_counts, timed_out_ids)
     return all_results, source_counts, timed_out_ids
 
 

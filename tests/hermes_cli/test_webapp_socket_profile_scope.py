@@ -52,7 +52,6 @@ def gateway(tmp_path, monkeypatch):
     from gateway.config import GatewayConfig
     from gateway.session import SessionStore
     from gateway.session_authority import SessionAuthority
-    from hermes_cli import auth, nous_account
     from hermes_state import SessionDB
     from hermes_state_runtime import begin_runtime_epoch
     from tui_gateway import launch_profile_policy, server
@@ -69,8 +68,6 @@ def gateway(tmp_path, monkeypatch):
     monkeypatch.setattr(launch_profile_policy, "_snapshot", None)
     monkeypatch.setattr(server, "_hermes_home", str(launch))
     monkeypatch.setattr(server, "_served_profile_homes", set())
-    monkeypatch.setattr(auth, "_RESOLVE_TOKEN_CACHE", {})
-    nous_account.reset_nous_portal_account_info_cache()
     previous = secret_scope.is_multiplex_active()
     launch_profile_policy.activate_multi_profile_hosting()
 

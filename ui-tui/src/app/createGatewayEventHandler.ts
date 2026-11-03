@@ -32,7 +32,6 @@ import type { Msg, SessionInfo, SubagentProgress } from '../types.js'
 
 import { applyConnectionRequest, applyConnectionUpdate } from './connectionOperationStore.js'
 import { applyDelegationStatus, getDelegationState } from './delegationStore.js'
-import { createFreeTierChallengePresenter } from './gatewayBrowserLinks.js'
 import {
   fenceLifecycleEvent,
   isGenericErrorEvent,
@@ -838,7 +837,6 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
   // an abandoned-prompt record, so the tool.complete and message.complete
   // paths can't both persist the same prompt twice.
   const persistedAbandonedClarify = new Set<string>()
-  const showChallenge = createFreeTierChallengePresenter(sys, openExternalUrl)
 
   // When a clarify prompt is dismissed without an answer (the backend request
   // timed out and returned no answer), the live ClarifyPrompt overlay is
@@ -1230,11 +1228,6 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
         if (ev.payload) {
           applySkin(ev.payload)
         }
-
-        return
-
-      case 'free_tier.challenge':
-        showChallenge(ev.payload)
 
         return
 

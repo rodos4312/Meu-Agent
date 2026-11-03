@@ -32,13 +32,8 @@ CATALOG_TIERS = ("official", "verified", "community")
 # Browse taxonomy for the catalog page / picker. Entries without one land on the Desktop shelf
 # (the common case for community submissions); "general" is for plugins that fit no shelf.
 CATALOG_CATEGORIES = ("desktop", "memory", "platform", "web", "tools", "voice", "automation", "models", "general")
-LIVE_CATALOG_URL = "https://hermes-agent.nousresearch.com/docs/api/plugin-catalog.json"
-LIVE_CATALOG_TTL_SECONDS = 6 * 60 * 60
 # Offline pins expire, but cached removals remain a permanent kill list.
 LIVE_CATALOG_MAX_STALE_SECONDS = 24 * 60 * 60
-LIVE_CATALOG_FAILURE_TTL_SECONDS = 60.0
-_REQUEST_TIMEOUT = 5.0
-_MAX_LIVE_BYTES = 2 * 1024 * 1024
 
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,31}$")
@@ -272,7 +267,7 @@ def find_removed(name_or_repo: str, catalog_dir: Optional[Path] = None) -> Optio
         return None
     entries = load_removed_list(catalog_dir)
     if catalog_dir is None:
-        entries = entries + live_removed_list()
+        entries = cached_removed_entries()
     return match_removed(name_or_repo, entries)
 
 
@@ -280,7 +275,7 @@ def resolved_removed_entries() -> list[RemovedEntry]:
     """The full kill list (in-tree UNION live) in one resolution. Callers that match many candidates
     — e.g. a plugins-hub rebuild annotating every installed plugin — resolve the list once instead
     of paying a live-catalog fetch per candidate."""
-    return load_removed_list() + live_removed_list()
+    return cached_removed_entries()
 
 
 def cached_removed_entries() -> list[RemovedEntry]:
@@ -332,7 +327,6 @@ def invalidate_live_cache_for_home(home: Path) -> None:
 # Wall-clock deadline of the last failed live fetch. Without it a dead catalog host costs one
 # full request timeout PER CALL (the plugins hub and ``plugins list`` used to ask once per
 # installed plugin), so the dashboard event loop stalled for minutes.
-_live_fetch_failed_until = 0.0
 
 
 def _stale_live_cache(cache: Path) -> Optional[dict[str, Any]]:
@@ -351,140 +345,19 @@ def _stale_live_cache(cache: Path) -> Optional[dict[str, Any]]:
         return None
 
 
-def fetch_live_catalog(*, force: bool = False) -> Optional[dict[str, Any]]:
-    """The published ``plugin-catalog.json`` (``{"entries": [...], "removed": [...]}``), cached under
-    ``HERMES_HOME/cache`` for :data:`LIVE_CATALOG_TTL_SECONDS`. ``None`` on ANY failure — callers fall
-    back to the in-tree catalog. A failed network attempt is remembered for
-    :data:`LIVE_CATALOG_FAILURE_TTL_SECONDS` so a dead host costs one timeout per TTL window, not one
-    per call (``force`` bypasses both caches)."""
-    global _live_fetch_failed_until
-    cache = _live_cache_path()
-    try:
-        if not force and cache.is_file() and time.time() - cache.stat().st_mtime < LIVE_CATALOG_TTL_SECONDS:
-            return json.loads(cache.read_text(encoding="utf-8-sig"))
-    except Exception as exc:
-        logger.debug("Plugin catalog: unreadable live cache %s: %s", cache, exc)
-    if not force and time.time() < _live_fetch_failed_until:
-        return _stale_live_cache(cache)
-    try:
-        import httpx
-        from hermes_constants import mkdir_under_hermes_home
-        from utils import atomic_write_text
-
-        resp = httpx.get(LIVE_CATALOG_URL, timeout=_REQUEST_TIMEOUT, follow_redirects=True)
-        resp.raise_for_status()
-        if len(resp.content) > _MAX_LIVE_BYTES:
-            raise ValueError("live catalog payload too large")
-        data = resp.json()
-        if not isinstance(data, dict) or not isinstance(data.get("entries"), list):
-            raise ValueError("unexpected live catalog payload")
-        mkdir_under_hermes_home(cache.parent)
-        # Atomic: a concurrent reader (gateway, TUI, a second CLI) must never see a half-written
-        # document, which would read as a fetch failure and start its own 60 s failure window.
-        atomic_write_text(cache, json.dumps(data), tmp_prefix=f"{cache.name}.tmp-")
-        return data
-    except Exception as exc:
-        logger.debug("Plugin catalog: live fetch failed: %s", exc)
-        _live_fetch_failed_until = time.time() + LIVE_CATALOG_FAILURE_TTL_SECONDS
-        return _stale_live_cache(cache)
 
 
 _in_tree_catalog_time: Optional[float] = -1.0  # -1 = not resolved yet; None = no usable in-tree time
 
 
-def in_tree_catalog_time() -> Optional[float]:
-    """Commit time (epoch) of the last change to this checkout's ``plugin-catalog/``, or ``None`` when
-    the install is not a git checkout (a release/pip install cannot be newer than the published doc).
-    On a git checkout whose path history is unreadable without network — the treeless ``tree:0`` layout
-    ``hermes update`` produces — the newest checked-out catalog file's mtime stands in for it, so a
-    freshly updated checkout still outranks a doc fetched before the bump. Resolved once per process."""
-    global _in_tree_catalog_time
-    if _in_tree_catalog_time != -1.0:
-        return _in_tree_catalog_time
-    root = get_catalog_dir().parent
-    resolved: Optional[float] = None
-    if (root / ".git").exists():
-        try:
-            from hermes_cli._subprocess_compat import bounded_git_probe
-
-            # Path history needs missing trees on tree:0 clones. The shared probe disables
-            # lazy fetch only for its child and bounds timeout cleanup on every platform.
-            out = bounded_git_probe(
-                ["git", "-C", str(root), "log", "-1", "--format=%ct", "--", "plugin-catalog"],
-                timeout=10,
-            )
-            resolved = float(out) if out else None
-        except Exception as exc:
-            logger.debug("Plugin catalog: could not date the in-tree catalog: %s", exc)
-        if resolved is None:
-            # "History unreadable without network" must not collapse into "not a git checkout":
-            # ``None`` feeds the frozen-copy rule that defers to the live doc, which would let a
-            # cache fetched before ``hermes update`` re-pin the old sha on exactly the installs
-            # that just bumped it. A treeless clone still has its checked-out files — only the
-            # historical trees are missing — and their mtime dates the checkout that wrote them.
-            resolved = _catalog_worktree_mtime()
-    _in_tree_catalog_time = resolved
-    return resolved
 
 
-def _catalog_worktree_mtime() -> Optional[float]:
-    """Newest mtime under the checkout's ``plugin-catalog/``: a no-network freshness signal for clones
-    whose path history is unreachable (treeless or offline). ``None`` when nothing is checked out."""
-    try:
-        times = [p.stat().st_mtime for p in get_catalog_dir().rglob("*") if p.is_file()]
-    except OSError:
-        return None
-    return max(times) if times else None
 
 
-def _live_generated_time(data: dict[str, Any]) -> Optional[float]:
-    raw = data.get("generated_at")
-    if not isinstance(raw, str) or not raw:
-        return None
-    try:
-        from datetime import datetime, timezone
-        parsed = datetime.fromisoformat(raw)
-        return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).timestamp()
-    except ValueError:
-        return None
 
 
-def _prefer_in_tree_entry(tree: PluginCatalogEntry, live: PluginCatalogEntry, tree_is_newer: Optional[bool]) -> bool:
-    """For one entry present in both sources with a different pin: the newer catalog wins. Newer is
-    decided by the checkout's catalog commit time vs the doc's ``generated_at`` when both resolve;
-    otherwise by the entries' ``version`` labels when both parse; otherwise the live doc wins (a release
-    install's in-tree copy is frozen at release time)."""
-    if tree.sha == live.sha:
-        return False
-    if tree_is_newer is not None:
-        return tree_is_newer
-    if tree.version and live.version:
-        try:
-            from packaging.version import Version
-            return Version(tree.version) > Version(live.version)
-        except Exception:
-            return False
-    return False
 
 
-def load_catalog_live() -> list[PluginCatalogEntry]:
-    """Entries from the live (or cached) catalog, else the in-tree catalog. When both name an entry at
-    different pins the NEWER source supplies it — right after ``hermes update`` bumps an in-tree pin,
-    a cache fetched before the bump must not re-install the old one (see :func:`_prefer_in_tree_entry`)."""
-    data = fetch_live_catalog()
-    if data is None:
-        return load_catalog()
-    entries = [e for i, raw in enumerate(data["entries"])
-               if (e := entry_from_mapping(raw, f"{LIVE_CATALOG_URL}#{i}")) is not None]
-    if not entries:
-        return load_catalog()
-    in_tree = {e.name: e for e in load_catalog()}
-    live_t, tree_t = _live_generated_time(data), in_tree_catalog_time()
-    tree_is_newer = (tree_t > live_t) if (live_t is not None and tree_t is not None) else None
-    raw_by_name = {str(raw.get("name")): raw for raw in data["entries"] if isinstance(raw, dict)}
-    return [in_tree[e.name] if e.name in in_tree and _prefer_in_tree_entry(in_tree[e.name], e, tree_is_newer)
-            else _with_curated_fields(e, in_tree.get(e.name), raw_by_name.get(e.name) or {})
-            for e in entries]
 
 
 # Curated display fields a published doc older than the field does not carry. ``generated_at`` is the
@@ -493,21 +366,10 @@ def load_catalog_live() -> list[PluginCatalogEntry]:
 _CURATED_FIELDS = ("onboarding", "title")
 
 
-def _with_curated_fields(live: PluginCatalogEntry, tree: Optional[PluginCatalogEntry], raw: dict[str, Any]
-                         ) -> PluginCatalogEntry:
-    if tree is None or tree.sha != live.sha:
-        return live
-    missing = {key: getattr(tree, key) for key in _CURATED_FIELDS if key not in raw}
-    return dataclasses.replace(live, **missing) if missing else live
 
 
-def live_removed_list() -> list[RemovedEntry]:
-    data = fetch_live_catalog()
-    return _removed_from_list(data.get("removed")) if data else []
 
 
-def get_live_catalog_entry(name: str) -> Optional[PluginCatalogEntry]:
-    return next((e for e in load_catalog_live() if e.name == name), None)
 
 
 # ── Human summaries ──────────────────────────────────────────────────────────

@@ -10,8 +10,8 @@ from providers import register_provider
 from providers.base import OMIT_TEMPERATURE, LazyHeaders, ProviderProfile
 
 _HEADERS = {
-    "HTTP-Referer": "https://hermes-agent.nousresearch.com",
-    "X-Title": "Hermes Agent",
+    "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent",
+    "X-Title": "Meu",
     "User-Agent": lambda: hermes_user_agent("HermesAgent"),
     # Exclude brotli: httpx's brotlicffi backend has a streaming decode bug on
     # Moonshot's content-encoding: br SSE responses (#28043, #48428, #59556).

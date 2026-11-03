@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import logging
 from contextvars import copy_context
 from dataclasses import dataclass, replace
 from threading import Lock, Thread, current_thread
@@ -519,19 +518,11 @@ def _reasoning_catalog_reader(slug: str):
     """Per-model reasoning-capability reader for aggregators that publish one. Cache-only — the picker
     must never block on HTTP; a cold cache warms in the background and reports no restriction until then."""
     try:
-        from hermes_cli.models_reasoning_caps import (
-            nous_model_reasoning_capabilities,
-            openrouter_model_reasoning_capabilities,
-            warm_nous_reasoning_caps_async,
-            warm_openrouter_reasoning_caps_async,
-        )
+        from hermes_cli.models_reasoning_caps import openrouter_model_reasoning_capabilities, warm_openrouter_reasoning_caps_async
     except Exception:
         return None
 
-    readers = {
-        "nous": (warm_nous_reasoning_caps_async, nous_model_reasoning_capabilities),
-        "openrouter": (warm_openrouter_reasoning_caps_async, openrouter_model_reasoning_capabilities),
-    }
+    readers = {'openrouter': (warm_openrouter_reasoning_caps_async, openrouter_model_reasoning_capabilities)}
     if slug not in readers:
         return None
     warm, read = readers[slug]
@@ -875,40 +866,8 @@ def _reorder_canonical(rows: list[dict]) -> list[dict]:
     return canon + extras
 
 
-def _attach_nous_plan_usage(row: dict, *, warm: bool):
-    """Stamp ``plan_usage`` from the portal snapshot (window plans only) and return the PickerUsage (or
-    None). A cache-only open reads the last snapshot at any age: the 60s account cache has usually lapsed
-    by the time someone opens the composer menu. Accounts without a window plan get nothing."""
-    try:
-        from hermes_cli.model_picker_usage import nous_picker_usage
-        usage = nous_picker_usage(warm=warm, any_age=not warm)
-    except Exception:
-        logging.getLogger(__name__).debug("Nous plan usage unavailable", exc_info=True)
-        return None
-    if usage is not None:
-        row["plan_usage"] = usage.to_payload()
-        # Main's subscription-usage chip (`usage.windows`): the same gauge for a window
-        # plan, so it warns near a limit in the existing slot. Once an allowance is full the picker's limit
-        # line says it (with what happens next), so the chip would only repeat it; paused plans say so in
-        # the plan line.
-        if not usage.paused_reason and not row.get("usage") and not any(g.left_fraction <= 0.0 for g in usage.gauges):
-            windows = [_plan_usage_window(g) for g in usage.gauges if g.resets_at_ms]
-            if windows:
-                row["usage"] = {"windows": windows}
-    return usage
 
 
-def _plan_usage_window(g) -> dict:
-    """One window-plan allowance in main's ``ProviderUsageWindow`` shape. The label is Hermes's row title
-    (``Today``), like the other providers' English window labels."""
-    from datetime import datetime
-    from agent.usage_gauges import WindowGauge, gauge_title
-    return {
-        "label": gauge_title(WindowGauge(g.label, g.scope, g.title or g.label, 0)),
-        "used_percent": round(g.used_fraction * 100.0, 2),
-        "resets_at": datetime.fromtimestamp(g.resets_at_ms / 1000, UTC).isoformat(),
-        "scope": "account" if g.scope == "all" else "model",
-    }
 
 
 # health: allow CC -- usage-window plans: one branch attaches plan usage to the Nous row (built in _attach_nous_plan_usage); over target on main
@@ -917,27 +876,13 @@ def _apply_pricing(rows: list[dict], *, force_fresh_nous_tier: bool = False, cac
     ``free_tier`` (account is free-tier) and ``unavailable_models`` (paid models a free user can't pick).
     ``cached_only`` never hits the network: unknown Nous entitlement fails closed (``free_tier_pending``,
     all models locked) and missing pricing is marked ``pricing_pending``."""
-    from hermes_cli.models_pricing import (
-        _format_price_per_mtok,
-        compute_sale_discount,
-        get_pricing_for_provider,
-    )
-    from hermes_cli.models import (
-        check_nous_free_tier,
-        get_cached_nous_free_tier,
-        partition_nous_models_by_tier,
-    )
+    from hermes_cli.models_pricing import _format_price_per_mtok, get_pricing_for_provider
 
-    nous_free_tier: Optional[bool] = None  # resolved once (cached in models.py for the TTL window)
 
     for row in rows:
         slug = str(row.get("slug", "")).lower()
         models = row.get("models") or []
         if not models:
-            continue
-        if row.get("free_tier_row"):
-            # The free tier's one model has no Portal pricing and no entitlement to read: pricing
-            # it would lock the only row a free-tier install can select.
             continue
         try:
             pricing_kwargs = {"cached_only": True} if cached_only else {}
@@ -946,24 +891,7 @@ def _apply_pricing(rows: list[dict], *, force_fresh_nous_tier: bool = False, cac
             raw_pricing = get_pricing_for_provider(slug, **pricing_kwargs) or {}
         except Exception:
             raw_pricing = {}
-        cached_nous_tier: Optional[bool] = None
-        plan_usage = _attach_nous_plan_usage(row, warm=not cached_only) if slug == "nous" else None
-        if slug == "nous" and cached_only:
-            cached_nous_tier = get_cached_nous_free_tier()
-            if cached_nous_tier is None:
-                # Entitlement unknown: stay nonblocking but fail closed until the prewarm has populated
-                # both caches, else a free account could briefly select paid models on first open.
-                row["free_tier_pending"] = True
-                row["unavailable_models"] = list(models)
-                if not row.get("warning"):  # say why every model renders locked
-                    row["warning"] = ("Checking Nous plan entitlement… models unlock on the "
-                                      "next picker open or refresh.")
-                continue
         if not raw_pricing:
-            if slug == "nous":
-                row["free_tier"] = bool(cached_nous_tier)
-                row["pricing_pending"] = True
-                row["unavailable_models"] = list(models) if cached_nous_tier else []
             continue
 
         formatted: dict[str, dict] = {}
@@ -982,39 +910,11 @@ def _apply_pricing(rows: list[dict], *, force_fresh_nous_tier: bool = False, cac
             }
             # Sale chrome is Nous Portal-only (other catalogs' nested pricing.original is ignored); free
             # models get flat -100% chrome, was_* only when the gateway served an original.
-            if slug == "nous":
-                sale = compute_sale_discount(inp_raw, out_raw, p.get("original"))
-                if sale is not None:
-                    discount_percent, was_prompt_raw, was_out_raw = sale
-                    entry["discount_percent"] = discount_percent
-                    for key, was_raw in (("was_input", was_prompt_raw), ("was_output", was_out_raw)):
-                        if was_raw != "":
-                            entry[key] = _format_price_per_mtok(was_raw)
             formatted[mid] = entry
 
         if formatted:
             row["pricing"] = formatted
 
-        if slug == "nous":
-            try:
-                if nous_free_tier is None:
-                    nous_free_tier = (cached_nous_tier if cached_only
-                                      else check_nous_free_tier(force_fresh=force_fresh_nous_tier))
-                row["free_tier"] = bool(nous_free_tier)
-                row["unavailable_models"] = (
-                    partition_nous_models_by_tier(list(models), raw_pricing, free_tier=True)[1]
-                    if nous_free_tier else [])
-            except Exception:  # tier detection failed — fail open (no gating)
-                row["free_tier"] = False
-                row["unavailable_models"] = []
-            if plan_usage is not None:
-                from hermes_cli.model_picker_usage import usage_levels
-                # The gateway's per-plan word per model (free / low / medium / top_tier).
-                row["usage_levels"] = usage_levels(list(models), raw_pricing)
-                # Top-tier marks from the gateway (it decides, not the client).
-                row["plan_usage"] = plan_usage.with_pricing({m: raw_pricing.get(m) for m in models}).to_payload()
-                # Window plans: the picker shows the usage word, not per-token prices.
-                row.pop("pricing", None)
 
 
 def _local_runtime_row(ctx: ConfigContext) -> dict | None:

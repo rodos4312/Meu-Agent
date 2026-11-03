@@ -89,9 +89,6 @@ class GatewayDashboardMount:
             web.app.state.listener_public_url = own_url
         elif hasattr(web.app.state, "listener_public_url"):
             delattr(web.app.state, "listener_public_url")
-        if webapp is not None:  # before the gate looks for a sign-in provider
-            from gateway.webapp_listener import use_own_sign_in
-            self._undo_own_sign_in = use_own_sign_in(webapp)
         web._configure_auth_gate(self._state.bound_host, False, None, None)
         web.app.state.gateway_runner = self.runner
         web.app.state.session_authority = getattr(self.runner, "session_authority", None)

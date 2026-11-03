@@ -28,7 +28,7 @@ def catalog(monkeypatch):
     other = "windows" if here != "windows" else "macos"
     entries = [_entry("everywhere", title="Everywhere App"), _entry("not-curated", onboarding=False),
                _entry("here-only", platforms=[here]), _entry("elsewhere", platforms=[other])]
-    monkeypatch.setattr(pc, "load_catalog_live", lambda: entries)
+    monkeypatch.setattr(pc, "load_catalog", lambda: entries)
     manifests = {"everywhere": NEEDS_APP, "here-only": {"name": "here-only"}}
     monkeypatch.setattr(presence_mod, "_pinned_manifest", lambda repo, sha, subdir: manifests.get(repo.rsplit("/", 1)[-1]))
     return entries

@@ -72,85 +72,14 @@ def gateway_home() -> Path:
     return _gateway_home(get_hermes_home())
 
 
-def nous_signed_in() -> bool:
-    """Whether this home holds a Nous account to register sign-in under (a free-tier guest has none).
-    Refresh-free: it reads the auth store and never spends a refresh token."""
-    from hermes_cli.auth_nous import get_nous_auth_status_local
-
-    status = get_nous_auth_status_local()
-    return bool(status.get("logged_in") and not status.get("free_tier"))
 
 
-def _registration(home: Path) -> dict:
-    """*home*'s registration record, or ``{}`` when there is none or it cannot be read."""
-    try:
-        record = json.loads((Path(home) / _REGISTRATION_PATH).read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
-        return {}
-    return record if isinstance(record, dict) else {}
 
 
-def sign_in_client(home) -> Optional[tuple[str, str]]:
-    """``(client_id, portal)`` of the portal client Web Access registered for *home*'s Webapp, or None.
-    A record from an earlier build of Web Access names the dashboard's client, which it registered on
-    then: that is not Web Access's own, so the Webapp keeps the configured client until the next Start
-    registers one."""
-    record = _registration(home)
-    client_id, portal = record.get("client_id"), record.get("portal")
-    if record.get("own_client") is not True or not isinstance(portal, str) or not portal:
-        return None
-    return (client_id, portal) if isinstance(client_id, str) and client_id.startswith("agent:") else None
 
 
-def registered_lan_origin(home: Path, port: int) -> Optional[str]:
-    """``http://<LAN address>:<port>`` when Web Access last registered Nous sign-in for *home*'s
-    Webapp on the LAN at that address and *port*, and the address is still this machine's; else None.
-    Sign-in returns only to the callback the Portal has, so ``hermes webapp`` opens this address."""
-    try:
-        parts = urlsplit(_registration(home)["callback"])
-        recorded_port = parts.port
-    except (ValueError, KeyError, TypeError, AttributeError):
-        return None
-    if (parts.scheme, parts.path, parts.query, parts.fragment) != ("http", "/auth/callback", "", ""):
-        return None
-    if parts.username is not None or recorded_port != port or parts.hostname != lan_address():
-        return None
-    return f"http://{parts.hostname}:{port}"
 
 
-def _register_nous_sign_in(callback_url: str) -> None:
-    """Register Web Access's own portal client with *callback_url*, or update it in place, as
-    ``hermes dashboard register --redirect-uri`` does for the dashboard's. It never sends the
-    dashboard's client id and writes nothing to ``.env``: the Portal may replace a client's redirect
-    URI on every registration. The same callback for the same client and Portal is never posted
-    twice, so a start with nothing changed asks the Portal nothing."""
-    from hermes_cli.auth import resolve_nous_access_token
-    from hermes_cli.dashboard_register import (
-        _generate_dashboard_name,
-        _register_self_hosted_client,
-        _resolve_portal_base_url,
-    )
-    from hermes_constants import get_hermes_home
-    from utils import atomic_write_text
-
-    home = get_hermes_home()
-    portal = _resolve_portal_base_url(os.environ.get("HERMES_DASHBOARD_PORTAL_URL"))
-    own = sign_in_client(home)
-    existing = own[0] if own and own[1] == portal else None
-    if existing and _registration(home).get("callback") == callback_url:
-        return
-    try:
-        result = _register_self_hosted_client(
-            access_token=resolve_nous_access_token(),
-            portal_base_url=portal,
-            name=None if existing else f"webapp_{_generate_dashboard_name()}",
-            custom_redirect_uri=callback_url, existing_client_id=existing)
-    except Exception as exc:
-        raise WebappAccessError(f"Couldn't register Nous sign-in: {exc}") from exc
-    path = home / _REGISTRATION_PATH
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    record = {"own_client": True, "portal": portal, "client_id": str(result["client_id"]), "callback": callback_url}
-    atomic_write_text(path, json.dumps(record) + "\n", mode=0o600)
 
 
 def plan(mode: str, public_url: Optional[str] = None) -> tuple[str, Optional[int], str, str]:
@@ -159,8 +88,8 @@ def plan(mode: str, public_url: Optional[str] = None) -> tuple[str, Optional[int
     pin for :func:`serve`, and the sign-in callback for :func:`register`. Changes nothing but the port
     claim of a standalone profile that has none (:func:`_port_to_serve`), so Start runs it, in the
     config write scope, before any slow or lasting step. A refusal before that claim writes nothing."""
-    if not nous_signed_in():
-        raise WebappAccessError("Sign in to your Nous account under Providers first.")
+    if not _has_sign_in_provider():
+        raise WebappAccessError("Configure a dashboard sign-in provider before enabling remote access.")
     if mode == "lan":
         address = lan_address()
         if address is None:
@@ -174,8 +103,8 @@ def plan(mode: str, public_url: Optional[str] = None) -> tuple[str, Optional[int
         port = _port_to_serve(gateway_home(), host)[1]
     else:
         raise WebappAccessError(f"Unknown access mode {mode!r}.")
-    if not nous_signed_in():
-        raise WebappAccessError("Sign in to your Nous account under Providers first.")
+    if not _has_sign_in_provider():
+        raise WebappAccessError("Configure a dashboard sign-in provider before enabling remote access.")
     return host, port, pinned, f"{url}/auth/callback"
 
 
@@ -307,11 +236,6 @@ def build_bundle() -> None:
             f"{str(exc).rstrip('.')}. Run hermes webapp --build-only to see the full output, then start again.") from exc
 
 
-def register(callback_url: str) -> None:
-    """Register Nous sign-in for *callback_url* on Web Access's own portal client, unless it already
-    carries that callback on this Portal, so the callback follows a changed LAN address or URL.
-    Writes no config: it waits on the portal, so callers do it before taking the config lock."""
-    _register_nous_sign_in(callback_url)
 
 
 def serve(host: str, public_url: str, port: Optional[int] = None) -> None:
@@ -388,5 +312,10 @@ def access_status() -> dict:
         "gateway": _gateway_state(home),
         "lan_address": lan_address(),
         "public_url": settings.public_url,
-        "nous_signed_in": nous_signed_in(),
+        "auth_configured": _has_sign_in_provider(),
     }
+
+
+def _has_sign_in_provider() -> bool:
+    from hermes_cli.dashboard_auth import list_interactive_providers
+    return bool(list_interactive_providers())

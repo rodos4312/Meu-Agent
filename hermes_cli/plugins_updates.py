@@ -154,7 +154,7 @@ def check_provenanced(
     catalog: dict = catalog_value if isinstance(catalog_value, dict) else {}
     catalog_name = catalog.get("name") or row.get("catalog_name")
     if catalog_name:
-        from hermes_cli.plugin_catalog import find_removed, get_live_catalog_entry
+        from hermes_cli.plugin_catalog import find_removed, get_catalog_entry
 
         result = CheckResult(name=prov.name, klass="catalog", current=row.get("revision"))
         removed = None if row.get("allow_removed") is True else (
@@ -164,7 +164,7 @@ def check_provenanced(
         if removed:
             result.reason = f"removed from catalog: {removed.reason}"
             return result
-        entry = get_live_catalog_entry(str(catalog_name))
+        entry = get_catalog_entry(str(catalog_name))
         if entry is None:
             result.reason = "catalog entry is unavailable; installed pin retained"
             return result

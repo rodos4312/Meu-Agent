@@ -21,7 +21,7 @@ export interface WebAccessTranslations {
   restartNeeded: string
   unavailable: string
   notRunningDetail: string
-  needsNous: string
+  needsSignIn: string
   runningLan: string
   runningPublic: string
   runningLocal: string

@@ -28,7 +28,7 @@ def _plugin_server_rows(
     # The server sentence's app name: the curated catalog title when the package is a catalog
     # install, else the manifest name, else the server slug the declaration carries — a raw
     # slug reads like an error code (#119975). *catalog_titles* is pre-resolved by the caller
-    # (one live-catalog resolution per listing): a per-plugin ``get_live_catalog_entry`` would
+    # (one live-catalog resolution per listing): a per-plugin ``get_catalog_entry`` would
     # re-resolve the whole catalog once per installed plugin.
     display_name = str(package.manifest.get("name") or "") or None
     sidecar = _tools_mod("hermes_cli.plugins_cmd_catalog").catalog_install_record(plugin_dir)

@@ -457,15 +457,8 @@ def auth_priority_command(args) -> None:
     _report_priority(provider, pool, moved, requested, "Set", "to")
 
 
-def _free_tier_lines() -> tuple[str, str]:
-    """The two-line free-tier rendering shared by every auth display surface (R-USR-1)."""
-    from hermes_cli.anon_auth import FREE_TIER_LABEL, GUEST_MODEL, UPGRADE_HINT
-    return f"{FREE_TIER_LABEL} · {GUEST_MODEL}", UPGRADE_HINT
 
 
-def _is_free_tier_entry(entry) -> bool:
-    from hermes_cli.anon_auth import is_guest_state
-    return is_guest_state(getattr(entry, "extra", None))
 
 
 def auth_list_command(args) -> None:
@@ -484,13 +477,6 @@ def auth_list_command(args) -> None:
         if not entries:
             continue
         current = pool.peek()
-        if provider == "nous" and all(_is_free_tier_entry(e) for e in entries):
-            # The free tier is not a credential the user added; never list it as one.
-            label, hint = _free_tier_lines()
-            print(f"{provider}: {label}")
-            print(f"  {hint}")
-            print()
-            continue
         print(f"{provider} ({len(entries)} credentials):")
         for idx, entry in enumerate(entries, start=1):
             marker = "← " if current is not None and entry.id == current.id else "  "
@@ -633,7 +619,7 @@ def _moved_auth_hint(action: str, provider: str) -> str:
 def auth_status_command(args) -> None:
     provider = _normalize_provider(getattr(args, "provider", "") or "")
     if not provider:
-        raise SystemExit("Provider is required. Example: `hermes auth status nous`.")
+        raise SystemExit("Provider is required. Example: `hermes auth status openai-codex`.")
     if dispatch_plugin_auth("status", args, provider):
         return
     if moved := _moved_auth_hint("status", provider):
@@ -642,12 +628,6 @@ def auth_status_command(args) -> None:
         load_pool(provider)  # runs the forked-grant heal first so the report reflects the consolidated grant
     status = auth_mod.get_auth_status(provider)
     _print_oauth_heal_notices()
-    if status.get("free_tier"):
-        # Free tier: not an account login, so no account fields; point at the upgrade path.
-        label, hint = _free_tier_lines()
-        print(f"{provider}: {label}")
-        print(f"  {hint}")
-        return
     if not status.get("logged_in"):
         reason = status.get("error")
         print(f"{provider}: logged out" + (f" ({reason})" if reason else ""))
@@ -659,11 +639,6 @@ def auth_status_command(args) -> None:
         value = status.get(key)
         if value:
             print(f"  {key}: {value}")
-    if provider == "nous":
-        from hermes_cli.guest_handoff import drain, handoff_status, status_lines
-        drain()   # a move left retrying gets its next try now
-        for line in status_lines(handoff_status()):
-            print(f"  {line}")
 
 
 def auth_logout_command(args) -> None:

@@ -13,6 +13,11 @@ on:
       - 'web/**'
       - 'locales/**'
       - 'tools/**'
+      - 'pm/**'
+      - 'tests/pm/test_artifact_mirror.py'
+      - 'tests/tools/test_mcp_cimd.py'
+      - 'tests/hermes_cli/test_meu_independent_identity.py'
+      - 'tests/scripts/test_bootstrap_mirror.py'
       - 'scripts/install.ps1'
       - 'agent/**'
       - 'providers/**'
@@ -156,6 +161,10 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
+          tests/hermes_cli/test_meu_independent_identity.py
+          tests/tools/test_mcp_cimd.py
+          tests/pm/test_artifact_mirror.py
+          tests/scripts/test_bootstrap_mirror.py
           tests/tools/test_meu_direct_modal.py
           tests/tools/test_meu_direct_browser.py
           tests/tools/test_meu_independent_connections.py
@@ -185,12 +194,10 @@ jobs:
           tests/tui_gateway/test_meu_removed_payments.py
           tests/agent/test_account_usage_fetch.py
           tests/agent/test_billing_links.py
-          tests/agent/test_credits_usage_window.py
           tests/tui_gateway/test_session_usage_account_lines.py
           tests/tui_gateway/test_meu_retired_free_tier.py
           tests/tui_gateway/test_legacy_fallback_ticket_profile_verbs.py
           tests/hermes_cli/test_webapp_socket_profile_scope.py
-          tests/hermes_cli/test_guest_handoff.py
           tests/gateway/test_usage_command.py
           tests/hermes_cli/test_provider_catalog.py
           tests/providers/test_provider_profiles.py
@@ -242,6 +249,15 @@ jobs:
           tests/agent/test_secret_scope.py
           tests/tools/test_approval_mode_parity.py
           tests/tools/test_computer_use_approval_isolation.py
+          -- --override-ini=addopts= -q
+      - name: Verify independent catalogs and source update recovery
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-timeout 900 --file-retries 0
+          tests/hermes_cli/test_model_catalog.py
+          tests/hermes_cli/test_source_release_channels.py
+          tests/hermes_cli/test_update_target_identity.py
+          tests/tools/test_plugin_guard.py
           -- --override-ini=addopts= -q
       - name: Verify gateway usage counters
         shell: bash
@@ -377,6 +393,19 @@ jobs:
           src/app/capabilities/connectors/data/persist.test.ts
           src/components/assistant-ui/connector-directory-card.test.tsx
           src/lib/connector-tools.test.ts
+      - name: Verify local catalogs without hosted Nous pages
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project ui --maxWorkers 2
+          src/plugins/hermes-bots/skills-hub-picker.test.tsx
+          src/lib/plugin-catalog.test.ts
+          src/store/plugin-catalog-install.test.ts
+          src/app/capabilities/catalog/catalog-data.test.ts
+          src/app/settings/web-access-settings.test.tsx
+          src/app/messaging/index.test.tsx
+      - name: Verify desktop policy after removing the hosted hub
+        working-directory: apps/desktop
+        run: npx vitest run --project electron --maxWorkers 2 electron/window-open-policy.test.ts electron/remote-lifecycle.test.ts electron/update-stop-remedy.test.ts
       - name: Verify model credentials and Auto behavior
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts

@@ -5081,7 +5081,7 @@ class SlackAdapter(BasePlatformAdapter):
         provider = next((p for p in providers if p["slug"] == provider_slug), None)
         pname = provider.get("name", provider_slug) if provider else provider_slug
         models = (provider or {}).get("models", [])[:100]
-        from hermes_cli.model_picker_usage import picker_row_suffix
+        from hermes_cli.model_picker_labels import picker_row_suffix
         options = []
         for idx, model_id in enumerate(models):
             short = model_id.split("/")[-1] if "/" in model_id else model_id
@@ -6859,7 +6859,7 @@ def interactive_setup() -> None:
     for line in _SETUP_STEPS:
         print_info(line)
     print()
-    print_info("   Full guide: https://hermes-agent.nousresearch.com/docs/user-guide/messaging/slack/")
+    print_info("   Full guide: https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/user-guide/messaging/slack.md")
     print()
     # Write the manifest up-front for the "Create from manifest" flow.
     _write_slack_manifest_and_instruct()

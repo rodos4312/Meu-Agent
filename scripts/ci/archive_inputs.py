@@ -16,13 +16,18 @@ from urllib.parse import quote, urlsplit
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from pm.artifact_mirror import object_key
 from pm.downloader import Download, DownloadError, DownloadTransportError, Source
 from pm.lock import SCHEMA
 from pm.store import ALL_TARGETS, Store
 from scripts.releases import r2
 
 TERMUX_TARGET = "linux-arm64-bionic"
+
+
+def object_key(sha256: str) -> str:
+    if not isinstance(sha256, str) or not re.fullmatch(r"[a-f0-9]{64}", sha256):
+        raise ValueError("A pinned input requires a full lowercase SHA256")
+    return "upstream/sha256/" + sha256
 
 
 @dataclass(frozen=True)

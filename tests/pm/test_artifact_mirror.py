@@ -1,4 +1,4 @@
-"""PM installation and cross-target staging consume the public pinned mirror."""
+"""PM installation and cross-target staging use direct pinned sources without a hosted fallback."""
 import hashlib
 import importlib
 import io
@@ -11,12 +11,13 @@ from pm import paths
 from pm.lock import Facts, Lockfile
 from pm.package import Package
 from pm.store import Store, current_target
-from tests.pm._range_server import RangeHandler, dl_server, url
+from tests.pm._range_server import RangeHandler, url
+from tests.pm._range_server import dl_server as _download_server
+dl_server = _download_server
 
 
 @pytest.mark.parametrize("mode", ["install", "stage", "library"])
-def test_cold_consumers_recover_after_upstream_removal(tmp_path, dl_server, monkeypatch, mode):
-    from pm import artifact_mirror
+def test_cold_consumers_do_not_contact_a_hosted_mirror(tmp_path, dl_server, monkeypatch, mode):
 
     engine = importlib.import_module("pm.install")
     data = io.BytesIO()
@@ -29,9 +30,9 @@ def test_cold_consumers_recover_after_upstream_removal(tmp_path, dl_server, monk
         _build_deb(deb, "libmirror.so", b"pinned and preserved")
         body = deb.read_bytes()
     digest = hashlib.sha256(body).hexdigest()
-    monkeypatch.setattr(artifact_mirror, "PUBLIC_PREFIX", url(dl_server, "/archive/"))
     RangeHandler.payloads["/archive/" + digest] = body
-    row = {"url": url(dl_server, "/removed.zip"), "sha256": digest}
+    RangeHandler.payloads["/upstream.zip"] = body
+    row = {"url": url(dl_server, "/upstream.zip"), "sha256": digest}
     monkeypatch.setattr(paths, "partials_root", lambda: tmp_path / "partials")
     if mode == "library":
         from scripts.termux.stage_runtime_libs import stage
@@ -53,7 +54,8 @@ def test_cold_consumers_recover_after_upstream_removal(tmp_path, dl_server, monk
             monkeypatch.setattr(engine, "get_package", lambda _: package)
             result = engine.stage_only(package.name, "linux-arm64-bionic")
         assert (result / "tool.txt").read_bytes() == b"pinned and preserved"
-    assert any(path == "/archive/" + digest for path, *_ in RangeHandler.ranges_seen)
+    assert not any(path.startswith("/archive/") for path, *_ in RangeHandler.ranges_seen)
+    assert any(path == "/upstream.zip" for path, *_ in RangeHandler.ranges_seen)
 
 
 def test_npm_artifacts_follow_the_users_npm_registry(tmp_path, monkeypatch):

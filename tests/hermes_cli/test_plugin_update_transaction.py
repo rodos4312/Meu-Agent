@@ -60,7 +60,6 @@ def installed(admission_env, monkeypatch, request):
         return plugin_catalog.PluginCatalogEntry(
             name="transactional", repo=repo.as_uri(), sha=state["sha"], description="fixture", maintainer="fixture")
 
-    monkeypatch.setattr(plugin_catalog, "fetch_live_catalog", lambda **kwargs: None)
     monkeypatch.setattr(plugin_catalog, "load_catalog", lambda catalog_dir=None: [entry()])
     monkeypatch.setattr(plugin_catalog, "load_removed_list", lambda catalog_dir=None: [])
     monkeypatch.setattr(plugins_cmd, "_scan_on_install_enabled", lambda: False)

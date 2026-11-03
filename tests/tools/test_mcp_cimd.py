@@ -30,7 +30,6 @@ pytest.importorskip(
 
 from tools.mcp_oauth import (
     HermesTokenStorage,
-    _CIMD_CLIENT_METADATA_URL,
     _CIMD_PORTS,
     _CIMD_REDIRECT_HOSTS,
     _build_client_metadata,
@@ -39,18 +38,23 @@ from tools.mcp_oauth import (
     _maybe_use_cimd,
 )
 
+_TEST_METADATA_URL = "https://client.example/oauth/metadata.json"
+
 _DOCUMENT_PATH = (
     Path(__file__).resolve().parents[2]
     / "website" / "static" / "oauth" / "client-metadata.json"
 )
 
 def _document() -> dict:
-    return json.loads(_DOCUMENT_PATH.read_text())
+    document = json.loads(_DOCUMENT_PATH.read_text())
+    document["client_id"] = _TEST_METADATA_URL
+    return document
 
 def _set_interactive_stdin(monkeypatch, *, is_tty: bool = True) -> None:
     mock_stdin = MagicMock()
     mock_stdin.isatty.return_value = is_tty
     monkeypatch.setattr("tools.mcp_oauth.sys.stdin", mock_stdin)
+    monkeypatch.setattr("tools.mcp_oauth._stdin_is_console", lambda: is_tty)
 
 @pytest.fixture(autouse=True)
 def clean_port_state():
@@ -85,7 +89,7 @@ def private_ports(monkeypatch):
 
 def test_document_client_id_is_the_url_hermes_sends():
     """A CIMD document is only valid when its client_id is its own URL."""
-    assert _document()["client_id"] == _CIMD_CLIENT_METADATA_URL
+    assert _document()["client_id"] == _TEST_METADATA_URL
 
 def test_document_declares_every_callback_hermes_can_build(tmp_path, monkeypatch):
     """Every loopback URI a CIMD flow could produce must be registered.
@@ -108,7 +112,7 @@ def test_document_url_passes_the_sdk_validator():
     """The SDK's constructor rejects a URL that fails this check."""
     from mcp.client.auth.utils import is_valid_client_metadata_url
 
-    assert is_valid_client_metadata_url(_CIMD_CLIENT_METADATA_URL)
+    assert is_valid_client_metadata_url(_TEST_METADATA_URL)
 
 def test_document_advertises_a_public_native_client():
     """Loopback redirects need application_type=native (SEP-837), and CIMD
@@ -127,7 +131,7 @@ def test_document_carries_no_shared_secret():
 
 def test_default_document_url_is_a_valid_client_identifier():
     """Section 3 constrains the URL beyond the SDK's https + path check."""
-    assert _is_valid_cimd_url(_CIMD_CLIENT_METADATA_URL)
+    assert _is_valid_cimd_url(_TEST_METADATA_URL)
 
 @pytest.mark.parametrize("url", [
     pytest.param("http://example.com/cimd.json", id="not-https"),
@@ -153,12 +157,12 @@ def test_generated_redirect_uri_is_registered_in_the_document(tmp_path, monkeypa
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     cfg: dict = {}
 
-    _configure_callback_port(cfg, HermesTokenStorage("srv"))
+    _configure_callback_port(_with_document(cfg), HermesTokenStorage("srv"))
     if "_cimd_url" not in cfg:
         pytest.skip("every pinned CIMD port is held by another process")
     metadata = _build_client_metadata(cfg)
 
-    assert cfg["_cimd_url"] == _CIMD_CLIENT_METADATA_URL
+    assert cfg["_cimd_url"] == _TEST_METADATA_URL
     assert cfg["_resolved_port"] in _CIMD_PORTS
     assert str(metadata.redirect_uris[0]) in set(_document()["redirect_uris"])
 
@@ -169,11 +173,11 @@ def test_generated_redirect_uri_is_registered_in_the_document(tmp_path, monkeypa
 def test_eligible_flow_gets_a_pinned_port(tmp_path, monkeypatch, private_ports):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
-    result = _maybe_use_cimd({}, HermesTokenStorage("srv"))
+    result = _maybe_use_cimd(_with_document({}), HermesTokenStorage("srv"))
 
     assert result is not None
     url, port = result
-    assert url == _CIMD_CLIENT_METADATA_URL
+    assert url == _TEST_METADATA_URL
     assert port in private_ports
 
 def test_pinned_port_is_held_until_the_callback_adopts_it(
@@ -186,7 +190,7 @@ def test_pinned_port_is_held_until_the_callback_adopts_it(
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
-    result = _maybe_use_cimd({}, HermesTokenStorage("srv"))
+    result = _maybe_use_cimd(_with_document({}), HermesTokenStorage("srv"))
     assert result is not None
     port = result[1]
 
@@ -211,7 +215,7 @@ def test_pinned_socket_survives_the_ephemeral_eviction_cap(
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
-    result = _maybe_use_cimd({}, HermesTokenStorage("srv"))
+    result = _maybe_use_cimd(_with_document({}), HermesTokenStorage("srv"))
     assert result is not None
     pinned = result[1]
 
@@ -235,7 +239,7 @@ def test_concurrent_servers_get_different_pinned_ports(
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
     ports = {
-        _maybe_use_cimd({}, HermesTokenStorage(f"srv-{i}"))[1]
+        _maybe_use_cimd(_with_document({}), HermesTokenStorage(f"srv-{i}"))[1]
         for i in range(len(private_ports))
     }
 
@@ -254,7 +258,7 @@ def test_occupied_port_moves_to_the_next_in_the_range(
         pytest.skip(f"could not occupy port {private_ports[0]}")
 
     try:
-        result = _maybe_use_cimd({}, HermesTokenStorage("srv"))
+        result = _maybe_use_cimd(_with_document({}), HermesTokenStorage("srv"))
     finally:
         squatter.close()
 
@@ -267,7 +271,7 @@ def test_self_hosted_document_url_overrides_the_default(
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     cfg = {"client_metadata_url": "https://example.com/my-cimd.json"}
 
-    result = _maybe_use_cimd(cfg, HermesTokenStorage("srv"))
+    result = _maybe_use_cimd(_with_document(cfg), HermesTokenStorage("srv"))
 
     assert result is not None
     assert result[0] == "https://example.com/my-cimd.json"
@@ -299,7 +303,7 @@ def test_config_that_conflicts_with_the_document_falls_back_to_dcr(
     present."""
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
-    assert _maybe_use_cimd(dict(cfg), HermesTokenStorage("srv")) is None
+    assert _maybe_use_cimd(_with_document(dict(cfg)), HermesTokenStorage("srv")) is None
 
 def test_dashboard_flow_falls_back_to_dcr(tmp_path, monkeypatch, private_ports):
     """The dashboard redirects to its own public URL, which no static
@@ -317,7 +321,7 @@ def test_dashboard_flow_falls_back_to_dcr(tmp_path, monkeypatch, private_ports):
 
     cfg: dict = {}
     with dashboard_oauth_flow(flow):
-        _configure_callback_port(cfg, HermesTokenStorage("srv"))
+        _configure_callback_port(_with_document(cfg), HermesTokenStorage("srv"))
 
     assert "_cimd_url" not in cfg
     assert cfg["redirect_uri"] == flow.redirect_uri
@@ -330,7 +334,7 @@ def test_existing_registration_falls_back_to_dcr(tmp_path, monkeypatch, private_
     storage._client_info_path().parent.mkdir(parents=True, exist_ok=True)
     storage._client_info_path().write_text('{"client_id": "dcr-issued"}')
 
-    assert _maybe_use_cimd({}, storage) is None
+    assert _maybe_use_cimd(_with_document({}), storage) is None
 
 def test_exhausted_port_range_falls_back_to_dcr(tmp_path, monkeypatch, private_ports):
     """With every pinned port held elsewhere, the flow reverts to an
@@ -349,7 +353,7 @@ def test_exhausted_port_range_falls_back_to_dcr(tmp_path, monkeypatch, private_p
 
     try:
         cfg: dict = {}
-        port = _configure_callback_port(cfg, HermesTokenStorage("srv"))
+        port = _configure_callback_port(_with_document(cfg), HermesTokenStorage("srv"))
     finally:
         for sock in squatters:
             sock.close()
@@ -367,12 +371,12 @@ def test_more_servers_than_pinned_ports_all_get_cimd(
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
     results = [
-        _maybe_use_cimd({}, HermesTokenStorage(f"srv-{i}"))
+        _maybe_use_cimd(_with_document({}), HermesTokenStorage(f"srv-{i}"))
         for i in range(len(private_ports) + 3)
     ]
 
     assert all(r is not None for r in results)
-    assert {r[0] for r in results} == {_CIMD_CLIENT_METADATA_URL}
+    assert {r[0] for r in results} == {_TEST_METADATA_URL}
 
 # ---------------------------------------------------------------------------
 # Only pin a port for servers that might actually want a document
@@ -405,7 +409,7 @@ def test_cached_metadata_decides_whether_to_pin(
     _cache_server_metadata(storage, supports_cimd=supports_cimd)
 
     cfg: dict = {}
-    port = _configure_callback_port(cfg, storage)
+    port = _configure_callback_port(_with_document(cfg), storage)
 
     assert (cfg.get("_cimd_url") is not None) is expect_pinned
     assert (port in private_ports) is expect_pinned
@@ -416,9 +420,9 @@ def test_unknown_server_still_gets_a_document(tmp_path, monkeypatch, private_por
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
     cfg: dict = {}
-    _configure_callback_port(cfg, HermesTokenStorage("srv"))
+    _configure_callback_port(_with_document(cfg), HermesTokenStorage("srv"))
 
-    assert cfg["_cimd_url"] == _CIMD_CLIENT_METADATA_URL
+    assert cfg["_cimd_url"] == _TEST_METADATA_URL
 
 def test_cached_pinned_port_is_not_handed_to_a_sibling_server(
     tmp_path, monkeypatch, private_ports
@@ -430,12 +434,12 @@ def test_cached_pinned_port_is_not_handed_to_a_sibling_server(
     settled = HermesTokenStorage("settled")
     settled._client_info_path().parent.mkdir(parents=True, exist_ok=True)
     settled._client_info_path().write_text(json.dumps({
-        "client_id": _CIMD_CLIENT_METADATA_URL,
+        "client_id": _TEST_METADATA_URL,
         "redirect_uris": [f"http://127.0.0.1:{private_ports[0]}/callback"],
     }))
 
-    restored = _configure_callback_port({}, settled)
-    fresh = _maybe_use_cimd({}, HermesTokenStorage("fresh"))
+    restored = _configure_callback_port(_with_document({}), settled)
+    fresh = _maybe_use_cimd(_with_document({}), HermesTokenStorage("fresh"))
 
     assert restored == private_ports[0]
     assert fresh is not None
@@ -452,16 +456,16 @@ def test_build_oauth_auth_forwards_the_document_url(
     _set_interactive_stdin(monkeypatch)
     from tools.mcp_oauth import build_oauth_auth
 
-    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", {})
+    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", _with_document({}))
 
-    assert provider.context.client_metadata_url == _CIMD_CLIENT_METADATA_URL
+    assert provider.context.client_metadata_url == _TEST_METADATA_URL
 
 def test_build_oauth_auth_omits_the_url_when_disabled(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     _set_interactive_stdin(monkeypatch)
     from tools.mcp_oauth import build_oauth_auth
 
-    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", {"cimd": False})
+    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", _with_document({"cimd": False}))
 
     assert provider.context.client_metadata_url is None
 
@@ -490,7 +494,7 @@ def test_sdk_chooses_cimd_only_when_the_server_advertises_it(
     from mcp.client.auth.utils import should_use_client_metadata_url
     from tools.mcp_oauth import build_oauth_auth
 
-    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", {})
+    provider = build_oauth_auth("srv", "https://mcp.example.com/mcp", _with_document({}))
     server_metadata = SimpleNamespace(client_id_metadata_document_supported=advertised)
 
     chosen = should_use_client_metadata_url(
@@ -507,10 +511,10 @@ def test_manager_forwards_the_document_url(tmp_path, monkeypatch, private_ports)
 
     reset_manager_for_tests()
     provider = MCPOAuthManager().get_or_build_provider(
-        "srv", "https://mcp.example.com/mcp", {}
+        "srv", "https://mcp.example.com/mcp", _with_document({})
     )
 
-    assert provider.context.client_metadata_url == _CIMD_CLIENT_METADATA_URL
+    assert provider.context.client_metadata_url == _TEST_METADATA_URL
 
 # ---------------------------------------------------------------------------
 # Rejection fallback
@@ -536,7 +540,7 @@ def _provider_rejected_at_token_endpoint(tmp_path, monkeypatch, client_id):
     token_endpoint = "https://idp.example.com/oauth/token"
 
     provider = MCPOAuthManager().get_or_build_provider(
-        "srv", "https://mcp.example.com", {}
+        "srv", "https://mcp.example.com", _with_document({})
     )
     provider.context.oauth_metadata = SimpleNamespace(token_endpoint=token_endpoint)
     provider.context.client_info = SimpleNamespace(client_id=client_id)
@@ -553,7 +557,7 @@ def test_rejected_document_stops_being_presented(tmp_path, monkeypatch, private_
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
     provider = _provider_rejected_at_token_endpoint(
-        tmp_path, monkeypatch, _CIMD_CLIENT_METADATA_URL
+        tmp_path, monkeypatch, _TEST_METADATA_URL
     )
 
     assert provider.context.client_metadata_url is None
@@ -568,12 +572,12 @@ def test_rejected_document_stays_rejected_after_a_restart(
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
     _provider_rejected_at_token_endpoint(
-        tmp_path, monkeypatch, _CIMD_CLIENT_METADATA_URL
+        tmp_path, monkeypatch, _TEST_METADATA_URL
     )
     storage = HermesTokenStorage("srv")
 
     assert storage.cimd_rejected()
-    assert _maybe_use_cimd({}, storage) is None
+    assert _maybe_use_cimd(_with_document({}), storage) is None
 
 def test_reauthorizing_clears_the_rejection(tmp_path, monkeypatch, private_ports):
     """`hermes mcp login` wipes stored state, so a fixed document is retried."""
@@ -584,7 +588,7 @@ def test_reauthorizing_clears_the_rejection(tmp_path, monkeypatch, private_ports
     storage.remove()
 
     assert not storage.cimd_rejected()
-    assert _maybe_use_cimd({}, storage) is not None
+    assert _maybe_use_cimd(_with_document({}), storage) is not None
 
 def test_rejected_dcr_client_leaves_cimd_available(
     tmp_path, monkeypatch, private_ports
@@ -596,7 +600,7 @@ def test_rejected_dcr_client_leaves_cimd_available(
         tmp_path, monkeypatch, "dcr-issued-id"
     )
 
-    assert provider.context.client_metadata_url == _CIMD_CLIENT_METADATA_URL
+    assert provider.context.client_metadata_url == _TEST_METADATA_URL
     assert not HermesTokenStorage("srv").cimd_rejected()
 
 # ---------------------------------------------------------------------------
@@ -624,7 +628,17 @@ def test_timeout_on_a_cimd_flow_names_the_document_and_the_escape_hatch(monkeypa
     """A server that can't validate the document aborts at the authorization
     endpoint (draft section 5.1), so no redirect ever arrives and the only
     symptom Hermes sees is the callback timing out."""
-    message = _timed_out_waiter_message(monkeypatch, _CIMD_CLIENT_METADATA_URL)
+    message = _timed_out_waiter_message(monkeypatch, _TEST_METADATA_URL)
 
-    assert _CIMD_CLIENT_METADATA_URL in message
+    assert _TEST_METADATA_URL in message
     assert "cimd: false" in message
+
+
+def _with_document(cfg):
+    cfg.setdefault("client_metadata_url", _TEST_METADATA_URL)
+    return cfg
+
+
+def test_unconfigured_client_uses_registration_without_a_vendor_document(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    assert _maybe_use_cimd({}, HermesTokenStorage("unconfigured")) is None

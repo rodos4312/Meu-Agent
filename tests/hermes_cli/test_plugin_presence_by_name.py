@@ -42,7 +42,7 @@ def catalog(monkeypatch):
         _entry("broken", title="Broken"),
         _entry("elsewhere", platforms=[other]),
     ]
-    monkeypatch.setattr(pc, "load_catalog_live", lambda: entries)
+    monkeypatch.setattr(pc, "load_catalog", lambda: entries)
     monkeypatch.setattr(presence_mod, "_manifests", {})
     # Every fetch waits for the other two: a serial reader would break the barrier and read nothing.
     barrier = threading.Barrier(3, timeout=5)

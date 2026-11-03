@@ -20,7 +20,7 @@ from typing import Any, Dict, List, NamedTuple, Optional
 
 from hermes_cli.plugin_catalog import (
     CATALOG_TIERS, PluginCatalogEntry, RemovedEntry, cached_removed_entries, entry_capability_summary, filter_entries,
-    find_removed, get_live_catalog_entry, load_catalog_live, match_removed, resolved_removed_entries,
+    find_removed, get_catalog_entry, load_catalog, match_removed, resolved_removed_entries,
     _NAME_RE, _normalize_repo,
 )
 from pm.filesystem import is_junction
@@ -55,7 +55,7 @@ def raise_if_removed(*candidates: str) -> None:
 def resolve_catalog_name(identifier: str, console) -> PluginCatalogEntry:
     """Bare name → live catalog entry, or exit 1 with a pointer to ``search``."""
     from hermes_cli.plugins_cmd import _fail
-    entry = get_live_catalog_entry(identifier)
+    entry = get_catalog_entry(identifier)
     if entry is None:
         _fail(console, (
             f"[red]Error:[/red] '{identifier}' is not in the Hermes plugin catalog and is not a Git URL or "
@@ -129,7 +129,7 @@ def _adopt_legacy_sidecar(plugin_dir: Path, record: dict) -> Optional[dict]:
     if not isinstance(data, dict) or not data.get("catalog_name"):
         return None
     sha = str(data.get("sha") or "").lower()
-    entry = get_live_catalog_entry(str(data["catalog_name"]))
+    entry = get_catalog_entry(str(data["catalog_name"]))
     if entry is None or record.get("pinned") is not True or record.get("revision") != sha:
         return None
     source = str(record.get("source") or "").split("#", 1)[0]
@@ -146,7 +146,7 @@ _HANDOFF_REPOS = {"github.com/nousresearch/hermes-plugin-holographic": "holograp
 
 def _adopt_handoff_install(plugin_dir: Path, record: dict) -> Optional[dict]:
     source = str(record.get("source") or "").split("#", 1)[0]
-    entry = get_live_catalog_entry(_HANDOFF_REPOS.get(_normalize_repo(source), ""))
+    entry = get_catalog_entry(_HANDOFF_REPOS.get(_normalize_repo(source), ""))
     if entry is None:
         return None
     sha = str(record.get("revision") or "").lower()
@@ -660,7 +660,7 @@ def repin_catalog_plugin(
     )
 
     catalog_name = str(sidecar["catalog_name"])
-    entry = get_live_catalog_entry(catalog_name)
+    entry = get_catalog_entry(catalog_name)
     if entry is None:
         raise PluginOperationError(
             f"Plugin '{catalog_name}' is no longer in the catalog — it may have been removed. "
@@ -824,7 +824,7 @@ def _render_entries(entries: list[PluginCatalogEntry], console) -> None:
 def cmd_search(term: str = "", *, json_output: bool = False) -> None:
     """Search the curated catalog (name/description/declared tools); empty term = browse everything."""
     from hermes_cli.plugins_cmd import _console
-    matches = filter_entries(load_catalog_live(), term)
+    matches = filter_entries(load_catalog(), term)
     if json_output:
         print(json.dumps({"query": term, "results": [
             {**e.to_dict(), "needs_newer_hermes": catalog_hermes_error(e)} for e in matches]}, indent=2))
@@ -840,7 +840,7 @@ def cmd_search(term: str = "", *, json_output: bool = False) -> None:
 def cmd_info(name: str) -> None:
     """Full catalog entry for *name*; falls back to installed-plugin details for non-catalog names."""
     from hermes_cli.plugins_cmd import _console, cmd_show
-    entry = get_live_catalog_entry(name)
+    entry = get_catalog_entry(name)
     if entry is None:
         cmd_show(name)
         return
@@ -932,7 +932,7 @@ def installed_catalog_state(installed: dict[str, dict[str, Any]]) -> dict[str, A
         if sidecar:
             by_catalog_name[str(sidecar["catalog_name"])] = {**local, "sidecar": sidecar}
     entries = []
-    for entry in load_catalog_live():
+    for entry in load_catalog():
         local = by_catalog_name.get(entry.name) or installed.get(entry.name)
         sidecar = local.get("sidecar") if local else None
         installed_sha = str(sidecar["sha"]) if sidecar and sidecar.get("sha") else None
@@ -973,7 +973,7 @@ def catalog_row_fields(dir_path, pins: dict[str, str], versions: Optional[dict[s
 def catalog_pins() -> dict[str, str]:
     """``{catalog_name: pinned_sha}`` from the live catalog; empty on failure (best effort)."""
     try:
-        return {e.name: e.sha for e in load_catalog_live()}
+        return {e.name: e.sha for e in load_catalog()}
     except Exception:
         return {}
 
@@ -983,7 +983,7 @@ def catalog_titles() -> dict[str, str]:
     name. One resolution for a whole listing: callers that annotate every installed plugin must not
     pay a live-catalog fetch per candidate (see ``resolved_removed_entries``); empty on failure."""
     try:
-        return {e.name: e.title for e in load_catalog_live() if e.title}
+        return {e.name: e.title for e in load_catalog() if e.title}
     except Exception:
         return {}
 
@@ -991,7 +991,7 @@ def catalog_titles() -> dict[str, str]:
 def catalog_versions() -> dict[str, str]:
     """``{catalog_name: version_label}`` for entries that carry one; empty on failure (best effort)."""
     try:
-        return {e.name: e.version for e in load_catalog_live() if e.version}
+        return {e.name: e.version for e in load_catalog() if e.version}
     except Exception:
         return {}
 
@@ -999,11 +999,11 @@ def catalog_versions() -> dict[str, str]:
 def catalog_rows_maps() -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
     """The pins/versions/titles maps from ONE live-catalog resolution. Listing callers (``_plugin_rows``)
     need all three; taking them via :func:`catalog_pins`/:func:`catalog_versions`/:func:`catalog_titles`
-    would pay the whole ``load_catalog_live()`` pass — git probe, ~300 catalog YAMLs, prefer-in-tree
+    would pay the whole ``load_catalog()`` pass — git probe, ~300 catalog YAMLs, prefer-in-tree
     merges — three times per inventory request (#125683). Best effort like the per-map helpers: an
     empty triple on failure."""
     try:
-        entries = load_catalog_live()
+        entries = load_catalog()
     except Exception:
         return {}, {}, {}
     return ({e.name: e.sha for e in entries},

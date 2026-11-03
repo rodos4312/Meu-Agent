@@ -92,7 +92,6 @@ def world(request, tmp_path, monkeypatch):
         finish_publication(paths.repo_root())
 
     monkeypatch.setattr("pm.client.sync_venv", publish_without_environment)
-    monkeypatch.setattr(pc_cat, "fetch_live_catalog", lambda **_: None)  # in-tree only, no network
     monkeypatch.setattr(pc_cat, "load_removed_list", lambda catalog_dir=None: [])
     tier = {"value": "verified"}
 

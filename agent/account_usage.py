@@ -105,7 +105,7 @@ def _reset_phrase(dt: Optional[datetime]) -> str:
     if not dt:
         return "resets soon"
     try:
-        from hermes_cli.model_picker_usage import format_resets_in
+        from agent.usage_format import format_resets_in
         return format_resets_in(int(dt.timestamp() * 1000))
     except Exception:
         logger.debug("Reset phrase formatting failed", exc_info=True)
@@ -152,7 +152,7 @@ def _render_usage_window_lines(snapshot: AccountUsageSnapshot) -> list[str]:
         else:
             used = max(0.0, min(100.0, float(window.used_percent))) / 100.0
             try:
-                from hermes_cli.model_picker_usage import format_percent_used, render_bar
+                from agent.usage_format import format_percent_used, render_bar
                 bar, pct = render_bar(used), format_percent_used(used)
             except Exception:
                 logger.debug("Usage bar rendering failed", exc_info=True)

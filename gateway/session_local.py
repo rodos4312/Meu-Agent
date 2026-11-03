@@ -286,11 +286,7 @@ def stage_local_session(authority, actor, params, *, trusted_policy=None, truste
                 sort_keys=True))
         marks = {LOCAL_DESKTOP_CHAT: True} if desktop_local and policy.source == 'gui' else {}
         if policy.model is None:
-            from hermes_cli.anon_auth import GUEST_MODEL
             policy = replace(policy, model=_resolve_gateway_model(policy.config()) or None)
-            if policy.model == GUEST_MODEL:
-                # Follows its profile, so the provider the user connects later replaces the trial model.
-                marks[FOLLOW_ADOPTED] = True
         if marks:
             import json
             policy = replace(policy, config_json=json.dumps({**json.loads(policy.config_json), **marks}))
@@ -368,17 +364,7 @@ def publish_local_policy(authority, session_id, *, evict=True):
 
 
 def _lazy_model(authority, policy):
-    """The model a not-yet-built session will run: with no provider pinned, the free tier's agent
-    build pins ``nous/welcome`` (``pin_model_for_route``), so the configured default is not it."""
-    import json
-    model = policy.current_model(authority) if policy else None
-    if (policy is None or json.loads(policy.request_json).get('model')
-            or str(policy.provider or '').strip().lower() not in {'', 'auto'}):
-        return model
-    from gateway.session_authorities import owner_scope
-    from hermes_cli.anon_auth import GUEST_MODEL, free_tier_route
-    with owner_scope(authority):
-        return GUEST_MODEL if free_tier_route() else model
+    return policy.current_model(authority) if policy else None
 
 
 def _reasoning_fields(agent, policy, model, authority=None, override=None):

@@ -132,9 +132,6 @@ def resolve_openai_audio_api_key() -> str:
             or resolve_provider_secret("OPENAI_API_KEY", "openai-api"))
 
 
-# Provider value the managed "Nous Subscription" picker rows write for every category;
-# any other name = that vendor direct; no key = legacy autodetect.
-NOUS_MANAGED_PROVIDER = "nous"
 # Per-capability keys that also count as "this category has been configured".
 _EXTRA_SELECTION_KEYS = {"web": ("search_backend", "extract_backend")}
 _DEFAULT_NAME_KEYS = ("provider", "backend", "cloud_provider")
@@ -169,17 +166,13 @@ def _raw_section(section: str) -> dict[str, Any] | None:
 
 
 def read_selection(section: str) -> str | None:
-    """THE single runtime read of the persisted `hermes tools` selection: ``"nous"`` (managed
-    gateway row), a vendor name (direct, own credentials), or ``None`` (never configured ->
-    legacy autodetect allowed). Reads the RAW config.yaml so key presence means "actually
-    written", not "schema default"; a raw ``local`` is therefore a real user selection.
-    Legacy shim: ``use_gateway: true`` was only ever written by the managed row, so it maps
-    to ``"nous"`` regardless of the name key. Never raises."""
+    """Read a persisted direct-provider selection; retain retired names so callers cannot silently charge another account."""
     raw = _raw_section(section)
     if raw is None:
         return None
+    # Migration marker only: no managed transport exists. Callers report the retired selection.
     if is_truthy_value(raw.get("use_gateway")):
-        return NOUS_MANAGED_PROVIDER
+        return "nous"
     for key in _SELECTION_NAME_KEYS.get(section, _DEFAULT_NAME_KEYS):
         text = str(raw.get(key)).strip().lower() if raw.get(key) is not None else ""
         if text:
@@ -190,10 +183,7 @@ def read_selection(section: str) -> str | None:
 
 
 def read_web_capability_selection(capability: Optional[str] = None) -> str | None:
-    """Stored selection that decides ONE web capability (``"search"`` / ``"extract"``):
-    ``web.<capability>_backend`` when set (``"nous"`` = managed gateway, a vendor name =
-    that vendor direct), else the shared :func:`read_selection`. Lets search and extract
-    each choose between the user's own key and the Nous Tool Gateway."""
+    """Per-capability direct provider, falling back to the shared web selection."""
     if capability:
         raw = _raw_section("web") or {}
         pin = str(raw.get(f"{capability}_backend") or "").strip().lower()

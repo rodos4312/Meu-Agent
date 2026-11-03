@@ -806,7 +806,7 @@ def _prepare_main_assignment(cfg: dict, provider: str, model: str, base_url: str
 def _apply_main_assignment_sync(cfg: dict, provider: str, model: str, base_url: str, api_key: str,
                                 prepared: "Optional[tuple[str, ModelSwitchResult]]" = None) -> dict:
     from hermes_cli.config import save_config
-    from hermes_cli.free_tier_bootstrap import reconcile_record
+    from hermes_cli.onboarding_due import invalidate
     # Recorded from the SUBMITTED args, before preparation fills a URL from a named entry.
     explicit_endpoint = _is_explicit_custom_endpoint(provider, base_url)
     base_url, result = prepared or _prepare_main_assignment(cfg, provider, model, base_url, api_key)
@@ -835,7 +835,7 @@ def _apply_main_assignment_sync(cfg: dict, provider: str, model: str, base_url: 
     if new_provider in {"custom", "local"} and base_url and not endpoint_already_known:
         _register_custom_endpoint(base_url, api_key, model)
     # The serve process's boot record may still say "nothing configured"; the chat gates on it.
-    reconcile_record()
+    invalidate()
 
     return {
         "ok": True,

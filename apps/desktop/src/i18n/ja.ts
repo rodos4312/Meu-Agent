@@ -1043,7 +1043,7 @@ export const jaOverrides = {
       sshErrHostKey:
         '前回の接続以降、ホスト鍵が変更されています。想定どおりか確認し、ssh-keygen -R <host> を実行してから再接続してください。',
       sshErrNotInstalled:
-        'リモートホストに Meu がインストールされていません。リモートでインストールする（curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh）か、Meu パスを設定してください。',
+        'リモートホストに Meu がインストールされていません。リモートでインストールする（curl -fsSL https://raw.githubusercontent.com/rodos4312/Meu-Agent/dev/meu-foundation/scripts/install.sh | sh）か、Meu パスを設定してください。',
       sshErrPlatform:
         'サポートされていないリモートプラットフォームです。Meu Desktop の SSH モードは Linux、macOS、Windows のリモートホストに対応しています。',
       sshErrTimeout: 'SSH 接続がタイムアウトしました。ホストが到達不能、またはスリープ中の可能性があります。',

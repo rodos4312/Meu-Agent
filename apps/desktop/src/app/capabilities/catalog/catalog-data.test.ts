@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchCatalog, parseCatalog } from './catalog-data'
 
-afterEach(() => vi.unstubAllGlobals())
+const request = vi.hoisted(() => vi.fn())
+vi.mock('@/store/gateway', () => ({ activeGatewayProfileKey: () => 'profile-a', requestGatewayForProfile: request }))
+vi.mock('@/lib/plugin-catalog', () => ({ CATALOG_ORIGIN: 'https://github.com/rodos4312/Meu-Agent', sendWhenGatewayOpen: (send: () => unknown) => send() }))
+afterEach(() => { vi.unstubAllGlobals(); request.mockReset() })
 
 describe('public catalog data', () => {
   it('preserves every source and distinct install identifier, including same-named skills', () => {
@@ -102,7 +105,7 @@ describe('public catalog data', () => {
     })
   })
 
-  it.each(['skills', 'plugins'] as const)('fetches only the published %s snapshot and parses it', async kind => {
+  it.each(['skills', 'plugins'] as const)('reads the bundled %s catalog through the owning gateway', async kind => {
     const rows = [
       {
         name: 'weather',
@@ -117,11 +120,11 @@ describe('public catalog data', () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => rows })
     vi.stubGlobal('fetch', fetch)
 
+    request.mockResolvedValue({ entries: rows })
     expect(await fetchCatalog(kind)).toEqual(parseCatalog(kind, rows))
-    expect(fetch).toHaveBeenCalledExactlyOnceWith(
-      `https://nousresearch.github.io/hermes-agent/docs/api/${kind}.json`,
-      expect.objectContaining({ credentials: 'omit', signal: expect.any(AbortSignal) })
-    )
+    expect(request).toHaveBeenCalledWith('profile-a', 'capabilities.catalog', { kind }, 20_000)
+    expect(fetch).not.toHaveBeenCalled()
+
   })
 
   it('only renders plugin images hosted on GitHub so the browser never fans out to third-party hosts', () => {

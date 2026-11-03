@@ -715,7 +715,7 @@ export const arSettings = {
         restartNeeded: 'يلزم إعادة التشغيل',
         unavailable: 'غير متاح',
         notRunningDetail: 'شغّله لفتح Meu من جهاز آخر.',
-        needsNous: 'سجّل الدخول إلى حساب Nous من قسم المزوّدين أولًا.',
+        needsSignIn: "قم أولاً بإعداد مزوّد تسجيل دخول للوحة التحكم.",
         runningLan: 'افتح هذا العنوان على جهاز في الشبكة نفسها.',
         runningPublic: 'يُقدَّم عبر عنوانك.',
         runningLocal: 'يمكن فتحه من هذا الحاسوب فقط. أوقفه ثم شغّله من جديد لفتحه من أجهزة أخرى.',

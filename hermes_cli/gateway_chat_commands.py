@@ -20,7 +20,7 @@ import uuid
 
 from hermes_cli.gateway_client import GatewayClientError
 
-PARITY_DOC = "https://hermes-agent.nousresearch.com/docs/developer-guide/gateway-command-parity"
+PARITY_DOC = "https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation/website/docs/developer-guide/gateway-command-parity.md"
 
 # Registry command (canonical name) -> how the classic view answers it itself. Every other
 # registry command goes to the owner through ``slash.exec``. Read by the parity inventory

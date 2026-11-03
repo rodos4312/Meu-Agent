@@ -65,7 +65,7 @@ def world(tmp_path, monkeypatch):
 
     def pin(sha: str) -> None:
         current["demo"] = PluginCatalogEntry(name="demo", repo=URL, sha=sha, description="d", maintainer="m")
-    monkeypatch.setattr(plugins_cmd_catalog, "get_live_catalog_entry", lambda name: current.get(name))
+    monkeypatch.setattr(plugins_cmd_catalog, "get_catalog_entry", lambda name: current.get(name))
     from hermes_constants import get_hermes_home
     return get_hermes_home(), repo, pin
 

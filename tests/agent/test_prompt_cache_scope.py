@@ -515,7 +515,7 @@ class TestPerResponseRunNonceIsolation:
         identity would arrive through the conversation contextvar, not from
         re-reading this id.
         """
-        from agent.portal_tags import (
+        from agent.conversation_affinity import (
             reset_conversation_context,
             set_conversation_context,
         )

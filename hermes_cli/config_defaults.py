@@ -1805,18 +1805,6 @@ DEFAULT_CONFIG = {
         "provider": "",
         # Chronos settings; consulted only when provider == "chronos". All non-secret — the agent
         # holds NO scheduler credentials (provision reuses the Nous Portal token).
-        "chronos": {
-            # NAS/portal base URL that arms/cancels one-shots and mints the inbound fire JWT (used
-            # as the expected issuer).
-            "portal_url": "https://portal.nousresearch.com",
-            # This agent's publicly reachable base URL; NAS POSTs {callback_url}/api/cron/fire. ""
-            # -> Chronos unavailable, resolver falls back to the built-in ticker.
-            "callback_url": "",
-            "expected_audience": "",  # Expected JWT audience (e.g. "agent:{instance_id}").
-            # NAS JWKS URL for verifying the fire JWT signature. "" -> the fire endpoint refuses all
-            # tokens (never an unsigned decode).
-            "nas_jwks_url": "",
-        },
         # Wrap delivered cron responses with a task-name header and "The agent cannot see this
         # message" footer. False = clean output.
         "wrap_response": True,
@@ -2021,7 +2009,7 @@ DEFAULT_CONFIG = {
     # release. Default URL is served by the docs-site GitHub Pages deploy.
     "model_catalog": {
         "enabled": True,
-        "url": "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json",
+        "url": "",
         # Disk cache TTL in minutes. The gateway refreshes in the background on this cadence; the
         # CLI refetches on the next /model or `hermes model` once the cache is older. Network
         # failures silently use the stale cache. Legacy `ttl_hours` is honoured if set.
@@ -2646,20 +2634,6 @@ DEFAULT_CONFIG = {
         },
     },
 
-    "nous": {
-        # anthropic_wire: which Portal route carries anthropic/* models. "chat" =
-        # /v1/chat/completions (default for now); "native" = /v1/messages, the Anthropic
-        # Messages wire (signed thinking passthrough, native cache_control scopes); "auto" =
-        # start on chat and, per session, switch to native from the first response when the
-        # Portal upstream serving the model is one where native is known clean. Native is the
-        # better wire but on the OpenRouter-served path it re-writes the previous turn's cache on
-        # 14-20% of consecutive calls in concurrent tool loops (measured 2026-09-06;
-        # NousResearch/api#227), so chat is the default until that is fixed.
-        "anthropic_wire": "chat",
-        # Legacy Nous identity compatibility for remaining Tool Gateway consumers.
-        # Meu has retired the account sign-in commands and the Nous model-picker entry.
-        "guest": True,
-    },
     # Google Vertex AI (Gemini). Auth is OAuth2 from a service-account JSON or ADC, NOT an API key;
     # the credential path lives in .env (VERTEX_CREDENTIALS_PATH / GOOGLE_APPLICATION_CREDENTIALS).
     # Bridged to VERTEX_PROJECT_ID / VERTEX_REGION.
@@ -2696,7 +2670,6 @@ from hermes_cli.config_defaults_env import OptionalEnvVars, _base_url, _env, _ms
 # tools=[...] lists the model tools the key unlocks. Provider entries: config_provider_env (on first read).
 OPTIONAL_ENV_VARS = OptionalEnvVars({
     # ── Provider (handled in provider selection, not shown in checklists) ──
-    "NOUS_BASE_URL": _base_url("Nous Portal"),
     "HERMES_ANON_API_SECRET": _env(
         "Shared secret for the Nous free-tier sign-up endpoints while they are in their gated "
         "integration phase (not needed once the gate is removed)",

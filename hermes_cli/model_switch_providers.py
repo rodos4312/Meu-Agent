@@ -441,80 +441,8 @@ def _aws_live_or_curated_ids(slug: str, curated: dict, *fallback_keys: str,
         return _first_curated(curated, fallback_keys or (slug,)) or []
 
 
-def _nous_picker_model_ids(curated: dict, force_fresh_nous_tier: bool) -> list:
-    """Nous serves a huge live catalog; the picker shows ONLY the curated agentic list, augmented
-    with the Portal's free/paid recommendations and paid-tier sale models, then narrowed by org
-    policy for the legacy hosted catalog. A failed
-    recommendation fetch still yields a policy-filtered curated list."""
-    model_ids = curated.get("nous", [])
-    try:
-        from hermes_cli.models_pricing import get_pricing_for_provider
-        from hermes_cli.models import (
-            check_nous_free_tier,
-            union_with_nous_on_sale_models,
-            union_with_portal_free_recommendations,
-            union_with_portal_paid_recommendations,
-        )
-        from hermes_cli.auth import get_provider_auth_state
-        # Cache-only: a cold cache must not hold the picker open. The Portal unions only append ids;
-        # the on-sale union reads the rows the background prewarm filled under the same key the
-        # fetcher registers (base + credential fingerprint), so a logged-in account's cached_only
-        # read finds them.
-        pricing = get_pricing_for_provider("nous", cached_only=True) or {}
-        try:
-            portal = (get_provider_auth_state("nous") or {}).get("portal_base_url", "") or ""
-        except Exception:
-            portal = ""
-        if check_nous_free_tier(force_fresh=force_fresh_nous_tier):
-            model_ids, _ = union_with_portal_free_recommendations(model_ids, pricing, portal)
-        else:
-            model_ids, _ = union_with_portal_paid_recommendations(model_ids, pricing, portal)
-            model_ids = union_with_nous_on_sale_models(model_ids, pricing)
-    except Exception:
-        pass
-    try:
-        from hermes_cli.models_pricing import nous_policy_allowed_ids, restrict_to_nous_policy
-        model_ids = restrict_to_nous_policy(model_ids, nous_policy_allowed_ids(), rescue_empty=True)
-    except Exception:
-        logger.debug("Nous model policy filter failed", exc_info=True)
-    try:
-        # Window plans: the plan's featured picks lead the list. Plan shape only (it rarely changes), so
-        # the last snapshot at any age answers — a long-running gateway's 60s cache has usually lapsed
-        # by the time someone opens /model.
-        from hermes_cli.model_picker_usage import featured_first, nous_picker_usage
-        usage = nous_picker_usage(any_age=True)
-        if usage is not None:
-            model_ids = featured_first(model_ids, usage.featured_model_ids)
-    except Exception:
-        pass
-    return model_ids
 
 
-def _free_tier_nous_row(row: dict) -> dict | None:
-    """The one free-tier rule for a Nous picker row, shared by every row builder.
-
-    ``row`` carries at least ``name`` and ``models``. A guest identity carrying inference turns
-    it into "Nous · free tier" with the single model ``nous/welcome`` (the welcome host serves
-    nothing else). A guest that ``nous.guest: false`` has switched off yields ``None``: no Nous
-    row at all, since there is nothing selectable. A real account (or no Nous state) passes the
-    row through untouched. Builders that compute the full catalog lazily should pass
-    ``models=[]`` and only compute when the returned row still has no models."""
-    from hermes_cli import anon_auth
-    if not anon_auth.has_guest():
-        return row
-    if not anon_auth.guest_allowed():
-        return None
-    if not anon_auth.free_inference_active():
-        return row  # a guest without the welcome trial here: the row is whatever real Nous login exists
-    out = dict(row)
-    out["name"] = anon_auth.FREE_TIER_LABEL
-    out["models"] = [anon_auth.GUEST_MODEL]
-    out["total_models"] = 1
-    # The explicit flag every consumer keys on (pricing, badges): never the display name. It also
-    # tells the picker this is the free tier's identity, distinct from ``free_tier`` (an account on
-    # the free plan) which pricing sets from the Portal's entitlement read.
-    out["free_tier_row"] = True
-    return out
 
 
 def _cap_models(model_ids: list, max_models: int | None, slug: str = "") -> list:
@@ -764,10 +692,6 @@ class _PickerBuild:
             "slug": slug, "name": name, "is_current": is_current, "is_user_defined": False,
             "models": _cap_models(model_ids, self.max_models, slug if uncapped_ok else ""),
             "total_models": len(model_ids), "source": source}
-        if slug == "nous":
-            # Free-tier identity: one row "Nous · free tier" / nous/welcome, or no row when
-            # nous.guest is off. Still marks the slug seen so a later lap cannot re-emit it.
-            row = _free_tier_nous_row(row)
         if row is not None:
             self.results.append(row)
         self.seen_slugs.add(slug.lower())
@@ -930,15 +854,8 @@ def _lap_overlay_rows(b: _PickerBuild, data: dict, user_providers: dict) -> None
         elif overlay.auth_type == "aws_sdk":
             model_ids = _aws_live_or_curated_ids(hermes_slug, b.curated, hermes_slug, pid,
                                                  non_blocking=b.non_blocking_catalogs)
-        elif hermes_slug == "nous":
-            # A guest identity never needs the Portal catalog: add_builtin_row pins nous/welcome
-            # (or drops the row when nous.guest is off), so only a real account fetches.
-            tier_row = _free_tier_nous_row({"name": get_label(hermes_slug), "models": []})
-            real_account = tier_row is not None and not tier_row["models"]
-            model_ids = _nous_picker_model_ids(b.curated, b.force_fresh_nous_tier) if real_account else []
         else:
-            model_ids = _live_or_curated_ids(hermes_slug, b.curated, hermes_slug, pid,
-                                             non_blocking=b.non_blocking_catalogs)
+            model_ids = _live_or_curated_ids(hermes_slug, b.curated, hermes_slug, pid, non_blocking=b.non_blocking_catalogs)
         # A providers.<overlay>.models block extends the row exactly as it does for built-in rows
         # (section 1); section 3 never emits it because this row owns the slug (#27989).
         configured = user_providers.get(hermes_slug) or user_providers.get(pid) if isinstance(user_providers, dict) else None
@@ -1188,7 +1105,7 @@ def _build_curated_lists(current_provider: str, current_base_url: str, current_m
     """Curated model lists keyed by hermes provider id, plus the dynamic ones (nous manifest,
     Ollama Cloud, LM Studio live probe). ``non_blocking`` (GUI read path) takes cached Ollama Cloud
     ids and warms them in the background rather than waiting on an 8s probe (#114215)."""
-    from hermes_cli.models import OPENROUTER_MODELS, _PROVIDER_MODELS, get_curated_nous_model_ids
+    from hermes_cli.models import OPENROUTER_MODELS, _PROVIDER_MODELS
     curated: dict[str, list[str]] = dict(_PROVIDER_MODELS)
     curated["openrouter"] = [mid for mid, _ in OPENROUTER_MODELS]
     # Plugin profiles without a built-in row: this home's static_models, else fallback_models, are the
@@ -1198,7 +1115,6 @@ def _build_curated_lists(current_provider: str, current_base_url: str, current_m
         if not curated.get(_pp.name) and (rows := list(_pp.static_models or _pp.fallback_models)):
             curated[_pp.name] = rows
     # Remote manifest so new Portal models surface without a release; in-repo snapshot fallback.
-    curated["nous"] = get_curated_nous_model_ids()
     if "ollama-cloud" not in curated:
         from hermes_cli.models import fetch_ollama_cloud_models
         # Read path: cache only; the row's own SWR refresh (cached_provider_model_ids) warms it.
@@ -1407,36 +1323,4 @@ def list_picker_providers(
     from hermes_cli.models_validate import drop_unofferable_model_ids
 
     drop_unofferable_model_ids(filtered)
-    _attach_window_model_notes(filtered)
     return filtered
-
-
-def _attach_window_model_notes(providers: list[dict]) -> None:
-    """Nous on a usage-window plan, for the messaging pickers (same words as the CLI/TUI/desktop pickers):
-    ``model_labels`` {id: "Large" | "Free"} (plan shape, any-age snapshot; other levels carry no tag), and
-    from a fresh snapshot only (a stale percent would mislabel it) ``plan_line`` (the limit line: "Weekly
-    limit reached · resets in 21h · paid models now use your credits (pay as you go)").
-    Every field is omitted when empty and for any account not on a window plan. Never raises."""
-    try:
-        nous = next((p for p in providers if str(p.get("slug", "")).lower() == "nous"), None)
-        if nous is None:
-            return
-        from hermes_cli.model_picker_usage import nous_picker_usage, usage_level_label, usage_tag_levels
-        fresh = nous_picker_usage()
-        usage = fresh or nous_picker_usage(any_age=True)
-        if usage is None:
-            return
-        from agent.plan_limits import cached_pricing
-        pricing = cached_pricing()  # this profile's catalog only (cache-only, no credential refresh)
-        models = [str(m) for m in nous.get("models", [])]
-        # Subscription-billed rows carry no tag (usage_tag_levels).
-        labels = {m: label for m, lv in usage_tag_levels(models, pricing).items() if (label := usage_level_label(lv))}
-        if labels:
-            nous["model_labels"] = labels
-        if fresh is None:
-            return
-        line = usage.limit_line()
-        if line:
-            nous["plan_line"] = line
-    except Exception:
-        logger.debug("window model notes failed", exc_info=True)

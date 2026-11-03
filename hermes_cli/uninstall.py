@@ -1143,8 +1143,8 @@ def _perform_uninstall(
 
 
 _REINSTALL_HINT = {
-    True: "  iex (irm https://hermes-agent.nousresearch.com/install.ps1)",
-    False: "  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"}
+    True: "  iex (irm https://raw.githubusercontent.com/rodos4312/Meu-Agent/dev/meu-foundation/scripts/install.ps1)",
+    False: "  curl -fsSL https://raw.githubusercontent.com/rodos4312/Meu-Agent/dev/meu-foundation/scripts/install.sh | bash"}
 # windows -> [(line, color or None)]
 _RELOAD_HINT = {
     True: [("Open a new terminal (PowerShell / Windows Terminal) to pick up", Colors.YELLOW),

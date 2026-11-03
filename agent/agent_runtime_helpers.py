@@ -1191,11 +1191,6 @@ def try_recover_primary_transport(
         return False
     # Portal OpenAI-wire traffic rides aggregator retry infra (skip), but Portal Claude on native
     # Messages holds a local Anthropic client that needs the rebuild.
-    if (
-        (agent.provider or "").strip().lower() in {"nous", "nous-portal", "nousresearch"}
-        and getattr(agent, "api_mode", None) != "anthropic_messages"
-    ):
-        return False
     try:
         # Never hard-close the shared client here: stale streaming workers may still be unwinding on
         # the old pool; _retire_shared_openai_client defers FD release to GC.
@@ -1811,7 +1806,6 @@ def anthropic_prompt_cache_policy(
     is_kimi = _model_name_is_kimi_family(eff_model) or "moonshot" in model_lower
     is_openrouter = base_url_host_matches(eff_base_url, "openrouter.ai")
     # Nous Portal proxies to OpenRouter; treat as OpenRouter-equivalent for cache layout.
-    is_nous_portal = base_url_host_matches(eff_base_url, "nousresearch.com")
     is_anthropic_wire = eff_api_mode == "anthropic_messages"
     is_native_anthropic = is_anthropic_wire and (
         eff_provider == "anthropic" or base_url_hostname(eff_base_url) == "api.anthropic.com"
@@ -1854,12 +1848,10 @@ def anthropic_prompt_cache_policy(
         return True, True
     # Envelope layout is OpenAI-wire only; Portal Claude on native Messages must fall through to the
     # anthropic_messages branch (inner-block markers) or it serves 0% cache hits.
-    if (is_openrouter or is_nous_portal) and (is_claude or is_kimi) and not is_anthropic_wire:
+    if is_openrouter and (is_claude or is_kimi) and not is_anthropic_wire:
         return True, False
     # Nous Portal Qwen takes the envelope path too; the alibaba-family check below only matches
     # provider=opencode/alibaba and would leave Portal traffic uncached.
-    if is_nous_portal and "qwen" in model_lower:
-        return True, False
     if is_anthropic_wire and is_claude:
         return True, True  # third-party Anthropic-compatible gateway
     # LiteLLM fronting Claude on the OpenAI wire supports cache_control but matched no grant above.

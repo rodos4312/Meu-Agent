@@ -12,7 +12,6 @@ import {
   notifyPlatformsChanged,
   notifyProjectsChanged,
   notifySessionsChanged,
-  notifySetupReady,
   type PetChangeMeta,
   setChangeEventsAvailable
 } from '@/store/live-sync'
@@ -40,22 +39,12 @@ function onGatewayReady(ready: GatewayEvent<'gateway.ready'>['payload'], activeS
   }
 }
 
-/** gateway.ready / setup.ready / skin.changed / change-watcher broadcasts / session.reclaimed. */
+/** gateway.ready / skin.changed / change-watcher broadcasts / session.reclaimed. */
 export function handleLifecycleEvent(ctx: GatewayEventContext): boolean {
   const { deps, event, payload, fromActiveSource } = ctx
 
   if (event.type === 'gateway.ready') {
     onGatewayReady((event as GatewayEvent<'gateway.ready'>).payload, fromActiveSource())
-
-    return true
-  }
-
-  if (event.type === 'setup.ready') {
-    // Treat setup.ready as a hint and re-read setup through the active
-    // connection/profile. A background gateway must not change this view.
-    if (fromActiveSource()) {
-      notifySetupReady()
-    }
 
     return true
   }

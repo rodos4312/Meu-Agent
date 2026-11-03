@@ -210,12 +210,13 @@ def _browser_address(target: Path, settings, served_url: str) -> str:
     Web Access registered Nous sign-in for, else *served_url* (a private Webapp's launch link). Read from
     *target*'s config now, not from when the gateway started."""
     from hermes_cli.web_server_boundary import public_hosts_engage_gate, public_url_hosts, should_require_auth
-    from hermes_cli.webapp_access import registered_lan_origin
     # The sign-in gate gateway.run_api.start_gateway_api engages on the Webapp's listener; without it
     # webapp-launch hands out the loopback launch link and never reads the registration, which outlives
     # a move back to a loopback bind.
     gated = should_require_auth(settings.host) or public_hosts_engage_gate(public_url_hosts(settings.public_url))
-    lan = registered_lan_origin(target, urlsplit(served_url).port) if gated else None
+    from hermes_cli.webapp_access import lan_address
+    address = lan_address() if gated else None
+    lan = f"http://{address}:{urlsplit(served_url).port}" if address else None
     return settings.public_url or lan or served_url
 
 

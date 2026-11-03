@@ -102,8 +102,8 @@ def provider_present(name: str, home: Path) -> bool:
 
 def catalog_source(name: str) -> Optional[str]:
     """The catalog entry that ships provider *name*, or None when the catalog has no such plugin."""
-    from hermes_cli.plugin_catalog import get_live_catalog_entry
-    entry = get_live_catalog_entry(name)
+    from hermes_cli.plugin_catalog import get_catalog_entry
+    entry = get_catalog_entry(name)
     return entry.name if entry is not None else None
 
 

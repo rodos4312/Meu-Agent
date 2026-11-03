@@ -264,7 +264,7 @@ def test_a_package_named_like_a_windows_drive_path_is_refused(home, repo):
 def _catalog(monkeypatch, sha: str) -> None:
     from hermes_cli import plugins_cmd_catalog
     entry = SimpleNamespace(install_identifier=URL, sha=sha)
-    monkeypatch.setattr(plugins_cmd_catalog, "get_live_catalog_entry", lambda name: entry if name == "gizmo" else None)
+    monkeypatch.setattr(plugins_cmd_catalog, "get_catalog_entry", lambda name: entry if name == "gizmo" else None)
 
 
 def test_a_catalog_pin_naming_an_annotated_tag_installs_the_commit_it_points_at(home, repo, monkeypatch):

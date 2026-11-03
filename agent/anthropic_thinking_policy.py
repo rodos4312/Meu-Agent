@@ -17,15 +17,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from agent.anthropic_endpoints import (
-    _is_claude_platform_endpoint,
-    _is_deepseek_anthropic_endpoint,
-    _is_kimi_family_endpoint,
-    _is_minimax_anthropic_endpoint,
-    _is_nous_portal_endpoint,
-    _is_third_party_anthropic_endpoint,
-    _model_name_is_deepseek_thinking,
-)
+from agent.anthropic_endpoints import _is_claude_platform_endpoint, _is_deepseek_anthropic_endpoint, _is_kimi_family_endpoint, _is_minimax_anthropic_endpoint, _is_third_party_anthropic_endpoint, _model_name_is_deepseek_thinking
 
 
 _CLAUDE_VERSION_RE = re.compile(
@@ -68,7 +60,7 @@ SIGNED_REPLAY_ROUTES = frozenset({"native", "minimax"})
 
 
 def _is_off_anthropic(base_url: Any) -> bool:
-    return _is_third_party_anthropic_endpoint(base_url) and not _is_nous_portal_endpoint(base_url)
+    return _is_third_party_anthropic_endpoint(base_url)
 
 
 # First match wins; an unmatched relay host is ``third_party``. DeepSeek models never sign, so they keep

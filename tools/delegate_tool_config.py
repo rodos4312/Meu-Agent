@@ -521,7 +521,6 @@ _ROUTING_FILTER_DEFAULTS = (
     ("provider_require_parameters", False), ("provider_data_collection", ""),
 )
 
-_NOUS_PROVIDERS = frozenset({"nous", "nous-portal", "nousresearch"})
 
 
 def _resolve_child_fallback_chain(parent_agent, routing_cfg: Any, pinned: bool) -> Optional[list[dict[str, Any]]]:
@@ -604,13 +603,10 @@ def _resolve_child_runtime(
     _parent_provider = getattr(parent_agent, "provider", None) or ""
     if override_api_mode is not None:
         effective_api_mode = override_api_mode
-    elif (effective_provider or "").strip().lower() in _NOUS_PROVIDERS:
-        from hermes_cli.providers import nous_api_mode
-        effective_api_mode = nous_api_mode(effective_model)
     elif effective_provider != _parent_provider:
-        effective_api_mode = None  # force re-derivation from provider's defaults
+        effective_api_mode = None
     else:
-        effective_api_mode = getattr(parent_agent, "api_mode", None)
+        effective_api_mode = getattr(parent_agent, 'api_mode', None)
     # A pinned transport that cannot run must fail the spawn loudly, never fall
     # back silently (delegate_task pre-validates; this covers direct callers).
     _require_pinned_command(

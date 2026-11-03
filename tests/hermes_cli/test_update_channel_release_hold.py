@@ -86,12 +86,12 @@ def _ledgered(home):
 
 
 def _channel_publishes(monkeypatch, source, name):
-    record = {"schema": 1, "name": name, "repository": "NousResearch/hermes-agent", "policy": "preview",
+    record = {"schema": 1, "name": name, "repository": "rodos4312/Meu-Agent", "policy": "preview",
               "state": "active", "identity": {}, "nextSequence": 2,
               "head": {"buildId": "build-fixture", "sequence": 1}}
     result = SimpleNamespace(requested=deepcopy(record), terminal=record, manifest={
         "schema": 1, "request": {"buildId": "build-fixture", "channel": name, "sequence": 1,
-        "repository": "NousResearch/hermes-agent", "commit": source.release, "sourceVersion": "1.2.3",
+        "repository": "rodos4312/Meu-Agent", "commit": source.release, "sourceVersion": "1.2.3",
         "version": "0.0.1", "identity": {}, "bundleEnv": {},
         "publicBase": "https://hermes-assets.nousresearch.com"}, "packages": []})
     monkeypatch.setattr(source_releases, "_resolve_channel", lambda n, repository: deepcopy(result),

@@ -77,8 +77,6 @@ model:
   # Inference provider selection:
   #   "auto"         - Auto-detect from credentials (default)
   #   "openrouter"   - OpenRouter (requires: OPENROUTER_API_KEY or OPENAI_API_KEY)
-  #   "nous"         - Nous Portal OAuth (requires: hermes auth add nous)
-  #   "nous-api"     - Nous Portal API key (requires: NOUS_API_KEY)
   #   "anthropic"    - Direct Anthropic API (requires: ANTHROPIC_API_KEY)
   #   "openai-codex" - OpenAI Codex (requires: hermes auth)
   #   "gemini"      - Use Google AI Studio direct (requires: GOOGLE_API_KEY or GEMINI_API_KEY)
@@ -879,11 +877,11 @@ prompt_caching:
 # browser screenshot analysis, web page summarization, TTS audio-tag insertion,
 # and context compression.
 #
-# By default these use Gemini Flash via OpenRouter or Nous Portal and are
+# By default these use Gemini Flash via OpenRouter and are
 # auto-detected from your credentials.  You do NOT need to change anything
 # here for normal usage.
 #
-# WARNING: Overriding these with providers other than OpenRouter or Nous Portal
+# WARNING: Overriding these with providers other than OpenRouter
 # is EXPERIMENTAL and may not work.  Not all models/providers support vision,
 # produce usable summaries, or accept the same API format.  Change at your own
 # risk — if things break, reset to "auto" / empty values.
@@ -893,9 +891,8 @@ prompt_caching:
 # local endpoint for compression (just needs text).
 #
 # Provider options:
-#   "auto"       - Best available: OpenRouter → Nous Portal → main endpoint (default)
+#   "auto"       - Best available: OpenRouter → main endpoint (default)
 #   "openrouter" - Force OpenRouter (requires OPENROUTER_API_KEY)
-#   "nous"       - Force Nous Portal (requires: hermes auth add nous)
 #   "gemini"      - Force Google AI Studio direct (requires: GOOGLE_API_KEY or GEMINI_API_KEY)
 #   "ollama-cloud" - Ollama Cloud (requires: OLLAMA_API_KEY)
 #   "codex"       - Force Codex OAuth (requires: hermes model → Codex).
@@ -904,9 +901,7 @@ prompt_caching:
 #                  Works with OpenAI API, local models, or any OpenAI-compatible
 #                  endpoint.  Also falls back to Codex OAuth and API-key providers.
 #
-# Model: leave empty to use the provider's default.  When empty, OpenRouter
-# uses "google/gemini-3-flash-preview" and Nous uses "gemini-3-flash".
-# Other providers pick a sensible default automatically.
+# Model: leave empty to use the provider's default.
 #
 # Native vision embeds (vision_analyze / browser screenshots when the MAIN model
 # is vision-capable) ride conversation history and are re-sent on every later
@@ -1350,7 +1345,7 @@ agent:
   # Enable verbose logging
   verbose: false
   
-  # Reasoning effort level (OpenRouter and Nous Portal)
+  # Reasoning effort level (supported providers)
   # Controls how much "thinking" the model does before responding.
   # Options: "xhigh" (max), "high", "medium", "low", "minimal", "none" (disable)
   # Providers with bespoke thinking tiers (a relay serving fast/thinking): use the
@@ -1747,7 +1742,7 @@ stt:
   #   local_command/xai/
   #   elevenlabs             -> unsupported; DEBUG log, then continue
   #   plugin providers       -> `prompt` in `**extra`; plugin owns limits
-  # prompt: "Hermes, Teknium, Nous Research, kanban"
+  # prompt: "Meu, kanban"
   local:
     model: "base"              # tiny | base | small | medium | large-v3 | turbo
     # language: ""             # auto-detect; set to "en", "es", "fr", etc. to force
@@ -1913,7 +1908,7 @@ delegation:
   # model: "google/gemini-3-flash-preview"    # Override model for subagents (empty = inherit parent)
   # provider: "openrouter"                    # Override provider for subagents (empty = inherit parent)
   #                                           # Resolves full credentials (base_url, api_key) automatically.
-  #                                           # Supported: openrouter, nous, zai, kimi-coding, minimax
+  #                                           # Supported: openrouter, zai, kimi-coding, minimax
   #                                           # Cost tip: keep the parent on a frontier model and pin
   #                                           # delegation.model to an inexpensive one — children carry the
   #                                           # vast majority of tokens, so this is where spend is cut while
@@ -2206,38 +2201,6 @@ display:
 
 
 # =============================================================================
-# Telemetry
-# =============================================================================
-# Shared metrics are disabled by default. When enabled, Hermes writes only
-# allowlisted aggregate counters and immutable JSON
-# packages under $HERMES_HOME/telemetry/shared_metrics.
-# Packages include a random profile-scoped ID that stays stable until this
-# directory is deleted. It is not derived from hardware, account, or host data.
-# Successfully exported local history is retained for 30 days; pending deltas
-# are retained until they can be exported.
-# This profile-owned choice is not overridden by managed-scope configuration.
-#
-# Nothing is uploaded unless you also set `send: true`. That is a separate
-# opt-in and requires `enabled`; it never turns collection on by itself.
-# When sending is on:
-#   * only packages whose entire collection period falls within one
-#     continuous recorded consent window are ever sent. Consent windows open
-#     when you enable sending and close when you disable it, so data
-#     collected before you opted in — or during any gap between opt-ins —
-#     stays on this machine;
-#   * each package carries the profile-scoped ID as-is. It is a random UUID
-#     with no hardware, account, or host-derived content, and deleting the
-#     shared-metrics directory resets it.
-# See docs/observability/relay-shared-metrics.md (Appendix A) for the full
-# consent, identity, retention, and deletion decisions.
-telemetry:
-  shared_metrics:
-    enabled: false
-    send: false
-    # endpoint: https://telemetry.nousresearch.com/v1/telemetry
-
-
-# =============================================================================
 # Login Policy (credentials themselves live in auth.json / .env)
 # =============================================================================
 auth:
@@ -2281,27 +2244,8 @@ updates:
 # =============================================================================
 # Web Dashboard
 # =============================================================================
-# OAuth gate configuration for `hermes dashboard --host <non-loopback>`.
-# The bundled Nous Portal plugin reads these on startup; settings here are
-# the canonical surface. Each can be overridden by an environment variable:
-#
-#   dashboard.oauth.client_id   <-  HERMES_DASHBOARD_OAUTH_CLIENT_ID
-#   dashboard.oauth.portal_url  <-  HERMES_DASHBOARD_PORTAL_URL
-#   dashboard.public_url        <-  HERMES_DASHBOARD_PUBLIC_URL
-#
-# Env wins when set to a non-empty value. This is what Fly.io's platform-
-# secret injection uses to push per-deploy client_ids without needing to
-# bake a config.yaml into the image. Empty env values are treated as unset
-# so a provisioned-but-not-populated secret can't shadow a valid entry here.
-#
-# Local dev / on-prem deploys should typically set these via config.yaml
-# (the ~/.hermes/.env file is reserved for API keys and secrets).
-#
+# Configure your own OIDC provider for remote dashboard login.
 # dashboard:
-#   oauth:
-#     client_id: ""    # agent:{instance_id}; Portal provisions this at deploy
-#     portal_url: ""   # blank → default https://portal.nousresearch.com
-#
 #   # Force the absolute base URL the OAuth callback (and any other public
 #   # URL the dashboard hands to external systems) is built from. Set this
 #   # for deploys behind reverse proxies that don't reliably forward
@@ -2332,8 +2276,8 @@ updates:
 #
 # -----------------------------------------------------------------------------
 # Self-hosted OIDC dashboard auth (generic OpenID Connect — Authentik,
-# Keycloak, Zitadel, Authelia, Auth0, Okta, Google, …). Use this INSTEAD of the
-# nous block above when gating the dashboard with your own identity provider.
+# Keycloak, Zitadel, Authelia, Auth0, Okta, Google, …). Configure your own
+# identity provider when exposing the dashboard remotely.
 # Each setting can be overridden by an environment variable:
 #
 #   dashboard.oauth.self_hosted.issuer         <-  HERMES_DASHBOARD_OIDC_ISSUER

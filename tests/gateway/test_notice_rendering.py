@@ -4,7 +4,7 @@ Covers render_notice_line — the pure helper that turns an AgentNotice into the
 single plaintext line pushed standalone over a messaging platform (no status
 bar, unlike the TUI). Behavior contracts, not data snapshots.
 """
-from agent.credits_tracker import AgentNotice
+from agent.notices import AgentNotice
 from gateway.run import render_notice_line
 
 

@@ -23,9 +23,8 @@ def _lookup(name, **extra):
 def catalog(monkeypatch):
     entries = [_entry("weather"), _entry("aihubmix", "https://github.com/AIhubmix/mono", subdir="aihubmix", tier="official"),
                _entry("pulled")]
-    monkeypatch.setattr(pc, "load_catalog_live", lambda: entries)
+    monkeypatch.setattr(pc, "load_catalog", lambda: entries)
     monkeypatch.setattr(pc, "load_removed_list", lambda catalog_dir=None: [pc.RemovedEntry(name="pulled")])
-    monkeypatch.setattr(pc, "live_removed_list", list)
     return entries
 
 
@@ -49,13 +48,12 @@ def test_anything_but_a_catalog_name_is_invalid(catalog, name):
 
 
 def test_an_unreadable_catalog_is_unavailable(monkeypatch):
-    monkeypatch.setattr(pc, "load_catalog_live", list)  # no live doc, no cache, no in-tree entries
+    monkeypatch.setattr(pc, "load_catalog", list)  # no live doc, no cache, no in-tree entries
     assert _lookup("weather") == {"status": "unavailable"}
 
 
 def test_the_lookup_reads_the_backend_catalog_not_the_docs_redirect(monkeypatch, tmp_path):
     """The live fetch follows the docs host's redirect server-side (httpx, follow_redirects), where CORS
     does not apply; with the network down the in-tree catalog still answers."""
-    monkeypatch.setattr(pc, "fetch_live_catalog", lambda force=False: None)
     first = pc.load_catalog()[0]
     assert _lookup(first.name)["entry"]["sha"] == first.sha

@@ -19,7 +19,7 @@ from pydantic import Field
 
 from .base import JsonValue, Payload, WireEnum
 from .common import MessageReaction, PlanGauge, SessionLiveInfo, SubagentStatus, ToolLabel, ToolLabelKind, Usage
-from .config_free_tier_control import FreeTierChallengePayload, SessionControlSnapshot
+from .config_free_tier_control import SessionControlSnapshot
 from .registry import event
 
 
@@ -66,23 +66,6 @@ event("skin.changed", SkinPayload,
       doc="The active skin moved (name switch or live colour edit); repaint from this palette.")
 
 
-class SetupReadyPayload(OpenPayload):
-    """``hermes_cli/free_tier_bootstrap.py::SetupRecord.as_payload``."""
-
-    provider_configured: bool
-    inference_provider: str
-    free_tier_account: bool
-    free_tier_route: bool
-    has_identity: bool
-    other_providers: bool
-    error: str = ""
-    # Present only when the free-tier mint did not happen (``anon_auth.MintFailure.as_payload``).
-    error_code: str | None = None
-    retryable: bool | None = None
-    retry_after: int | None = None
-    finished_at: float
-
-
 class OnboardingOutcome(WireEnum):
     done = "done"
     skipped = "skipped"
@@ -102,15 +85,6 @@ class OnboardingEndedPayload(Payload):
 
 event("onboarding.ended", OnboardingEndedPayload,
       doc="A first-run onboarding run ended; sent to every connected window.")
-event("setup.ready", SetupReadyPayload,
-      doc="The free-tier bootstrap finished (broadcast); the desktop's setup gate reads the record.")
-
-
-event("free_tier.challenge", FreeTierChallengePayload,
-      doc="The account service wants a browser challenge cleared before the free-tier token exchange "
-          "(broadcast); the desktop loads ``url`` in a hidden window.")
-
-
 class ErrorPayload(Payload):
     """Every ``_emit("error", …)`` site sets exactly ``message``."""
 
@@ -483,7 +457,7 @@ event("todo.updated", TodoUpdatedPayload, doc="Full todo snapshot after a todo t
 
 
 class NotificationShowPayload(Payload):
-    """``agent/credits_tracker.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s
+    """``agent/notices.py::AgentNotice`` via notice_callback, and ``server._await_agent_ready``'s
     slow-build notice. ``level``: info | warn | error | success; ``kind``: sticky | ttl | agent.
     ``detail``: the full text behind a short ``text`` (the low-disk auto-prune question): Desktop shows
     it in the toast's expandable body, the Ink TUI prints it into the transcript."""
@@ -858,7 +832,7 @@ event("bot_relay.outbox.pending", ChangeSignalPayload, doc="A bot-relay outbox e
 
 __all__ = [
     "BillingBlock", "BrowserProgressPayload", "ChangeSignalPayload", "ErrorPayload",
-    "ErrorSurface", "FreeTierChallengePayload", "GatewayReadyPayload",
+    "ErrorSurface", "GatewayReadyPayload",
     "MessageCompletePayload", "MessageInterimPayload", "MessageReaction", "MessageReactionPayload", "MoaAggregatingPayload",
     "MoaPhasePayload", "MoaProgressPayload", "MoaReferencePayload", "NoticePayload",
     "NotificationClearPayload", "NotificationShowPayload", "OpenPayload", "PaneRevealPayload",
@@ -866,7 +840,7 @@ __all__ = [
     "PreviewOpenPayload", "PreviewRestartProgressPayload", "ReactionPayload", "ResumePhaseStatus",
     "ReviewSummaryPayload", "SessionControlSnapshot", "SessionControlUpdatePayload",
     "SessionReclaimedPayload", "SessionResumeProgressPayload", "SessionTitlePayload", "SessionUsagePayload",
-    "SetupReadyPayload", "SideAgentCompletePayload", "SkinPayload", "StatusUpdatePayload",
+    "SideAgentCompletePayload", "SkinPayload", "StatusUpdatePayload",
     "StreamDeltaPayload", "SubagentEventPayload", "SubagentOutputTailEntry", "TerminalClosePayload",
     "TerminalOutputPayload", "TipShowPayload", "TodoUpdatedPayload", "ToolCompletePayload",
     "ToolGeneratingPayload", "ToolLabel", "ToolLabelKind", "ToolOutputRiskPayload", "ToolProgressPayload",

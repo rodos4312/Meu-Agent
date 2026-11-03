@@ -605,9 +605,7 @@ class CLITuiMixin:
             filtered_pairs = self._filter_model_picker_entries(model_list, _query)
             state["_filtered_pairs"] = filtered_pairs
             model_labels = [e for (_i, e) in filtered_pairs]
-            from hermes_cli.model_picker_usage import annotate_window_plan_rows
-            row_labels, limit_line = annotate_window_plan_rows(provider_data, model_labels)
-            choices = row_labels + [t("cli.shared.back"), t("cli.shared.cancel")]
+            choices = model_labels + [t("cli.shared.back"), t("cli.shared.cancel")]
             if _query:
                 hint = t("cli.tui.picker_filter_hint", query=_query, shown=len(model_labels), total=len(model_list))
             elif model_list:
@@ -615,8 +613,6 @@ class CLITuiMixin:
             else:
                 hint = t("cli.tui.picker_empty")
             # Window plan past an allowance: say once what happens next (pay as you go or wait), above the hint.
-            if limit_line:
-                hint = [limit_line, hint]
         return self._render_scroll_list_panel(
             state, title, hint, choices, min_width=46, max_width=84, indent='  ')
 

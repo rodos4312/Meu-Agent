@@ -407,16 +407,6 @@ def _auth_gate_status() -> dict[str, Any]:
             "auth_flows": auth_flows}
 
 
-def _nous_session_validity() -> str:
-    """Nous bootstrap-session validity for the NAS health sweep: a hosted agent whose Nous
-    auth dies terminally looks HEALTHY to every liveness probe yet every inference turn
-    fails, and this is the ONLY signal that surfaces it (local auth-store state, no token
-    needed). Best-effort: never let auth classification break the probe."""
-    try:
-        from hermes_cli.auth import get_nous_session_validity
-        return get_nous_session_validity()
-    except Exception:
-        return "unknown"
 
 
 async def _component_health(gateway: dict[str, Any]) -> dict[str, Any]:
@@ -479,10 +469,7 @@ def _status_local_reads() -> dict[str, Any]:
     auth store and (first call only) git provenance. Run on a worker thread: on the event loop that
     also serves the session WebSocket they stalled every Desktop request behind the disk (#143561)."""
     current_ver, latest_ver = check_config_version()
-    return {"version": get_version_info().base_version, "config_version": current_ver,
-            "latest_config_version": latest_ver,
-            "can_update_hermes": not _dashboard_local_update_managed_externally(),
-            "nous_session_valid": _nous_session_validity()}
+    return {'version': get_version_info().base_version, 'config_version': current_ver, 'latest_config_version': latest_ver, 'can_update_hermes': not _dashboard_local_update_managed_externally()}
 
 
 def _fts_rebuild_status() -> Optional[dict[str, Any]]:
@@ -572,27 +559,7 @@ async def get_status(profile: Optional[str] = None,
         restart_drain_timeout = await run_in_threadpool(_resolve_restart_drain_timeout)
         auth = _auth_gate_status()
 
-        status = {
-            "version": local["version"], "release_date": __release_date__,
-            "config_version": local["config_version"], "latest_config_version": local["latest_config_version"],
-            "can_update_hermes": local["can_update_hermes"],
-            "gateway_running": gateway_running, "gateway_state": gateway_state,
-            "gateway_platforms": gateway["gateway_platforms"],
-            "gateway_exit_reason": gateway["gateway_exit_reason"],
-            "gateway_updated_at": gateway["gateway_updated_at"],
-            # Seconds since housekeeping last stamped the heartbeat, only when the PID is alive but the
-            # stamp is past the freshness TTL (loop/housekeeping wedged, #113372); else null.
-            "gateway_heartbeat_stale_s": gateway["gateway_heartbeat_stale_s"],
-            # Non-null only for a profile served by the shared multiplexer: every profile that process carries.
-            "gateway_shared_with": gateway["gateway_shared_with"],
-            "active_agents": active_agents,
-            "gateway_busy": derive_gateway_busy(
-                gateway_running=gateway_running, gateway_state=gateway_state,
-                active_agents=active_agents),
-            "gateway_drainable": derive_gateway_drainable(
-                gateway_running=gateway_running, gateway_state=gateway_state),
-            "restart_drain_timeout": restart_drain_timeout, "active_sessions": active_sessions,
-            **auth, "nous_session_valid": local["nous_session_valid"]}
+        status = {'version': local['version'], 'release_date': __release_date__, 'config_version': local['config_version'], 'latest_config_version': local['latest_config_version'], 'can_update_hermes': local['can_update_hermes'], 'gateway_running': gateway_running, 'gateway_state': gateway_state, 'gateway_platforms': gateway['gateway_platforms'], 'gateway_exit_reason': gateway['gateway_exit_reason'], 'gateway_updated_at': gateway['gateway_updated_at'], 'gateway_heartbeat_stale_s': gateway['gateway_heartbeat_stale_s'], 'gateway_shared_with': gateway['gateway_shared_with'], 'active_agents': active_agents, 'gateway_busy': derive_gateway_busy(gateway_running=gateway_running, gateway_state=gateway_state, active_agents=active_agents), 'gateway_drainable': derive_gateway_drainable(gateway_running=gateway_running, gateway_state=gateway_state), 'restart_drain_timeout': restart_drain_timeout, 'active_sessions': active_sessions, **auth}
 
         # Stable per-install identity (first call may touch disk). Omitted (not null) when
         # unpersistable so older-client behavior and the no-identity fallback stay identical.

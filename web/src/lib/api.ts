@@ -141,7 +141,6 @@ const PROFILE_SCOPED_PREFIXES = [
   "/api/webhooks",
   "/api/ops",
   "/api/logs",
-  "/api/portal",
   // Pool entries live in the profile's home, and DELETE /api/credentials/pool/{provider}/{index}
   // is destructive — without this prefix the dashboard's remove button never named a profile and
   // a multi-profile host refused it outright.
@@ -1378,7 +1377,6 @@ export const api = {
     fetchJSON<ActionResponse>("/api/curator/run", { method: "POST" }),
 
   // ── Admin: Portal ───────────────────────────────────────────────────
-  getPortal: () => fetchJSON<PortalStatus>("/api/portal"),
 
   // ── Admin: Diagnostics (backgrounded) ───────────────────────────────
   runPromptSize: () =>
@@ -1935,20 +1933,6 @@ export interface CuratorStatus {
   archive_after_days: number | null;
 }
 
-export interface PortalFeature {
-  label: string;
-  state: string;
-}
-
-export interface PortalStatus {
-  logged_in: boolean;
-  portal_url: string | null;
-  inference_url: string | null;
-  provider: string;
-  subscription_url: string;
-  features: PortalFeature[];
-}
-
 export interface CheckpointSession {
   session: string;
   files: number;
@@ -1990,7 +1974,7 @@ export interface StatusResponse {
    * (public bind, no ``--insecure``). Read alongside ``auth_providers``
    * to render a "gated / loopback" badge. */
   auth_required?: boolean;
-  /** Phase 7: registered ``DashboardAuthProvider`` names (e.g. ``["nous"]``).
+  /** Phase 7: registered ``DashboardAuthProvider`` names (e.g. ``["oidc"]``).
    * Empty in loopback mode; empty + ``auth_required=true`` is a
    * fail-closed state (the dashboard will refuse to bind). */
   auth_providers?: string[];
@@ -2440,7 +2424,6 @@ export interface ToolsetProvider {
   tag: string;
   env_vars: ToolsetProviderEnvVar[];
   post_setup: string | null;
-  requires_nous_auth: boolean;
   is_active: boolean;
 }
 

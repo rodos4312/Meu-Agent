@@ -45,7 +45,6 @@ def _fresh(monkeypatch, tmp_path):
     catalog.mkdir()
     (catalog / "camofox.yaml").write_text(_CATALOG_ENTRY, encoding="utf-8")
     monkeypatch.setattr(plugin_catalog, "get_catalog_dir", lambda: catalog)
-    monkeypatch.setattr(plugin_catalog, "fetch_live_catalog", lambda **_: None)
     return catalog
 
 

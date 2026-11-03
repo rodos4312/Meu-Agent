@@ -19,7 +19,7 @@ export const esGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Reinicio necesario',
     unavailable: 'No disponible',
     notRunningDetail: 'Inícialo para abrir Meu desde otro dispositivo.',
-    needsNous: 'Primero inicia sesión en tu cuenta de Nous en Proveedores.',
+    needsSignIn: "Configura primero un proveedor de acceso al panel.",
     runningLan: 'Abre esta dirección en un dispositivo de la misma red.',
     runningPublic: 'Servido a través de tu URL.',
     runningLocal: 'Solo este ordenador puede abrirla. Detenla y vuelve a iniciarla para abrirla desde otros dispositivos.',

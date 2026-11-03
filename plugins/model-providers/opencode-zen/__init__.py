@@ -15,8 +15,8 @@ from datetime import UTC
 # Attribution headers (same values as OpenRouter / Vercel / Fireworks); via
 # default_headers so they survive model switches and credential rotation.
 _ATTRIBUTION_HEADERS = {
-    "HTTP-Referer": "https://hermes-agent.nousresearch.com",
-    "X-Title": "Hermes Agent",
+    "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent",
+    "X-Title": "Meu",
     "User-Agent": lambda: hermes_user_agent("HermesAgent"),
 }
 

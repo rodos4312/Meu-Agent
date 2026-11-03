@@ -512,16 +512,11 @@ def commit_prefix_for(commit: str) -> str:
     return f"releases/commit/{commit}/"
 
 
-# Public download origin for object keys. CI supplies the authoritative
-# value as CLOUDFLARE_R2_PUBLIC_URL; the documented production origin is the
-# fallback so a local command can still name a page it is about to publish.
-DEFAULT_PUBLIC_URL = "https://hermes-assets.nousresearch.com"
-
-
 def public_base_url(explicit: str | None = None) -> str:
-    return R2Scope.configured().public_base(
-        explicit or os.environ.get("CLOUDFLARE_R2_PUBLIC_URL") or DEFAULT_PUBLIC_URL
-    )
+    configured = explicit or os.environ.get("CLOUDFLARE_R2_PUBLIC_URL")
+    if not configured:
+        raise ValueError("Configure CLOUDFLARE_R2_PUBLIC_URL before publishing an archive")
+    return R2Scope.configured().public_base(configured)
 
 
 def public_url_for(base_url: str, key: str) -> str:
