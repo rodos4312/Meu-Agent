@@ -1,6 +1,6 @@
 //! Update orchestration.
 //!
-//! Driven when the installer is launched as `Hermes-Setup.exe --update` (see
+//! Driven when the installer is launched as `Meu-Setup.exe --update` (see
 //! `AppMode` in lib.rs). The desktop app hands off to us — it exits, then we:
 //!
 //! Application output locks protect replacement. Python owns dependency
@@ -103,15 +103,15 @@ fn busy_update_message(owner: &MarkerOwner) -> String {
     };
     if owner.held {
         return format!(
-            "Another Hermes update is already running (started {elapsed} ago; its owner \
+            "Another Meu update is already running (started {elapsed} ago; its owner \
              exited but a process it started still holds the checkout). {wait}"
         );
     }
     if owner.pid == 0 {
-        return format!("Another Hermes update is starting right now. {wait}");
+        return format!("Another Meu update is starting right now. {wait}");
     }
     format!(
-        "Another Hermes update is already running (PID {}, started {elapsed} ago). {wait}",
+        "Another Meu update is already running (PID {}, started {elapsed} ago). {wait}",
         owner.pid
     )
 }
@@ -162,7 +162,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     let legacy_install = !install_root.join("pm").is_dir();
     let hermes = resolve_hermes(&install_root).await.ok_or_else(|| {
         let msg = format!(
-            "Could not find the hermes CLI under {}. Is Hermes installed? \
+            "Could not find the hermes CLI under {}. Is Meu installed? \
              Re-run the installer to repair the install.",
             install_root.display()
         );
@@ -238,7 +238,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
     // second `hermes update` runs clean because the now-current module is loaded
     // from the start. Rather than make the parked user click Update twice (and
     // stare at a scary crash first), retry once automatically. Skip the retry
-    // for the concurrent-instance guard (exit 2) — that's a "close Hermes" state
+    // for the concurrent-instance guard (exit 2) — that's a "close Meu" state
     // a retry can't fix.
     if legacy_install && !matches!(update.exit_code, Some(0) | Some(UPDATE_EXIT_CONCURRENT)) {
         emit_log(
@@ -468,7 +468,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
                 &app,
                 None,
                 LogStream::Stderr,
-                &format!("[update] could not auto-launch desktop: {err}. Launch Hermes manually."),
+                &format!("[update] could not auto-launch desktop: {err}. Launch Meu manually."),
             );
         }
     } else if let Err(err) =
@@ -481,7 +481,7 @@ async fn run_update(app: AppHandle) -> Result<()> {
             &app,
             None,
             LogStream::Stdout,
-            &format!("[update] could not auto-launch desktop: {err}. Launch Hermes manually."),
+            &format!("[update] could not auto-launch desktop: {err}. Launch Meu manually."),
         );
     }
 
@@ -509,14 +509,14 @@ fn exit_after_success(app: &AppHandle) {
 pub(crate) async fn wait_for_install_locks_free(install_root: &Path, app: &AppHandle, stage: &str) -> Result<()> {
     let lock_targets = install_lock_probe_paths(install_root);
     let deadline = Instant::now() + DESKTOP_EXIT_WAIT;
-    emit_log(app, Some(stage), LogStream::Stdout, "[handoff] waiting for Hermes to exit…");
+    emit_log(app, Some(stage), LogStream::Stdout, "[handoff] waiting for Meu to exit…");
     loop {
         let locked = locked_paths(&lock_targets);
         if locked.is_empty() {
             return Ok(());
         }
         if Instant::now() >= deadline {
-            return Err(anyhow!("Desktop application files are still locked: {}. Close the other Hermes window and retry.", format_locked_paths(&locked)));
+            return Err(anyhow!("Desktop application files are still locked: {}. Close the other Meu window and retry.", format_locked_paths(&locked)));
         }
         tokio::time::sleep(DESKTOP_EXIT_POLL).await;
     }
@@ -535,8 +535,8 @@ fn desktop_app_payload_paths(install_root: &Path) -> Vec<PathBuf> {
         ]
     } else if cfg!(target_os = "macos") {
         vec![
-            release.join("mac").join("Hermes.app").join("Contents").join("Resources").join("app.asar"),
-            release.join("mac-arm64").join("Hermes.app").join("Contents").join("Resources").join("app.asar"),
+            release.join("mac").join("Meu.app").join("Contents").join("Resources").join("app.asar"),
+            release.join("mac-arm64").join("Meu.app").join("Contents").join("Resources").join("app.asar"),
         ]
     } else {
         // x64 builds land in `linux-unpacked`, ARM64 in `linux-arm64-unpacked` (#94703).
@@ -593,7 +593,7 @@ const STDOUT_TAIL_LINES: usize = 40;
 fn concurrent_update_message(stdout_tail: &[String]) -> String {
     match stdout_tail.iter().rposition(|l| l.trim_start().starts_with('✗')) {
         Some(start) => stdout_tail[start..].join("\n").trim().to_string(),
-        None => "Hermes is still running. Close all Hermes windows and try \
+        None => "Meu is still running. Close all Meu windows and try \
                  the update again."
             .to_string(),
     }
@@ -757,7 +757,7 @@ fn update_child_env(install_root: &Path) -> Vec<(String, OsString)> {
     // `hermes update` child claims that SAME lock (hermes_cli/update_lock.py).
     // Name our pid so the child recognizes the live holder as its own
     // orchestrator and runs under our claim — without this every GUI update
-    // refuses its parent's marker with exit 2 ("Hermes is still running")
+    // refuses its parent's marker with exit 2 ("Meu is still running")
     // and no number of retries can ever succeed. Keep the variable name in
     // sync with HANDOFF_PID_ENV in hermes_cli/update_lock.py.
     envs.push((
@@ -835,7 +835,7 @@ async fn install_macos_app_update(
 
     let rebuilt_app = crate::bootstrap::resolve_hermes_desktop_app(install_root).ok_or_else(|| {
         anyhow!(
-            "desktop rebuild succeeded but no Hermes.app was found under {}",
+            "desktop rebuild succeeded but no Meu.app was found under {}",
             install_root.join("apps").join("desktop").join("release").display()
         )
     })?;
@@ -1153,19 +1153,19 @@ mod tests {
         let tail = lines(
             "→ Fetching updates...\n\
              ✓ Updated to 6b2c23ae42\n\
-             ✗ Another Hermes update is already running (started 3m 42s ago, process 65285).\n\
+             ✗ Another Meu update is already running (started 3m 42s ago, process 65285).\n\
              \n  Wait for it to finish, then run `hermes update` again.\n",
         );
         assert_eq!(
             concurrent_update_message(&tail),
-            "✗ Another Hermes update is already running (started 3m 42s ago, process 65285).\n\
+            "✗ Another Meu update is already running (started 3m 42s ago, process 65285).\n\
              \n  Wait for it to finish, then run `hermes update` again."
         );
     }
 
     #[test]
     fn concurrent_update_message_falls_back_without_a_refusal_block() {
-        let generic = "Hermes is still running. Close all Hermes windows and try the update again.";
+        let generic = "Meu is still running. Close all Meu windows and try the update again.";
         assert_eq!(concurrent_update_message(&[]), generic);
         assert_eq!(concurrent_update_message(&lines("→ Fetching updates...\n")), generic);
     }
@@ -1234,8 +1234,8 @@ mod tests {
     #[test]
     fn parses_only_app_targets() {
         assert_eq!(
-            target_app_from_args(["--update", "--target-app", "/Applications/Hermes.app"]),
-            Some(PathBuf::from("/Applications/Hermes.app"))
+            target_app_from_args(["--update", "--target-app", "/Applications/Meu.app"]),
+            Some(PathBuf::from("/Applications/Meu.app"))
         );
         assert_eq!(target_app_from_args(["--target-app", "/tmp/not-an-app"]), None);
     }
@@ -1262,9 +1262,9 @@ mod tests {
     #[tokio::test]
     async fn swap_installs_new_bundle_and_cleans_up() {
         let base = unique_tmp_dir("ok");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new");
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Meu.app");
+        let tmp = base.join("Meu.app.hermes-update-new");
+        let old = base.join("Meu.app.hermes-update-old");
         write_marker(&target, "OLD");
         write_marker(&tmp, "NEW");
 
@@ -1292,9 +1292,9 @@ mod tests {
         //  - `old` is a NON-EMPTY dir  -> rename(target, old) fails
         //  - `tmp` does not exist       -> rename(tmp, target) fails
         let base = unique_tmp_dir("fail");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new"); // intentionally absent
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Meu.app");
+        let tmp = base.join("Meu.app.hermes-update-new"); // intentionally absent
+        let old = base.join("Meu.app.hermes-update-old");
         write_marker(&target, "OLD");
         write_marker(&old, "OCCUPIED"); // non-empty => rename(target,old) fails
 
@@ -1315,9 +1315,9 @@ mod tests {
         // Move-aside succeeds but installing the staged bundle fails (tmp
         // absent). The original must be rolled back from `old` to `target`.
         let base = unique_tmp_dir("rollback");
-        let target = base.join("Hermes.app");
-        let tmp = base.join("Hermes.app.hermes-update-new"); // absent
-        let old = base.join("Hermes.app.hermes-update-old");
+        let target = base.join("Meu.app");
+        let tmp = base.join("Meu.app.hermes-update-new"); // absent
+        let old = base.join("Meu.app.hermes-update-old");
         write_marker(&target, "OLD");
 
         let result = swap_in_new_bundle(&tmp, &target, &old).await;

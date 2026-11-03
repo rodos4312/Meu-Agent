@@ -99,7 +99,7 @@ def test_admission_marker_refuses_even_on_git_checkout(tmp_path, monkeypatch):
     refusal = evaluate_update_admission(tmp_path)
     assert refusal is not None
     assert refusal.code == "image-marker"
-    assert "docker pull" in refusal.update_command
+    assert "docker compose" in refusal.update_command
 
 
 def test_admission_invalid_marker_fails_closed(tmp_path, monkeypatch):
@@ -111,7 +111,7 @@ def test_admission_invalid_marker_fails_closed(tmp_path, monkeypatch):
     refusal = evaluate_update_admission(tmp_path)
     assert refusal is not None
     assert refusal.code == "image-marker-invalid"
-    assert "docker pull" in refusal.update_command
+    assert "docker compose" in refusal.update_command
 
 
 def test_admission_no_marker_falls_back_to_heuristics(tmp_path, monkeypatch):
@@ -162,7 +162,7 @@ def test_refusal_receipt_written_as_refused(tmp_path, monkeypatch):
         UpdateRefusal(
             code="image-marker",
             message="msg",
-            update_command="docker pull nousresearch/hermes-agent:latest",
+            update_command="docker compose up -d --build --force-recreate",
         )
     )
     receipts = list((tmp_path / "receipts").glob("*.json"))
@@ -173,7 +173,7 @@ def test_refusal_receipt_written_as_refused(tmp_path, monkeypatch):
     assert data["stop_reason"] == "image-marker"
     steps = {s["name"]: s for s in data["steps"]}
     assert "admission" in steps and steps["admission"]["ok"] is False
-    assert "docker pull" in steps["admission"]["detail"]
+    assert "docker compose" in steps["admission"]["detail"]
 
 
 # ---------------------------------------------------------------------------

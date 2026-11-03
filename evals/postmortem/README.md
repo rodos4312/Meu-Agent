@@ -1,3 +1,5 @@
+> Meu: retired Nous identity/cache probes were removed from this checkout and from run.py. Historical upstream findings below are retained as reference.
+
 # Post-mortem harness: forensics + live A/B for the 1,393-agent run fixes
 
 The scripts that produced every number in tracking issue #103563 and the "Independent review

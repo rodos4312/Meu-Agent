@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { type CSSProperties } from 'react'
 
 import { HackeryButton } from '../components/hackery-button'
-import { launchHermesDesktop } from '../store'
+import { launchMeuDesktop } from '../store'
 
 /*
  * Success screen. HERMES AGENT wordmark stays as the visual anchor
@@ -11,9 +11,9 @@ import { launchHermesDesktop } from '../store'
  * with a status line below.
  *
  * Launching the desktop can fail (e.g. Stage-Desktop was skipped and
- * Hermes.exe doesn't exist). We catch the Tauri error and surface it
+ * Meu.exe doesn't exist). We catch the Tauri error and surface it
  * inline rather than silently doing nothing — the previous version
- * had `onClick={() => void launchHermesDesktop()}` which swallowed
+ * had `onClick={() => void launchMeuDesktop()}` which swallowed
  * the rejection and left the user staring at an unresponsive button.
  */
 export default function Success() {
@@ -25,7 +25,7 @@ export default function Success() {
     setLaunching(true)
 
     try {
-      await launchHermesDesktop()
+      await launchMeuDesktop()
       // On success the installer exits — control never returns here.
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -48,9 +48,9 @@ export default function Success() {
           }
         >
           <span>
-            <span>Hermes is ready</span>
+            <span>Meu is ready</span>
           </span>
-          <span aria-hidden="true">Hermes is ready</span>
+          <span aria-hidden="true">Meu is ready</span>
         </p>
 
         <p className="m-0 text-center text-base leading-normal tracking-tight text-muted-foreground">

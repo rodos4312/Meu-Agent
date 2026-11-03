@@ -9,7 +9,6 @@ Each probe is a standalone script run in a fresh interpreter with the target che
 temp HERMES_HOME (probes that need real credentials say so and are only run with --live). A probe
 "passes" when its process exits 0 AND its stdout contains the expected marker documented in
 PROBES below; the marker is the behaviour the corresponding PR fixed. Run the forensics lanes
-separately (they need a state.db copy): see forensics/README section in ../README.md.
 """
 from __future__ import annotations
 
@@ -32,10 +31,7 @@ PROBES = [
     ("live_ab/subagent_context_cap.py", ["{repo}"], "trigger=200,000", False, "#103513"),
     ("live_ab/batch_failure_notice.py", ["{repo}"], "TASK_FAILURE_NOTICE", False, "#103549"),
     ("review_probes/notice_delivery_probe.py", ["{repo}"], "PROBE_COMPLETE", False, "#103549"),
-    ("review_probes/cache_estimator_probe.py", ["{repo}"], '"preflight_should_compress": true', False, "#103476"),
     ("review_probes/rewrite_hint_probe.py", ["{repo}"], "remote_fifo", False, "#103551"),
-    ("live_ab/auth_stampede.py", ["{repo}", "12"], "server_401=0", False, "#103526"),
-    ("review_probes/credential_identity_probe.py", ["{repo}", "pr"], '"after_sub": "account-A"', False, "#103526"),
     # live (real provider calls, cents each)
     ("live_ab/goal_judge_wait.py", ["{repo}", "3"], "('wait', ", True, "#103534"),
     ("live_ab/cache_prefix_wire.py", ["{repo}", "B"], "", True, "#103476"),

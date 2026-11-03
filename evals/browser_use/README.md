@@ -1,3 +1,5 @@
+> Meu: live runs require explicit OPENROUTER_API_KEY. Hosted Nous browser/auth routes were removed. Historical tables below describe upstream experiments.
+
 # Browser Use Mode Benchmark
 
 The A/B battery behind PR [#81958](https://github.com/NousResearch/hermes-agent/pull/81958)
@@ -23,7 +25,7 @@ web tasks.
 - **Resume-safe.** Completed cells in `results/*.jsonl` are skipped on rerun
   (same pattern as `evals/toolperf_abeval`).
 - **Backend matrix.** `orchestrate.py` drives a local headless-Chrome CDP;
-  `orchestrate_cloud.py --backend nous-cloud|browserbase` provisions a real
+  `orchestrate_cloud.py --backend browserbase` provisions a real
   cloud browser per cell through the same provider plumbing the product uses.
 
 ## Run

@@ -6,7 +6,7 @@
 //!   Linux:   ~/.hermes  (override via $HERMES_HOME)
 //!
 //! NOTE (macOS): Python's get_hermes_home(), scripts/install.sh, and the
-//! Electron desktop's resolveHermesHome() ALL use ~/.hermes on macOS — there
+//! Electron desktop's resolveMeuHome() ALL use ~/.hermes on macOS — there
 //! is no ~/Library/Application Support branch anywhere else. An earlier
 //! version of this file used Application Support, which drifted from every
 //! other component: the installer wrote the install to one dir and the
@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing_appender::non_blocking::WorkerGuard;
 
-/// Returns the canonical Hermes home directory, respecting $HERMES_HOME if set.
+/// Returns the canonical Meu home directory, respecting $HERMES_HOME if set.
 pub fn hermes_home() -> PathBuf {
     if let Ok(override_path) = std::env::var("HERMES_HOME") {
         if !override_path.trim().is_empty() {
@@ -67,19 +67,19 @@ fn platform_default_home() -> PathBuf {
 
 /// `suffix` is HERMES_DATA_DIR_SUFFIX, appended literally to the leaf exactly as
 /// `hermes_constants._get_platform_default_hermes_home()` and the desktop's
-/// `platformDefaultHermesHome()` do: channel builds keep their own data dir,
+/// `platformDefaultMeuHome()` do: channel builds keep their own data dir,
 /// and with it their own update marker.
 fn platform_default_home_with(suffix: &str) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        // %LOCALAPPDATA%\hermes — matches scripts/install.ps1's $HermesHome.
+        // %LOCALAPPDATA%\hermes — matches scripts/install.ps1's $MeuHome.
         if let Some(local_app_data) = dirs::data_local_dir() {
             return local_app_data.join(format!("hermes{suffix}"));
         }
     }
 
     // macOS + Linux + fallback: ~/.hermes (matches Python get_hermes_home(),
-    // install.sh, and the Electron desktop's resolveHermesHome()).
+    // install.sh, and the Electron desktop's resolveMeuHome()).
     if let Some(home) = dirs::home_dir() {
         return home.join(format!(".hermes{suffix}"));
     }

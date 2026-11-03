@@ -20,10 +20,10 @@ Fable 5.1, 20 sessions x 6 calls unless noted):
   2 s settle before every call        no change (not a race)
 
 Usage:
-  python -m evals.postmortem.live_ab.cache_concurrency_probe --repo . --provider nous \
+  python -m evals.postmortem.live_ab.cache_concurrency_probe --repo . --provider openrouter \
       --workers 20 --calls 6 --out probe.jsonl [--wire chat|native] [--model ID] \
       [--pin anthropic] [--settle 2] [--ttl 5m]
-  providers: nous (Portal creds from HERMES_HOME), openrouter (OPENROUTER_API_KEY or --api-key),
+  providers: openrouter (OPENROUTER_API_KEY or --api-key),
              anthropic (ANTHROPIC_API_KEY or --api-key)
 Cost: ~$50 per 20x6 arm on Fable 5.1 at the 5m tier. Every run starts from the real Hermes request
 path; the only patch is a read-only wrapper on the SDK stream that records usage and headers.
@@ -45,7 +45,7 @@ import traceback
 def _parse():
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--repo", required=True, help="hermes-agent checkout to import from")
-    ap.add_argument("--provider", required=True, choices=["nous", "openrouter", "anthropic"])
+    ap.add_argument("--provider", required=True, choices=["openrouter", "anthropic"])
     ap.add_argument("--workers", type=int, default=20)
     ap.add_argument("--calls", type=int, default=6, help="tool calls per session")
     ap.add_argument("--out", required=True, help="JSONL of every call; summary written next to it")
@@ -155,9 +155,6 @@ def patched_create(self, *a, **kw):
 MODEL = ARGS.model or ("claude-fable-5.1" if PROVIDER == "anthropic" else "anthropic/claude-fable-5.1")
 if ARGS.wire:
     API_MODE = "chat_completions" if ARGS.wire == "chat" else "anthropic_messages"
-elif PROVIDER == "nous":
-    from hermes_cli.providers import nous_api_mode
-    API_MODE = nous_api_mode(MODEL)
 else:
     API_MODE = "chat_completions" if PROVIDER == "openrouter" else "anthropic_messages"
 if API_MODE == "chat_completions": Completions.create = patched_create
@@ -175,9 +172,7 @@ def creds():
     if PROVIDER == "anthropic":
         key = ARGS.api_key or os.environ.get("ANTHROPIC_API_KEY") or sys.exit("ANTHROPIC_API_KEY or --api-key required")
         return dict(api_key=key, base_url="https://api.anthropic.com", provider="anthropic")
-    from hermes_cli.auth_nous import resolve_nous_runtime_credentials
-    c = resolve_nous_runtime_credentials()
-    return dict(api_key=c["api_key"], base_url=c.get("base_url") or "https://inference-api.nousresearch.com/v1", provider="nous")
+    raise ValueError(f"Unsupported provider: {PROVIDER}")
 CRED = creds()
 WORKDIR = tempfile.mkdtemp(prefix="cacheprobe-")
 # seed ~35K tokens of file content so the loop's context grows fast and realistically (tool results, not user text)

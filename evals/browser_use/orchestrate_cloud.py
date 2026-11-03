@@ -1,14 +1,11 @@
 """Cloud-backend battery: pr arm attached to a provisioned cloud browser per cell.
 
 Backends:
-    nous-cloud   - Nous Portal-provisioned Browser Use cloud browser
-                   (plugins.browser.browser_use provider; needs gateway access)
     browserbase  - fresh Browserbase session per cell
                    (needs BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID)
 
 Usage:
     BUBENCH_BASE_TREE=... BUBENCH_PR_TREE=... \
-        python3 orchestrate_cloud.py --backend nous-cloud [--reps 2]
         python3 orchestrate_cloud.py --backend browserbase [--reps 1]
 
 Per cell: provision a session, export its CDP endpoint via BENCH_CDP_URL /
@@ -32,7 +29,7 @@ ENV_BASE["PATH"] = (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--backend", required=True, choices=["nous-cloud", "browserbase"])
+parser.add_argument("--backend", required=True, choices=["browserbase"])
 parser.add_argument("--tasks", default=os.path.join(ROOT, "tasks", "hard.json"))
 parser.add_argument("--models", default="anthropic/claude-opus-4.8,moonshotai/kimi-k3")
 parser.add_argument("--reps", type=int, default=2)
@@ -54,24 +51,6 @@ if os.path.exists(RESULTS):
             done.add((r["task"], r["model"], r["rep"]))
         except Exception:
             pass
-
-
-class NousCloud:
-    def __init__(self):
-        sys.path.insert(0, os.environ["BUBENCH_PR_TREE"])
-        import importlib
-
-        self._mod = importlib.import_module("plugins.browser.browser_use.provider")
-
-    def create(self, name):
-        self._prov = self._mod.BrowserUseBrowserProvider()
-        sess = self._prov.create_session(name)
-        return sess, {"BENCH_CDP_URL": sess["cdp_url"]}
-
-    def close(self, sess):
-        self._prov.close_session(
-            sess.get("bb_session_id") or sess.get("session_name", "")
-        )
 
 
 class Browserbase:
@@ -110,7 +89,7 @@ class Browserbase:
         urllib.request.urlopen(req, timeout=30)
 
 
-provider = NousCloud() if args.backend == "nous-cloud" else Browserbase()
+provider = Browserbase()
 
 cells = [(t, m, rep) for m, t, rep in itertools.product(MODELS, TASKS, REPS)]
 total = len(cells)
