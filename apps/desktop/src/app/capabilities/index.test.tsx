@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as HermesApi from '@/hermes'
 import { queryClient } from '@/lib/query-client'
+import { $gatewayState } from '@/store/session'
 import type * as HubActions from '@/store/hub-actions'
 
 import { parseCatalog } from './catalog/catalog-data'
@@ -68,6 +69,13 @@ vi.mock('react-router', async importOriginal => ({
 // Import at module scope (after the hoisted vi.mock calls) so the heavy
 // component-tree transform is paid during collection, not billed against the
 // first test's testTimeout — same flake class as messaging/index.test.tsx.
+const catalogRequest = vi.fn(async (..._args: unknown[]): Promise<unknown> => ({ entries: [] }))
+
+vi.mock('@/store/gateway', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  requestGatewayForProfile: (...args: unknown[]) => catalogRequest(...args)
+}))
+
 const { CapabilitiesView } = await import('./index')
 
 function toolset(overrides: Record<string, unknown> = {}) {
@@ -100,6 +108,9 @@ async function renderSkills() {
 }
 
 beforeEach(() => {
+  $gatewayState.set('open')
+  catalogRequest.mockReset()
+  catalogRequest.mockResolvedValue({ entries: [] })
   $catalogCardView.set(true)
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
@@ -299,14 +310,11 @@ describe('CapabilitiesView toolset management', { timeout: 60_000 }, () => {
     expect(document.querySelector('iframe')).toBeNull()
   })
 
-  it('fetches the public catalog once across remounts and keeps one search input', async () => {
+  it('loads the backend catalog once across remounts and keeps one search input', async () => {
     queryClient.clear()
 
-    const fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [{ name: 'example', source: 'official', identifier: 'official/example' }]
-    })
-
+    catalogRequest.mockResolvedValue({ entries: [{ name: 'example', source: 'official', identifier: 'official/example' }] })
+    const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
 
     const view = () =>
@@ -321,13 +329,15 @@ describe('CapabilitiesView toolset management', { timeout: 60_000 }, () => {
     try {
       const first = view()
       await screen.findByRole('button', { name: 'example' })
-      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(catalogRequest).toHaveBeenCalledTimes(1)
       first.unmount()
       view()
       await screen.findByRole('button', { name: 'example' })
-      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(catalogRequest).toHaveBeenCalledTimes(1)
       expect(screen.getAllByRole('textbox', { name: 'Search skills' })).toHaveLength(1)
       expect(document.querySelector('iframe')).toBeNull()
+      expect(fetch).not.toHaveBeenCalled()
+      expect(catalogRequest.mock.calls[0].slice(1)).toEqual(['capabilities.catalog', { kind: 'skills' }, 20_000])
     } finally {
       vi.unstubAllGlobals()
     }

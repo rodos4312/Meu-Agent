@@ -18,6 +18,13 @@ import { $catalogCardView } from '../catalog/store'
 
 import { PluginsTab } from './plugins-tab'
 
+const catalogRequest = vi.fn(async (..._args: unknown[]): Promise<unknown> => ({ entries: [] }))
+
+vi.mock('@/store/gateway', async importOriginal => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  requestGatewayForProfile: (...args: unknown[]) => catalogRequest(...args)
+}))
+
 const requestGateway = vi.fn(async (_method: string, _params?: Record<string, unknown>): Promise<unknown> => ({
   plugins: $agentPlugins.get()
 }))
@@ -96,6 +103,8 @@ vi.mock('@/api/toolsets', async importOriginal => ({
 }))
 
 beforeEach(() => {
+  catalogRequest.mockReset()
+  catalogRequest.mockResolvedValue({ entries: [] })
   $gatewayState.set('open')
   $pluginRecords.set({})
   $agentPlugins.set([])
@@ -714,15 +723,15 @@ describe('PluginsTab catalog UX', () => {
   it('fetches the catalog once, retaining parent search across selection and filters', async () => {
     queryClient.clear()
 
-    const fetchCatalog = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [
+    catalogRequest.mockResolvedValue({
+      entries: [
         weatherEntry,
         { ...weatherEntry, name: 'garden-plugin', category: 'garden', description: 'Garden planning' }
       ]
     })
 
-    vi.stubGlobal('fetch', fetchCatalog)
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
     await act(async () => {
       renderPlugins({ profile: null })
     })
@@ -742,35 +751,33 @@ describe('PluginsTab catalog UX', () => {
     expect(search.value).toBe('')
     await selectCatalogEntry('garden-plugin')
 
-    expect(fetchCatalog).toHaveBeenCalledTimes(1)
-    expect(fetchCatalog.mock.calls[0][0]).toMatch(/\/docs\/api\/plugins\.json$/)
-    expect(fetchCatalog.mock.calls[0][1]).toMatchObject({ credentials: 'omit' })
+    expect(catalogRequest).toHaveBeenCalledTimes(1)
+    expect(catalogRequest.mock.calls[0].slice(1)).toEqual(['capabilities.catalog', { kind: 'plugins' }, 20_000])
+    expect(fetch).not.toHaveBeenCalled()
     expect($pluginInstallRequest.get()).toBeNull()
   })
 
   it('retries a failed catalog only when asked, not on tab bounce', async () => {
     queryClient.clear()
 
-    const fetchCatalog = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, status: 503 })
-      .mockResolvedValue({ ok: true, json: async () => [weatherEntry] })
+    catalogRequest.mockRejectedValueOnce(new Error('Catalog unavailable')).mockResolvedValue({ entries: [weatherEntry] })
 
-    vi.stubGlobal('fetch', fetchCatalog)
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
     const view = renderPlugins({ profile: null })
 
-    expect(await screen.findByText('Catalog HTTP 503')).toBeTruthy()
-    expect(fetchCatalog).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Catalog unavailable')).toBeTruthy()
+    expect(catalogRequest).toHaveBeenCalledTimes(1)
     view.unmount()
     await act(async () => {
       renderPlugins({ profile: null })
     })
-    expect(fetchCatalog).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('Catalog HTTP 503')).toBeTruthy()
+    expect(catalogRequest).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Catalog unavailable')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     expect(await screen.findByRole('heading', { name: weatherEntry.name })).toBeTruthy()
-    expect(fetchCatalog).toHaveBeenCalledTimes(2)
+    expect(catalogRequest).toHaveBeenCalledTimes(2)
   })
 
   it('shows an Update chip when the catalog pin moved past the installed SHA', () => {
