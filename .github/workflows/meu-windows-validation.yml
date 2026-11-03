@@ -84,7 +84,6 @@ jobs:
           toolchain: all
           extras: '[]'
           test-environment: 'true'
-          packages: git,ripgrep
       - name: Verify remaining build graph and rehearsal gates
         shell: bash
         run: >-
