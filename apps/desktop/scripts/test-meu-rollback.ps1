@@ -5,14 +5,14 @@ if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'rodos4312/M
 }
 $scratch = Join-Path $env:RUNNER_TEMP 'meu-rollback'
 if (Test-Path -LiteralPath $scratch) { throw 'Rollback rehearsal requires a fresh directory.' }
-$env:MEU_HOME = Join-Path $scratch 'profile'
+$env:MEU_HOME = Join-Path $env:LOCALAPPDATA 'MeuAgent'
+if (Test-Path -LiteralPath $env:MEU_HOME) { throw 'Rollback rehearsal requires a fresh default Meu home.' }
 $env:HERMES_HOME = $env:MEU_HOME
 $env:MEU_AGENT_MODE = '1'
-$env:HERMES_RUNTIME_DIR = Join-Path $scratch 'tools'
 $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'never'
 $env:PSModulePath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
-Remove-Item Env:PYTHONPATH, Env:VIRTUAL_ENV, Env:HERMES_PYTHON -ErrorAction SilentlyContinue
+Remove-Item Env:PYTHONPATH, Env:VIRTUAL_ENV, Env:HERMES_PYTHON, Env:HERMES_RUNTIME_DIR -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $env:MEU_HOME -Force | Out-Null
 $checkout = Join-Path $env:MEU_HOME 'meu-agent'
 $baseline = Join-Path $env:RUNNER_TEMP 'meu-rollback-baseline'

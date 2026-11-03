@@ -26,7 +26,6 @@ const env = Object.fromEntries(
   )
 )
 Object.assign(env, {
-  HERMES_DESKTOP_USER_DATA_DIR: path.join(scratch, 'desktop'),
   HERMES_DESKTOP_SKIP_QUIT_CONFIRM: '1',
   TEST_WORKER_INDEX: '0'
 })
@@ -37,6 +36,7 @@ for (const key of [
   'HERMES_PYTHON',
   'HERMES_DESKTOP_BOOT_FAKE',
   'HERMES_DESKTOP_BOOT_FAKE_ERROR',
+  'HERMES_DESKTOP_USER_DATA_DIR',
   'HERMES_DESKTOP_DEV_SERVER',
   'HERMES_DESKTOP_HERMES_ROOT',
   'HERMES_DESKTOP_HERMES'
@@ -151,7 +151,14 @@ try {
   // owned OS process's actual exit, then require the full recovery proof.
   const parent = app.process()
   const exited = new Promise((resolve, reject) => {
-    const done = (code, signal) => code === 0 ? resolve() : reject(new Error(`Old Meu exited with ${code}/${signal}`))
+    const done = (code, signal) => {
+      // Retire only this test's observation channels, after the owned OS
+      // process really exited. Descendants retain their independent lifetime.
+      parent.stdout?.destroy()
+      parent.stderr?.destroy()
+      if (code === 0) resolve()
+      else reject(new Error(`Old Meu exited with ${code}/${signal}`))
+    }
     if (parent.exitCode !== null || parent.signalCode !== null) done(parent.exitCode, parent.signalCode)
     else parent.once('exit', done)
   })

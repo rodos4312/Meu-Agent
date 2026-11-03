@@ -101,9 +101,8 @@ export async function installMeuUpgradeTransport(app, input) {
               { windowsHide: true, timeout: 30_000 }
             )
           }
-          // The recovery monitor already inherited a clean environment. Only the
-          // native installer's NEW app receives the existing boot-failure fixture.
-          process.env.HERMES_DESKTOP_BOOT_FAKE_ERROR = 'Controlled Meu rollback rehearsal'
+          // The unpublished next-version build owns its startup-failure seam;
+          // the real Windows shell relaunch does not need environment injection.
         }
         return send(channel, payload, ...args)
       }
