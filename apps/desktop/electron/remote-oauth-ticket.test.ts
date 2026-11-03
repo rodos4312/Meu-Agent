@@ -54,7 +54,7 @@ describe('resolveRemoteOauthTicket', () => {
                 throw cause
               }
             }
-          ).catch((failure: Error & { isCloudBackendDown?: boolean; statusCode?: number }) => failure)
+          ).catch((failure: Error & { statusCode?: number }) => failure)
 
           expect(error).toBeInstanceOf(Error)
 
@@ -66,9 +66,7 @@ describe('resolveRemoteOauthTicket', () => {
           expect(error.statusCode).toBe(statusCode)
           const authRejected = statusCode === 401 || statusCode === 403
           expect(isReauthRequiredError(error)).toBe(authRejected)
-          expect(error.isCloudBackendDown === true).toBe(
-            baseUrl.includes('.agents.nousresearch.com') && [502, 503, 504].includes(statusCode ?? 0)
-          )
+          expect(error.message).not.toMatch(/portal|discord/i)
 
           if (authRejected) {
             expect(error.message).toBe(oauthTicketFailureAuthMessage(hadNativeSession))

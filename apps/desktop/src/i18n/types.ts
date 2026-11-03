@@ -531,7 +531,6 @@ export interface Translations extends NoticeTranslations {
     dismiss: string
   }
 
-
   titlebar: {
     hideSidebar: string
     showSidebar: string
@@ -3094,6 +3093,10 @@ export interface Translations extends NoticeTranslations {
     backToSetup: string
     failedTitle: string
     settingUpTitle: string
+    upgradingTitle: string
+    upgradingDesc: string
+    upgradeFailedTitle: string
+    cancelUpgrade: string
     finishingTitle: string
     failedDesc: string
     activeDesc: string

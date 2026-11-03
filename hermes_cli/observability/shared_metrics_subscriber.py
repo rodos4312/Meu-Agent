@@ -18,7 +18,6 @@ from .shared_metrics_install import detect_client_install_method
 from .shared_metrics_contract import (
     CLIENT_ACTIVE_METRIC,
     COMMIT_TICKET_KEY,
-    FEATURE_DISABLED_METRIC,
     FEATURE_USED_MARK,
     INSTALL_SNAPSHOT_METRIC,
     MODEL_ROUTE_METRIC,
@@ -131,7 +130,6 @@ class SharedMetricsSubscriber:
         store, resource = self.store, self._client_resource
         special = {
             FEATURE_USED_MARK: lambda: None,  # a first-use fact, not a counter row
-            FEATURE_DISABLED_METRIC: lambda: store.record_counter_once_per_day(metric_name, dimensions, resource),
             CLIENT_ACTIVE_METRIC: lambda: store.record_client_active(resource),
             INSTALL_SNAPSHOT_METRIC: lambda: store.record_install_snapshot(dimensions, resource),
         }.get(metric_name)

@@ -3998,6 +3998,11 @@ export const frOverrides = {
     backToSetup: 'Retour',
     failedTitle: "Échec de l'installation",
     settingUpTitle: 'Configuration de Meu Agent',
+    upgradingTitle: 'Mise à jour de Meu',
+    upgradingDesc:
+      'Mise à jour de l’installation existante et préparation des composants. Meu se reconnectera automatiquement à la fin.',
+    upgradeFailedTitle: 'La mise à jour n’a pas abouti',
+    cancelUpgrade: 'Annuler la mise à jour',
     finishingTitle: 'Finalisation',
     failedDesc:
       "L'une des étapes d'installation a échoué. Sous Windows, cela peut arriver si une autre instance Meu CLI ou desktop est en cours d'exécution. Arrêtez toutes les instances Meu en cours, puis réessayez. Consultez les détails ci-dessous ou le journal du bureau pour la transcription complète.",

@@ -1,5 +1,7 @@
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 
+import { applyBootstrapEvent, EMPTY_BOOTSTRAP_STATE } from '../../shared/src/desktop-bootstrap'
+
 import type { GatewayEndpoint } from './local-gateway'
 import { configurePythonGatewayTicketClient, createLocalGatewayDials, createStaleGatewayRestarter, ensureLocalGateway, gatewayOwnerProfile, localGatewayDial, nativeGatewayHttpHeaders, redialLocalGateway, runGatewayEnsure, runGatewayOwnerRestart } from './local-gateway'
 import { closeGatewayTicketBridges, createGatewayTicketResolver } from './local-gateway-python'
@@ -133,7 +135,6 @@ import { registerClipboardTextIpc } from './clipboard-ipc'
 import { closeStopFailureMessage, finishWindowsCloseStop, type RuntimeLock } from './close-stop-kill'
 import { shouldAttemptCloudBootCascade } from './cloud-boot-cascade'
 import { discoverWithTeamFallback } from './cloud-discovery'
-import { createCloudSessionRecovery } from './cloud-session-recovery'
 import { installCommandScreenshot } from './command-screenshot'
 import { composerImageTimestamp } from './composer-image-name'
 import { writeComposerPaste } from './composer-paste'
@@ -2018,7 +2019,6 @@ let nativeThemeListenerInstalled = false
 let bootProgressState = {
   error: null,
   fakeMode: BOOT_FAKE_MODE,
-  isCloudBackendDown: false,
   message: 'Waiting to start Meu backend',
   phase: 'idle',
   progress: 0,
@@ -2460,7 +2460,7 @@ function broadcastBootProgress() {
 //               'skipped' | 'failed') keyed by stage name
 //   - active:   true while a bootstrap is in flight; false otherwise
 //   - error:    last 'failed' event's error message
-//   - log:      bounded ring buffer of the last 200 log lines for the
+//   - log:      bounded ring buffer of the last 500 log lines for the
 //               "Show details" affordance in the overlay
 //
 // The snapshot is queryable via the hermes:bootstrap:get IPC handler so a
@@ -2471,81 +2471,14 @@ function broadcastBootProgress() {
 // We keep enough to cover an entire failed stage's transcript so the
 // 'Copy output' button gives the user actually-actionable context, not
 // just the last few lines.
-const BOOTSTRAP_LOG_RING_MAX = 500
-
-let bootstrapState = {
-  active: false,
-  manifest: null,
-  stages: {},
-  error: null,
-  log: [],
-  startedAt: null,
-  completedAt: null,
-  setupChoice: null,
-  unsupportedPlatform: null
-}
+let bootstrapState = { ...EMPTY_BOOTSTRAP_STATE }
+let bootstrapRevision = 0
 
 let firstRunSetupGate = null
 
 function broadcastBootstrapEvent(ev) {
-  if (ev.type === 'manifest') {
-    bootstrapState.manifest = ev
-    bootstrapState.active = true
-    bootstrapState.setupChoice = null
-    bootstrapState.startedAt = bootstrapState.startedAt || Date.now()
-    bootstrapState.stages = {}
-
-    for (const stage of ev.stages || []) {
-      bootstrapState.stages[stage.name] = { state: 'pending', json: null, durationMs: null, error: null }
-    }
-  } else if (ev.type === 'stage') {
-    bootstrapState.stages[ev.name] = {
-      state: ev.state,
-      durationMs: ev.durationMs ?? null,
-      json: ev.json ?? null,
-      error: ev.error ?? null
-    }
-  } else if (ev.type === 'log') {
-    bootstrapState.log.push({ ts: Date.now(), stage: ev.stage || null, line: ev.line, stream: ev.stream || 'stdout' })
-
-    if (bootstrapState.log.length > BOOTSTRAP_LOG_RING_MAX) {
-      bootstrapState.log.splice(0, bootstrapState.log.length - BOOTSTRAP_LOG_RING_MAX)
-    }
-  } else if (ev.type === 'complete') {
-    bootstrapState.active = false
-    bootstrapState.completedAt = Date.now()
-    bootstrapState.error = null
-    bootstrapState.unsupportedPlatform = null
-  } else if (ev.type === 'failed') {
-    bootstrapState.active = false
-    bootstrapState.error = ev.error || 'unknown error'
-    bootstrapState.setupChoice = null
-  } else if (ev.type === 'unsupported-platform') {
-    bootstrapState.active = false
-    bootstrapState.setupChoice = null
-    bootstrapState.unsupportedPlatform = {
-      platform: ev.platform,
-      activeRoot: ev.activeRoot,
-      installCommand: ev.installCommand,
-      docsUrl: ev.docsUrl
-    }
-  } else if (ev.type === 'setup-choice') {
-    bootstrapState.active = false
-    bootstrapState.error = null
-    bootstrapState.manifest = null
-    bootstrapState.stages = {}
-    bootstrapState.setupChoice = ev.active
-      ? {
-          platform: ev.platform,
-          activeRoot: ev.activeRoot,
-          local: ev.local || 'none',
-          bundled: installShape() === 'bundled'
-        }
-      : null
-    bootstrapState.unsupportedPlatform = null
-  } else if (ev.type === 'dismissed') {
-    resetBootstrapSnapshot()
-  }
+  ev = { ...ev, revision: ++bootstrapRevision }
+  bootstrapState = applyBootstrapEvent(bootstrapState, ev)
 
   if (!mainWindow || mainWindow.isDestroyed()) {
     return
@@ -2565,17 +2498,7 @@ function getBootstrapState() {
 }
 
 function resetBootstrapSnapshot(): void {
-  bootstrapState = {
-    active: false,
-    manifest: null,
-    stages: {},
-    error: null,
-    log: [],
-    startedAt: null,
-    completedAt: null,
-    setupChoice: null,
-    unsupportedPlatform: null
-  }
+  bootstrapState = { ...EMPTY_BOOTSTRAP_STATE, revision: ++bootstrapRevision }
 }
 
 function promptFirstRunSetupChoice(backend) {
@@ -5103,22 +5026,6 @@ async function ensureRuntime(
       throw handoffError
     }
 
-    // Eagerly flip the bootstrap UI state to 'active' so the renderer
-    // shows the install overlay BEFORE the runner finishes fetching the
-    // manifest (which on slow networks can take tens of seconds and would
-    // otherwise leave the user staring at the generic 'Preparing' splash).
-    // We emit a synthetic manifest with an empty stages list -- the real
-    // manifest event will overwrite it once install.ps1 -Manifest returns.
-    try {
-      broadcastBootstrapEvent({
-        type: 'manifest',
-        stages: [],
-        protocolVersion: null
-      })
-    } catch {
-      void 0
-    }
-
     localBackendLifecycle.assertCanStart()
 
     if (bootstrapInstallFlight.isRunning()) {
@@ -5126,6 +5033,23 @@ async function ensureRuntime(
     }
 
     const bootstrapResult = await bootstrapInstallFlight.run(async () => {
+      // Eagerly flip the bootstrap UI state to 'active' so the renderer
+      // shows the install overlay BEFORE the runner finishes fetching the
+      // manifest (which on slow networks can take tens of seconds and would
+      // otherwise leave the user staring at the generic 'Preparing' splash).
+      // We emit a synthetic manifest with an empty stages list -- the real
+      // manifest event will overwrite it once install.ps1 -Manifest returns.
+      try {
+        broadcastBootstrapEvent({
+          type: 'manifest',
+          operation: backend.upgrade ? 'upgrade' : 'install',
+          stages: [],
+          protocolVersion: null
+        })
+      } catch {
+        void 0
+      }
+
       // One owner for the entire installation, including its cancellation
       // controller. Concurrent backend starts reuse its result.
       const controller = new AbortController()
@@ -7578,40 +7502,16 @@ async function readGatewayFileDataUrl(connection: GatewayFileConnection, request
   return dataUrl
 }
 
-// Recover a Cloud cookie only after a confirmed cookie-auth ticket 401.
-// Each caller still mints its own single-use ticket after the shared recovery.
-const recoverCloudCookieSession = createCloudSessionRecovery({
-  hasNativeSession,
-  onRecovered: baseUrl => rememberLog(`[cloud] saved gateway session recovered for ${hostLabelFromBaseUrl(baseUrl)}`),
-  restoreCookieSession: async baseUrl => {
-    // The saved portal identity is the authority for cookie agent sessions.
-    // Roster polling must never reveal an interactive sign-in window.
-    if (!(await hasLivePortalSession())) {
-      return false
-    }
-
-    if (!(await hasPortalAccessToken()) && !(await renewPortalAccessSilently())) {
-      return false
-    }
-
-    await openOauthLoginWindow(baseUrl, { silent: true, background: true })
-
-    return true
-  }
-})
-
 // Native bearer first (including one forced 401 rotation), OAuth cookie second.
-// Transient ticket POST failures keep their bounded retry before Cloud recovery.
+// A confirmed rejection returns to the gateway's own sign-in flow.
 async function mintGatewayWsTicket(baseUrl: string, headers: Record<string, string> = {}): Promise<string> {
-  return recoverCloudCookieSession(baseUrl, () =>
-    withTransientRetries(
-      (): Promise<string> =>
-        mintOauthGatewayWsTicket(baseUrl, { ensureNativeAccessToken, fetchJson, fetchJsonViaOauthSession }, headers),
-      {
-        isRetryable: (error: Error): boolean =>
-          !(error instanceof NativeAuthChangedError) && !isGatewayAuthRejection(error)
-      }
-    )
+  return withTransientRetries(
+    (): Promise<string> =>
+      mintOauthGatewayWsTicket(baseUrl, { ensureNativeAccessToken, fetchJson, fetchJsonViaOauthSession }, headers),
+    {
+      isRetryable: (error: Error): boolean =>
+        !(error instanceof NativeAuthChangedError) && !isGatewayAuthRejection(error)
+    }
   )
 }
 
@@ -12009,7 +11909,6 @@ async function startHermes(requestedProfile?: string) {
     // boundary when present, so the renderer overlay can key on it rather than
     // re-classifying the message string. main owns classification; the renderer
     // only consumes the structured result (#85335).
-    const isCloudBackendDown = typeof error === 'object' && (error as any)?.isCloudBackendDown === true
 
     const statusCode = Number(
       error && typeof error === 'object' && Number.isInteger((error as any).statusCode)
@@ -12062,7 +11961,6 @@ async function startHermes(requestedProfile?: string) {
     updateBootProgress(
       {
         error: message,
-        isCloudBackendDown: isCloudBackendDown || undefined,
         message: `Desktop boot failed: ${message}`,
         phase: 'backend.error',
         // Renderer contract for the self-heal loop (#82679): a transient

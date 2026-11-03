@@ -502,7 +502,6 @@ export const en: Translations = {
     dismiss: 'Dismiss'
   },
 
-
   titlebar: {
     hideSidebar: 'Hide sidebar',
     showSidebar: 'Show sidebar',
@@ -3567,6 +3566,11 @@ export const en: Translations = {
     backToSetup: 'Back',
     failedTitle: 'Installation failed',
     settingUpTitle: 'Setting up Meu',
+    upgradingTitle: 'Updating Meu',
+    upgradingDesc:
+      'Updating the existing installation and preparing its components. Meu will reconnect automatically when this finishes.',
+    upgradeFailedTitle: 'Update did not finish',
+    cancelUpgrade: 'Cancel update',
     finishingTitle: 'Finishing up',
     failedDesc:
       'One of the setup steps did not finish. This can happen when another copy of Meu is running, the internet connection dropped, or antivirus blocked the installer. Close other Meu windows, then choose Reload and retry. If it fails again, open the logs and send them to support.',

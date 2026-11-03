@@ -3536,8 +3536,6 @@ def main():
     if getattr(args, "oneshot", None):
         _run_oneshot_from_args(args)
 
-    from hermes_cli.observability.shared_metrics_disabled import set_process_surface
-    set_process_surface(args.command)
     # No subcommand (optionally with top-level --resume / --continue) → chat.
     if args.command is None:
         _default_to_chat(args)

@@ -195,7 +195,6 @@ export const jaOverrides = {
 
   ...jaNotices,
 
-
   titlebar: {
     hideSidebar: 'サイドバーを非表示',
     showSidebar: 'サイドバーを表示',
@@ -2766,6 +2765,11 @@ export const jaOverrides = {
     backToSetup: '戻る',
     failedTitle: 'インストールに失敗しました',
     settingUpTitle: 'Meu Agent を設定中',
+    upgradingTitle: 'Meu を更新中',
+    upgradingDesc:
+      '既存のインストールを更新し、コンポーネントを準備しています。完了すると Meu は自動的に再接続します。',
+    upgradeFailedTitle: '更新が完了しませんでした',
+    cancelUpgrade: '更新をキャンセル',
     finishingTitle: '仕上げ中',
     failedDesc:
       'インストール手順のいずれかが失敗しました。Windows では、別の Meu CLI またはデスクトップインスタンスが実行中の場合に発生することがあります。実行中の Meu インスタンスをすべて停止してから再試行してください。詳細は以下またはデスクトップログで確認できます。',

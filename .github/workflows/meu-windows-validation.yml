@@ -27,6 +27,7 @@ on:
       - 'tests/gateway/test_meu_memory_commands.py'
       - 'tests/tools/test_memory_tool.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
+      - 'tests/hermes_cli/test_meu_config_without_feature_metrics.py'
       - 'tests/hermes_cli/test_meu_removed_metrics_routes.py'
       - 'tests/tui_gateway/test_meu_removed_metrics.py'
       - 'tests/tui_gateway/test_meu_removed_payments.py'
@@ -150,6 +151,7 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
+          tests/hermes_cli/test_meu_config_without_feature_metrics.py
           tests/hermes_cli/test_meu_nous_routes.py
           tests/hermes_cli/test_meu_removed_metrics_routes.py
           tests/hermes_cli/test_meu_removed_diagnostics.py
@@ -302,7 +304,7 @@ jobs:
         run: node apps/desktop/scripts/test-meu-isolation.mjs
       - name: Run relevant native desktop regression tests
         working-directory: apps/desktop
-        run: npx vitest run --project electron electron/meu-runtime-upgrade.test.ts electron/bootstrap-runner.test.ts electron/product-identity.test.ts electron/data-paths.test.ts electron/bootstrap-single-flight.test.ts electron/preload-version-scope.test.ts electron/app-version.test.ts electron/local-runtime-version.test.ts electron/window-renderer-lifecycle.test.ts scripts/set-exe-identity.test.mjs scripts/after-extract.test.mjs electron/external-open.test.ts electron/preview-guest-escape.test.ts
+        run: npx vitest run --project electron electron/meu-runtime-upgrade.test.ts electron/bootstrap-runner.test.ts electron/product-identity.test.ts electron/data-paths.test.ts electron/bootstrap-single-flight.test.ts electron/bootstrap-state.test.ts electron/bootstrap-transitions.test.ts electron/backend-health.test.ts electron/remote-oauth-ticket.test.ts electron/connection-config.test.ts electron/preload-version-scope.test.ts electron/app-version.test.ts electron/local-runtime-version.test.ts electron/window-renderer-lifecycle.test.ts scripts/set-exe-identity.test.mjs scripts/after-extract.test.mjs electron/external-open.test.ts electron/preview-guest-escape.test.ts
       - name: Test Meu first-run setup interface
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx src/components/boot-failure-overlay.test.tsx src/lib/desktop-backend-wait.test.ts src/lib/with-timeout.test.ts src/app/gateway/hooks/use-gateway-boot.bootstrap.test.tsx src/app/gateway/hooks/use-gateway-boot.test.tsx

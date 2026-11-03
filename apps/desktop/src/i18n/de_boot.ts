@@ -61,13 +61,6 @@ export const deBoot = {
       signOutAndSignIn: 'Abmelden & anmelden',
       remoteFailureHint:
         'Überprüfen Sie die Gateway-URL und die Anmeldung in den Gateway-Einstellungen, oder wechseln Sie zum lokalen Gateway.',
-      cloudDownTitle: 'Nous Cloud Agent ist down',
-      cloudDownDescription:
-        'Der von Nous verwaltete Cloud-Agent, mit dem sich dieses Gateway verbindet, meldet einen Serverfehler. Er kann von hier aus nicht neu gestartet werden – prüfen Sie seinen Status, wechseln Sie zum lokalen Gateway oder wenden Sie sich an den Support.',
-      cloudDownHint:
-        'Die Schaltflächen unten öffnen das Nous Portal (Instanzstatus und Steuerung) und unseren Discord für Support.',
-      cloudDownCheckPortal: 'Portal-Status prüfen',
-      cloudDownDiscord: 'Hilfe auf Discord holen',
       hideRecentLogs: 'Neueste Logs ausblenden',
       showRecentLogs: 'Neueste Logs anzeigen',
       signedInTitle: 'Angemeldet',
@@ -88,8 +81,7 @@ export const deBoot = {
         `Das Update (Prozess ${pid}) wurde beendet, aber ein von ihm gestarteter Prozess hält die Meu-Installation noch fest.`,
       heldUnknown:
         'Ein Update wurde beendet, aber ein von ihm gestarteter Prozess hält die Meu-Installation noch fest.',
-      unverified:
-        'Der Update-Helfer konnte gerade nicht prüfen, wem die Meu-Installation gehört. Meu prüft weiter.',
+      unverified: 'Der Update-Helfer konnte gerade nicht prüfen, wem die Meu-Installation gehört. Meu prüft weiter.',
       since: time => `Wartet seit ${time}`,
       lastChecked: time => `Zuletzt geprüft ${time}`,
       recoveryHint:

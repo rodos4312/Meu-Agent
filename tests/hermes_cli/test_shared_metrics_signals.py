@@ -235,7 +235,7 @@ def test_cli_flow_classifies_landed_backed_out_failed_and_raised(marks, monkeypa
     ends = [r for r in _setup_rows(marks.rows) if r[2] != "started"]
     assert ends == [
         ("cli_setup", "anthropic", "completed", "none"), ("cli_setup", "anthropic", "abandoned", "none"),
-        ("cli_setup", "nous", "failed", "no_models"), ("cli_setup", "gemini", "completed", "none"),
+        ("cli_setup", "custom", "failed", "no_models"), ("cli_setup", "gemini", "completed", "none"),
         ("cli_setup", "xai", "abandoned", "none"), ("cli_setup", "xai", "failed", "network"),
     ]
     setup_metrics.note_provider_setup_saved()  # outside a flow: inert
@@ -269,7 +269,7 @@ def test_cli_setup_navigation_esc_cancels_and_back_resumes_one_flow(marks, monke
     assert _setup_rows(marks.rows) == [
         ("cli_model", "xai", "started", "none"), ("cli_model", "xai", "abandoned", "none"),
         ("cli_model", "anthropic", "started", "none"), ("cli_model", "anthropic", "completed", "none"),
-        ("cli_model", "nous", "started", "none"), ("cli_model", "nous", "abandoned", "none"),
+        ("cli_model", "custom", "started", "none"), ("cli_model", "custom", "abandoned", "none"),
         ("cli_model", "gemini", "started", "none"), ("cli_model", "gemini", "completed", "none"),
         ("cli_setup", "xai", "started", "none"), ("cli_setup", "xai", "abandoned", "none"),
     ]
@@ -293,160 +293,19 @@ def test_oauth_session_endings(marks, monkeypatch, sess, ending):
     assert [r[2:] for r in _setup_rows(marks.rows)] == [("started", "none"), ending]
 
 
-def test_cancel_or_lapsed_code_is_never_a_failure_and_poller_errors_keep_their_class(marks, monkeypatch):
-    """A user cancel / a sign-in code left to run out is ``abandoned`` on every surface; a dashboard
-    poller's exception keeps its closed class instead of the bare session ``error`` -> ``other``."""
-    import httpx
-
-    from hermes_cli.auth_constants import _codex_err, _xai_err
-    from hermes_cli.auth_device_flow import _poll_for_token
-    from hermes_cli.auth_error_copy import device_flow_error
-    from hermes_cli.web_server_oauth import _oauth_poller, _oauth_sessions
-
+def test_cancelled_setup_is_abandoned(marks, monkeypatch):
+    """Cancellation stays neutral in the remaining setup collector API."""
     monkeypatch.setattr(setup_metrics, "web_setup_surface", lambda: "desktop")
-    with setup_metrics.provider_setup_surface("cli_model"):  # CLI: Ctrl-C mid sign-in
-        with pytest.raises(KeyboardInterrupt), setup_metrics.cli_provider_setup("nous"):
+    with setup_metrics.provider_setup_surface("cli_model"):
+        with pytest.raises(KeyboardInterrupt), setup_metrics.cli_provider_setup("openai-codex"):
             raise KeyboardInterrupt
-    flow = setup_metrics.begin_oauth_setup("openai-codex", None)  # web start route: cancelled pre-response
+    flow = setup_metrics.begin_oauth_setup("openai-codex", None)
     setup_metrics.finish_provider_setup(flow, "failed", setup_metrics.setup_failure_class(KeyboardInterrupt()))
-
-    class Pending:  # the real Nous poll loop running out of time on authorization_pending
-        status_code = 400
-
-        def json(self):
-            return {"error": "authorization_pending"}
-
-    with pytest.raises(TimeoutError) as lapsed:
-        _poll_for_token(SimpleNamespace(post=lambda *a, **k: Pending()), "https://p", "c", "d", 0, 1)
-    dropped = _xai_err("xAI OIDC discovery failed", "xai_discovery_failed")
-    dropped.__cause__ = httpx.ConnectError("down")
-    for provider, exc in [
-        ("nous", lapsed.value), ("xai-oauth", _xai_err("Timed out", "device_code_timeout")),
-        ("openai-codex", _codex_err("Login timed out after 15 minutes.", "device_code_timeout")),
-        ("nous", device_flow_error("access_denied", "declined")), ("xai-oauth", dropped),
-        ("nous", device_flow_error("invalid_client", "nope")),
-    ]:
-        sess = {"status": "pending", "profile": None}
-        _oauth_sessions["probe"] = sess
-        setup_metrics.attach_oauth_setup(sess, setup_metrics.begin_oauth_setup(provider, None))
-
-        @_oauth_poller(provider)
-        def poller(_sid, _sess, exc=exc):
-            raise exc
-
-        poller("probe")
-        setup_metrics.settle_oauth_setup(sess)
-    _oauth_sessions.pop("probe", None)
     assert [r for r in _setup_rows(marks.rows) if r[2] != "started"] == [
-        ("cli_model", "nous", "abandoned", "none"), ("desktop", "openai-codex", "abandoned", "none"),
-        ("desktop", "nous", "abandoned", "none"), ("desktop", "xai-oauth", "abandoned", "none"),
-        ("desktop", "openai-codex", "abandoned", "none"), ("desktop", "nous", "abandoned", "none"),
-        ("desktop", "xai-oauth", "failed", "network"), ("desktop", "nous", "failed", "auth"),
+        ("cli_model", "openai-codex", "abandoned", "none"),
+        ("desktop", "openai-codex", "abandoned", "none"),
     ]
 
-
-def _wire(status, body):
-    """A real httpx client whose every POST gets one canned response (JSON dict, else raw text)."""
-    import httpx
-
-    def reply(request):
-        if isinstance(body, Exception):
-            raise body
-        return httpx.Response(status, request=request, **({"json": body} if isinstance(body, dict) else {"text": body}))
-
-    return httpx.Client(transport=httpx.MockTransport(reply))
-
-
-def _poll(provider, status, body):
-    """The real device-code poll loop on a fake clock (each sleep advances it)."""
-    def run(monkeypatch):
-        from hermes_cli import auth_device_flow
-        from hermes_cli.auth_xai import _xai_oauth_poll_device_token
-
-        clock = [0.0]
-        fake_time = SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: clock.__setitem__(0, clock[0] + max(s, 1)))
-        monkeypatch.setattr(auth_device_flow, "time", fake_time)
-        if provider == "nous":
-            return auth_device_flow._poll_for_token(_wire(status, body), "https://p", "c", "d", 30, 1)
-        return _xai_oauth_poll_device_token(
-            _wire(status, body), token_endpoint="https://x/token", device_code="d", expires_in=30, poll_interval=1)
-    return run
-
-
-def _guest_sign_in(token_status, token_body):
-    """The Desktop sign-in over a free tier: the real ``run_sign_in`` generator recorded onto a
-    dashboard session; the token poll gets ``token_*`` until expiry."""
-    def run(monkeypatch):
-        import httpx
-
-        from hermes_cli import anon_auth, auth_device_flow
-        from hermes_cli.web_server_oauth import _record_sign_in_state
-
-        clock = [0.0]
-        fake_time = SimpleNamespace(monotonic=lambda: clock[0], sleep=lambda s: clock.__setitem__(0, clock[0] + max(s, 1)))
-        monkeypatch.setattr(auth_device_flow, "time", fake_time)
-        monkeypatch.setattr(anon_auth, "current_nous_state", lambda: {
-            "auth_method": anon_auth.ANON_AUTH_METHOD, "anon_token": "t", "portal_base_url": "https://p"})
-        monkeypatch.setattr(anon_auth, "_anon_headers", dict)
-        replies = {
-            "/api/oauth/device/code": (200, {"device_code": "d", "user_code": "U", "verification_uri": "https://p/v",
-                                             "verification_uri_complete": "https://p/v?c=U", "expires_in": 30, "interval": 1}),
-            "/api/oauth/token": (token_status, token_body)}
-
-        def reply(request):
-            status, body = replies[request.url.path]
-            return httpx.Response(status, **({"json": body} if isinstance(body, dict) else {"text": body}))
-        sess = {"status": "pending"}
-        for state in anon_auth.run_sign_in(client_factory=lambda *_: httpx.Client(transport=httpx.MockTransport(reply))):
-            _record_sign_in_state(sess, state)
-        return sess
-    return run
-
-
-def _codex_start(status, body):
-    """The dashboard start route: the worker thread's failure crosses into an HTTPException."""
-    def run(monkeypatch):
-        import asyncio
-
-        import hermes_cli.web_routers.oauth as routes
-
-        client = _wire(status, body)
-        monkeypatch.setattr(routes, "_codex_post", lambda _httpx, url, **kw: client.post(url, **kw))
-        asyncio.run(routes._start_codex_device_code(None))
-    return run
-
-
-@pytest.mark.parametrize("producer, ending", [
-    (_poll("nous", 400, {"error": "authorization_pending"}), ("abandoned", "none")),  # code left unapproved
-    (_poll("nous", 503, "<html>503 unavailable</html>"), ("failed", "network")),  # outage until it ran out
-    (_poll("xai", 400, {"error": "access_denied"}), ("abandoned", "none")),  # consent declined
-    (_poll("xai", 400, {"error": "expired_token"}), ("abandoned", "none")),  # the server let the code lapse
-    (_poll("xai", 400, {"error": "invalid_client"}), ("failed", "auth")),
-    (_codex_start(401, {"error": "invalid_client"}), ("failed", "auth")),
-    (_codex_start(0, ConnectionRefusedError("down")), ("failed", "network")),
-    (_codex_start(503, "<html>503</html>"), ("failed", "network")),
-    (_guest_sign_in(400, {"error": "authorization_pending"}), ("abandoned", "none")),
-    (_guest_sign_in(503, "<html>503 unavailable</html>"), ("failed", "network")),
-], ids=["nous-pending", "nous-503", "xai-denied", "xai-expired", "xai-refused", "codex-401", "codex-down",
-        "codex-503", "guest-pending", "guest-503"])
-def test_wire_failures_keep_the_producers_class_to_the_recorded_end(marks, monkeypatch, producer, ending):
-    """Real poll loops / start route / free-tier sign-in against wire responses: a lapse or a decline
-    is a walk-away, an outage or a refusal stays a failure, across the worker -> HTTPException and
-    sign-in state -> session boundaries too."""
-    import asyncio
-
-    import hermes_cli.web_routers.oauth as routes
-
-    monkeypatch.setattr(setup_metrics, "web_setup_surface", lambda: "desktop")
-    flow = setup_metrics.begin_oauth_setup("nous", None)
-    try:
-        sess = producer(monkeypatch)
-    except Exception as exc:
-        asyncio.run(routes._end_oauth_setup_metric(flow, exc))
-    else:  # a sign-in generator ends on a state, recorded onto its session
-        setup_metrics.attach_oauth_setup(sess, flow)
-        setup_metrics.settle_oauth_setup(sess)
-    assert [r[2:] for r in _setup_rows(marks.rows)] == [("started", "none"), ending]
 
 def test_pending_oauth_session_does_not_settle(marks, monkeypatch):
     monkeypatch.setattr(setup_metrics, "web_setup_surface", lambda: "dashboard")
@@ -482,141 +341,6 @@ def test_web_forms_count_only_a_new_provider_key_or_endpoint(marks, monkeypatch)
     endpoint = config_env.upsert_custom_endpoint(CustomEndpointUpdate(**body))["id"]
     config_env.upsert_custom_endpoint(CustomEndpointUpdate(id=endpoint, **{**body, "model": "acme-70b-v2"}))
     assert done == ["openrouter", "openrouter", "gemini", "custom"]
-
-
-# ---- feature disabled ----
-
-from hermes_cli.observability import shared_metrics_disabled as disabled_metrics
-
-
-def _settle_disabled() -> None:
-    """feature_disabled diffs and records off the writer's thread (outside any caller lock)."""
-    import threading
-
-    for thread in threading.enumerate():
-        if thread.name == "hermes-feature-disabled":
-            thread.join(10)
-
-
-def test_settings_skills_plugins_transitions_only_count_moves_from_and_back_to_default():
-    old = {"skills": {"disabled": ["my-private-skill"]}, "plugins": {"disabled": []}}
-    new = {
-        "memory": {"memory_enabled": False}, "compression": {"enabled": "false"}, "curator": {"enabled": True},
-        "display": {"show_reasoning": False, "skin": "mono"},  # a value change on a non-bool: never a row
-        "skills": {"disabled": ["my-private-skill", "arxiv"], "platform_disabled": {"telegram": ["totally-custom"]}},
-        "plugins": {"disabled": ["disk-cleanup", "telegram", "some-private-plugin"]},
-    }
-    got = set(disabled_metrics.config_transitions(old, new))
-    assert got == {
-        ("memory", "memory.memory_enabled", "disabled"), ("compression", "compression.enabled", "disabled"),
-        ("setting", "display.show_reasoning", "disabled"),
-        ("skill", "arxiv", "disabled"), ("skill", "custom", "disabled"),
-        ("plugin", "disk-cleanup", "disabled"), ("platform", "telegram", "disabled"),
-        ("plugin", "custom", "disabled"),
-    }
-    back = set(disabled_metrics.config_transitions(new, old))
-    assert ("memory", "memory.memory_enabled", "re_enabled") in back and ("skill", "arxiv", "re_enabled") in back
-    assert all(contract.counter_dimensions_are_valid(contract.FEATURE_DISABLED_METRIC, {
-        "event": e, "kind": k, "name": n, "surface": "cli_config"}) for k, n, e in got | back)
-
-
-def test_toolset_transitions_use_the_real_resolver():
-    from hermes_cli.tools_config import _get_platform_tools
-
-    default = sorted(_get_platform_tools({}, "cli", include_default_mcp_servers=False))
-    assert "memory" in default
-    new = {"platform_toolsets": {"cli": [t for t in default if t != "memory"]}}
-    assert ("toolset", "memory", "disabled") in disabled_metrics.config_transitions({}, new)
-    assert ("toolset", "memory", "re_enabled") in disabled_metrics.config_transitions(new, {})
-    assert disabled_metrics.config_transitions({}, {"platform_toolsets": {"cli": default}}) == []
-
-
-def test_record_config_saved_needs_a_surface_and_collection(marks, monkeypatch):
-    monkeypatch.setattr(disabled_metrics, "_process_surface", None)
-    disabled_metrics.record_config_saved({}, {"memory": {"memory_enabled": False}})
-    assert marks.rows == []  # setup/migration writes: no entry-point surface
-    disabled_metrics.set_process_surface("config")
-    marks.policy["on"] = False
-    disabled_metrics.record_config_saved({}, {"memory": {"memory_enabled": False}})
-    assert marks.rows == []
-    marks.policy["on"] = True
-    disabled_metrics.record_config_saved({}, {"memory": {"memory_enabled": False}})
-    _settle_disabled()
-    assert marks.rows == [(contract.FEATURE_DISABLED_MARK, {
-        "event": "disabled", "kind": "memory", "name": "memory.memory_enabled", "surface": "cli_config"})]
-    disabled_metrics.set_process_surface(None)
-    assert disabled_metrics.current_surface() == "cli_slash"
-
-
-def test_store_counts_feature_disabled_once_per_day(tmp_path):
-    resource = {"hermes_version": "1.0.0", "os_family": "linux", "architecture": "x86_64", "install_method": "git"}
-    store = SharedMetricsStore(tmp_path / "m.sqlite3", tmp_path / "outbox")
-    dims = {"event": "disabled", "kind": "toolset", "name": "memory", "surface": "cli_tools"}
-    assert store.record_counter_once_per_day(contract.FEATURE_DISABLED_METRIC, dims, resource) is True
-    assert store.record_counter_once_per_day(
-        contract.FEATURE_DISABLED_METRIC, {**dims, "surface": "desktop"}, resource) is False
-    assert store.record_counter_once_per_day(
-        contract.FEATURE_DISABLED_METRIC, {**dims, "event": "re_enabled"}, resource) is True
-
-
-def test_real_config_writes_report_the_move_away_from_default(marks, monkeypatch):
-    from hermes_cli.config import load_config, save_config, set_config_value
-
-    marks.home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(disabled_metrics, "_process_surface", "cli_config")
-    config = load_config()
-    config.setdefault("memory", {})["memory_enabled"] = False
-    save_config(config)
-    _settle_disabled()
-    set_config_value("curator.enabled", "false")
-    _settle_disabled()
-    rows = [(d["kind"], d["name"], d["event"]) for m, d in marks.rows if m == contract.FEATURE_DISABLED_MARK]
-    assert rows == [("memory", "memory.memory_enabled", "disabled"), ("curator", "curator.enabled", "disabled")]
-
-
-def test_migrations_and_env_templates_are_not_user_disables(marks, monkeypatch):
-    from hermes_cli.config import _persist_migration, load_config, save_config
-
-    marks.home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(disabled_metrics, "_process_surface", "cli_config")
-    config = load_config()
-    config.setdefault("memory", {})["memory_enabled"] = False
-    _persist_migration(config)  # e.g. `hermes config migrate` / profile create in the dashboard
-    # A ``${VAR}`` template on the raw side vs its expanded value: nothing moved.
-    monkeypatch.setenv("MEM_ON", "false")
-    (marks.home / "config.yaml").write_text("compression:\n  enabled: ${MEM_ON}\n")
-    config = load_config()
-    config.setdefault("display", {})["compact"] = True
-    save_config(config)
-    _settle_disabled()
-    assert [d for m, d in marks.rows if m == contract.FEATURE_DISABLED_MARK] == []
-
-
-def test_diff_and_record_run_off_the_callers_lock_in_the_owning_profile(marks, monkeypatch, tmp_path):
-    import threading
-
-    from hermes_constants import get_hermes_home, reset_hermes_home_override, set_hermes_home_override
-
-    monkeypatch.setattr(disabled_metrics, "_process_surface", "cli_config")
-    gate, seen = threading.Event(), []
-    real = disabled_metrics.config_transitions
-
-    def slow(old, new):
-        gate.wait(5)
-        seen.append(str(get_hermes_home()))
-        return real(old, new)
-
-    monkeypatch.setattr(disabled_metrics, "config_transitions", slow)
-    token = set_hermes_home_override(str(tmp_path / "b"))
-    try:
-        with threading.Lock():  # noqa: PLW2101 -- inert on purpose: a stand-in for the caller's _CONFIG_MUTATION_LOCK, which record_config_saved documents running outside of; the caller's write lock (the dashboard's _CONFIG_MUTATION_LOCK)
-            disabled_metrics.record_config_saved({}, {"memory": {"memory_enabled": False}})
-            assert marks.rows == []  # returned without diffing
-    finally:
-        reset_hermes_home_override(token)
-    gate.set()
-    _settle_disabled()
-    assert seen == [str(tmp_path / "b")] and [m for m, _ in marks.rows] == [contract.FEATURE_DISABLED_MARK]
 
 
 def test_off_thread_setup_records_in_the_owning_profile(marks, tmp_path, monkeypatch):

@@ -22,7 +22,7 @@ def save_previous_memory(path: Path, content: str) -> None:
     target = _TARGETS.get(path.name)
     if target is None:
         raise ValueError("Unknown memory file")
-    before = path.read_text(encoding="utf-8") if path.exists() else ""
+    before = path.read_text(encoding="utf-8-sig") if path.exists() else ""
     if before == content:
         return
     directory = path.parent / ".history"
@@ -39,7 +39,7 @@ def memory_versions(directory: Path) -> list[dict]:
     records = []
     for path in (directory / ".history").glob("*.json"):
         try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
+            raw = json.loads(path.read_text(encoding="utf-8-sig"))
             if (isinstance(raw, dict) and _VERSION.fullmatch(str(raw.get("id", "")))
                     and path.stem == raw["id"] and raw.get("target") in _FILENAMES
                     and isinstance(raw.get("created_ns"), int) and isinstance(raw.get("content"), str)):
@@ -57,7 +57,7 @@ def _version(directory: Path, version_id: str) -> dict:
         if len(matches) != 1:
             raise ValueError("Version not found or ambiguous; use the full version id")
         version_id = matches[0]
-    raw = json.loads((directory / ".history" / f"{version_id}.json").read_text(encoding="utf-8"))
+    raw = json.loads((directory / ".history" / f"{version_id}.json").read_text(encoding="utf-8-sig"))
     if (not isinstance(raw, dict) or raw.get("id") != version_id or raw.get("target") not in _FILENAMES
             or not isinstance(raw.get("content"), str)):
         raise ValueError("Invalid memory version")
@@ -67,7 +67,7 @@ def _version(directory: Path, version_id: str) -> dict:
 def memory_version_diff(directory: Path, version_id: str) -> str:
     record = _version(directory, version_id)
     path = directory / _FILENAMES[record["target"]]
-    current = path.read_text(encoding="utf-8") if path.exists() else ""
+    current = path.read_text(encoding="utf-8-sig") if path.exists() else ""
     return "".join(difflib.unified_diff(
         record["content"].splitlines(keepends=True), current.splitlines(keepends=True),
         fromfile=f"{path.name}@{version_id}", tofile=f"{path.name}@current", lineterm="\n")) or "No changes."

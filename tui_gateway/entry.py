@@ -342,8 +342,6 @@ def _serve():
     from hermes_cli.observability.shared_metrics_process import begin_process
 
     begin_process("tui")
-    from hermes_cli.observability.shared_metrics_disabled import set_process_surface
-    set_process_surface("tui_gateway")
 
     # One TLS authority: trust the OS store process-wide before any
     # outbound call resolves a CA bundle (see agent/ssl_verify.py).

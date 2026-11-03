@@ -171,7 +171,7 @@ async function withRetry(makeAttempt, options: any = {}) {
  * The one error shape the REST helpers throw for an HTTP >= 400 response.
  *
  * `statusCode` is the structured contract every downstream classifier reads —
- * isGatewayAuthRejection (401/403 → reauth, never retried), isServerSideHttpError
+ * isGatewayAuthRejection (401/403 → reauth, never retried), HTTP status classification
  * (502/503/504 → Cloud-down), ensureNativeAccessToken's dead-refresh-token
  * check — and the "<status>: <body>" message keeps the legacy prefix readers
  * working. fetchJson used to build a bare Error here, so a native-bearer 401

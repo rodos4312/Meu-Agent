@@ -9,14 +9,7 @@ export const ruNotices = {
       `Включён программный рендеринг — обнаружен удалённый дисплей (${reason}). GPU-ускорение отключено, чтобы избежать мерцания.`
   },
   butterbar: {
-    goTo: (index, total) => `Показать уведомление ${index} из ${total}`,
-    legal: {
-      before: 'Использование Meu Agent регулируется нашими ',
-      terms: 'Условиями обслуживания',
-      between: ' и ',
-      privacy: 'Политикой конфиденциальности',
-      after: '.'
-    }
+    goTo: (index, total) => `Показать уведомление ${index} из ${total}`
   },
   promptNotices: {
     legacySendUnconfirmed:

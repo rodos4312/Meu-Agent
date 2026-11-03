@@ -270,9 +270,6 @@
           },
           {
             "$ref": "#/$defs/feature_adoption_counter"
-          },
-          {
-            "$ref": "#/$defs/feature_disabled_counter"
           }
         ]
       }
@@ -4433,74 +4430,6 @@
             }
           },
           "description": "Emitted once per feature per install, at its first real use; the bucket is the owning profile's age then."
-        },
-        "value": {
-          "const": 1
-        }
-      }
-    },
-    "feature_disabled_counter": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "type",
-        "dimensions",
-        "value"
-      ],
-      "properties": {
-        "name": {
-          "const": "hermes.feature_disabled.count"
-        },
-        "type": {
-          "const": "counter"
-        },
-        "dimensions": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "event",
-            "kind",
-            "name",
-            "surface"
-          ],
-          "properties": {
-            "event": {
-              "enum": [
-                "disabled",
-                "re_enabled"
-              ]
-            },
-            "kind": {
-              "enum": [
-                "compression",
-                "curator",
-                "memory",
-                "platform",
-                "plugin",
-                "setting",
-                "skill",
-                "toolset"
-              ]
-            },
-            "name": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 64,
-              "pattern": "^[a-z0-9][a-z0-9._:/@+\\-]*$"
-            },
-            "surface": {
-              "enum": [
-                "cli_config",
-                "cli_slash",
-                "cli_tools",
-                "dashboard",
-                "desktop",
-                "tui"
-              ]
-            }
-          },
-          "description": "A user turned off something Hermes ships on (or removed a shipped skill), or turned it back on. name is a shipped toolset / bundled or catalog skill or plugin / DEFAULT_CONFIG key path (never a value), else custom. At most once per (kind, name, event) per day."
         },
         "value": {
           "const": 1

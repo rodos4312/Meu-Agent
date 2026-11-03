@@ -41,12 +41,6 @@ export const zhHantBoot = {
         `先登出已儲存的遠端瀏覽器工作階段，然後開啟${signInLabel}。使用本機閘道可切換至內建後端。`,
       signOutAndSignIn: '登出並重新登入',
       remoteFailureHint: '在「閘道設定」中檢查閘道 URL 與登入，或切換至本機閘道。',
-      cloudDownTitle: 'Nous Cloud 代理已停機',
-      cloudDownDescription:
-        '此閘道連線的 Nous 託管雲端代理正在回傳伺服器錯誤。無法在此處重新啟動——請檢查其狀態、切換至本機閘道，或取得支援。',
-      cloudDownHint: '使用下方按鈕開啟 Nous Portal（檢視執行個體狀態與操作）或加入 Discord 取得支援。',
-      cloudDownCheckPortal: '查看 Portal 狀態',
-      cloudDownDiscord: '在 Discord 取得協助',
       hideRecentLogs: '隱藏最近記錄',
       showRecentLogs: '顯示最近記錄',
       signedInTitle: '已登入',
@@ -69,14 +63,7 @@ export const zhHantBoot = {
     message: reason => `軟體繪圖已啟用 — 偵測到遠端顯示（${reason}）。為防止畫面閃爍，已停用 GPU 加速。`
   },
   butterbar: {
-    goTo: (index, total) => `顯示第 ${index} 則通知，共 ${total} 則`,
-    legal: {
-      before: '使用 Meu Agent 即表示受我們的',
-      terms: '服務條款',
-      between: '和',
-      privacy: '隱私權政策',
-      after: '約束。'
-    }
+    goTo: (index, total) => `顯示第 ${index} 則通知，共 ${total} 則`
   },
   promptNotices: {
     legacySendUnconfirmed: '此伺服器無法確認這則訊息先前的傳送，它可能已經執行過。再次傳送前請先查看對話。',
@@ -94,8 +81,7 @@ export const zhHantBoot = {
     discontinuedBody: '此版本的 Meu 已停止支援，可能無法正常運作——請解除安裝。您的資料仍保留在磁碟上。',
     channels: { stable: '穩定版', canary: '預覽版' },
     bundleSwapPending: '重新啟動以完成更新',
-    bundleSwapPendingDesc:
-      '更新後的應用程式已安裝完成，只需重新啟動 Meu 即可載入新版本。聊天記錄和設定不會受到影響。',
+    bundleSwapPendingDesc: '更新後的應用程式已安裝完成，只需重新啟動 Meu 即可載入新版本。聊天記錄和設定不會受到影響。',
     bundleSwapPendingAction: '重新啟動 Meu',
     stages: {
       idle: '準備中…',
@@ -145,8 +131,7 @@ export const zhHantBoot = {
     copy: '複製',
     copied: '已複製',
     done: '完成',
-    applyingBody:
-      'Meu 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Meu。更新期間請勿自行重新開啟 Meu。',
+    applyingBody: 'Meu 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Meu。更新期間請勿自行重新開啟 Meu。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Meu 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Meu 會自動重新開啟。',
     errorTitle: '更新未完成',
@@ -263,6 +248,10 @@ export const zhHantBoot = {
     backToSetup: '返回',
     failedTitle: '安裝失敗',
     settingUpTitle: '正在設定 Meu Agent',
+    upgradingTitle: '正在更新 Meu',
+    upgradingDesc: '正在更新現有安裝並準備元件。完成後 Meu 會自動重新連線。',
+    upgradeFailedTitle: '更新未完成',
+    cancelUpgrade: '取消更新',
     finishingTitle: '正在收尾',
     failedDesc:
       '某個安裝步驟失敗。在 Windows 上，如果另一個 Meu CLI 或桌面執行個體正在執行，可能會出現這種情況。請停止正在執行的 Meu 執行個體後重試。可查看下方的詳細資訊或 desktop 記錄中的完整記錄。',

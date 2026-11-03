@@ -60,13 +60,6 @@ export const frBoot = {
       signOutAndSignIn: 'Se déconnecter et se reconnecter',
       remoteFailureHint:
         "Vérifiez l'URL du gateway et la connexion dans les paramètres du gateway, ou passez au gateway local.",
-      cloudDownTitle: "L'agent Nous Cloud est indisponible",
-      cloudDownDescription:
-        "L'agent cloud géré par Nous auquel ce gateway se connecte renvoie une erreur serveur. Il ne peut pas être redémarré depuis ici — vérifiez son état, passez au gateway local ou contactez l'assistance.",
-      cloudDownHint:
-        "Les boutons ci-dessous ouvrent le portail Nous, pour consulter et contrôler l'instance, ainsi que notre Discord pour obtenir de l'aide.",
-      cloudDownCheckPortal: "Vérifier l'état sur le portail",
-      cloudDownDiscord: "Obtenir de l'aide sur Discord",
       hideRecentLogs: 'Masquer les journaux récents',
       showRecentLogs: 'Afficher les journaux récents',
       signedInTitle: 'Connecté',
@@ -102,8 +95,7 @@ export const frBoot = {
         'Le processus de mise à jour restant modifie peut-être encore les fichiers de Meu. Démarrer maintenant peut charger une installation à moitié mise à jour, qui risque de ne pas fonctionner avant une nouvelle mise à jour. Meu consigne ce choix dans son journal et laisse le marqueur de mise à jour en place.',
       confirmKeepWaiting: 'Continuer à attendre',
       confirmStart: 'Démarrer quand même',
-      startAnywayRefused:
-        "Ce qui bloque l'installation a changé avant que Meu puisse démarrer. Vérifiez et réessayez."
+      startAnywayRefused: "Ce qui bloque l'installation a changé avant que Meu puisse démarrer. Vérifiez et réessayez."
     }
   }
 } satisfies Pick<TranslationOverrides, 'boot'>

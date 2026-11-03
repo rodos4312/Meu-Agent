@@ -415,13 +415,6 @@ FEATURES = frozenset({
     "memory", "plugins", "projects", "skills_created", "tui", "voice",
 })
 DAYS_SINCE_INSTALL_BUCKETS = frozenset({"same_day", "1d_to_7d", "7d_to_30d", "30d_to_90d", "gte_90d", "unknown"})
-FEATURE_DISABLED_MARK = FEATURE_DISABLED_METRIC = "hermes.feature_disabled.count"
-FEATURE_DISABLED_KINDS = frozenset({
-    "compression", "curator", "memory", "platform", "plugin", "setting", "skill", "toolset",
-})
-FEATURE_DISABLED_SURFACES = frozenset({"cli_config", "cli_slash", "cli_tools", "dashboard", "desktop", "tui"})
-FEATURE_DISABLED_EVENTS = frozenset({"disabled", "re_enabled"})
-FEATURE_DISABLED_NAME_MAX_LENGTH = 64
 # ---- end v5 signals ----
 
 # ---- iuf c1 ----
@@ -1044,9 +1037,6 @@ _COUNTER_DIMENSION_VALUES: dict[str, dict[str, frozenset[str]]] = {
         "surface": PROVIDER_SETUP_SURFACES,
     },
     FEATURE_ADOPTION_METRIC: {"days_since_install_bucket": DAYS_SINCE_INSTALL_BUCKETS, "feature": FEATURES},
-    FEATURE_DISABLED_METRIC: {
-        "event": FEATURE_DISABLED_EVENTS, "kind": FEATURE_DISABLED_KINDS, "surface": FEATURE_DISABLED_SURFACES,
-    },
     # ---- end v5 signals ----
     # ---- iuf c2 ----
     INSTALL_RUN_METRIC: {
@@ -1102,7 +1092,6 @@ _IDENTIFIER_FIELDS: dict[str, dict[str, int]] = {
     # ---- v5 signals ----
     TOOL_UNAVAILABLE_METRIC: _MODEL_ROUTE_MAX_LENGTHS,
     PROVIDER_SETUP_METRIC: {"provider": PROVIDER_IDENTIFIER_MAX_LENGTH},
-    FEATURE_DISABLED_METRIC: {"name": FEATURE_DISABLED_NAME_MAX_LENGTH},
     # ---- end v5 signals ----
     TOOL_BATCH_METRIC: _MODEL_ROUTE_MAX_LENGTHS,
 }
@@ -1208,7 +1197,6 @@ _DECISION_MARK_METRICS = {
     # ---- end v5 desktop ----
     # ---- v5 signals ----
     TOOL_UNAVAILABLE_MARK: TOOL_UNAVAILABLE_METRIC, PROVIDER_SETUP_MARK: PROVIDER_SETUP_METRIC,
-    FEATURE_DISABLED_MARK: FEATURE_DISABLED_METRIC,
     # ---- end v5 signals ----
     # ---- iuf c2 ----
     INSTALL_RUN_MARK: INSTALL_RUN_METRIC,

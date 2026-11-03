@@ -33,12 +33,6 @@ export const arBoot = {
       retry: 'إعادة المحاولة',
       repairInstall: 'إصلاح التثبيت',
       useLocalGateway: 'استخدام البوابة المحلية',
-      cloudDownTitle: 'عامل Nous Cloud معطّل',
-      cloudDownDescription:
-        'يعيد عامل السحابة المُدار من Nous الذي يتصل به هذا البوابة خطأً من الخادم. لا يمكن إعادة تشغيله من هنا — تحقق من حالته، أو بدّل إلى البوابة المحلية، أو احصل على الدعم.',
-      cloudDownHint: 'تفتح الأزرار أدناه بوابة Nous (حالة المثيل وعناصر التحكم) أو Discord للحصول على الدعم.',
-      cloudDownCheckPortal: 'التحقق من حالة البوابة',
-      cloudDownDiscord: 'الحصول على مساعدة عبر Discord',
       openLogs: 'فتح السجلات',
       repairHint: 'يعيد الإصلاح تشغيل المثبت وقد يستغرق بضع دقائق على جهاز جديد.',
       remoteSignInHint: signInLabel =>
@@ -66,14 +60,7 @@ export const arBoot = {
     message: reason => `العرض البرمجي نشط — تم اكتشاف شاشة بعيدة (${reason}). تم تعطيل تسريع GPU لمنع الوميض.`
   },
   butterbar: {
-    goTo: (index, total) => `عرض الإشعار ${index} من ${total}`,
-    legal: {
-      before: 'يخضع استخدام Meu Agent لـ',
-      terms: 'شروط الخدمة',
-      between: ' و',
-      privacy: 'سياسة الخصوصية',
-      after: ' الخاصة بنا.'
-    }
+    goTo: (index, total) => `عرض الإشعار ${index} من ${total}`
   },
   promptNotices: {
     legacySendUnconfirmed:
@@ -188,8 +175,7 @@ export const arBoot = {
     done: 'تم',
     applyingBody:
       'يتولّى مُحدِّث Meu المهمة في نافذته الخاصة ويعيد فتح Meu تلقائيا عند الانتهاء. الرجاء عدم إعادة فتح Meu بنفسك أثناء التحديث.',
-    applyingBodyBackend:
-      'تطبّق الواجهة الخلفية البعيدة التحديث وستعيد التشغيل. يعيد Meu الاتصال تلقائيا عند عودتها.',
+    applyingBodyBackend: 'تطبّق الواجهة الخلفية البعيدة التحديث وستعيد التشغيل. يعيد Meu الاتصال تلقائيا عند عودتها.',
     applyingClose: 'ستُغلق هذه النافذة أثناء تشغيل التحديث، ثم يعيد Meu فتح نفسه تلقائيا.',
     errorTitle: 'لم يكتمل التحديث',
     errorBody: 'لا داعي للقلق — لم يُفقد شيء. يمكنك إعادة المحاولة الآن.',
@@ -249,6 +235,10 @@ export const arBoot = {
     retryAfterRun: 'لقد شغّلته -- إعادة المحاولة',
     failedTitle: 'فشل التثبيت',
     settingUpTitle: 'جار إعداد وكيل Meu',
+    upgradingTitle: 'جارٍ تحديث Meu',
+    upgradingDesc: 'يجري تحديث التثبيت الحالي وتجهيز المكونات. سيعيد Meu الاتصال تلقائيًا عند الانتهاء.',
+    upgradeFailedTitle: 'لم يكتمل التحديث',
+    cancelUpgrade: 'إلغاء التحديث',
     finishingTitle: 'جار الإنهاء',
     failedDesc:
       'فشلت إحدى خطوات التثبيت. على Windows، قد يحدث هذا إذا كان هناك نسخة أخرى من Meu CLI أو تطبيق سطح المكتب قيد التشغيل. أوقف أي نسخ Meu قيد التشغيل، ثم أعد المحاولة. تحقق من التفاصيل أدناه أو من سجل سطح المكتب للحصول على النص الكامل.',
@@ -306,8 +296,7 @@ export const arBoot = {
       },
       local: {
         short: 'مستضاف ذاتيا',
-        description:
-          'وجّه Meu إلى نقطة نهاية محلية أو مستضافة ذاتيا متوافقة مع OpenAI (vLLM، llama.cpp، Ollama، إلخ).'
+        description: 'وجّه Meu إلى نقطة نهاية محلية أو مستضافة ذاتيا متوافقة مع OpenAI (vLLM، llama.cpp، Ollama، إلخ).'
       }
     },
     backToSignIn: 'العودة إلى تسجيل الدخول',

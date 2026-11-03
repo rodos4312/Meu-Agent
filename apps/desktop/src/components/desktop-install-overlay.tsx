@@ -20,13 +20,15 @@ import { AlertCircle, ChevronDown, ChevronRight, Globe, iconSize, Loader2, Monit
 import { capitalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 
+import { applyBootstrapEvent, EMPTY_BOOTSTRAP_STATE } from '../../../shared/src/desktop-bootstrap'
+
 import { localCardPresentation } from './desktop-install-local-card'
 import { FirstRunRemoteSetup } from './remote-setup/first-run'
 
 /**
  * DesktopInstallOverlay
  *
- * Renders the first-launch install progress for Hermes Agent. Mounted always;
+ * Renders the installation and update progress for Meu. Mounted always;
  * shows itself only when main.ts reports an in-flight bootstrap (state.active)
  * OR an error from a completed-failed bootstrap (state.error). When the
  * bootstrap finishes successfully the overlay fades out and the rest of the
@@ -36,10 +38,9 @@ import { FirstRunRemoteSetup } from './remote-setup/first-run'
  *   - getBootstrapState()           -- initial snapshot on mount
  *   - onBootstrapEvent(callback)    -- live event stream
  *
- * The reducer is intentionally simple: every event mutates an in-component
- * snapshot the same way main.ts mutates its server-side snapshot. We don't
- * try to reconcile -- if we miss an event (shouldn't happen) the initial
- * getBootstrapState() call will resync the picture on the next render.
+ * Electron and the renderer share immutable transitions. Revisioned live events
+ * are replayed over the initial snapshot so a late IPC response cannot hide
+ * a failure or resurrect completed progress.
  *
  * Stages flagged needs_user_input render with a deliberately subdued style:
  * they're expected to come back as skipped=true (install.ps1 short-circuits
@@ -182,122 +183,94 @@ export function splitFailureDetails(text: string | null): [string, string | null
   return [lead || value, detail || null]
 }
 
-const EMPTY_STATE: DesktopBootstrapState = {
-  active: false,
-  manifest: null,
-  stages: {},
-  error: null,
-  log: [],
-  startedAt: null,
-  completedAt: null,
-  setupChoice: null,
-  unsupportedPlatform: null,
-  bundled: false
+function useBootstrapState(enabled: boolean) {
+  const [state, setState] = useState<DesktopBootstrapState>(EMPTY_BOOTSTRAP_STATE)
+
+  // Subscribe to bootstrap events + load initial snapshot
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
+    const desktop = window.hermesDesktop
+
+    if (!desktop || typeof desktop.onBootstrapEvent !== 'function') {
+      return
+    }
+
+    let cancelled = false
+    let pendingSnapshot = true
+    const pendingEvents: DesktopBootstrapEvent[] = []
+
+    const off = desktop.onBootstrapEvent(ev => {
+      if (pendingSnapshot) {
+        pendingEvents.push(ev)
+      }
+
+      setState(prev => applyBootstrapEvent(prev, ev))
+    })
+
+    desktop
+      .getBootstrapState()
+      .then(snapshot => {
+        if (!cancelled && snapshot) {
+          setState(pendingEvents.reduce((current, event) => applyBootstrapEvent(current, event), snapshot))
+        }
+      })
+      .catch(() => {
+        // Older Electron build without the IPC handler -- bootstrap UI just
+        // stays empty, app falls through to existing onboarding flow.
+      })
+      .finally(() => {
+        pendingSnapshot = false
+        pendingEvents.length = 0
+      })
+
+    return () => {
+      cancelled = true
+      off?.()
+    }
+  }, [enabled])
+
+  return [state, setState] as const
 }
 
-function applyEvent(state: DesktopBootstrapState, ev: DesktopBootstrapEvent): DesktopBootstrapState {
-  if (ev.type === 'dismissed') {
-    return { ...EMPTY_STATE }
-  }
+function InstallProgressHeader({ state }: { state: DesktopBootstrapState }) {
+  const { t } = useI18n()
+  const copy = t.install
+  const failed = Boolean(state.error)
+  const upgrading = state.operation === 'upgrade'
+  const active = state.active
 
-  if (ev.type === 'setup-choice') {
-    return {
-      ...state,
-      active: false,
-      manifest: null,
-      stages: {},
-      error: null,
-      setupChoice: ev.active
-        ? {
-            platform: ev.platform || state.setupChoice?.platform || 'unknown',
-            activeRoot: ev.activeRoot || state.setupChoice?.activeRoot || '',
-            local: ev.local || state.setupChoice?.local || 'none',
-            bundled: Boolean(ev.bundled)
-          }
-        : null,
-      unsupportedPlatform: null,
-      bundled: Boolean(ev.bundled)
-    }
-  }
-
-  if (ev.type === 'manifest') {
-    const stages: Record<string, DesktopBootstrapStageResult> = {}
-
-    for (const stage of ev.stages) {
-      stages[stage.name] = { state: 'pending', durationMs: null, startedAt: null, json: null, error: null }
-    }
-
-    return {
-      ...state,
-      active: true,
-      manifest: { type: 'manifest', stages: ev.stages, protocolVersion: ev.protocolVersion },
-      stages,
-      error: null,
-      setupChoice: null,
-      startedAt: state.startedAt || Date.now()
-    }
-  }
-
-  if (ev.type === 'stage') {
-    const prev = state.stages[ev.name]
-
-    return {
-      ...state,
-      stages: {
-        ...state.stages,
-        [ev.name]: {
-          state: ev.state,
-          durationMs: ev.durationMs ?? null,
-          // Stamp the start time on the running transition so the UI can show
-          // a live elapsed timer; preserve it across repeated running events.
-          startedAt: ev.state === 'running' ? (prev?.startedAt ?? Date.now()) : (prev?.startedAt ?? null),
-          json: ev.json ?? null,
-          error: ev.error ?? null
-        }
-      }
-    }
-  }
-
-  if (ev.type === 'log') {
-    const next = state.log.concat({ ts: Date.now(), stage: ev.stage ?? null, line: ev.line, stream: ev.stream })
-
-    while (next.length > 500) {
-      next.shift()
-    }
-
-    return { ...state, log: next }
-  }
-
-  if (ev.type === 'complete') {
-    return { ...state, active: false, completedAt: Date.now(), error: null }
-  }
-
-  if (ev.type === 'failed') {
-    return { ...state, active: false, error: ev.error || 'unknown error', setupChoice: null }
-  }
-
-  if (ev.type === 'unsupported-platform') {
-    return {
-      ...state,
-      active: false,
-      setupChoice: null,
-      unsupportedPlatform: {
-        platform: ev.platform,
-        activeRoot: ev.activeRoot,
-        installCommand: ev.installCommand,
-        docsUrl: ev.docsUrl
-      }
-    }
-  }
-
-  return state
+  return (
+    <div className="flex flex-shrink-0 items-start gap-4 p-8 pb-4">
+      {!failed && <BrandMark className="size-11 shrink-0" />}
+      <div className="min-w-0">
+        <h2 className="text-xl font-semibold tracking-tight">
+          {failed
+            ? upgrading
+              ? copy.upgradeFailedTitle
+              : copy.failedTitle
+            : active
+              ? upgrading
+                ? copy.upgradingTitle
+                : copy.settingUpTitle
+              : copy.finishingTitle}
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {failed ? copy.failedDesc : upgrading ? copy.upgradingDesc : copy.activeDesc}
+        </p>
+      </div>
+    </div>
+  )
 }
 
 export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayProps) {
   const { t } = useI18n()
   const copy = t.install
 
-  const [state, setState] = useState<DesktopBootstrapState>(EMPTY_STATE)
+  const [state, setState] = useBootstrapState(enabled)
+  const upgrading = state.operation === 'upgrade'
   const [logOpen, setLogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -316,40 +289,6 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
 
     return () => window.clearInterval(id)
   }, [state.active])
-
-  // Subscribe to bootstrap events + load initial snapshot
-  useEffect(() => {
-    if (!enabled) {
-      return
-    }
-
-    const desktop = window.hermesDesktop
-
-    if (!desktop || typeof desktop.onBootstrapEvent !== 'function') {
-      return
-    }
-
-    let cancelled = false
-
-    desktop
-      .getBootstrapState()
-      .then(snapshot => {
-        if (!cancelled && snapshot) {
-          setState(snapshot)
-        }
-      })
-      .catch(() => {
-        // Older Electron build without the IPC handler -- bootstrap UI just
-        // stays empty, app falls through to existing onboarding flow.
-      })
-
-    const off = desktop.onBootstrapEvent(ev => setState(prev => applyEvent(prev, ev)))
-
-    return () => {
-      cancelled = true
-      off?.()
-    }
-  }, [enabled])
 
   // Autoscroll log to bottom when new lines arrive AND the log is open
   useEffect(() => {
@@ -378,7 +317,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setState(EMPTY_STATE)
+        setState(EMPTY_BOOTSTRAP_STATE)
       }
     }
 
@@ -604,16 +543,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   return (
     <div className="fixed inset-0 z-(--z-setup) flex items-center justify-center bg-background/90 backdrop-blur-md p-4">
       <div className="flex w-full max-w-2xl max-h-[90vh] flex-col rounded-xl border border-(--stroke-nous) bg-card shadow-nous">
-        {/* Header -- always visible, never scrolls */}
-        <div className="flex flex-shrink-0 items-start gap-4 p-8 pb-4">
-          {!failed && <BrandMark className="size-11 shrink-0" />}
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-tight">
-              {failed ? copy.failedTitle : state.active ? copy.settingUpTitle : copy.finishingTitle}
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">{failed ? copy.failedDesc : copy.activeDesc}</p>
-          </div>
-        </div>
+        <InstallProgressHeader state={state} />
 
         {/* Scrollable middle: progress, stages, error block, log */}
         <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-2">
@@ -718,7 +648,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                 variant="ghost"
               >
                 {cancelling ? <Loader className="size-4" type="fourier-flow" /> : null}
-                {cancelling ? copy.cancelling : copy.cancelInstall}
+                {cancelling ? copy.cancelling : upgrading ? copy.cancelUpgrade : copy.cancelInstall}
               </Button>
             </div>
           </div>
@@ -733,7 +663,7 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                 <code className="font-mono text-(--ui-text-secondary)">%LOCALAPPDATA%\hermes\logs\</code>
               </span>
               <div className="flex gap-2">
-                <Button onClick={() => setState(EMPTY_STATE)} size="sm" variant="ghost">
+                <Button onClick={() => setState(EMPTY_BOOTSTRAP_STATE)} size="sm" variant="ghost">
                   {t.common.close}
                 </Button>
                 <Button
@@ -772,9 +702,12 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
                     // re-running install.ps1.
                     try {
                       const reset = await window.hermesDesktop?.resetBootstrap?.()
+
                       // An ongoing install owns the update lock. Do not reload
                       // and accidentally start an overlapping bootstrap.
-                      if (reset && !reset.ok) return
+                      if (reset && !reset.ok) {
+                        return
+                      }
                     } catch {
                       return
                     }

@@ -3982,6 +3982,11 @@ export const esOverrides = {
     backToSetup: 'Atrás',
     failedTitle: 'Falló la instalación',
     settingUpTitle: 'Configurando Meu Agent',
+    upgradingTitle: 'Actualizando Meu',
+    upgradingDesc:
+      'Se está actualizando la instalación existente y preparando sus componentes. Meu se volverá a conectar automáticamente al terminar.',
+    upgradeFailedTitle: 'La actualización no terminó',
+    cancelUpgrade: 'Cancelar actualización',
     finishingTitle: 'Terminando',
     failedDesc:
       'Uno de los pasos de configuración no terminó. Puede ocurrir si hay otra copia de Meu en ejecución, se cortó la conexión a internet o un antivirus bloqueó el instalador. Cierra las demás ventanas de Meu y elige Recargar y reintentar. Si vuelve a fallar, abre los registros y envíalos al soporte.',

@@ -113,3 +113,29 @@ def test_memory_tool_preserves_the_existing_autonomous_setting(tmp_path, monkeyp
     assert not result.get("staged")
     assert _store().memory_entries == ["Saved automatically"]
     assert not (tmp_path / "pending").exists()
+
+
+@pytest.mark.parametrize("bom", [False, True])
+def test_history_and_restore_accept_windows_utf8_files(bom):
+    store = _store()
+    assert store.add("memory", "Original fact")["success"]
+    directory = get_memory_dir()
+    path = directory / "MEMORY.md"
+    encoding = "utf-8-sig" if bom else "utf-8"
+    original = path.read_text(encoding="utf-8-sig")
+    path.write_text(original, encoding=encoding)
+    assert store.patch("memory", "Original", "Updated")["success"]
+    version = memory_versions(directory)[0]["id"]
+    archive = directory / ".history" / f"{version}.json"
+    record = json.loads(archive.read_text(encoding="utf-8-sig"))
+    assert record["content"] == original
+    archive.write_text(json.dumps(record), encoding=encoding)
+    current = path.read_text(encoding="utf-8-sig")
+    path.write_text(current, encoding=encoding)
+    assert version in [r["id"] for r in memory_versions(directory)]
+    diff = memory_version_diff(directory, version[:8])
+    assert "Original fact" in diff and "Updated fact" in diff
+    assert "\ufeff" not in diff
+    restore_memory_version(store, version)
+    assert path.read_text(encoding="utf-8-sig") == original
+    assert "\ufeff" not in _store().format_for_system_prompt("memory")

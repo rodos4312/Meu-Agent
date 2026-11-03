@@ -174,12 +174,6 @@ export const zhOverrides = {
         `先退出已保存的远程浏览器会话，然后打开${signInLabel}。也可以使用本地网关切换到随应用提供的后端。`,
       signOutAndSignIn: '退出并重新登录',
       remoteFailureHint: '在“网关设置”中检查网关 URL 和登录，或切换到本地网关。',
-      cloudDownTitle: 'Nous Cloud 代理已宕机',
-      cloudDownDescription:
-        '此网关连接的 Nous 托管云代理正在返回服务器错误。无法在此处重启——请检查其状态、切换到本地网关或获取支持。',
-      cloudDownHint: '使用下方按钮打开 Nous Portal（查看实例状态与操作）或加入 Discord 获取支持。',
-      cloudDownCheckPortal: '查看 Portal 状态',
-      cloudDownDiscord: '在 Discord 获取帮助',
       hideRecentLogs: '隐藏最近日志',
       showRecentLogs: '显示最近日志',
       signedInTitle: '已登录',
@@ -284,7 +278,6 @@ export const zhOverrides = {
   },
 
   ...zhNotices,
-
 
   titlebar: {
     hideSidebar: '隐藏侧边栏',
@@ -3484,6 +3477,10 @@ export const zhOverrides = {
     backToSetup: '返回',
     failedTitle: '安装失败',
     settingUpTitle: '正在设置 Meu Agent',
+    upgradingTitle: '正在更新 Meu',
+    upgradingDesc: '正在更新现有安装并准备组件。完成后 Meu 会自动重新连接。',
+    upgradeFailedTitle: '更新未完成',
+    cancelUpgrade: '取消更新',
     finishingTitle: '正在收尾',
     failedDesc:
       '某个安装步骤失败。在 Windows 上，如果另一个 Meu CLI 或桌面实例正在运行，可能会出现这种情况。请停止正在运行的 Meu 实例后重试。可查看下面的详情或 desktop 日志中的完整记录。',

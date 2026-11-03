@@ -2,6 +2,10 @@ import type { GatewayWsUrlResult } from '@hermes/shared'
 import type { HermesSkin } from '@hermes/shared/skin'
 import type { TranslucencyState } from '@hermes/shared/translucency'
 
+import type {
+  DesktopBootstrapEvent,
+  DesktopBootstrapState
+} from '../../shared/src/desktop-bootstrap'
 import type { ChallengeOutcome } from '../electron/challenge-window'
 import type { ScreenshotApi } from '../electron/command-screenshot-types'
 import type { HudModifierApi } from '../electron/hud-modifier-types'
@@ -1505,8 +1509,6 @@ export interface DesktopCloudAgentSignInResult {
 export interface DesktopBootProgress {
   error: string | null
   fakeMode: boolean
-  /** True when the boot failure is a Nous Cloud agent that is down (HTTP 502/503/504). */
-  isCloudBackendDown?: boolean
   message: string
   phase: string
   progress: number
@@ -1525,89 +1527,18 @@ export interface DesktopBootProgress {
   updateHold?: UpdateHoldWire | null
 }
 
+export type {
+  DesktopBootstrapEvent,
+  DesktopBootstrapSetupChoice,
+  DesktopBootstrapStageDescriptor,
+  DesktopBootstrapStageResult,
+  DesktopBootstrapStageState,
+  DesktopBootstrapState,
+  DesktopBootstrapUnsupportedPlatform
+} from '../../shared/src/desktop-bootstrap'
+
 /** What holds the install while the boot is blocked: one definition, shared with the main process. */
 export type { UpdateHoldWire } from '../electron/update-hold-types'
-
-// First-launch install ("bootstrap") event types -- emitted by
-// electron/bootstrap-runner.ts and observed by the renderer install overlay.
-// Mirrors the event shapes emitted by runBootstrap()'s onEvent callback.
-
-export interface DesktopBootstrapStageDescriptor {
-  name: string
-  title?: string
-  category?: string
-  needs_user_input?: boolean
-}
-
-export type DesktopBootstrapStageState = 'pending' | 'running' | 'succeeded' | 'skipped' | 'failed'
-
-export interface DesktopBootstrapStageResult {
-  state: DesktopBootstrapStageState
-  durationMs: number | null
-  startedAt: number | null
-  json: { ok: boolean; skipped?: boolean; reason?: string | null; stage: string } | null
-  error: string | null
-}
-
-export interface DesktopBootstrapUnsupportedPlatform {
-  platform: string
-  activeRoot: string
-  installCommand: string
-  docsUrl: string
-}
-
-export interface DesktopBootstrapSetupChoice {
-  platform: string
-  activeRoot: string
-  /** What the local card represents: 'none' = installer offer; the rest = use existing. */
-  local: 'none' | 'installed' | 'bundled'
-  /** This artifact is a bundled install (payload ships in-app). */
-  bundled: boolean
-}
-
-export interface DesktopBootstrapState {
-  active: boolean
-  manifest: { type: 'manifest'; stages: DesktopBootstrapStageDescriptor[]; protocolVersion: number | null } | null
-  stages: Record<string, DesktopBootstrapStageResult>
-  error: string | null
-  log: Array<{ ts: number; stage: string | null; line: string; stream?: 'stdout' | 'stderr' }>
-  startedAt: number | null
-  completedAt: number | null
-  setupChoice: DesktopBootstrapSetupChoice | null
-  unsupportedPlatform: DesktopBootstrapUnsupportedPlatform | null
-  /** This artifact is a bundled install (payload ships in-app). */
-  bundled: boolean
-}
-
-export type DesktopBootstrapEvent =
-  | { type: 'dismissed' }
-  | {
-      type: 'setup-choice'
-      active: boolean
-      platform?: string
-      activeRoot?: string
-      local?: DesktopBootstrapSetupChoice['local']
-      bundled?: boolean
-    }
-  | { type: 'manifest'; stages: DesktopBootstrapStageDescriptor[]; protocolVersion: number | null }
-  | {
-      type: 'stage'
-      name: string
-      state: DesktopBootstrapStageState
-      durationMs?: number
-      json?: DesktopBootstrapStageResult['json']
-      error?: string | null
-    }
-  | { type: 'log'; stage?: string | null; line: string; stream?: 'stdout' | 'stderr' }
-  | { type: 'complete'; marker: Record<string, unknown> }
-  | { type: 'failed'; stage?: string | null; error: string }
-  | {
-      type: 'unsupported-platform'
-      platform: string
-      activeRoot: string
-      installCommand: string
-      docsUrl: string
-    }
 
 export interface HermesApiRequest {
   path: string

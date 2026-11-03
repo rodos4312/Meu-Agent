@@ -65,13 +65,6 @@ export const enBoot = {
         `Signs out of the saved remote browser session, then opens ${signInLabel}. Use local gateway to switch to the bundled backend instead.`,
       signOutAndSignIn: 'Sign out & sign in',
       remoteFailureHint: 'Check the gateway URL and sign-in under Gateway settings, or switch to the local gateway.',
-      cloudDownTitle: 'Nous Cloud agent is down',
-      cloudDownDescription:
-        'The Nous-managed cloud agent this gateway connects to is returning a server error. It cannot be restarted from here — check its status, switch to the local gateway, or get support.',
-      cloudDownHint:
-        'The buttons below open the Nous Portal (instance status and controls) and our Discord for support.',
-      cloudDownCheckPortal: 'Check Portal status',
-      cloudDownDiscord: 'Get help on Discord',
       hideRecentLogs: 'Hide recent logs',
       showRecentLogs: 'Show recent logs',
       signedInTitle: 'Signed in',
@@ -88,8 +81,7 @@ export const enBoot = {
       titleUnverified: "Meu can't confirm the last update finished",
       description:
         "Meu is holding off on starting so it can't load files an update may still be changing. It starts by itself as soon as the hold ends.",
-      heldByProcess: pid =>
-        `The update (process ${pid}) exited, but a process it started still holds the Meu install.`,
+      heldByProcess: pid => `The update (process ${pid}) exited, but a process it started still holds the Meu install.`,
       heldUnknown: 'An update exited, but a process it started still holds the Meu install.',
       unverified: "The update helper couldn't check who owns the Meu install right now. Meu keeps checking.",
       since: time => `Waiting since ${time}`,

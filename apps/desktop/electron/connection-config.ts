@@ -45,7 +45,9 @@ const RT_COOKIE_VARIANTS = ['__Host-hermes_session_rt', '__Secure-hermes_session
 const GATEWAY_COOKIE_SUFFIX = /_[0-9a-f]{16}$/
 
 function isCookieVariant(name: unknown, variants: string[]): boolean {
-  return typeof name === 'string' && (variants.includes(name) || variants.includes(name.replace(GATEWAY_COOKIE_SUFFIX, '')))
+  return (
+    typeof name === 'string' && (variants.includes(name) || variants.includes(name.replace(GATEWAY_COOKIE_SUFFIX, '')))
+  )
 }
 
 // Keep this aligned with hermes_cli.profiles.validate_profile_name(). `default`
@@ -179,9 +181,8 @@ function gatewayTicketFailure(error, authMessage, transportMessage) {
   }
 
   // Preserve structured HTTP context when the source error carried an integer
-  // statusCode (the fetch layer attaches err.statusCode). Downstream Cloud
-  // classification (isServerSideHttpError / makeNousCloudBackendDownError) and
-  // the renderer overlay depend on it surviving the ticket-error wrapper. Auth
+  // statusCode (the fetch layer attaches err.statusCode). The renderer overlay
+  // depends on it surviving the ticket-error wrapper. Auth
   // semantics are unchanged: 401/403 route to reauth, 5xx stays a transport
   // failure, everything else keeps current behavior.
   const sourceStatus = readStatusCode(error)
@@ -1043,8 +1044,10 @@ function pathWithProfileScope(path, profile, method?: string) {
 
   // A path that already names its profile never also carries the ambient one: the two disagree
   // whenever the sidebar is on another profile or "All profiles", and the gateway refuses the pair.
-  if (parsed.searchParams.has('profile')
-      || (profileRouteSuffix(parsed.pathname) && !profileCollectionRoute(parsed.pathname, method))) {
+  if (
+    parsed.searchParams.has('profile') ||
+    (profileRouteSuffix(parsed.pathname) && !profileCollectionRoute(parsed.pathname, method))
+  ) {
     return path
   }
 

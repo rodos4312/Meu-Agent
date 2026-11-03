@@ -9,14 +9,7 @@ export const deNotices = {
       `Software-Rendering aktiv — Remote-Display erkannt (${reason}). GPU-Beschleunigung ist deaktiviert, um Flackern zu verhindern.`
   },
   butterbar: {
-    goTo: (index, total) => `Hinweis ${index} von ${total} anzeigen`,
-    legal: {
-      before: 'Die Nutzung von Meu Agent unterliegt unseren ',
-      terms: 'Nutzungsbedingungen',
-      between: ' und unserer ',
-      privacy: 'Datenschutzerklärung',
-      after: '.'
-    }
+    goTo: (index, total) => `Hinweis ${index} von ${total} anzeigen`
   },
   promptNotices: {
     legacySendUnconfirmed:

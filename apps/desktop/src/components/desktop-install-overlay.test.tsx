@@ -77,7 +77,7 @@ function whenPresent(text: string): Promise<HTMLElement> {
       }
     })
 
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+    observer.observe(window.document.body, { childList: true, subtree: true, characterData: true })
   })
 }
 
@@ -89,6 +89,49 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
   Reflect.deleteProperty(window, 'hermesDesktop')
+})
+
+it('does not resurrect an installation after a completion overtakes its initial snapshot', async () => {
+  const desktop = installDesktopMock(bootstrapState())
+  let resolveSnapshot!: (state: DesktopBootstrapState) => void
+  desktop.getBootstrapState.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        resolveSnapshot = resolve
+      })
+  )
+  render(<DesktopInstallOverlay />)
+  act(() => desktop.emitBootstrapEvent({ type: 'complete', marker: {} }))
+  await act(async () => resolveSnapshot(bootstrapState({ active: true })))
+  expect(screen.queryByText('Setting up Meu')).toBeNull()
+  expect(screen.queryByText(/one-time setup/i)).toBeNull()
+})
+
+it('keeps a newer failure when the initial snapshot arrives late', async () => {
+  const desktop = installDesktopMock(bootstrapState())
+  let resolveSnapshot!: (state: DesktopBootstrapState) => void
+  desktop.getBootstrapState.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        resolveSnapshot = resolve
+      })
+  )
+  render(<DesktopInstallOverlay />)
+  act(() => desktop.emitBootstrapEvent({ type: 'failed', error: 'fixture install failure' }))
+  await act(async () => resolveSnapshot(bootstrapState({ active: true })))
+  expect(screen.getByText('fixture install failure')).toBeTruthy()
+})
+
+it('describes an existing runtime upgrade without calling it first-time setup', async () => {
+  const desktop = installDesktopMock(bootstrapState({ active: true, operation: 'upgrade' }))
+  render(<DesktopInstallOverlay />)
+  expect(await screen.findByText('Updating Meu')).toBeTruthy()
+  expect(screen.queryByText(/one-time setup/i)).toBeNull()
+  expect(screen.getByText('Cancel update')).toBeTruthy()
+  act(() => desktop.emitBootstrapEvent({ type: 'manifest', stages: [], protocolVersion: 1 }))
+  expect(screen.getByText('Updating Meu')).toBeTruthy()
+  act(() => desktop.emitBootstrapEvent({ type: 'failed', error: 'fixture failure' }))
+  expect(screen.getByText('Update did not finish')).toBeTruthy()
 })
 
 describe('DesktopInstallOverlay first-run setup', () => {
@@ -159,9 +202,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
     const install = (await screen.findByText('Install Meu locally')).closest('button') as HTMLButtonElement
     fireEvent.click(install)
 
-    expect(
-      await screen.findByText('Local installation could not start. Restart Meu and try again.')
-    ).toBeTruthy()
+    expect(await screen.findByText('Local installation could not start. Restart Meu and try again.')).toBeTruthy()
     expect(install.disabled).toBe(false)
   })
 
@@ -209,9 +250,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
     render(<DesktopInstallOverlay />)
 
     fireEvent.click((await screen.findByText('Install Meu locally')).closest('button') as HTMLButtonElement)
-    expect(
-      await screen.findByText('Local installation could not start. Restart Meu and try again.')
-    ).toBeTruthy()
+    expect(await screen.findByText('Local installation could not start. Restart Meu and try again.')).toBeTruthy()
 
     act(() => {
       desktop.emitBootstrapEvent({

@@ -3032,6 +3032,11 @@ export const ruOverrides = {
     backToSetup: 'Назад',
     failedTitle: 'Установка не удалась',
     settingUpTitle: 'Настройка Meu Agent',
+    upgradingTitle: 'Обновление Meu',
+    upgradingDesc:
+      'Обновляется существующая установка и подготавливаются компоненты. После завершения Meu подключится автоматически.',
+    upgradeFailedTitle: 'Обновление не завершено',
+    cancelUpgrade: 'Отменить обновление',
     finishingTitle: 'Завершаем',
     failedDesc:
       'Один из шагов установки завершился ошибкой. На Windows это может произойти, если запущена другая инстанция Meu CLI или desktop. Остановите все работающие инстанции Meu и повторите. Подробности — ниже или в журнале desktop.',

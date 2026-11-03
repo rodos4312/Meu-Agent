@@ -3989,6 +3989,11 @@ export const deOverrides = {
     backToSetup: 'Zurück',
     failedTitle: 'Installation fehlgeschlagen',
     settingUpTitle: 'Meu Agent wird eingerichtet',
+    upgradingTitle: 'Meu wird aktualisiert',
+    upgradingDesc:
+      'Die vorhandene Installation wird aktualisiert und ihre Komponenten werden vorbereitet. Meu verbindet sich anschließend automatisch erneut.',
+    upgradeFailedTitle: 'Update nicht abgeschlossen',
+    cancelUpgrade: 'Update abbrechen',
     finishingTitle: 'Wird abgeschlossen',
     failedDesc:
       'Einer der Installationsschritte ist fehlgeschlagen. Unter Windows kann das passieren, wenn eine andere Meu-CLI- oder Desktop-Instanz läuft. Beenden Sie alle laufenden Meu-Instanzen und versuchen Sie es dann erneut. Das vollständige Protokoll finden Sie in den Details unten oder im Desktop-Log.',
