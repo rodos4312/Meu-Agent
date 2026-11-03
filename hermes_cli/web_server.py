@@ -793,7 +793,6 @@ from hermes_cli.web_routers import (
     chat_workspaces as _chat_workspaces_routes,
     dashboard_ui as _dashboard_ui_routes,
     webapp as _webapp_routes,
-    shared_metrics as _shared_metrics_routes,
     delegation as _delegation_routes,
     webapp_access as _webapp_access_routes,
     ui_preferences as _ui_preferences_routes,
@@ -838,7 +837,6 @@ app.include_router(_chat_ws_routes.router)
 app.include_router(_chat_workspaces_routes.router)
 app.include_router(_dashboard_ui_routes.router)
 app.include_router(_webapp_routes.router)
-app.include_router(_shared_metrics_routes.router)
 app.include_router(_delegation_routes.router)
 app.include_router(_webapp_access_routes.router, dependencies=[_Depends(_route_on("web_access"))])
 app.include_router(_ui_preferences_routes.router, dependencies=[_Depends(_route_on("ui_preferences"))])

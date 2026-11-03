@@ -54,7 +54,6 @@ import {
   switchCanonicalModel
 } from './slash/canonicalSessionControls.js'
 import { loadSlashCatalog, refreshSlashCatalogOnSkillsChange } from './slashCatalog.js'
-import { reportStartupLatency } from './startupLatency.js'
 import { markNextSubmitVoice } from './submissionCore.js'
 import { captureDestination, isCurrentDestination } from './submissionDestination.js'
 import { turnController } from './turnController.js'
@@ -1070,8 +1069,6 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
     if (skin) {
       applySkin(skin)
     }
-
-    reportStartupLatency(gw)
 
     // Kick off the config fetch once the gateway is actually ready. If handler
     // construction does this during React render, a startup transport error can

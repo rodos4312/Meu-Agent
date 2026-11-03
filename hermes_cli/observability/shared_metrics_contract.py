@@ -755,7 +755,7 @@ DESKTOP_BUTTON_ACTION_IDS = frozenset({"composer.attach", "message.copy", "messa
 DESKTOP_ACTION_IDS = DESKTOP_KEYBIND_ACTION_IDS | DESKTOP_BUTTON_ACTION_IDS | {"other"}
 DESKTOP_ACTION_VIAS = frozenset({"click", "menu", "palette", "shortcut"})
 # Dislike signals, each naming its target from a closed set (setting keys are DEFAULT_CONFIG leaf
-# paths, checked against the live schema by shared_metrics_desktop and shape-checked here).
+# paths, shape-checked here for legacy aggregate validation).
 DESKTOP_DISLIKE_MARK = DESKTOP_DISLIKE_METRIC = "hermes.desktop.dislike"
 DESKTOP_FLOW_IDS = frozenset({
     "command_palette", "free_tier_sign_in", "keybind_capture", "model_picker", "project_create", "provider_oauth",

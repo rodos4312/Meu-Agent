@@ -12,7 +12,6 @@ import { asRpcResult } from '../lib/rpc.js'
 import { hasInterpolation, INTERPOLATION_RE } from '../protocol/interpolation.js'
 import type { Msg } from '../types.js'
 
-import { reportSlashCommand } from './createSlashHandler.js'
 import type { BusyInputMode, ComposerActions, ComposerRefs, ComposerState, ComposerToken, SlashHandler } from './interfaces.js'
 import { findSlashCommand } from './slash/registry.js'
 import { submitPrompt } from './submissionCore.js'
@@ -379,9 +378,6 @@ export function useSubmission(opts: UseSubmissionOptions) {
           parsed.name === 'queue' || parsed.name === 'q' ? queueItemFromSlash(slash.display, slash.command) : undefined
 
         if (queued) {
-          // Handled here, before the slash handler, so it is counted here.
-          reportSlashCommand(gw, parsed.name, getUiState().sid)
-
           const saved = journaled(() => composerActions.enqueue(queued.text, queued.display, destination, submission.attachments))
 
           if (saved) { sys(`queued: "${queued.display.slice(0, 50)}${queued.display.length > 50 ? '…' : ''}"`) }

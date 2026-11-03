@@ -10,6 +10,7 @@ on:
       - 'apps/desktop/**'
       - 'apps/shared/**'
       - 'ui-tui/**'
+      - 'web/**'
       - 'locales/**'
       - 'tools/**'
       - 'scripts/install.ps1'
@@ -26,7 +27,8 @@ on:
       - 'tests/gateway/test_meu_memory_commands.py'
       - 'tests/tools/test_memory_tool.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
-      - 'tests/tui_gateway/test_meu_privacy_rpc.py'
+      - 'tests/hermes_cli/test_meu_removed_metrics_routes.py'
+      - 'tests/tui_gateway/test_meu_removed_metrics.py'
       - 'tests/tui_gateway/test_meu_removed_payments.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
       - 'tests/scripts/install/test_meu_installer_privacy.py'
@@ -149,6 +151,7 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
           tests/hermes_cli/test_meu_nous_routes.py
+          tests/hermes_cli/test_meu_removed_metrics_routes.py
           tests/tui_gateway/test_meu_removed_payments.py
           tests/agent/test_account_usage_fetch.py
           tests/agent/test_billing_links.py
@@ -169,7 +172,9 @@ jobs:
           tests/hermes_cli/test_codex_device_login_transient_retry.py
           tests/hermes_cli/test_codex_device_login_ssl_hint.py
           tests/hermes_cli/web_routers/test_codex_device_login_transient_retry.py
-          tests/tui_gateway/test_meu_privacy_rpc.py
+          tests/tui_gateway/test_meu_removed_metrics.py
+          tests/tui_gateway/contracts/test_generated.py
+          tests/tui_gateway/test_undo_command.py
           tests/scripts/install/test_meu_installer_privacy.py
           tests/agent/test_meu_deepseek_privacy.py
           tests/agent/test_meu_auto_routing.py
@@ -262,6 +267,12 @@ jobs:
         run: npm run typecheck
       - name: Verify terminal behavior on Windows
         working-directory: ui-tui
+        run: npm test -- --maxWorkers 2
+      - name: Verify web types on Windows
+        working-directory: web
+        run: npm run typecheck
+      - name: Verify web behavior on Windows
+        working-directory: web
         run: npm test -- --maxWorkers 2
       - name: Set up Python for backend syntax checks
         uses: actions/setup-python@v5

@@ -19,17 +19,6 @@ import {
   shouldFallbackToDispatch
 } from './userMessages.js'
 
-/** Shared metrics count each user-typed command once, from the client: the gateway no longer
- *  counts slash.exec, so locally handled commands (/resume, /skin, overlays) land too.
- *  Fire-and-forget; the backend canonicalizes the raw name. */
-export function reportSlashCommand(gw: GatewayClient, name: string, sid: null | string | undefined): void {
-  if (name) {
-    gw.request('shared_metrics.slash_command', { command: name, ...(sid ? { session_id: sid } : {}) }).catch(
-      () => undefined
-    )
-  }
-}
-
 // Gateways that answered `command.observe` with unknown_method (older than this TUI): not asked again.
 const observeUnsupported = new WeakSet<object>()
 
@@ -57,7 +46,7 @@ function observer(gw: GatewayClient, name: string, arg: string, sid: null | stri
 }
 
 /** `typed` is false for programmatic calls (a picker re-issuing `/model <x>`) and for the
- *  backend's alias re-dispatch; prefix/alias expansion keeps it, so a typed `/hea` counts once
+ *  backend's alias re-dispatch; prefix/alias expansion keeps it, so a typed `/hea` is observed once
  *  as the /heartbeat it resolved to. */
 export function createSlashHandler(ctx: SlashHandlerContext): SlashHandler {
   const { gw } = ctx.gateway
@@ -71,12 +60,6 @@ export function createSlashHandler(ctx: SlashHandlerContext): SlashHandler {
     const destination = captureDestination()
     const parsed = parseSlashCommand(cmd)
     const argTail = parsed.arg ? ` ${parsed.arg}` : ''
-
-    const countTyped = () => {
-      if (typed) {
-        reportSlashCommand(gw, parsed.name, sid)
-      }
-    }
 
     const stale = () => flight !== ctx.slashFlightRef.current || !isCurrentDestination(destination)
 
@@ -99,7 +82,6 @@ export function createSlashHandler(ctx: SlashHandlerContext): SlashHandler {
     const found = findSlashCommand(parsed.name)
 
     if (found) {
-      countTyped()
       // A programmatic call (a picker's re-issue, an alias re-dispatch) is not the user's command.
       found.run(parsed.arg, typed ? { ...runCtx, ran: observer(gw, parsed.name, parsed.arg, sid) } : runCtx, cmd)
 
@@ -110,7 +92,6 @@ export function createSlashHandler(ctx: SlashHandlerContext): SlashHandler {
     // command table was built (user widgets from $HERMES_HOME/tui-widgets,
     // /widgets-reload) dispatch straight off the live registry.
     if (getWidgetApp(parsed.name)) {
-      countTyped()
       const err = launchWidget(parsed.name, parsed.arg)
 
       if (err) {
@@ -223,7 +204,6 @@ export function createSlashHandler(ctx: SlashHandlerContext): SlashHandler {
       }
     }
 
-    countTyped()
     gw.request<SlashExecResponse>('slash.exec', { command: cmd.slice(1), session_id: sid })
       .then(r => {
         if (stale()) {

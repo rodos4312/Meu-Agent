@@ -24,7 +24,7 @@ it('branch hydration replaces source authority only after a successful destinati
   const pending: Array<{ method: string; resolve: (value: any) => void }> = []
 
   // session.close and the fire-and-forget slash metrics answer at once; the rest are held.
-  const request = vi.fn((method: string) => method === 'session.close' || method === 'shared_metrics.slash_command'
+  const request = vi.fn((method: string) => method === 'session.close'
     ? Promise.resolve({}) : new Promise(resolve => pending.push({ method, resolve })))
 
   const setHistoryItems = vi.fn()

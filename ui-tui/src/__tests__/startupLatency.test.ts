@@ -28,15 +28,15 @@ const buildCtx = (request: ReturnType<typeof vi.fn>) =>
 const latencyCalls = (request: ReturnType<typeof vi.fn>) =>
   request.mock.calls.filter(([method]) => method === 'shared_metrics.startup_latency')
 
-describe('startup latency metric', () => {
+describe('Meu startup privacy', () => {
   beforeEach(() => {
     resetOverlayState()
     resetUiState()
     resetTurnState()
   })
 
-  it('reports launch->ready once per process across repeated gateway.ready and handler remounts', () => {
-    // Older backends reject the unknown method; the report must not surface that.
+  it('does not report launch metrics across repeated gateway.ready and handler remounts', () => {
+    // No telemetry call is allowed, including against older gateways.
     const request = vi.fn(async () => {
       throw new Error('method not found')
     })
@@ -46,13 +46,11 @@ describe('startup latency metric', () => {
 
     onEvent(ready)
     onEvent(ready)
-    // A reconnect after a gateway respawn can rebuild the handler; still no second report.
+    // Reconnecting and remounting must not start reporting.
     createGatewayEventHandler(buildCtx(request))(ready)
 
     const calls = latencyCalls(request)
 
-    expect(calls).toHaveLength(1)
-    expect(calls[0]![1]).toEqual({ elapsed_ms: expect.any(Number), launch_id: expect.any(String), surface: 'tui' })
-    expect(calls[0]![1].elapsed_ms).toBeGreaterThanOrEqual(0)
+    expect(calls).toEqual([])
   })
 })

@@ -106,7 +106,7 @@ it('/save still writes the file when another slash command starts before the exp
   let finish!: (value: unknown) => void
 
   try {
-    const { request, slash } = harness({ 'shared_metrics.slash_command': {} })
+    const { request, slash } = harness({})
 
     request.mockImplementation(async (method: string) =>
       method === 'session.export' ? new Promise(resolve => (finish = resolve)) : {}
@@ -128,7 +128,7 @@ it('/save still reports a failed write after another slash command started', asy
 
   try {
     writeFileSync(join(dir, 'file'), '')
-    const { request, slash, sys } = harness({ 'shared_metrics.slash_command': {} })
+    const { request, slash, sys } = harness({})
 
     request.mockImplementation(async (method: string) =>
       method === 'session.export' ? new Promise(resolve => (finish = resolve)) : {}
