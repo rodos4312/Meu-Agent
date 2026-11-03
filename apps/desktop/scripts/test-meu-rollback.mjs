@@ -95,8 +95,19 @@ const transaction = () => {
 }
 let app
 let phase = 'seed isolated profile'
+async function bounded(action, milliseconds, label) {
+  let timer
+  try {
+    return await Promise.race([
+      action,
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label)), milliseconds) })
+    ])
+  } finally { clearTimeout(timer) }
+}
 try {
+  console.log('[Meu rollback] seed isolated profile')
   profile('seed')
+  console.log('[Meu rollback] launch real baseline application')
   app = await _electron.launch({ executablePath: executable, args: ['--disable-gpu'], env, timeout: 90_000 })
   const page = await app.firstWindow()
   const log = bytes => fs.appendFileSync(path.join(scratch, 'desktop.log'), bytes)
@@ -116,20 +127,33 @@ try {
     failOnRestart: true,
     migrationPython: python
   })
+  // Real preparation can outlive Playwright's launch-time debugger waiter.
+  // Detach only when Electron itself decides to quit; never force the app out.
+  await app.evaluate(({ app }) => {
+    app.once('will-quit', () => process.getBuiltinModule('inspector').close())
+  })
   phase = 'native handoff with armed recovery'
+  console.log('[Meu rollback] native handoff with armed recovery')
   const closed = app.waitForEvent('close', { timeout: 180_000 })
   void closed.catch(() => {})
-  const result = await page.evaluate(() => window.hermesDesktop.updates.apply())
+  const result = await bounded(page.evaluate(() => window.hermesDesktop.updates.apply()), 180_000,
+    'Fixture update preparation did not finish within three minutes')
   assert.equal(result.ok, true, result.message)
   assert.equal(result.handedOff, true)
   await closed
   app = null
   phase = 'automatic package and database recovery'
-  await expect.poll(() => transaction()?.state, { timeout: 600_000, intervals: [1000] }).toBe('rolled-back')
+  console.log('[Meu rollback] wait for automatic package and database recovery')
+  await expect.poll(() => {
+    const record = transaction()
+    return ['rolled-back', 'recovery-failed', 'cancelled', 'healthy'].includes(record?.state) ? record.state : undefined
+  }, { timeout: 600_000, intervals: [1000] }).not.toBeUndefined()
   const record = transaction()
+  assert.equal(record.state, 'rolled-back', record.error || 'Expected a controlled startup failure and rollback')
   assert(fs.statSync(path.join(record.location, 'failed-state.zip')).size > 0)
   assert.equal(record.restoredCommit, baseline.commit)
   phase = 'verify restored gateway and conversation'
+  console.log('[Meu rollback] verify restored gateway, version and conversation')
   const restored = JSON.parse(cli('gateway', 'ensure', '--json'))
   assert.equal(restored.state, 'ready')
   assert.equal(restored.endpoint.code_sha, baseline.commit)
@@ -184,5 +208,5 @@ try {
     }
   throw error
 } finally {
-  if (app) await app.close().catch(() => app.process().kill())
+  if (app) await bounded(app.close(), 10_000, 'Fixture application did not close').catch(() => app.process().kill())
 }
