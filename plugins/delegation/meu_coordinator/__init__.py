@@ -74,3 +74,8 @@ class MeuCoordinator(DelegationProvider):
 
 def register(ctx) -> None:
     ctx.register_delegation_provider(MeuCoordinator())
+    # Minimal first-use routing registrars intentionally expose only the provider.
+    # Session tool discovery uses the full plugin context and owns tool lifetime.
+    if hasattr(ctx, "register_tool"):
+        from .project_tool import register as register_projects
+        register_projects(ctx, MeuCoordinator().task_parameters({}))

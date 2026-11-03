@@ -1,5 +1,5 @@
 name: meu_coordinator
-version: 1.0.0
-description: "Meu coordinator: task-aware DeepSeek Flash/Pro routing, explicit acceptance checks and parallel-plan validation."
+version: 1.1.0
+description: "Meu coordinator: persistent projects, checked prerequisites, safe resume and task-aware DeepSeek Flash/Pro routing."
 author: Meu Agent
 kind: backend

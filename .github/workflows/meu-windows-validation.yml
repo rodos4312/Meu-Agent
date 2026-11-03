@@ -119,6 +119,7 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
+          tests/plugins/delegation/test_meu_projects.py
           tests/tools/test_delegation_backends.py
           tests/tools/test_delegation_profile_route.py
           tests/tools/test_delegation_model_pin.py
@@ -254,6 +255,7 @@ jobs:
           tests/gateway/test_session_model_reset.py
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
+          tests/plugins/delegation/test_meu_projects.py
           tests/tools/test_delegation_model_pin.py
           tests/tools/test_delegation_backends.py
           tests/tools/test_delegation_route_fields.py

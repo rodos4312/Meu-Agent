@@ -1,4 +1,4 @@
-# Meu Coordinator preview
+# Meu Coordinator
 
 Available in `0.1.0-dev.4` through **Settings → Model → Subagents → Meu Coordinator**.
 The choice is profile-scoped and persisted through the existing delegation API.
@@ -23,9 +23,8 @@ Acceptance criteria and write scopes are inserted into each new child's initial
 context, with instructions to report actual checks, artifacts and unresolved issues.
 
 The parent is instructed to inspect results, integrate them, and use a complex
-retry/reviewer when evidence warrants it. This is LLM-led coordination: it does not
-guarantee correct complexity judgments, execute an autonomous persisted task DAG,
-or enforce a filesystem sandbox. In particular, the validator checks declared
+retry/reviewer when evidence warrants it. Complexity judgments remain LLM-led.
+The validator checks declared
 write scopes; it cannot prove a helper obeys them. No arbitrary scoring threshold
 automatically declares a task verified. Ordinary stop/steer semantics, the two-child
 process gate, flat delegation, privacy opt-outs and approval policies are unchanged.
@@ -35,3 +34,53 @@ profile separation, stable schema bytes and actual child model requests through 
 HTTP mock transport (only DeepSeek destinations, no Nous request). Windows desktop
 E2E checks the real settings selection, persisted YAML and a full app restart under
 an isolated `MEU_HOME` and Electron user-data directory.
+
+## Persistent project checkpoints (development branch)
+
+Plugin version 1.1 adds `coordinate_project` to the existing delegation toolset
+when Meu Coordinator is selected for new sessions. Ordinary delegation remains
+available. This is a plugin tool, with no additional core scheduler or model call.
+The parent creates a plan with a stable project id, absolute working directory,
+task ids, prerequisites and the existing workload/acceptance/write-scope contract.
+
+`run` selects at most two independent ready tasks (also respecting the configured
+native child limit). The existing delegation engine owns children, progress,
+stop/steer, provider credentials and budgets. Each child's contract includes the
+project directory and the verified prerequisite results. Completed children become
+`needs_review`; completion alone never unlocks a dependent task.
+
+The parent runs the acceptance checks through its normal tools, then records
+`verify` with the exact attempt number, results/evidence and artifact files.
+Successful writing tasks require real files. SHA-256 fingerprints bind acceptance
+to those files: modifications invalidate that task and downstream acceptance.
+This records the parent's verification; it is not independent proof that an LLM
+actually ran a claimed test. Existing tool policies still own check execution.
+
+Plans/results live under the owning profile's `coordinator/<project>.json`, using
+private directories, atomic writes and the existing cross-process filesystem lock.
+A new process/session can read `status` and continue the same plan. Acquiring the
+lock after a process died turns saved `running` tasks into `interrupted`, never an
+automatic replay. The parent inspects existing artifacts/side effects before an
+explicit evidenced retry; routine retries use Pro and attempts are capped at three.
+A held lock refuses duplicate project dispatch. This does not coordinate writes
+between independently named projects or provide a filesystem sandbox.
+
+## OpenClaw comparison, inspected 2026-11-03
+
+Primary documentation and source reference:
+[OpenClaw subagents](https://github.com/openclaw/openclaw/blob/99652357adba0bbfcdaa18277b7d26ea9d3dffce/docs/tools/subagents.md).
+The comparison is architectural guidance, not a claim of feature parity.
+
+| Observed OpenClaw idea | Meu decision |
+| --- | --- |
+| [Per-child model and isolated/forked context](https://docs.openclaw.ai/tools/subagents/tool-reference) | Keep explicit Flash/Pro routing and concise task contracts; copy only verified prerequisite results into later tasks. |
+| [Child completion requires parent review](https://docs.openclaw.ai/tools/subagents/slash-command) | Persist `needs_review` separately from `verified`; do not equate a finished helper with a finished project. |
+| [Retained results and duplicate delivery suppression](https://docs.openclaw.ai/tools/subagents/announce) | Reuse native Meu delegation receipts/transcripts; add project attempt ids and lock ownership, with no second delivery queue. |
+| [Parent-child hierarchy, limits and cascading stop](https://docs.openclaw.ai/tools/subagents/nesting) | Retain Meu's existing flat delegation, child cap and stop fan-out while testing this project layer. Increasing nesting is a later measured change. |
+| [Background execution and completion events](https://docs.openclaw.ai/tools/subagents/slash-command) | Keep native asynchronous delegation for ordinary background tasks. The new checkpointed `run` is a synchronous bounded batch; background project checkpoint integration remains separate work. |
+
+The useful principles are stable task identity, explicit dependencies, retained
+outcomes, clear failure states and review before integration. External-agent ACP
+bridges, cloud placement, recursive swarms and authentication sharing are not
+required to deliver those principles in Meu. No OpenClaw code or new service
+dependency was copied into this implementation.

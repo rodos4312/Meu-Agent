@@ -1,0 +1,151 @@
+"""Profile-owned project checkpoints, using the existing filesystem lock/write primitives.
+
+The lock spans the real synchronous delegation. A free lock with a saved running
+task means interrupted work, never permission to replay side effects automatically.
+"""
+from contextlib import contextmanager
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+
+from hermes_dir_acl import make_user_dir
+from pm.filesystem import durable_write_bytes, lock_path
+
+from .planning import validate_plan
+
+_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
+
+
+def identifier(value):
+    if not isinstance(value, str) or not _ID.fullmatch(value):
+        raise ValueError("Use a project/task id containing only lowercase letters, numbers, hyphens or underscores.")
+    return value
+
+
+def new_project(project, root, tasks):
+    root = Path(root)
+    if not root.is_absolute() or not root.is_dir():
+        raise ValueError("Set root to the existing project's absolute directory.")
+    if not isinstance(tasks, list) or not 1 <= len(tasks) <= 100:
+        raise ValueError("Supply 1 to 100 concrete project tasks.")
+    rows = {}
+    for task in tasks:
+        key = identifier(task.get("id"))
+        if key in rows:
+            raise ValueError("Project task ids must be unique.")
+        if not isinstance(task.get("goal"), str) or not task["goal"].strip():
+            raise ValueError("Every project task needs a concrete goal.")
+        if task.get("workload") not in {"routine", "complex", "vision"}:
+            raise ValueError("Set workload to routine, complex or vision.")
+        validate_plan([task])
+        dependencies = task.get("depends_on", [])
+        if not isinstance(dependencies, list) or any(not isinstance(dep, str) for dep in dependencies):
+            raise ValueError("depends_on must list prerequisite task ids.")
+        rows[key] = {"task": dict(task), "state": "pending", "attempt": 0}
+    visited = set()
+
+    def visit(key, visiting):
+        if key not in rows or key in visiting:
+            raise ValueError("Project has a missing dependency or dependency cycle.")
+        if key in visited:
+            return
+        for dep in rows[key]["task"].get("depends_on", []):
+            visit(dep, visiting | {key})
+        visited.add(key)
+
+    for key in rows:
+        visit(key, set())
+    return {"schema": 1, "project": identifier(project), "root": str(root.resolve()), "tasks": rows}
+
+
+class Project:
+    def __init__(self, file, record):
+        self.file, self.record = file, record
+
+    def save(self):
+        durable_write_bytes(self.file, json.dumps(self.record, ensure_ascii=True).encode("utf-8"))
+
+    def refresh(self):
+        """An acquired project lock proves no previous coordinator run still owns it."""
+        for row in self.record["tasks"].values():
+            if row["state"] == "running":
+                row.update(state="interrupted", error="Inspect existing artifacts before an explicit retry; outcome unknown.")
+            if row["state"] == "verified":
+                try:
+                    actual = self.artifacts(list(row.get("artifacts", {})))
+                except (OSError, ValueError):
+                    actual = None
+                if actual != row.get("artifacts", {}):
+                    row.update(state="needs_review", error="Verified artifacts changed or disappeared.")
+        # Invalidate downstream acceptance even when its own files stayed unchanged.
+        changed = True
+        while changed:
+            changed = False
+            for row in self.record["tasks"].values():
+                if row["state"] == "verified" and not self.dependencies_ready(row):
+                    row.update(state="needs_review", error="A prerequisite needs review again.")
+                    changed = True
+
+    def dependencies_ready(self, row):
+        return all(self.record["tasks"][dep]["state"] == "verified" for dep in row["task"].get("depends_on", []))
+
+    def artifacts(self, names):
+        if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+            raise ValueError("artifacts must list project-relative files.")
+        root = Path(self.record["root"]).resolve()
+        result = {}
+        for name in names:
+            file = root / name
+            if Path(name).is_absolute() or not file.resolve().is_relative_to(root) or file.is_symlink():
+                raise ValueError("Verification artifacts must remain inside the project.")
+            with file.open("rb") as stream:
+                result[name] = hashlib.file_digest(stream, "sha256").hexdigest()
+        return result
+
+    def ready(self):
+        selected = []
+        for key, row in self.record["tasks"].items():
+            if row["state"] != "pending" or not self.dependencies_ready(row):
+                continue
+            try:
+                validate_plan([self.record["tasks"][name]["task"] for name in [*selected, key]])
+            except ValueError:
+                continue
+            selected.append(key)
+            if len(selected) == 2:
+                break
+        return selected
+
+    def summary(self):
+        return {**self.record, "ready": self.ready(),
+                "complete": all(row["state"] == "verified" for row in self.record["tasks"].values()),
+                "verification": "parent-confirmed checks and file hashes; helper completion alone never verifies a task"}
+
+
+@contextmanager
+def open_project(home, project, initial=None):
+    directory = Path(home) / "coordinator"
+    make_user_dir(directory, 0o700, parents=True, exist_ok=True)
+    file = directory / (identifier(project) + ".json")
+    fd = lock_path(file.with_suffix(".lock"), timeout=0)
+    if fd is None:
+        raise ValueError("This project is already running; inspect its helpers instead of starting it again.")
+    try:
+        if file.is_symlink():
+            raise ValueError("Project state must be an owned regular file.")
+        if initial is not None:
+            if file.exists():
+                raise ValueError("Project already exists. Resume its saved plan; do not overwrite it.")
+            record = initial
+        else:
+            record = json.loads(file.read_text(encoding="utf-8-sig"))
+        if record.get("schema") != 1 or record.get("project") != project:
+            raise ValueError("Invalid coordinator project record.")
+        state = Project(file, record)
+        state.refresh()
+        state.save()
+        yield state
+    finally:
+        os.close(fd)
