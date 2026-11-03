@@ -366,7 +366,7 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/test-meu-native-upgrade.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/test-meu-native-upgrade.ps1', 'apps/desktop/scripts/test-meu-rollback.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }

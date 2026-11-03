@@ -9,7 +9,6 @@ import { promisify } from 'node:util'
 import type { InstallStamp } from '../install-stamp'
 import { ticketRuntimeFor } from '../local-gateway-python'
 import type { ResolvedHermesBackend } from '../meu-runtime-upgrade'
-import { readPreUpdateBackupEnabled } from '../pre-update-backup-config'
 import { createMeuWindowsStrategy } from './meu-client'
 import { prepareMeuUpdate } from './meu-prepare'
 import type { MeuWindowsDeps } from './meu-windows'
@@ -45,11 +44,15 @@ export function createManagedMeuWindowsStrategy(options: ManagedMeuOptions) {
     recoveryDirectory: options.directory,
     prepare: async () => {
       remote = options.isRemote()
-      if (!remote) await prepareMeuUpdate(options)
     },
     teardown: async () => {
+      // The handoff now owns failure recovery before gateway stop or snapshot.
+      if (!remote)
+        await prepareMeuUpdate({
+          ...options,
+          fullSnapshot: options.stamp?.meuUpdates?.publicKey ? () => armMeuRollback(options) : undefined
+        })
       await options.teardown()
-      if (!remote) await armMeuRollback(options)
     },
     restore: async () => {
       try {
@@ -84,14 +87,6 @@ async function writeJson(file: string, value: unknown): Promise<void> {
 /** Start before native handoff, under the old PM runtime and its generation lease. */
 export async function armMeuRollback(options: MeuRollbackOptions): Promise<void> {
   if (!options.stamp?.meuUpdates?.publicKey || !existsSync(path.join(options.root, 'hermes_cli', 'main.py'))) return
-  const enabled = await readPreUpdateBackupEnabled(
-    options.resolveBackend(['config', 'get', 'updates.pre_update_backup', '--json']),
-    options.home
-  )
-  if (!enabled) {
-    options.log('[updates] automatic data rollback disabled by the saved backup preference')
-    return
-  }
   const backend = await options.resolveBackend(['gateway', 'stop'])
   if (!backend.command || backend.shell || backend.bootstrap)
     throw new Error('Cannot retain a safe Meu recovery runtime.')

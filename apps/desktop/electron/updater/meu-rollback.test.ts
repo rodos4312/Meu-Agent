@@ -1,9 +1,21 @@
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { signalMeuRollback } from './meu-rollback'
+interface Lifecycle {
+  prepare: () => Promise<void>
+  teardown: () => Promise<void>
+  restore: () => Promise<void>
+}
+const { client, prepare } = vi.hoisted(() => ({
+  client: vi.fn((options: Lifecycle) => Promise.resolve(options)),
+  prepare: vi.fn(async () => undefined)
+}))
+vi.mock('./meu-client', () => ({ createMeuWindowsStrategy: client }))
+vi.mock('./meu-prepare', () => ({ prepareMeuUpdate: prepare }))
+
+import { createManagedMeuWindowsStrategy, signalMeuRollback } from './meu-rollback'
 
 async function receipt() {
   const home = await mkdtemp(path.join(os.tmpdir(), 'meu-receipt-'))
@@ -57,4 +69,35 @@ describe('Meu startup recovery acknowledgement', () => {
     await signalMeuRollback(r.home, r.directory, 'healthy', r.commit, r.version)
     await expect(readFile(path.join(r.transaction, 'signal.json'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
+})
+
+it('keeps local preparation inside the recoverable handoff and never stops local work for a remote client', async () => {
+  for (const remote of [false, true]) {
+    client.mockClear()
+    prepare.mockClear()
+    const r = await receipt()
+    const teardown = vi.fn(async () => undefined)
+    await createManagedMeuWindowsStrategy({
+      ...r,
+      root: r.home,
+      helperDirectory: r.home,
+      stamp: null,
+      git: 'git',
+      executable: process.execPath,
+      currentVersion: '0.1.0-dev.16',
+      resolveBackend: vi.fn(),
+      findPython: vi.fn(),
+      log: vi.fn(),
+      isRemote: () => remote,
+      teardown,
+      restore: vi.fn(async () => undefined),
+      emitProgress: vi.fn()
+    })
+    const lifecycle = client.mock.calls[0][0]
+    await lifecycle.prepare()
+    expect(prepare).not.toHaveBeenCalled()
+    await lifecycle.teardown()
+    expect(prepare).toHaveBeenCalledTimes(remote ? 0 : 1)
+    expect(teardown).toHaveBeenCalledOnce()
+  }
 })

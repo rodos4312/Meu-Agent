@@ -16,7 +16,7 @@ Remove-Item Env:PYTHONPATH, Env:VIRTUAL_ENV, Env:HERMES_PYTHON -ErrorAction Sile
 New-Item -ItemType Directory -Path $env:MEU_HOME -Force | Out-Null
 $checkout = Join-Path $env:MEU_HOME 'meu-agent'
 $baseline = Join-Path $env:RUNNER_TEMP 'meu-rollback-baseline'
-$candidate = Join-Path $env:GITHUB_WORKSPACE 'apps/desktop/release/meu-candidate'
+$candidate = Join-Path $env:GITHUB_WORKSPACE 'apps/desktop/release/meu-release-candidate'
 $driver = Join-Path $PSScriptRoot 'test-meu-rollback.mjs'
 & node $driver validate $baseline $candidate $scratch
 if ($LASTEXITCODE -ne 0) { throw 'Rollback candidates failed verification.' }

@@ -12,7 +12,10 @@ import type { ResolvedHermesBackend } from '../meu-runtime-upgrade'
 
 import { prepareMeuUpdate } from './meu-prepare'
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  backupEnabled.mockResolvedValue(false)
+})
 
 it('stops the selected home with the inherited OS environment even when the resolver returns only overrides', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-stop-home-'))
@@ -24,15 +27,24 @@ it('stops the selected home with the inherited OS environment even when the reso
     fs.writeFileSync(path.join(root, 'hermes_cli', 'main.py'), '# fixture')
 
     const resolveBackend = vi.fn(async (): Promise<ResolvedHermesBackend> => ({
-      kind: 'fixture', label: 'CLI fixture', command: process.execPath,
-      args: ['-e', `require('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify({home:process.env.HERMES_HOME, os:process.env.SystemRoot || process.env.HOME, marker:process.env.MEU_TEST_OVERRIDE}))`],
+      kind: 'fixture',
+      label: 'CLI fixture',
+      command: process.execPath,
+      args: [
+        '-e',
+        `require('node:fs').writeFileSync(${JSON.stringify(receipt)}, JSON.stringify({home:process.env.HERMES_HOME, os:process.env.SystemRoot || process.env.HOME, marker:process.env.MEU_TEST_OVERRIDE}))`
+      ],
       env: { HERMES_HOME: path.join(root, 'wrong home'), MEU_TEST_OVERRIDE: 'preserved' },
-      root, bootstrap: false, shell: false
+      root,
+      bootstrap: false,
+      shell: false
     }))
 
     await prepareMeuUpdate({ root, home, resolveBackend, findPython: vi.fn(), log: vi.fn() })
     expect(JSON.parse(fs.readFileSync(receipt, 'utf8'))).toEqual({
-      home, os: process.env.SystemRoot || process.env.HOME, marker: 'preserved'
+      home,
+      os: process.env.SystemRoot || process.env.HOME,
+      marker: 'preserved'
     })
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
@@ -75,6 +87,38 @@ it('does not bootstrap or stop a local gateway for a client with no local instal
     const resolveBackend = vi.fn()
     await prepareMeuUpdate({ root, home: root, resolveBackend, findPython: vi.fn(), log: vi.fn() })
     expect(resolveBackend).not.toHaveBeenCalled()
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+it('takes one full snapshot after the gateway stops, preserving the saved opt-out', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-full-snapshot-'))
+  try {
+    fs.mkdirSync(path.join(root, 'hermes_cli'))
+    fs.writeFileSync(path.join(root, 'hermes_cli', 'main.py'), '# fixture')
+    const stopped = path.join(root, 'stopped')
+    const fullSnapshot = vi.fn(async () => {
+      expect(fs.existsSync(stopped)).toBe(true)
+    })
+    const resolveBackend = vi.fn(async (): Promise<ResolvedHermesBackend> => ({
+      kind: 'fixture',
+      label: 'CLI fixture',
+      command: process.execPath,
+      args: ['-e', `require('node:fs').writeFileSync(${JSON.stringify(stopped)},'stopped')`],
+      env: {},
+      root,
+      bootstrap: false,
+      shell: false
+    }))
+    backupEnabled.mockResolvedValue(true)
+    await prepareMeuUpdate({ root, home: root, resolveBackend, findPython: vi.fn(), log: vi.fn(), fullSnapshot })
+    expect(fullSnapshot).toHaveBeenCalledOnce()
+    expect(snapshot).not.toHaveBeenCalled()
+    expect(backupEnabled).toHaveBeenCalledOnce()
+    backupEnabled.mockResolvedValue(false)
+    await prepareMeuUpdate({ root, home: root, resolveBackend, findPython: vi.fn(), log: vi.fn(), fullSnapshot })
+    expect(fullSnapshot).toHaveBeenCalledOnce()
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

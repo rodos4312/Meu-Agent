@@ -17,6 +17,8 @@ export interface MeuPrepareDeps {
   resolveBackend: (args: string[]) => Promise<ResolvedHermesBackend>
   findPython: (root: string) => Promise<string | null>
   log: (message: string) => void
+  /** Verified full rollback replaces the legacy SQLite-only snapshot. */
+  fullSnapshot?: () => Promise<void>
 }
 
 /** Preserve existing backup preferences and the canonical gateway's busy refusal. */
@@ -26,12 +28,11 @@ export async function prepareMeuUpdate(deps: MeuPrepareDeps): Promise<void> {
     return
   }
 
-  if (
-    await readPreUpdateBackupEnabled(
-      deps.resolveBackend(['config', 'get', 'updates.pre_update_backup', '--json']),
-      deps.home
-    )
-  ) {
+  const backupEnabled = await readPreUpdateBackupEnabled(
+    deps.resolveBackend(['config', 'get', 'updates.pre_update_backup', '--json']),
+    deps.home
+  )
+  if (backupEnabled && !deps.fullSnapshot) {
     const managed = fs.existsSync(path.join(deps.root, 'pm'))
     const launcher = managed ? resolveInstallationLauncher(deps.root, true, deps.home) : null
 
@@ -61,4 +62,5 @@ export async function prepareMeuUpdate(deps: MeuPrepareDeps): Promise<void> {
     timeout: 60_000,
     maxBuffer: 1024 * 1024
   })
+  if (backupEnabled) await deps.fullSnapshot?.()
 }
