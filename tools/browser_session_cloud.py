@@ -216,16 +216,18 @@ def _resolve_provider_uncached() -> tuple[Optional[BrowserProvider], bool]:
     """``(provider, definitive)``. Definitive answers (explicit ``local``/``camofox``, a resolved provider) are
     cached; a transient None (unreadable config, missing credentials) is not, so it self-heals."""
     provider_key = None
+    section = {}
     try:
         section = browser_section()
         if "cloud_provider" in section:
             provider_key = normalize_browser_cloud_provider(section.get("cloud_provider"))
     except (OSError, ValueError, TypeError) as exc:
         logger.debug("Could not read cloud_provider from config: %s", exc)
+    if provider_key == "nous" or is_truthy_value(section.get("use_gateway"), default=False):
+        raise ValueError("Nous-managed browsing has been removed. Select a local browser or configure "
+                         "your own browser provider in settings.")
     if provider_key in ("local", "camofox"):
         return None, True  # camofox is a plugin with its own tool surface, not a CDP provider
-    if provider_key == "nous":
-        provider_key = "browser-use"  # the managed Nous subscription is served by the Browser Use provider
     if provider_key:
         resolved = _instantiate_explicit_provider(provider_key)
         return resolved, resolved is not None

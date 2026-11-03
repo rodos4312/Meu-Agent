@@ -106,7 +106,7 @@ hermes config set terminal.backend acmebox
 ## Rules
 
 - **Reserved names.** Registrations that collide with a built-in backend name
-  (`local`, `docker`, `modal`, `managed_modal`, `daytona`, `vercel_sandbox`,
+  (`local`, `docker`, `modal`, `daytona`, `vercel_sandbox`,
   `ssh`) are rejected. Plugins extend the backend set; they
   never shadow in-tree backends.
 - **`create_environment` must accept `**kwargs`** and ignore unknown keys —

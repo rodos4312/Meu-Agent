@@ -206,7 +206,6 @@ def _install_fake_tools_package():
     sys.modules["tools.environments.ssh"] = types.SimpleNamespace(SSHEnvironment=_DummyEnvironment)
     sys.modules["tools.environments.docker"] = types.SimpleNamespace(DockerEnvironment=_DummyEnvironment)
     sys.modules["tools.environments.modal"] = types.SimpleNamespace(ModalEnvironment=_DummyEnvironment)
-    sys.modules["tools.environments.managed_modal"] = types.SimpleNamespace(ManagedModalEnvironment=_DummyEnvironment)
 
 
 def test_browser_use_explicit_local_mode_stays_local_even_when_managed_gateway_is_ready(tmp_path):
@@ -261,7 +260,6 @@ def test_terminal_tool_respects_direct_modal_mode_without_falling_back_to_manage
         terminal_tool_backends = sys.modules["tools.terminal_tool_backends"]
 
         with (
-            patch.object(terminal_tool_backends, "is_managed_tool_gateway_ready", return_value=True),
             patch.object(Path, "exists", return_value=False),
         ):
             with pytest.raises(ValueError, match="direct Modal credentials"):

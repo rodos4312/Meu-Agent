@@ -84,15 +84,12 @@ class CloudBrowserProvider(BrowserProvider):
         return f"hermes_{task_id}_{uuid.uuid4().hex[:8]}"
 
     def _post_create(
-        self, url: str, headers: dict[str, str], payload: dict[str, object], *, wrap_errors: bool = True
+        self, url: str, headers: dict[str, str], payload: dict[str, object]
     ) -> requests.Response:
-        """POST the create request; network failures → RuntimeError unless the managed gateway
-        caller needs the raw exception to retry."""
+        """POST the create request and report network failures as provider errors."""
         try:
             return requests.post(url, headers=headers, json=payload, timeout=30, verify=requests_verify())
         except requests.RequestException as exc:
-            if not wrap_errors:
-                raise
             raise RuntimeError(f"{self.label} API connection failed: {exc}") from exc
 
     def _check_created(self, response: requests.Response) -> None:

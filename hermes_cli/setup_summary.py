@@ -113,7 +113,8 @@ def _web_row(config, feats):
 def _browser_row(config, feats):
     # Browser tools (local Chromium, Lightpanda, Browserbase, Browser Use, or Firecrawl)
     hint = _BROWSER_MISSING_HINTS.get(feats.browser.current_provider, _BROWSER_MISSING_DEFAULT)
-    return _managed_or_provider_row(feats.browser, "Browser Automation", "Nous Browser Use", hint)
+    return (f"Browser Automation ({feats.browser.current_provider})", feats.browser.active,
+            None if feats.browser.active else hint)
 
 
 def _image_gen_row(config, feats):
@@ -155,14 +156,10 @@ def _stt_row(config, feats):
 
 
 def _modal_row(config, feats):
-    if feats.modal.managed_by_nous:
-        return ("Modal Execution (Nous subscription)", True, None)
     if _setup.cfg_get(config, "terminal", "backend") == "modal":
         if feats.modal.direct_override:
             return ("Modal Execution (direct Modal)", True, None)
         return ("Modal Execution", False, "run 'hermes setup terminal'")
-    if tool_backend_helpers.managed_nous_tools_enabled() and feats.nous_auth_present:
-        return ("Modal Execution (optional via Nous subscription)", True, None)
     return None
 
 

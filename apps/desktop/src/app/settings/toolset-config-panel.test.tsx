@@ -683,15 +683,15 @@ describe('ToolsetConfigPanel', () => {
   })
 
   describe('managed Nous provider activation', () => {
-    const nousBrowserConfig = () =>
+    const nousSpeechConfig = () =>
       config({
-        name: 'browser',
+        name: 'tts',
         active_provider: null,
         providers: [
           {
-            name: 'Nous Subscription (Browser Use cloud)',
+            name: 'Nous Subscription',
             badge: 'subscription',
-            tag: 'Managed Browser Use billed to your subscription',
+            tag: 'Managed OpenAI TTS billed to your subscription',
             env_vars: [],
             post_setup: null,
             requires_nous_auth: true,
@@ -702,30 +702,26 @@ describe('ToolsetConfigPanel', () => {
       })
 
     it('surfaces a sign-in notice when the PUT reports needs_nous_auth', async () => {
-      // Regression (Windows 11 Capabilities journey): the GUI wrote
-      // browser.cloud_provider but skipped the Portal entitlement handshake,
-      // so the managed row silently never activated. The endpoint now
-      // reports needs_nous_auth and the panel must surface a sign-in action
-      // instead of the misleading "provider selected" success toast.
+      // A provider awaiting authentication must not produce a success toast.
       const { notify } = await import('@/store/notifications')
 
-      getToolsetConfig.mockResolvedValue(nousBrowserConfig())
+      getToolsetConfig.mockResolvedValue(nousSpeechConfig())
       selectToolsetProvider.mockResolvedValue({
         ok: true,
-        name: 'browser',
-        provider: 'Nous Subscription (Browser Use cloud)',
+        name: 'tts',
+        provider: 'Nous Subscription',
         needs_nous_auth: true,
-        feature: 'browser'
+        feature: 'tts'
       })
 
-      render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="browser" />)
+      render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="tts" />)
 
       // The single Nous row auto-expands; activate via the explicit button.
       await screen.findByRole('button', { name: /Nous Subscription/ })
       fireEvent.click(await screen.findByRole('button', { name: /Use this backend/ }))
 
       await waitFor(() =>
-        expect(selectToolsetProvider).toHaveBeenCalledWith('browser', 'Nous Subscription (Browser Use cloud)')
+        expect(selectToolsetProvider).toHaveBeenCalledWith('tts', 'Nous Subscription')
       )
       await waitFor(() =>
         expect(notify).toHaveBeenCalledWith(
@@ -742,13 +738,13 @@ describe('ToolsetConfigPanel', () => {
     it('drives the existing Nous OAuth device-code flow from the sign-in action and refetches', async () => {
       const { notify } = await import('@/store/notifications')
 
-      getToolsetConfig.mockResolvedValue(nousBrowserConfig())
+      getToolsetConfig.mockResolvedValue(nousSpeechConfig())
       selectToolsetProvider.mockResolvedValue({
         ok: true,
-        name: 'browser',
-        provider: 'Nous Subscription (Browser Use cloud)',
+        name: 'tts',
+        provider: 'Nous Subscription',
         needs_nous_auth: true,
-        feature: 'browser'
+        feature: 'tts'
       })
       startOAuthLogin.mockResolvedValue({
         flow: 'device_code',
@@ -762,7 +758,7 @@ describe('ToolsetConfigPanel', () => {
       const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
 
       try {
-        render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="browser" />)
+        render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="tts" />)
 
         await screen.findByRole('button', { name: /Nous Subscription/ })
         fireEvent.click(await screen.findByRole('button', { name: /Use this backend/ }))
@@ -797,14 +793,14 @@ describe('ToolsetConfigPanel', () => {
     it('shows the plain success toast when the managed row is already entitled', async () => {
       const { notify } = await import('@/store/notifications')
 
-      getToolsetConfig.mockResolvedValue(nousBrowserConfig())
+      getToolsetConfig.mockResolvedValue(nousSpeechConfig())
       selectToolsetProvider.mockResolvedValue({
         ok: true,
-        name: 'browser',
-        provider: 'Nous Subscription (Browser Use cloud)'
+        name: 'tts',
+        provider: 'Nous Subscription'
       })
 
-      render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="browser" />)
+      render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="tts" />)
 
       await screen.findByRole('button', { name: /Nous Subscription/ })
       fireEvent.click(await screen.findByRole('button', { name: /Use this backend/ }))

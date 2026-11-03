@@ -251,14 +251,13 @@ class TestBrowserUseStrictSelection:
 
         return BrowserUseBrowserProvider()
 
-    def test_nous_selection_routes_managed_even_with_direct_key(self):
+    def test_retired_selection_refuses_direct_key(self):
         provider = self._provider()
         with patch("plugins.browser.browser_use.provider.get_secret", return_value="bu-key"), \
-             patch("tools.tool_backend_helpers.read_selection", return_value="nous"), \
-             patch("tools.managed_tool_gateway.resolve_managed_tool_gateway", return_value=MANAGED):
-            config = provider._get_config_or_none()
-        assert config["managed_mode"] is True
-        assert config["api_key"] == "managed-token"
+             patch("tools.tool_backend_helpers.read_selection", return_value="nous"):
+            assert provider._get_config_or_none() is None
+            with pytest.raises(ValueError, match="has been removed"):
+                provider._get_config()
 
     def test_vendor_selection_missing_key_errors_without_managed_call(self):
         provider = self._provider()
@@ -276,7 +275,6 @@ class TestBrowserUseStrictSelection:
         with patch("plugins.browser.browser_use.provider.get_secret", return_value="bu-key"), \
              patch("tools.tool_backend_helpers.read_selection", return_value=None):
             config = provider._get_config_or_none()
-        assert config["managed_mode"] is False
         assert config["api_key"] == "bu-key"
 
 

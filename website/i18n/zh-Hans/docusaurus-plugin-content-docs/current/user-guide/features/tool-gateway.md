@@ -1,6 +1,6 @@
 ---
 title: "Nous Tool Gateway（工具网关）"
-description: "通过 Nous 订阅统一使用网页搜索、文生图、语音合成与浏览器自动化，无需单独申请网页搜索、FAL、OpenAI、Browser Use 等 API Key"
+description: "通过 Nous 订阅统一使用网页搜索、文生图、语音合成，无需单独申请网页搜索、FAL、OpenAI 等 API Key"
 sidebar_label: "Tool Gateway"
 sidebar_position: 2
 ---
@@ -11,7 +11,7 @@ sidebar_position: 2
 Tool Gateway 包含在付费 Nous Portal 订阅中。**[管理订阅 →](https://portal.nousresearch.com/manage-subscription)**
 :::
 
-**Tool Gateway** 让已付费的 [Nous Portal](https://portal.nousresearch.com) 用户通过同一份订阅，直接使用网页搜索、文生图、语音合成（TTS）与浏览器自动化，而**不必**再分别注册网页搜索、FAL、OpenAI、Browser Use 等服务的 API Key。
+**Tool Gateway** 让已付费的 [Nous Portal](https://portal.nousresearch.com) 用户通过同一份订阅，直接使用网页搜索、文生图、语音合成（TTS），而**不必**再分别注册网页搜索、FAL、OpenAI 等服务的 API Key。
 
 ## 包含能力
 
@@ -20,9 +20,8 @@ Tool Gateway 包含在付费 Nous Portal 订阅中。**[管理订阅 →](https:
 | **网页搜索与抓取** | 由 Nous 托管的搜索与页面内容抽取 | `FIRECRAWL_API_KEY`、`EXA_API_KEY`、`PARALLEL_API_KEY`、`TAVILY_API_KEY` |
 | **文生图** | 通过 FAL 生成图像（8 个模型：FLUX 2 Klein/Pro、GPT-Image、Nano Banana Pro、Ideogram、Recraft V4 Pro、Qwen、Z-Image） | `FAL_KEY` |
 | **语音合成** | 通过 OpenAI TTS 将文字转为语音 | `VOICE_TOOLS_OPENAI_KEY`、`ELEVENLABS_API_KEY` |
-| **浏览器自动化** | 通过 Browser Use 控制云端浏览器 | `BROWSER_USE_API_KEY`、`BROWSERBASE_API_KEY` |
 
-上述四类能力均计入 Nous 订阅计费。你可以按需组合——例如网页与文生图走网关，TTS 仍使用自己的 ElevenLabs Key。
+上述三类能力均计入 Nous 订阅计费。你可以按需组合——例如网页与文生图走网关，TTS 仍使用自己的 ElevenLabs Key。
 
 ## 资格与账号
 
@@ -46,13 +45,12 @@ hermes status
 Your Nous subscription includes the Tool Gateway.
 
   The Tool Gateway gives you access to web search, image generation,
-  text-to-speech, and browser automation through your Nous subscription.
+  and text-to-speech through your Nous subscription.
   No need to sign up for separate API keys — just pick the tools you want.
 
   ○ Web search & extract — not configured
   ○ Image generation (FAL) — not configured
   ○ Text-to-speech (OpenAI TTS) — not configured
-  ○ Browser automation (Browser Use) — not configured
 
   ● Enable Tool Gateway
   ○ Skip
@@ -70,7 +68,7 @@ Your Nous subscription includes the Tool Gateway.
 hermes tools
 ```
 
-选择工具类别（Web、Browser、Image Generation、TTS），再将提供商选为 **Nous Subscription**。这会把该类别的选择键写为 `nous`（例如 `image_gen.provider: nous`）。
+选择工具类别（Web、Image Generation、TTS），再将提供商选为 **Nous Subscription**。这会把该类别的选择键写为 `nous`（例如 `image_gen.provider: nous`）。
 
 ### 手动编辑配置
 
@@ -88,9 +86,6 @@ tts:
 
 stt:
   provider: nous
-
-browser:
-  cloud_provider: nous
 ```
 
 ## 工作原理
@@ -100,7 +95,6 @@ browser:
 1. **网页工具** — `web_search` / `web_extract` 走网关的托管搜索端点  
 2. **文生图** — `image_generate` 走网关的 FAL 端点  
 3. **TTS** — `text_to_speech` 走网关的 OpenAI Audio 端点  
-4. **浏览器** — `browser_exec` 等浏览器工具驱动网关 Browser Use 端点提供的云端浏览器会话  
 
 网关使用 Nous Portal 凭据认证（在 `hermes model` 完成后写入 `~/.hermes/auth.json`）。
 
@@ -146,7 +140,7 @@ hermes status
   Image gen       ✓ active via Nous subscription
   TTS             ✓ active via Nous subscription
   Browser         ○ active via Browser Use key
-  Modal           ○ available via subscription (optional)
+  Modal           ○ requires your own Modal account
 ```
 
 标记为 “active via Nous subscription” 的即经网关路由；带自有 Key 的会显示当前激活的提供商。
@@ -184,4 +178,4 @@ FIRECRAWL_GATEWAY_URL=https://...         # 单独覆盖 Firecrawl 端点
 
 ### Modal 算在 Tool Gateway 里吗？
 
-Modal（无服务器终端后端）可作为 Nous 订阅的可选附加能力，但**不会**由 Tool Gateway 安装向导一并打开——请单独通过 `hermes setup terminal` 或在 `config.yaml` 中配置。
+Meu 的 Modal 终端仅使用你自己的 Modal 账号，通过 `hermes setup terminal` 配置。浏览器仅使用本地浏览器或你自己的云端提供商凭据；Nous 托管的这两条路径已删除，旧配置需要重新选择提供商。

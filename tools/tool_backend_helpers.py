@@ -11,8 +11,6 @@ from utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
 _DEFAULT_BROWSER_PROVIDER = "local"
-_DEFAULT_MODAL_MODE = "auto"
-_VALID_MODAL_MODES = {"auto", "direct", "managed"}
 
 
 def managed_nous_tools_enabled(*, force_fresh: bool = False) -> bool:
@@ -52,13 +50,17 @@ def normalize_browser_cloud_provider(value: object | None) -> str:
     return provider or _DEFAULT_BROWSER_PROVIDER
 
 
-def coerce_modal_mode(value: object | None) -> str:
-    """Return the requested modal mode when valid, else the default."""
-    mode = str(value or _DEFAULT_MODAL_MODE).strip().lower()
-    return mode if mode in _VALID_MODAL_MODES else _DEFAULT_MODAL_MODE
-
-
-normalize_modal_mode = coerce_modal_mode
+def modal_configuration_error(mode: object = None) -> str | None:
+    """Validate the direct account without probing Nous or changing billing on legacy selections."""
+    requested = str(mode or "direct").strip().lower()
+    if requested == "managed":
+        return ("Nous-managed Modal execution has been removed. Run `hermes setup terminal` "
+                "to select your own Modal account or another terminal backend.")
+    if requested not in {"direct", "auto"}:
+        return f"Unsupported Modal mode {requested!r}. Run `hermes setup terminal` to configure Modal."
+    if not has_direct_modal_credentials():
+        return "No direct Modal credentials/config were found. Run `hermes setup terminal` to configure Modal."
+    return None
 
 
 def has_direct_modal_credentials() -> bool:
@@ -71,25 +73,6 @@ def has_direct_modal_credentials() -> bool:
         return (Path.home() / ".modal.toml").exists()
     except OSError:  # includes PermissionError on Path.home()
         return False
-
-
-def resolve_modal_backend_state(modal_mode: object | None, *, has_direct: bool,
-                                managed_ready: bool,
-                                managed_enabled: bool | None = None) -> dict[str, Any]:
-    """Resolve direct vs managed Modal backend: ``direct``/``managed`` are exclusive; ``auto``
-    prefers managed when available, else direct."""
-    requested_mode = coerce_modal_mode(modal_mode)
-    if managed_enabled is None:
-        managed_enabled = managed_nous_tools_enabled()
-    managed_ok = managed_enabled and managed_ready
-    exclusive = {"managed": "managed" if managed_ok else None,
-                 "direct": "direct" if has_direct else None}
-    selected_backend = exclusive.get(
-        requested_mode, "managed" if managed_ok else "direct" if has_direct else None)
-    return {"requested_mode": requested_mode, "mode": requested_mode, "has_direct": has_direct,
-            "managed_ready": managed_ready,
-            "managed_mode_blocked": requested_mode == "managed" and not managed_enabled,
-            "selected_backend": selected_backend}
 
 
 def _scoped_credential(name: str) -> str:

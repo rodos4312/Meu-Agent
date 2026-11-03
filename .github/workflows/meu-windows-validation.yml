@@ -18,6 +18,7 @@ on:
       - 'providers/**'
       - 'plugins/model-providers/deepseek/**'
       - 'plugins/delegation/**'
+      - 'plugins/browser/**'
       - 'tests/plugins/delegation/**'
       - 'tests/agent/test_delegation*.py'
       - 'tests/tools/test_delegation*.py'
@@ -155,6 +156,14 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
+          tests/tools/test_meu_direct_modal.py
+          tests/tools/test_meu_direct_browser.py
+          tests/tools/test_browser_use_cli.py
+          tests/tools/test_terminal_requirements.py
+          tests/tools/test_terminal_tool_requirements.py
+          tests/tools/test_browser_cloud_provider_cache.py
+          tests/tools/test_browser_use_session_expiry.py
+          tests/plugins/browser/test_browser_provider_plugins.py
           tests/hermes_cli/test_meu_setup_commands.py
           tests/hermes_cli/test_meu_retired_login.py
           tests/hermes_cli/test_setup_quick_import.py

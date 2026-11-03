@@ -92,7 +92,7 @@ _SCHEMA_OVERRIDES: dict[str, dict[str, Any]] = {
     "terminal.vercel_runtime": _select(
         "Legacy Vercel Sandbox runtime (deprecated by Vercel; a pinned runtime overrides the image; clear to use the image)",
         "node24", "node22", "python3.13", clearable=True),
-    "terminal.modal_mode": _select("Modal sandbox mode", "sandbox", "function"),
+    "terminal.modal_mode": _select("Modal account mode", "direct"),
     "proxy.enabled": {
         "type": "boolean",
         "description": (

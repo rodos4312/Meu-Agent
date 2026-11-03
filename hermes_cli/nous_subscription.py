@@ -12,8 +12,8 @@ from hermes_cli.nous_account import (
 from tools.managed_tool_gateway import is_managed_tool_gateway_ready
 from utils import is_truthy_value
 from tools.tool_backend_helpers import (
-    fal_key_is_configured, has_direct_modal_credentials, normalize_browser_cloud_provider, normalize_modal_mode,
-    resolve_modal_backend_state, resolve_openai_audio_api_key
+    fal_key_is_configured, modal_configuration_error,
+    resolve_openai_audio_api_key
 )
 
 
@@ -30,7 +30,7 @@ class _FeatureSpec:
     # the free pool funds image but NOT video; STT shares TTS's "openai-audio" category.
     coverage: str
     gateway: str  # managed gateway probed for readiness (video rides image's fal-queue)
-    # Config (section, selection field) written by apply_gateway_defaults; None = not offered (modal).
+    # Config (section, selection field) written by apply_gateway_defaults; None = direct-only feature.
     section_field: Optional[tuple[str, str]] = None
     offer_label: str = ""
     direct_label: str = ""
@@ -59,22 +59,18 @@ _FEATURES: dict[str, _FeatureSpec] = {
         "Speech-to-text", True, "openai-audio", "openai-audio", ("stt", "provider"),
         "Speech-to-text (OpenAI Whisper)", "OpenAI/Groq/Mistral key", ("GROQ_API_KEY", "MISTRAL_API_KEY"),
     ),
-    "browser": _FeatureSpec(
-        "Browser automation", True, "browser-use", "browser-use", ("browser", "cloud_provider"),
-        "Browser automation (Browser Use)", "Browser Use/Browserbase key",
-        ("BROWSER_USE_API_KEY", "BROWSERBASE_API_KEY"),
-    ),
-    "modal": _FeatureSpec("Modal execution", False, "modal", "modal"),
+    "browser": _FeatureSpec("Browser automation", False, "", ""),
+    "modal": _FeatureSpec("Modal execution", False, "", ""),
 }
 
 _FEATURE_ORDER = tuple(_FEATURES)
 # Public / test-referenced views over the table.
-MANAGED_FEATURE_COVERAGE_CATEGORY: dict[str, str] = {k: s.coverage for k, s in _FEATURES.items()}
+MANAGED_FEATURE_COVERAGE_CATEGORY: dict[str, str] = {k: s.coverage for k, s in _FEATURES.items() if s.coverage}
 _GATEWAY_SECTION_FIELDS = {k: s.section_field for k, s in _FEATURES.items() if s.section_field}
 _ALL_GATEWAY_KEYS = tuple(_GATEWAY_SECTION_FIELDS)
 _GATEWAY_TOOL_LABELS = {k: _FEATURES[k].offer_label for k in _ALL_GATEWAY_KEYS}
 # Sections apply_*_defaults always materialise before writing selections.
-_DEFAULT_SECTIONS = ("web", "tts", "stt", "browser")
+_DEFAULT_SECTIONS = ("web", "tts", "stt")
 MANAGED_IMAGE_DEFAULT_KREA_MODEL = "krea-3"
 
 
@@ -353,60 +349,34 @@ def _audio_features(
     return tts, stt
 
 
-def _browser_feature(
-    browser_cfg: dict[str, object], tool_enabled: bool, managed: bool, browser_gw: bool, direct_firecrawl: bool,
-) -> NousFeatureState:
-    """Resolve browser availability using the same precedence as runtime."""
-    explicit = "cloud_provider" in browser_cfg
-    provider = normalize_browser_cloud_provider(browser_cfg.get("cloud_provider") if explicit else None)
-    if provider == "nous" or browser_gw:
-        provider = "browser-use"
-    direct_browserbase = bool(get_env_value("BROWSERBASE_API_KEY") and get_env_value("BROWSERBASE_PROJECT_ID")) and not browser_gw
-    direct_browser_use = _any_env("BROWSER_USE_API_KEY") and not browser_gw
+def _browser_feature(browser_cfg: dict[str, object], tool_enabled: bool) -> NousFeatureState:
+    """Browser readiness follows direct credentials; a retired route never advertises availability."""
+    selected = _selected_provider(browser_cfg, "cloud_provider")
+    if selected is None and "cloud_provider" in browser_cfg:
+        selected = "local"  # persisted empty selections mean local, as in runtime
     local_available = _has_browser_harness()
-    local_runnable = _local_browser_runnable(browser_cfg)
-    browser_use_managed = bool(tool_enabled and local_available and managed and not direct_browser_use)
-
-    if explicit:
-        cloud_available = {
-            "browserbase": local_available and direct_browserbase,
-            "browser-use": local_available and (managed or direct_browser_use), "firecrawl": local_available and direct_firecrawl,
-        }
-        current = provider if provider in cloud_available else "local"
-        available = bool(cloud_available.get(current, local_runnable))
-        managed_now = browser_use_managed if current == "browser-use" else False
-    elif managed or direct_browser_use:
-        current, available, managed_now = "browser-use", bool(local_available), browser_use_managed
-    elif direct_browserbase:
-        current, available, managed_now = "browserbase", bool(local_available), False
-    else:
-        current, available, managed_now = "local", bool(local_runnable), False
+    cloud_available = {
+        "browser-use": local_available and _any_env("BROWSER_USE_API_KEY"),
+        "browserbase": local_available and _any_env("BROWSERBASE_API_KEY") and _any_env("BROWSERBASE_PROJECT_ID"),
+        "firecrawl": local_available and _any_env("FIRECRAWL_API_KEY"),
+    }
+    current = selected or next((name for name in ("browser-use", "browserbase") if cloud_available[name]), "local")
+    available = _local_browser_runnable(browser_cfg) if current == "local" else bool(cloud_available.get(current))
     return _state(
-        "browser", available=available, active=bool(tool_enabled and available), managed_by_nous=managed_now,
-        toolset_enabled=tool_enabled, current_provider=_provider_label("browser", current), explicit_configured=explicit,
+        "browser", available=available, active=bool(tool_enabled and available), managed_by_nous=False,
+        toolset_enabled=tool_enabled, current_provider=_provider_label("browser", current),
+        explicit_configured=selected is not None,
     )
 
 
-def _modal_feature(terminal_cfg: dict[str, object], tool_enabled: bool, managed: bool, managed_tools_flag: bool) -> NousFeatureState:
+def _modal_feature(terminal_cfg: dict[str, object], tool_enabled: bool) -> NousFeatureState:
     terminal_backend = _norm(terminal_cfg.get("backend"), "local")
-    modal_mode = normalize_modal_mode(terminal_cfg.get("modal_mode"))
-    direct_modal = has_direct_modal_credentials()
-    modal_state = resolve_modal_backend_state(modal_mode, has_direct=direct_modal, managed_ready=managed, managed_enabled=managed_tools_flag)
     is_modal = terminal_backend == "modal"
-    # A non-modal terminal backend, or a resolved managed/direct selection, is always "available";
-    # otherwise report what the mode could use.
-    selected = modal_state["selected_backend"] if is_modal else None
-    if not is_modal or selected in ("managed", "direct"):
-        available, active = True, bool(tool_enabled)
-        managed_now = selected == "managed" and bool(tool_enabled)
-        direct_override = is_modal and selected == "direct" and bool(tool_enabled)
-    else:
-        managed_now = direct_override = active = False
-        available = bool({"managed": managed, "direct": direct_modal}.get(modal_mode, managed or direct_modal))
+    available = not is_modal or modal_configuration_error(terminal_cfg.get("modal_mode")) is None
     return _state(
-        "modal", available=available, active=active, managed_by_nous=managed_now, direct_override=direct_override,
-        toolset_enabled=tool_enabled, current_provider="Modal" if is_modal else terminal_backend or "local",
-        explicit_configured=is_modal,
+        "modal", available=available, active=bool(tool_enabled and available), managed_by_nous=False,
+        direct_override=bool(is_modal and tool_enabled and available), toolset_enabled=tool_enabled,
+        current_provider="Modal" if is_modal else terminal_backend, explicit_configured=is_modal,
     )
 
 
@@ -437,7 +407,7 @@ def get_nous_subscription_features(config: Optional[dict[str, object]] = None, *
             and account_info.tool_gateway_entitled_for(spec.coverage)
             and (selected.get(key) is None or use_gateway.get(key, False))
         )
-        for key, spec in _FEATURES.items()
+        for key, spec in _FEATURES.items() if spec.gateway
     }
     direct_firecrawl = _any_env("FIRECRAWL_API_KEY", "FIRECRAWL_API_URL") and not use_gateway["web"]
     fal_configured = fal_key_is_configured()
@@ -452,10 +422,8 @@ def get_nous_subscription_features(config: Optional[dict[str, object]] = None, *
         "video_gen": _fal("video_gen"),
         "tts": tts,
         "stt": stt,
-        "browser": _browser_feature(
-            _section(config, "browser"), enabled["browser"], managed["browser"], use_gateway["browser"], direct_firecrawl,
-        ),
-        "modal": _modal_feature(_section(config, "terminal"), enabled["terminal"], managed["modal"], managed_tools_flag),
+        "browser": _browser_feature(_section(config, "browser"), enabled["browser"]),
+        "modal": _modal_feature(_section(config, "terminal"), enabled["terminal"]),
     }
     return NousSubscriptionFeatures(
         subscribed=provider_is_nous or nous_auth_present, nous_auth_present=nous_auth_present,
@@ -513,10 +481,7 @@ def apply_nous_managed_defaults(config: dict[str, object], *, enabled_toolsets: 
 
 
 def _get_gateway_direct_credentials() -> dict[str, bool]:
-    """tool_key -> has_direct_credentials. Env-configured keyless local backends (SearXNG, CAMOFOX_URL)
-    count as configured so they are never classified "unconfigured" and pre-checked; Whisper shares
-    the audio key with TTS. CAMOFOX_URL: the home browses through Camofox (the ``camofox`` plugin
-    since it left core), so the managed browser is offered, not pre-checked over it."""
+    """Direct credentials prevent automatic gateway selection; keyless SearXNG counts too."""
     fal_direct = fal_key_is_configured()
     audio_direct = bool(resolve_openai_audio_api_key())
     return {
@@ -528,10 +493,6 @@ def _get_gateway_direct_credentials() -> dict[str, bool]:
         "video_gen": fal_direct,
         "tts": audio_direct or _any_env("ELEVENLABS_API_KEY"),
         "stt": audio_direct or _any_env("GROQ_API_KEY", "MISTRAL_API_KEY"),
-        "browser": (
-            _any_env("BROWSER_USE_API_KEY", "CAMOFOX_URL")
-            or bool(get_env_value("BROWSERBASE_API_KEY") and get_env_value("BROWSERBASE_PROJECT_ID"))
-        ),
     }
 
 

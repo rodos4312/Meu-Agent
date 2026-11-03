@@ -232,9 +232,6 @@ image_gen:
 
 tts:
   provider: nous
-
-browser:
-  cloud_provider: nous
 ```
 
 The runtime always follows the stored selection — direct API keys left in `.env` are ignored while a category is set to `nous`, and picking a direct provider (e.g. `image_gen.provider: fal`) without its key produces a clear error rather than silently rerouting through the gateway. (Older configs used a legacy `use_gateway: true` flag; it is read as equivalent to `nous` but is no longer written.)
@@ -248,7 +245,7 @@ Hermes mints a short-lived JWT from your stored Portal refresh token on each inf
 Meu no longer starts a background Nous token keepalive. Its configuration setting is removed
 when a profile is loaded or saved. The Portal setup command and Nous model setup flow have also
 been removed; use `hermes model` to configure a supported provider. The remaining content on this
-page describes legacy upstream integration paths, not Meu's setup interface.
+page describes legacy upstream integration paths, not Meu's setup interface. The managed browser and Modal routes have been deleted; use local execution or your own provider account.
 
 If the Portal invalidates the refresh token (password change, manual revoke, session expiry), the invalid refresh token is **quarantined locally** so Hermes stops replaying it and you don't see a stream of identical 401s. The next call surfaces a clear "re-authentication required" message. Run `hermes auth add nous` to log in again; the quarantine clears on the next successful login.
 

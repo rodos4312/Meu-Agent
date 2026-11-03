@@ -336,7 +336,7 @@ TOOL_CATEGORIES = {
         "name": "Browser Automation", "icon": "🌐",
         # Cloud provider rows (Browserbase, Browser Use, Firecrawl) come from plugins.browser.<vendor> via
         # _plugin_browser_providers(); only non-provider setup-flow rows live here. "Local Browser" MUST stay
-        # first so a fresh install's Enter lands on the free local backend (index 0), never on the paid Nous row.
+        # first so a fresh install's Enter lands on the free local backend (index 0).
         # Lightpanda is local too (cloud_provider: local, browser.engine: lightpanda — browser_exec spawns
         # ``lightpanda serve``; no Chromium).
         "providers": [
@@ -344,11 +344,6 @@ TOOL_CATEGORIES = {
                  browser_engine="auto", post_setup="chromium"),
             _row("Lightpanda", "free · local · no Chromium", "Zig headless browser spawned by Hermes, text-only (no screenshots)",
                  browser_provider="local", browser_engine="lightpanda", post_setup="lightpanda"),
-            # Browser Use hosts its own Chromium, so the local-Chromium install and readiness gate must not
-            # apply (with "chromium" this row read "needs setup" forever on machines without a local build).
-            _row("Nous Subscription (Browser Use cloud)", "subscription", "Managed Browser Use billed to your subscription",
-                 browser_provider="browser-use", **_NOUS, managed_nous_feature="browser",
-                 override_env_vars=["BROWSER_USE_API_KEY"], post_setup="browserbase"),
         ],
     },
     "computer_use": {
