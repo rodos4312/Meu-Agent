@@ -493,6 +493,7 @@ _E2E_LANES: dict[str, tuple[str, ...]] = {
         "hermes_cli/source_stamp.py",
         # Imported by the Desktop build's scripts (scripts/build/desktop.mjs closure).
         "apps/desktop/product-identity.cjs",
+        "apps/desktop/meu-release.cjs",  # release policy is read by the Desktop build stamp
         "scripts/msix-shared.mjs",
         # The launchers the Desktop relaunches through reach the launch-time repair first.
         "hermes_cli/_launchers.py",
