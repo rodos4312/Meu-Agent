@@ -70,24 +70,26 @@ def run_cli(command: list[str], root: Path, home: Path, *, timeout: int = 120) -
     return result.stdout
 
 
-def recover_installation(transaction: Path, executable: Path, launcher: str, since: float) -> None:
+def recover_installation(transaction: Path, executable: Path, launcher: str, since: float,
+                         launcher_args: list[str] | None = None) -> None:
     record = recovery.read_record(transaction / "transaction.json")
     root, home = Path(record["root"]), Path(record["home"])
     transition(transaction, "recovering")
+    command = [launcher, *(launcher_args or [])]
     try:
-        run_cli([launcher, "gateway", "stop"], root, home)
+        run_cli([*command, "gateway", "stop"], root, home)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         # A damaged import can prevent stop even when no owner exists. The
         # canonical maintenance reservation in restore still refuses a live one.
         pass
     record = recovery.restore(transaction, stop_desktop=lambda: stop_candidate(executable, since))
     # Prove the restored backend starts before replacing the desktop package.
-    endpoint = json.loads(run_cli([launcher, "gateway", "ensure", "--json"], root, home, timeout=300))
+    endpoint = json.loads(run_cli([*command, "gateway", "ensure", "--json"], root, home, timeout=300))
     if (not isinstance(endpoint, dict) or endpoint.get("state") != "ready"
             or endpoint.get("client_code_sha") != record["sourceCommit"]
             or endpoint.get("endpoint", {}).get("code_sha") != record["sourceCommit"]):
         raise RuntimeError("Restored Meu gateway did not report a usable endpoint")
-    run_cli([launcher, "gateway", "stop"], root, home)
+    run_cli([*command, "gateway", "stop"], root, home)
     installer = recovery.verify_release(record["rollback"], record["key"], Path(record["directory"]))
     if os.name != "nt":
         raise RuntimeError("Meu desktop package rollback is supported on Windows only")
@@ -106,7 +108,8 @@ def recover_installation(transaction: Path, executable: Path, launcher: str, sin
 
 
 def watch(transaction: Path, parent_pid: int, executable: Path, launcher: str,
-          *, timeout: float = 1200, wait=threading.Event().wait, clock=time.monotonic) -> str:
+          *, launcher_args: list[str] | None = None, timeout: float = 1200,
+          wait=threading.Event().wait, clock=time.monotonic) -> str:
     """One bounded handoff; cancellation never restores over a running old app."""
     record = recovery.read_record(transaction / "transaction.json")
     recovery.verify_release(record["rollback"], record["key"], Path(record["directory"]))
@@ -130,7 +133,7 @@ def watch(transaction: Path, parent_pid: int, executable: Path, launcher: str,
         if signal == "failed":
             break
         wait(0.25)
-    recover_installation(transaction, executable, launcher, since)
+    recover_installation(transaction, executable, launcher, since, launcher_args)
     return "rolled-back"
 
 
@@ -140,9 +143,12 @@ def main() -> int:
     parser.add_argument("--parent-pid", type=int, required=True)
     parser.add_argument("--executable", type=Path, required=True)
     parser.add_argument("--launcher", required=True)
+    parser.add_argument("--launcher-args", type=json.loads, default=[])
     args = parser.parse_args()
     try:
-        watch(args.transaction, args.parent_pid, args.executable, args.launcher)
+        if not isinstance(args.launcher_args, list) or any(not isinstance(value, str) or "\0" in value for value in args.launcher_args):
+            raise ValueError("Invalid Meu recovery launcher arguments")
+        watch(args.transaction, args.parent_pid, args.executable, args.launcher, launcher_args=args.launcher_args)
     except Exception as exc:
         transition(args.transaction, "recovery-failed", error=str(exc))
         logging.exception("Meu update recovery failed")

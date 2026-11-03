@@ -204,6 +204,36 @@ def test_receipt_from_same_commit_but_another_version_does_not_disarm_monitor(tm
         watcher.signal_state(tmp_path, "a" * 40, "0.1.0-dev.17")
 
 
+def test_recovery_preserves_python_launcher_prefix_through_real_cli_calls(installation, monkeypatch):
+    home, root, cache, key, old, _new, _git, _facts, _homes = installation
+    transaction = recovery.prepare(root, home, cache, key, "git")
+    record = recovery.read_record(transaction / "transaction.json")
+    calls = home / "cli-calls.jsonl"
+    script = home / "backend cli.py"
+    script.write_text(
+        "import json,os,sys\nfrom pathlib import Path\n"
+        "assert sys.argv[1:3]==['--fixture','owned']\n"
+        f"assert os.environ['HERMES_HOME']=={str(home)!r}\n"
+        f"with Path({str(calls)!r}).open('a',encoding='utf-8') as f: f.write(json.dumps(sys.argv[3:])+'\\n')\n"
+        f"print(json.dumps({{'state':'ready','client_code_sha':{old!r},'endpoint':{{'code_sha':{old!r}}}}}))\n",
+        encoding="utf-8")
+    monkeypatch.setattr(recovery, "restore", lambda *_args, **_kwargs: record)
+    installer = cache / record["rollback"]["file"]
+    real_run = subprocess.run
+
+    def run(command, *args, **kwargs):
+        if command[0] == str(installer):
+            return subprocess.CompletedProcess(command, 17)  # Never execute fixture bytes.
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(watcher.subprocess, "run", run)
+    with pytest.raises(RuntimeError, match="Previous Meu installer failed|Windows only"):
+        watcher.recover_installation(transaction, root / "Meu.exe", sys.executable, 0,
+                                     ["-I", str(script), "--fixture", "owned"])
+    assert [json.loads(line) for line in calls.read_text(encoding="utf-8-sig").splitlines()] == [
+        ["gateway", "stop"], ["gateway", "ensure", "--json"], ["gateway", "stop"]]
+
+
 @pytest.mark.parametrize("damage", ["archive", "installer", "signature", "source"])
 def test_refuses_damaged_recovery_or_user_source_edits_before_mutation(installation, damage):
     home, root, cache, key, _old, new, git, _facts, _homes = installation

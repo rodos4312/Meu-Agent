@@ -27,8 +27,6 @@ const env = Object.fromEntries(
   )
 )
 Object.assign(env, {
-  HERMES_DESKTOP_HERMES_ROOT: root,
-  HERMES_DESKTOP_HERMES: launcher,
   HERMES_DESKTOP_USER_DATA_DIR: path.join(scratch, 'desktop'),
   HERMES_DESKTOP_SKIP_QUIT_CONFIRM: '1',
   TEST_WORKER_INDEX: '0'
@@ -40,7 +38,9 @@ for (const key of [
   'HERMES_PYTHON',
   'HERMES_DESKTOP_BOOT_FAKE',
   'HERMES_DESKTOP_BOOT_FAKE_ERROR',
-  'HERMES_DESKTOP_DEV_SERVER'
+  'HERMES_DESKTOP_DEV_SERVER',
+  'HERMES_DESKTOP_HERMES_ROOT',
+  'HERMES_DESKTOP_HERMES'
 ])
   delete env[key]
 const runtime = JSON.parse(

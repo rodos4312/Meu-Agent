@@ -90,6 +90,7 @@ export async function armMeuRollback(options: MeuRollbackOptions): Promise<void>
   const backend = await options.resolveBackend(['gateway', 'stop'])
   if (!backend.command || backend.shell || backend.bootstrap)
     throw new Error('Cannot retain a safe Meu recovery runtime.')
+  if (backend.args.slice(-2).join('\0') !== 'gateway\0stop') throw new Error('Invalid Meu recovery command prefix.')
   const runtime = await ticketRuntimeFor({ ...backend, command: backend.command })
   const env = { ...process.env, ...runtime.env, HERMES_HOME: options.home }
   const bootstrap =
@@ -141,7 +142,9 @@ export async function armMeuRollback(options: MeuRollbackOptions): Promise<void>
       '--executable',
       options.executable,
       '--launcher',
-      backend.command
+      backend.command,
+      '--launcher-args',
+      JSON.stringify(backend.args.slice(0, -2))
     ],
     { env, cwd: options.root, windowsHide: true, detached: true, stdio: ['ignore', log, log] }
   )

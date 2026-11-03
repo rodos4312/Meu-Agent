@@ -637,7 +637,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cannot select private fixture version.' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Private fixture build failed.' }
-          npm run builder -- --win nsis --x64
+          node scripts/run-electron-builder.mjs --win nsis --x64
           if ($LASTEXITCODE -ne 0) { throw 'Private fixture packaging failed.' }
           $installer = Get-ChildItem -LiteralPath release -Filter 'Meu-*-win-x64.exe' -File
           if (@($installer).Count -ne 1) { throw 'Expected exactly one private fixture installer.' }
