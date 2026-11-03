@@ -282,6 +282,14 @@ def selection_error(section: str, selection_name: str, failure: str) -> str:
             f"tools), but {failure}. Run 'hermes tools' to change it.")
 
 
+def require_direct_provider(section: str) -> str | None:
+    """Read a saved provider without migrating a retired account to another billing route."""
+    selected = read_selection(section)
+    if selected == "nous":
+        raise ValueError(selection_error(section, selected, "this provider has been removed; select your own provider"))
+    return selected
+
+
 def fal_key_is_configured() -> bool:
     """True when FAL_KEY is set (scope/env, else ``.env`` for CLI paths that run before dotenv
     loads) to a non-whitespace value, so tool-side and CLI setup-time checks agree."""

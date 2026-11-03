@@ -1,4 +1,4 @@
-"""OpenRouter-compatible image generation backend (OpenRouter + Nous Portal).
+"""OpenRouter-compatible image generation backend (OpenRouter).
 
 Both speak the OpenAI-style ``/chat/completions`` image protocol (``modalities:
 ["image","text"]``, references as ``image_url`` parts, output in
@@ -171,8 +171,8 @@ _IMAGE_API_INTS = (
 
 _ATTRIBUTION_HEADERS = {
     "Content-Type": "application/json",
-    # OpenRouter attribution headers (harmless against Nous Portal).
-    "HTTP-Referer": "https://github.com/NousResearch/hermes-agent",
+    # OpenRouter attribution headers .
+    "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent",
     "X-Title": "Hermes Agent",
 }
 
@@ -500,7 +500,7 @@ def _image_api_extra(
 
 
 class OpenRouterCompatImageProvider(ImageGenProvider):
-    """One instance per backend (OpenRouter, Nous Portal); they differ only in the runtime
+    """OpenRouter image provider configured through the runtime
     provider supplying ``(base_url, api_key)``, the config namespace, and Image API support."""
 
     def __init__(
@@ -552,7 +552,7 @@ class OpenRouterCompatImageProvider(ImageGenProvider):
 
     def list_models(self) -> list[dict[str, Any]]:
         """Live catalog: OpenRouter = ``GET /images/models`` ∪ chat-completions image models (new
-        releases selectable); Nous Portal = chat-completions only. Offline: default chain + snapshot."""
+        releases selectable). Offline: default chain + snapshot."""
         merged: dict[str, dict[str, Any]] = {}
         if self._supports_image_api:
             merged = {entry["id"]: entry for entry in self._image_api_live_models()}
@@ -819,16 +819,10 @@ def _build_providers() -> list[OpenRouterCompatImageProvider]:
                     "key": "OPENROUTER_API_KEY", "prompt": "OpenRouter API key", "url": "https://openrouter.ai/keys",
                 }],
             }),
-        # No picker row: Portal models are offered inside the single managed "Nous Subscription" row
-        # (tools/image_generation_managed.py). A row of its own also wrote `provider: nous` and so
-        # read "active" alongside the managed FAL row while the runtime routed its pick to FAL.
-        OpenRouterCompatImageProvider(
-            provider_name="nous", display_name="Nous Portal", runtime_name="nous", config_key="nous",
-            model_env_var="NOUS_IMAGE_MODEL", setup_schema=None),
     ]
 
 
 def register(ctx: Any) -> None:
-    """Register the OpenRouter + Nous Portal image gen providers."""
+    """Register the OpenRouter image gen providers."""
     for provider in _build_providers():
         ctx.register_image_gen_provider(provider)

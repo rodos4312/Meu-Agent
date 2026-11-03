@@ -6,7 +6,6 @@ Covers `_plugin_image_gen_providers`, `_visible_providers`, and
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 import pytest
 
@@ -70,8 +69,6 @@ class TestPluginPickerInjection:
         assert "someimg" in plugin_names
 
 
-
-
 class TestPluginCatalog:
     def test_plugin_catalog_returns_models(self):
         from hermes_cli import tools_config
@@ -127,30 +124,11 @@ class TestConfigWriting:
         assert config["image_gen"]["model"] == "noenv-model-v1"
 
 
-    def test_plugin_provider_active_overrides_managed_nous_active_label(self, monkeypatch):
+    def test_plugin_selection_does_not_activate_another_provider(self):
         from hermes_cli import tools_config
-
-        monkeypatch.setattr(
-            tools_config,
-            "get_nous_subscription_features",
-            lambda config, **kwargs: SimpleNamespace(
-                features={"image_gen": SimpleNamespace(managed_by_nous=True)}
-            ),
-        )
-
         config = {"image_gen": {"provider": "openai", "use_gateway": False}}
-        nous_row = {
-            "name": "Nous Subscription",
-            "managed_nous_feature": "image_gen",
-        }
-        openai_row = {
-            "name": "OpenAI",
-            "image_gen_plugin_name": "openai",
-        }
-
-        assert tools_config._is_provider_active(openai_row, config) is True
-        assert tools_config._is_provider_active(nous_row, config) is False
-
+        assert tools_config._is_provider_active({"image_gen_plugin_name": "openai"}, config)
+        assert not tools_config._is_provider_active({"image_gen_plugin_name": "fal"}, config)
 
 
 class TestCodexOAuthBootstrapHook:

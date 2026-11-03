@@ -9,7 +9,6 @@ working model configured (consumer-onboarding audit finding #7, Aug 2026).
 from unittest.mock import patch
 
 from hermes_cli.auth import AuthError
-from hermes_cli import nous_subscription
 
 
 def _summary_output(capsys, provider_ready: bool):
@@ -24,17 +23,8 @@ def _summary_output(capsys, provider_ready: bool):
                 code="no_provider_configured",
             )
 
-    # Keep the summary fast/hermetic: stub the heavier feature probes.
-    with patch("hermes_cli.auth.resolve_provider", resolver), \
-         patch.object(nous_subscription, "get_nous_subscription_features") as feats:
-        feats.side_effect = Exception("stubbed")
-        try:
-            setup_mod._print_setup_summary({}, "/tmp/nowhere")
-        except Exception:
-            # Downstream summary sections may fail from the stubbed
-            # features — the provider warning prints first and is what
-            # this test asserts on.
-            pass
+    with patch("hermes_cli.auth.resolve_provider", resolver), patch("hermes_cli.setup_summary._TOOL_ROW_BUILDERS", ()):
+        setup_mod._print_setup_summary({}, "/tmp/nowhere")
     return capsys.readouterr().out
 
 

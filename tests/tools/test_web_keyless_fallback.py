@@ -35,7 +35,6 @@ def _no_web_env(monkeypatch):
     )
     monkeypatch.setattr(web_tools, "_env_value", lambda name: "", raising=True)
     monkeypatch.setattr(web_tools, "_load_web_config", dict, raising=True)
-    monkeypatch.setattr(web_tools, "_is_tool_gateway_ready", lambda: False, raising=True)
     monkeypatch.setattr(web_tools, "_ddgs_package_importable", lambda: False, raising=True)
     yield
 

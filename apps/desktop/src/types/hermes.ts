@@ -1248,7 +1248,6 @@ export interface ToolProvider {
   tag: string
   env_vars: ToolEnvVar[]
   post_setup: string | null
-  requires_nous_auth: boolean
   /** True when this is the provider currently written to config (mirrors the
    *  CLI `hermes tools` active-provider detection). */
   is_active: boolean
@@ -1266,9 +1265,6 @@ export interface ToolProvider {
   /** Web toolset only: capabilities this backend can serve. Search-only
    *  providers (ddgs, brave-free) report ['search']. */
   capabilities?: WebCapability[]
-  /** Set on the "Nous Subscription" rows (e.g. 'web'): served through the
-   *  Nous Tool Gateway rather than the user's own key. */
-  managed_nous_feature?: null | string
 }
 
 /** A web toolset capability — the runtime dispatches web_search and
@@ -1286,10 +1282,6 @@ export interface ToolsetConfig {
   active_search_backend?: string | null
   /** Web toolset only: backend the web_extract tool resolves to right now. */
   active_extract_backend?: string | null
-  /** Web toolset only: web_search / web_extract currently go through the Nous
-   *  Tool Gateway (billed to the subscription) instead of the user's own key. */
-  search_via_nous?: boolean
-  extract_via_nous?: boolean
 }
 
 /** Health status of a terminal execution backend row.
@@ -1886,10 +1878,6 @@ export interface DebugShareResponse {
 export interface ModelAssignmentResponse {
   /** Persisted endpoint URL for custom/local providers (echoed back). */
   base_url?: string
-  /** Toolset keys auto-routed through the Nous Tool Gateway as a result of
-   *  switching the main provider to Nous. Empty unless provider === 'nous'
-   *  and the user is a paid subscriber with unconfigured tools. */
-  gateway_tools?: string[]
   confirm_message?: string
   confirm_required?: boolean
   model?: string

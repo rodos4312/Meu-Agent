@@ -84,13 +84,8 @@ def test_picker_exposes_direct_browser_credentials():
 
 @pytest.mark.parametrize("selection", [None, "", "local"])
 def test_explicit_local_status_does_not_claim_cloud_key_readiness(selection, monkeypatch):
-    from hermes_cli import nous_subscription as status
-
+    from hermes_cli.setup_summary import _browser_row
     monkeypatch.setenv("BROWSER_USE_API_KEY", "test-direct-key")
-    monkeypatch.setattr(status, "_has_browser_harness", lambda: True)
-    monkeypatch.setattr(status, "_local_browser_runnable", lambda cfg: False)
-    state = status._browser_feature({"cloud_provider": selection}, True)
-    assert not state.available
-    assert not state.active
-    assert state.explicit_configured
-    assert not state.managed_by_nous
+    monkeypatch.setattr("hermes_cli.browser_runtime.chromium_executable", lambda: None)
+    row = _browser_row({"browser": {"cloud_provider": selection}})
+    assert row[1] is False

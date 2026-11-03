@@ -83,7 +83,7 @@ beforeEach(() => {
     tasks: [{ task: 'vision', provider: 'auto', model: '', base_url: '' }]
   })
   getMoaModels.mockResolvedValue(null)
-  setModelAssignment.mockResolvedValue({ ok: true, provider: 'nous', model: 'hermes-4', gateway_tools: [] })
+  setModelAssignment.mockResolvedValue({ ok: true, provider: 'nous', model: 'hermes-4', })
   getRecommendedDefaultModel.mockResolvedValue({ provider: 'nous', model: 'hermes-4', free_tier: null })
   setEnvVar.mockResolvedValue({ ok: true })
   getHermesConfigRecord.mockResolvedValue({ agent: { reasoning_effort: 'medium', service_tier: 'normal' } })
@@ -271,7 +271,6 @@ describe('ModelSettings', () => {
       ok: true,
       provider: 'local-ollama',
       model: 'qwen3:latest',
-      gateway_tools: []
     })
 
     renderModelSettings()
@@ -547,7 +546,6 @@ describe('ModelSettings', () => {
       ok: true,
       provider: 'nous',
       model: 'hermes-4',
-      gateway_tools: [],
       stale_aux: []
     })
 
@@ -572,7 +570,6 @@ describe('ModelSettings', () => {
       ok: true,
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4.7',
-      gateway_tools: [],
       stale_aux: [{ task: 'compression', provider: 'nous', model: 'hermes-4' }]
     })
 
@@ -1005,7 +1002,6 @@ describe('ModelSettings stale-aux banner dismissal', () => {
       ok: true,
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4.7',
-      gateway_tools: [],
       stale_aux: [{ task: 'compression', provider: 'nous', model: 'hermes-4' }]
     })
 

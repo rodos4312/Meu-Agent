@@ -126,7 +126,6 @@ class TestFalRouting:
 
         monkeypatch.setattr(image_tool, "_submit_fal_request", fake_submit)
         monkeypatch.setattr(image_tool, "fal_key_is_configured", lambda: True)
-        monkeypatch.setattr(image_tool, "_resolve_managed_fal_gateway", lambda: None)
 
     def test_text_to_image_uses_base_endpoint(self, cfg_home, monkeypatch):
         import tools.image_generation_tool as image_tool
@@ -260,7 +259,7 @@ class TestPluginDispatchImageToImage:
 
         provider = _EditCapableProvider()
         reg.register_provider(provider)
-        monkeypatch.setattr(image_tool, "_read_configured_image_provider", lambda: "editcap")
+        monkeypatch.setattr(image_tool, "require_direct_provider", lambda section: "editcap")
         monkeypatch.setattr(plugins_module, "_ensure_plugins_discovered", lambda *a, **k: None)
         monkeypatch.setattr(reg, "get_provider", lambda n: provider if n == "editcap" else None)
 
@@ -283,7 +282,7 @@ class TestPluginDispatchImageToImage:
 
         provider = _LegacyProvider()
         reg.register_provider(provider)
-        monkeypatch.setattr(image_tool, "_read_configured_image_provider", lambda: "legacy")
+        monkeypatch.setattr(image_tool, "require_direct_provider", lambda section: "legacy")
         monkeypatch.setattr(plugins_module, "_ensure_plugins_discovered", lambda *a, **k: None)
         monkeypatch.setattr(reg, "get_provider", lambda n: provider if n == "legacy" else None)
 

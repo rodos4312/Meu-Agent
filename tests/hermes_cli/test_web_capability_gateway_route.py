@@ -1,12 +1,5 @@
-"""Each web capability picks its own route: the user's own key or the Nous Tool Gateway.
+"""Independent direct web selections persist; retired providers cannot be selected."""
 
-"Use for Extract" on the Nous Subscription row must send extract through the gateway while search
-keeps the user's own Firecrawl key, and the toolset-level Nous pick must take both back. Before the
-fix the managed pick wrote "firecrawl", which reads as the BYOK key, so the gateway was unreachable
-per capability (#100513).
-"""
-
-import types
 
 import pytest
 
@@ -24,28 +17,19 @@ def client(monkeypatch, _isolate_hermes_home):
     return test_client
 
 
-def test_web_capability_picks_choose_own_key_or_nous_gateway(client, monkeypatch):
-    import plugins.web.firecrawl.provider as fc
-    import tools.web_tools as wt
+def test_web_capability_picks_persist_independently(client):
     from hermes_cli.config import load_config
-
-    monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-own-key")
-    monkeypatch.setattr(fc._gateway, "resolve_managed_tool_gateway", lambda *a, **k: types.SimpleNamespace(
-        nous_user_token="nous-tok", gateway_origin="https://firecrawl-gateway.example"))
-    monkeypatch.setattr(fc, "Firecrawl", lambda **kw: types.SimpleNamespace(kwargs=kw), raising=False)
-    monkeypatch.setattr(wt, "_firecrawl_client", None, raising=False)
 
     def put(**body):
         assert client.put("/api/tools/toolsets/web/provider", json=body).status_code == 200
-        return client.get("/api/tools/toolsets/web/config").json()
 
     put(provider="Firecrawl", capability="search")
-    data = put(provider="Nous Subscription", capability="extract")
-    assert (data["search_via_nous"], data["extract_via_nous"]) == (False, True)
-    assert fc._get_firecrawl_client("search").kwargs["api_key"] == "fc-own-key"
-    assert fc._get_firecrawl_client("extract").kwargs["api_key"] == "nous-tok"
-
-    data = put(provider="Nous Subscription")
-    web = load_config()["web"]
-    assert not web.get("search_backend") and not web.get("extract_backend")
-    assert (data["search_via_nous"], data["extract_via_nous"]) == (True, True)
+    put(provider="Tavily", capability="extract")
+    config = load_config()["web"]
+    assert config["search_backend"] == "firecrawl"
+    assert config["extract_backend"] == "tavily"
+    response = client.put("/api/tools/toolsets/web/provider", json={"provider": "Nous Subscription"})
+    assert response.status_code == 400
+    assert load_config()["web"] == config
+    rows = client.get("/api/tools/toolsets/web/config").json()["providers"]
+    assert "Nous Subscription" not in {row["name"] for row in rows}

@@ -158,6 +158,10 @@ jobs:
           tests/hermes_cli/test_meu_privacy.py
           tests/tools/test_meu_direct_modal.py
           tests/tools/test_meu_direct_browser.py
+          tests/tools/test_meu_direct_web.py
+          tests/tools/test_meu_direct_media.py
+          tests/tools/test_tts_openai_config.py
+          tests/hermes_cli/test_web_capability_gateway_route.py
           tests/tools/test_browser_use_cli.py
           tests/tools/test_terminal_requirements.py
           tests/tools/test_terminal_tool_requirements.py
@@ -183,7 +187,6 @@ jobs:
           tests/tui_gateway/test_legacy_fallback_ticket_profile_verbs.py
           tests/hermes_cli/test_webapp_socket_profile_scope.py
           tests/hermes_cli/test_guest_handoff.py
-          tests/hermes_cli/test_plain_login_settle.py
           tests/gateway/test_usage_command.py
           tests/hermes_cli/test_provider_catalog.py
           tests/providers/test_provider_profiles.py

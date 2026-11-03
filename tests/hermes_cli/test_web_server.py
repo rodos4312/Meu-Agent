@@ -193,8 +193,6 @@ class TestRedactKey:
         assert redact_key("short") == "***"
 
 
-
-
     def test_session_token_resolution_preserves_loaded_app_auth(self, monkeypatch):
         import hermes_cli.web_server as ws
         import hermes_cli.web_server_session_token as st
@@ -3013,15 +3011,7 @@ class TestNewEndpoints:
         state so keyless ≠ ready.
         """
         from hermes_cli import tools_config
-        from hermes_cli.nous_account import NousPortalAccountInfo
 
-        # Logged out of Nous Portal → managed subscription rows need sign-in.
-        monkeypatch.setattr(
-            "hermes_cli.nous_subscription.get_nous_portal_account_info",
-            lambda *a, **k: NousPortalAccountInfo(
-                logged_in=False, source="none", fresh=False, paid_service_access=None
-            ),
-        )
         # No xAI credentials → the Grok OAuth-backed row needs sign-in.
         from hermes_cli import tools_config_post_setup
 
@@ -3040,7 +3030,7 @@ class TestNewEndpoints:
         # Genuinely-free keyless row stays Ready.
         assert by_name["Microsoft Edge TTS"]["status"] == "ready"
         # Keyless ≠ ready for gated rows:
-        assert by_name["Nous Subscription"]["status"] == "needs_auth"
+        assert "Nous Subscription" not in by_name
         assert by_name["xAI TTS"]["status"] == "needs_auth"
         assert by_name["KittenTTS"]["status"] == "needs_setup"
         assert by_name["Piper"]["status"] == "needs_setup"

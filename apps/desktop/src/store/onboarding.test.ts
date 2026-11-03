@@ -576,7 +576,7 @@ describe('OAuth onboarding', () => {
       }
 
       if (path === '/api/model/set') {
-        return { ok: true, provider: 'nous', model, gateway_tools: [] }
+        return { ok: true, provider: 'nous', model, }
       }
 
       throw new Error(`unexpected api path: ${path}`)
@@ -736,7 +736,7 @@ describe('manual onboarding (Settings / Add provider on an already-configured in
       }
 
       if (path === '/api/model/set') {
-        return { ok: true, provider: 'nous', model, gateway_tools: [] }
+        return { ok: true, provider: 'nous', model, }
       }
 
       throw new Error(`unexpected api path: ${path}`)
@@ -805,7 +805,7 @@ describe('manual onboarding (Settings / Add provider on an already-configured in
       calls.push({ body, path })
 
       if (path === '/api/model/set') {
-        return { ok: true, provider: 'nous', model, gateway_tools: [] }
+        return { ok: true, provider: 'nous', model, }
       }
 
       throw new Error(`unexpected api path: ${path}`)

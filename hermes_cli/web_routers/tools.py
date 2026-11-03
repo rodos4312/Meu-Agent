@@ -153,7 +153,7 @@ def _resolve_toolset_model_plugin(ts_key: str, provider_row: dict) -> Optional[s
     """Map a provider picker row to its model-catalog plugin name.
 
     Plugin-backed rows carry ``image_gen_plugin_name`` / ``video_gen_plugin_name``;
-    a managed image row's ``imagegen_backend`` names its catalog plugin.
+    an in-tree image row's ``imagegen_backend`` names its catalog plugin.
     """
     if ts_key == "image_gen":
         return provider_row.get("image_gen_plugin_name") or provider_row.get("imagegen_backend")
@@ -164,7 +164,7 @@ def _resolve_toolset_model_plugin(ts_key: str, provider_row: dict) -> Optional[s
 
 def _toolset_model_catalog(ts_key: str, plugin_name: str, config: dict):
     """Return ``(catalog_dict, default_model)`` for a toolset's plugin backend or, for an image row's
-    ``imagegen_backend`` (``fal``, the managed ``nous`` union), that backend's catalog."""
+    ``imagegen_backend`` (``fal``), that backend's catalog."""
     from hermes_cli.tools_config import IMAGEGEN_BACKENDS, _plugin_image_gen_catalog, _plugin_video_gen_catalog
 
     if ts_key == "image_gen":
@@ -224,7 +224,7 @@ def _no_models(name: str) -> dict:
 async def get_toolsets(profile: Optional[str] = None):
     from hermes_cli.tools_config import (
         _CONFIG_ONLY_TOOLSETS, _get_effective_configurable_toolsets, _get_platform_tools,
-        _toolset_configuration_platform, _toolset_has_keys, get_nous_subscription_features,
+        _toolset_configuration_platform, _toolset_has_keys,
         gui_toolset_label)
     from hermes_cli.platforms import platform_label
     from toolsets import resolve_toolset
@@ -239,10 +239,9 @@ async def get_toolsets(profile: Optional[str] = None):
             enabled_by_platform = {
                 platform: _get_platform_tools(config, platform, include_default_mcp_servers=False)
                 for platform in target_platforms}
-            features = get_nous_subscription_features(config)
             # Credential presence resolves through the profile's secret scope: outside this block
             # it read the dashboard process env (another profile's keys) or fails closed.
-            configured = {name: _toolset_has_keys(name, config, features=features) for name, _, _ in toolset_rows}
+            configured = {name: _toolset_has_keys(name, config) for name, _, _ in toolset_rows}
         return config, toolset_rows, enabled_by_platform, configured
 
     config, toolset_rows, enabled_by_platform, configured = await run_in_threadpool(_read)
@@ -343,7 +342,6 @@ async def get_toolset_config(name: str, profile: Optional[str] = None):
         TOOL_CATEGORIES, _is_provider_active, _visible_providers, provider_readiness_status,
         web_provider_capabilities)
     from hermes_cli.config import get_env_value
-    from hermes_cli.nous_subscription import get_nous_subscription_features
 
     def _read():
         with _profile_scope(profile):
@@ -354,7 +352,6 @@ async def get_toolset_config(name: str, profile: Optional[str] = None):
             active_provider = None
             if cat:
                 # Entitlement state fetched once for the whole matrix.
-                features = get_nous_subscription_features(config, force_fresh=True)
                 for prov in _visible_providers(cat, config, force_fresh=True):
                     env_vars = [
                         {
@@ -373,16 +370,14 @@ async def get_toolset_config(name: str, profile: Optional[str] = None):
                         "tag": prov.get("tag", ""),
                         "env_vars": env_vars,
                         "post_setup": prov.get("post_setup"),
-                        "requires_nous_auth": bool(prov.get("requires_nous_auth")),
                         # Set on the "Nous Subscription" rows: the GUI tells the gateway row apart
                         # from a BYOK row of the same vendor (both carry web_backend "firecrawl").
-                        "managed_nous_feature": prov.get("managed_nous_feature"),
                         "is_active": is_active,
                         # Server-side readiness: zero-env-var rows are NOT
                         # automatically ready (logged-out Nous rows, never-run
                         # post_setup installs).
                         "status": provider_readiness_status(
-                            prov, config, features=features, is_active=is_active)}
+                            prov, config, is_active=is_active)}
                     if name == "web" and prov.get("web_backend"):
                         # web is two capabilities (search/extract); surface each
                         # row's backend key + capabilities for per-capability selection.
@@ -397,25 +392,16 @@ async def get_toolset_config(name: str, profile: Optional[str] = None):
                 "name": name, "has_category": cat is not None, "providers": providers,
                 "active_provider": active_provider}
             if name == "web":
-                # Resolve active backends exactly as the web_search/web_extract dispatchers do, so badges
-                # reflect what a call would hit now — plus whether that call rides the Nous Tool Gateway
-                # or the user's own key (the managed and BYOK Firecrawl rows share one backend name).
+                # Use the dispatchers' resolution so badges reflect the actual selected providers.
                 try:
-                    from plugins.web.firecrawl.provider import is_managed_route
-                    from tools.web_tools import _get_extract_backend, _get_search_backend, _managed_web_search
+                    from tools.web_tools import _get_extract_backend, _get_search_backend
 
                     search_backend = _get_search_backend()
                     extract_backend = _get_extract_backend()
-                    search_managed = _managed_web_search() or (
-                        search_backend == "firecrawl" and is_managed_route("search"))
-                    extract_managed = extract_backend == "firecrawl" and is_managed_route("extract")
                 except Exception:
                     search_backend = extract_backend = None
-                    search_managed = extract_managed = False
                 payload["active_search_backend"] = search_backend
                 payload["active_extract_backend"] = extract_backend
-                payload["search_via_nous"] = bool(search_managed)
-                payload["extract_via_nous"] = bool(extract_managed)
         return payload
 
     return await asyncio.to_thread(_read)
@@ -501,13 +487,9 @@ async def select_toolset_provider(
 
     ``web`` only: ``capability`` ('search' | 'extract') writes
     ``web.<capability>_backend`` (the override the dispatchers resolve first);
-    omitted -> legacy ``web.backend``.  Managed Nous rows report Portal
-    entitlement (``needs_nous_auth`` + ``feature``): the GUI has no inline
-    login, so an unentitled selection would write config and never activate.
+    omitted -> shared ``web.backend``. Only registered providers can be selected.
     """
     from hermes_cli.tools_config import apply_provider_selection, web_provider_capabilities
-    from hermes_cli.nous_subscription import (
-        MANAGED_FEATURE_COVERAGE_CATEGORY, get_nous_subscription_features)
 
     if body.capability is not None:
         if name != "web":
@@ -538,12 +520,7 @@ async def select_toolset_provider(
                         raise _bad_request(f"Provider {body.provider!r} has no web backend key")
                     if body.capability not in web_provider_capabilities(backend):
                         raise _bad_request(f"{body.provider} does not support {body.capability}")
-                    # The managed row's web_backend names the vendor serving it ("firecrawl"); writing that
-                    # would read as the user's OWN Firecrawl key. Its pin is "nous" (gateway route).
-                    from tools.tool_backend_helpers import NOUS_MANAGED_PROVIDER
-
-                    _dict_section(config, "web")[f"{body.capability}_backend"] = (
-                        NOUS_MANAGED_PROVIDER if prov.get("managed_nous_feature") else backend)
+                    _dict_section(config, "web")[f"{body.capability}_backend"] = backend
                 else:
                     try:
                         apply_provider_selection(name, body.provider, config)
@@ -554,25 +531,6 @@ async def select_toolset_provider(
                 if body.capability is not None:
                     response["capability"] = body.capability
 
-            # Entitlement check for managed Nous rows (mirrors the CLI's
-            # ensure_nous_portal_access gate).  Hits the Portal, so it runs AFTER
-            # releasing the mutation lock — still in the worker thread + scope.
-            row = _provider_row(config)
-            managed_feature = (row or {}).get("managed_nous_feature")
-            if managed_feature:
-                features = get_nous_subscription_features(config, force_fresh=True)
-                acct = features.account_info
-                category = MANAGED_FEATURE_COVERAGE_CATEGORY.get(managed_feature)
-                entitled = bool(
-                    acct
-                    and acct.logged_in
-                    and (
-                        acct.tool_gateway_entitled_for(category)
-                        if category
-                        else acct.tool_gateway_entitled))
-                if not entitled:
-                    response["needs_nous_auth"] = True
-                    response["feature"] = managed_feature
         return response
 
     return await asyncio.to_thread(_run)

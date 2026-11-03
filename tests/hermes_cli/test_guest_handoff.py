@@ -114,13 +114,6 @@ def _persist(account):
     guest_handoff.drain()
 
 
-def _subscription_login(account, monkeypatch):
-    from hermes_cli import auth, nous_subscription
-    monkeypatch.setattr(auth, "_nous_device_code_login", lambda **_kw: account)
-    monkeypatch.setattr(nous_subscription, "_confirm", lambda _p: True)
-    assert nous_subscription._run_nous_portal_login_only(capability="Web search")
-
-
 def _sibling_adoption(account, monkeypatch, tmp_path):
     """Another profile signed in (account in the shared store); this one adopts it on next use."""
     import os
@@ -135,7 +128,6 @@ def _sibling_adoption(account, monkeypatch, tmp_path):
 
 WRITERS = {
     "persist_nous_credentials": lambda a, mp, tp: _persist(a),
-    "nous_subscription_login": lambda a, mp, tp: _subscription_login(a, mp),
     "shared_store_adoption": _sibling_adoption,
 }
 
@@ -321,8 +313,6 @@ def test_a_busy_store_lock_leaves_the_move_for_a_later_run(portal, monkeypatch):
     assert _only_record()["state"] == "claimed"
 
 
-
-
 def test_a_run_while_an_attempt_is_in_flight_sends_nothing(portal):
     from hermes_cli import guest_handoff
     _mint_guest()
@@ -356,8 +346,6 @@ def test_gone_on_a_first_attempt_reads_as_neutral(portal):
     _mint_guest()
     _persist(_account())
     assert guest_handoff.status_lines(guest_handoff.handoff_status()) == ["Nothing left to move from the free tier."]
-
-
 
 
 def test_a_guest_token_still_cached_from_a_connector_call_does_not_skip_the_move(portal):

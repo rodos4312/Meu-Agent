@@ -66,10 +66,7 @@ def test_missing_direct_credentials_and_invalid_mode_fail_locally():
     assert "Unsupported Modal mode" in modal_configuration_error("misspelled")
 
 
-def test_modal_status_does_not_inherit_managed_entitlement():
-    from hermes_cli.nous_subscription import _modal_feature
-
-    state = _modal_feature({"backend": "modal", "modal_mode": "auto"}, True)
-    assert not state.available
-    assert not state.active
-    assert not state.managed_by_nous
+def test_modal_status_requires_direct_credentials():
+    from hermes_cli.setup_summary import _modal_row
+    row = _modal_row({"terminal": {"backend": "modal", "modal_mode": "auto"}})
+    assert row[1] is False

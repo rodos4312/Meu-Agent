@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from hermes_cli.web_routers import oauth
+from hermes_cli.web_routers import oauth, status
 
 
 @pytest.fixture
@@ -27,6 +27,7 @@ def offline_routes(monkeypatch):
     monkeypatch.setattr(oauth, "_require_token", lambda _request: None)
     app = FastAPI()
     app.include_router(oauth.router)
+    app.include_router(status.router)
     with TestClient(app) as client:
         yield client
     assert attempts == []
@@ -56,6 +57,7 @@ def test_retired_login_is_unknown_and_handoff_route_does_not_exist(offline_route
     assert response.status_code == 400
     assert response.json()["detail"] == "Unknown provider nous"
     assert offline_routes.get("/api/providers/oauth/nous/handoff").status_code == 404
+    assert offline_routes.get("/api/portal").status_code == 404
 
 
 def test_supported_device_login_keeps_its_dispatch(offline_routes, monkeypatch):

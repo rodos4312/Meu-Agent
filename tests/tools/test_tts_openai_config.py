@@ -1,129 +1,60 @@
-"""tts.openai.api_key / base_url from config.yaml drive the OpenAI audio client.
-
-Regression coverage for issue #26175: the resolver was env-only
-(VOICE_TOOLS_OPENAI_KEY / OPENAI_API_KEY) and always returned the default
-OpenAI base URL, ignoring the tts.openai config block. Resolution order now
-mirrors the STT resolver: config -> env (still honoring config base_url) ->
-managed gateway.
-"""
+"""Direct speech credentials, model forwarding and retired-selection handling."""
 from types import SimpleNamespace
 from unittest.mock import patch
-
 import pytest
-
+import json
 from tools import tts_tool, tts_tool_openai
 
+@pytest.fixture
+def saved_config(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    def save(section):
+        (tmp_path / "config.yaml").write_text(json.dumps({"tts": section}), encoding="utf-8")
+        monkeypatch.setattr(tts_tool, "_load_tts_config", lambda: section)
+    return save
 
-class TestResolveOpenaiAudioClientConfig:
-    def test_prefers_tts_config_credentials_and_base_url(self):
-        config = {
-            "provider": "openai",
-            "openai": {
-                "api_key": "cfg-key",
-                "base_url": "http://localhost:4003/v1",
-            },
-        }
+@pytest.mark.parametrize("base", [None, "http://localhost:4003/v1"])
+def test_config_credentials_precede_environment(saved_config, base):
+    config = {"provider": "openai", "openai": {"api_key": "cfg-key"}}
+    if base:
+        config["openai"]["base_url"] = base
+    saved_config(config)
+    with patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value="env-key"):
+        assert tts_tool_openai._resolve_openai_audio_client_config() == (
+            "cfg-key", base or tts_tool_openai.DEFAULT_OPENAI_BASE_URL)
+        assert tts_tool_openai._has_openai_audio_backend()
 
-        with patch.object(tts_tool, "_load_tts_config", return_value=config), \
-             patch.object(tts_tool_openai, "read_selection", return_value="openai"), \
-             patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value="env-key"), \
-             patch.object(tts_tool_openai, "resolve_managed_tool_gateway", return_value=None):
-            assert tts_tool_openai._resolve_openai_audio_client_config() == (
-                "cfg-key",
-                "http://localhost:4003/v1",
-                False,
-            )
+@pytest.mark.parametrize("selection", [{"provider": "nous"}, {"provider": "openai", "use_gateway": True}])
+def test_retired_selection_never_borrows_direct_credentials(saved_config, selection):
+    saved_config({**selection, "openai": {"api_key": "own-key"}})
+    with patch.object(tts_tool, "_import_openai_client") as client:
+        with pytest.raises(ValueError, match="removed"):
+            tts_tool_openai._resolve_openai_audio_client_config()
+        assert not tts_tool_openai._has_openai_audio_backend()
+    client.assert_not_called()
 
-    def test_config_without_base_url_falls_back_to_default_openai_base(self):
-        config = {"openai": {"api_key": "cfg-key"}}
+def test_missing_credentials_explain_setup(saved_config):
+    saved_config({"provider": "openai"})
+    with patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value=""):
+        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+            tts_tool_openai._resolve_openai_audio_client_config()
 
-        with patch.object(tts_tool, "_load_tts_config", return_value=config), \
-             patch.object(tts_tool_openai, "read_selection", return_value=None):
-            assert tts_tool_openai._resolve_openai_audio_client_config() == (
-                "cfg-key",
-                tts_tool_openai.DEFAULT_OPENAI_BASE_URL,
-                False,
-            )
-
-
-    def test_nous_selection_overrides_config_credentials(self):
-        """A stored 'nous' selection (or legacy use_gateway: true) routes
-        managed even when direct credentials are present."""
-        config = {"openai": {"api_key": "cfg-key", "base_url": "http://localhost:4003/v1"}}
-        managed = SimpleNamespace(
-            nous_user_token="managed-token",
-            gateway_origin="https://openai-audio-gateway.nousresearch.com",
-        )
-
-        with patch.object(tts_tool, "_load_tts_config", return_value=config), \
-             patch.object(tts_tool_openai, "read_selection", return_value="nous"), \
-             patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value="env-key"), \
-             patch.object(tts_tool_openai, "resolve_managed_tool_gateway", return_value=managed):
-            assert tts_tool_openai._resolve_openai_audio_client_config() == (
-                "managed-token",
-                "https://openai-audio-gateway.nousresearch.com/v1",
-                True,
-            )
-
-    def test_nous_selection_unentitled_raises_selection_error(self):
-        """Selected managed route + unavailable gateway = honest error naming
-        the selection, never a silent fall back to direct credentials."""
-        config = {"openai": {"api_key": "cfg-key"}}
-        with patch.object(tts_tool, "_load_tts_config", return_value=config), \
-             patch.object(tts_tool_openai, "read_selection", return_value="nous"), \
-             patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value="env-key"), \
-             patch.object(tts_tool_openai, "resolve_managed_tool_gateway", return_value=None):
-            with pytest.raises(ValueError) as exc:
-                tts_tool_openai._resolve_openai_audio_client_config()
-        assert "nous" in str(exc.value)
-
-    def test_vendor_selection_missing_key_raises_selection_error(self):
-        """A stored vendor selection with no credentials errors by name —
-        NO managed gateway call is attempted."""
-        with patch.object(tts_tool, "_load_tts_config", return_value={"provider": "openai"}), \
-             patch.object(tts_tool_openai, "read_selection", return_value="openai"), \
-             patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value=""), \
-             patch.object(tts_tool_openai, "resolve_managed_tool_gateway") as gateway_mock:
-            with pytest.raises(ValueError) as exc:
-                tts_tool_openai._resolve_openai_audio_client_config()
-        gateway_mock.assert_not_called()
-        assert "openai" in str(exc.value)
-
-    def test_missing_config_and_env_raises_updated_error(self):
-        with patch.object(tts_tool, "_load_tts_config", return_value={}), \
-             patch.object(tts_tool_openai, "read_selection", return_value=None), \
-             patch.object(tts_tool_openai, "resolve_openai_audio_api_key", return_value=""), \
-             patch.object(tts_tool_openai, "resolve_managed_tool_gateway", return_value=None), \
-             patch.object(tts_tool_openai, "managed_nous_tools_enabled", return_value=False):
-            with pytest.raises(ValueError) as exc:
-                tts_tool_openai._resolve_openai_audio_client_config()
-
-        assert "OPENAI_API_KEY" in str(exc.value)
-
-    def test_config_api_key_counts_as_available_backend(self):
-        config = {"openai": {"api_key": "cfg-key"}}
-        with patch.object(tts_tool, "_load_tts_config", return_value=config):
-            assert tts_tool_openai._has_openai_audio_backend() is True
-
-
-@pytest.mark.parametrize("configured, sent", [
-    ("tts-1-hd", "tts-1-hd"), ("tts-1", "tts-1"), ("gpt-4o-mini-tts", "gpt-4o-mini-tts"),
-    ("gpt-4o-mini-tts-2025-12-15", "gpt-4o-mini-tts")])
-def test_managed_gateway_sends_served_models_and_coerces_the_rest(tmp_path, configured, sent):
-    """The managed gateway serves tts-1/tts-1-hd too; only unserved models fall back."""
+@pytest.mark.parametrize("model", ["tts-1-hd", "tts-1", "gpt-4o-mini-tts", "custom-speech-model"])
+def test_direct_model_is_sent_unchanged(tmp_path, saved_config, model):
+    config = {"provider": "openai", "openai": {"api_key": "own-key", "model": model}}
+    saved_config(config)
     created = []
-
-    class _Client:
-        def __init__(self, **_kwargs):
-            self.audio = SimpleNamespace(speech=SimpleNamespace(create=self._create))
-
-        def _create(self, **kwargs):
+    clients = []
+    class Client:
+        def __init__(self, **kwargs):
+            clients.append(kwargs)
+            self.audio = SimpleNamespace(speech=SimpleNamespace(create=self.create))
+        def create(self, **kwargs):
             created.append(kwargs["model"])
-            return SimpleNamespace(stream_to_file=lambda p: open(p, "wb").write(b"ID3"))
-
-    with patch.object(tts_tool, "_import_openai_client", return_value=_Client), \
-         patch.object(tts_tool_openai, "_resolve_openai_audio_client_config",
-                      return_value=("managed-key", "https://openai-audio-gateway.example/v1", True)):
-        tts_tool_openai._generate_openai_tts(
-            "Hello", str(tmp_path / "out.mp3"), {"openai": {"model": configured}})
-    assert created == [sent]
+            from pathlib import Path
+            return SimpleNamespace(stream_to_file=lambda p: Path(p).write_bytes(b"ID3"))
+    with patch.object(tts_tool, "_import_openai_client", return_value=Client):
+        tts_tool_openai._generate_openai_tts("Hello", str(tmp_path / "out.mp3"), config)
+    assert created == [model]
+    assert clients[0]["api_key"] == "own-key"
+    assert clients[0]["base_url"] == "https://api.openai.com/v1"

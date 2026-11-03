@@ -6,9 +6,7 @@ from datetime import datetime, timezone, UTC
 
 from hermes_cli.auth import AuthError
 from hermes_cli.nous_account import (
-    format_nous_portal_entitlement_message, get_nous_portal_account_info)
-from hermes_cli.nous_subscription import get_nous_subscription_features
-from tools.tool_backend_helpers import managed_nous_tools_enabled
+    get_nous_portal_account_info)
 from hermes_cli import config
 from hermes_time import safe_strftime
 
@@ -81,10 +79,6 @@ _APIKEY_PROVIDERS = {
     "MiniMax (China)": ("MINIMAX_CN_API_KEY",), "DeepInfra": ("DEEPINFRA_API_KEY",)}
 
 # Nous Tool Gateway per-feature state: first matching (predicate(feature, nous_auth), text(feature)).
-_FEATURE_STATES = (
-    (lambda f, _: f.managed_by_nous, lambda f: "active via Nous subscription"),
-    (lambda f, _: f.active, lambda f: f"active via {f.current_provider or 'configured provider'}"),
-    (lambda f, auth: f.included_by_default and auth, lambda f: "included by subscription, not currently selected"))
 
 
 def _render_api_keys(ctx):
@@ -155,27 +149,6 @@ def _render_auth_providers(ctx):
             _status._detail(label, value)
     for name, getter, hint, rows in _OAUTH_BLOCKS:
         _oauth_block(name, statuses.get(getter, {}), hint, rows)
-
-
-def _render_nous_gateway(ctx):
-    if managed_nous_tools_enabled():
-        features = get_nous_subscription_features(ctx.config)
-        _status._section("Nous Tool Gateway")
-        print("  Nous Portal   ✓ managed tools available" if features.nous_auth_present
-              else "  Nous Portal   ✗ not logged in")
-        for f in features.items():
-            state = next((text(f) for match, text in _FEATURE_STATES if match(f, features.nous_auth_present)),
-                         "not configured")
-            _status._row(f.label, f.available or f.active or f.managed_by_nous, state, 15, " ")
-    elif ctx.nous_logged_in or ctx.nous_inference_present:
-        # Nous OAuth without entitlement, or an opaque inference key without Portal account
-        # information, cannot enable the Tool Gateway.
-        _status._section("Nous Tool Gateway")
-        message = format_nous_portal_entitlement_message(
-            ctx.nous_account_info, capability="managed web, image, TTS, and STT tools"
-        )
-        for line in (message or "").splitlines():
-            print(f"  {line}")
 
 
 def _render_apikey_providers(ctx):

@@ -72,19 +72,6 @@ class TestFirecrawlClientConfig:
                 with pytest.raises(ValueError, match="FIRECRAWL_API_KEY"):
                     _get_firecrawl_client()
 
-    def test_tool_gateway_domain_builds_firecrawl_gateway_origin(self):
-        """Shared gateway domain should derive the Firecrawl vendor hostname."""
-        with patch.dict(os.environ, {"TOOL_GATEWAY_DOMAIN": "nousresearch.com"}):
-            with patch("tools.managed_tool_gateway.read_nous_access_token", return_value="nous-token"):
-                with patch("plugins.web.firecrawl.provider.Firecrawl") as mock_fc:
-                    from plugins.web.firecrawl.provider import _get_firecrawl_client
-                    result = _get_firecrawl_client()
-                    mock_fc.assert_called_once_with(
-                        api_key="nous-token",
-                        api_url="https://firecrawl-gateway.nousresearch.com",
-                    )
-                    assert result is mock_fc.return_value
-
 
     # ── Singleton caching ────────────────────────────────────────────
 
@@ -351,7 +338,6 @@ class TestBackendSelection:
         """
         from tools.web_tools import _get_backend
         with patch("tools.web_tools._load_web_config", return_value={}), \
-             patch("tools.web_tools._is_tool_gateway_ready", return_value=False), \
              patch("tools.web_tools._ddgs_package_importable", return_value=False), \
              patch("tools.web_tools._list_registered_web_providers", return_value=[]), \
              patch("agent.web_search_registry._keyless_tier_enabled", return_value=False):
@@ -374,12 +360,10 @@ class TestBackendSelection:
              patch.dict(os.environ, {"EXA_API_KEY": "exa-test"}):
             assert _get_backend() == "firecrawl"
 
-    def test_nous_backend_maps_to_firecrawl(self):
-        """The managed 'nous' selection is serviced by the firecrawl
-        provider (whose client resolver routes managed)."""
+    def test_retired_backend_does_not_select_firecrawl(self):
         from tools.web_tools import _get_backend
         with patch("tools.web_tools._load_web_config", return_value={"backend": "nous"}):
-            assert _get_backend() == "firecrawl"
+            assert _get_backend() == "nous"
 
     def test_managed_gateway_does_not_preempt_explicit_exa(self):
         """Regression: a Nous OAuth token (managed gateway "ready") must NOT
@@ -389,7 +373,6 @@ class TestBackendSelection:
         gateway pre-empted it."""
         from tools.web_tools import _get_backend
         with patch("tools.web_tools._load_web_config", return_value={}), \
-             patch("tools.web_tools._is_tool_gateway_ready", return_value=True), \
              patch.dict(os.environ, {"EXA_API_KEY": "exa-test"}):
             assert _get_backend() == "exa"
 
@@ -397,18 +380,8 @@ class TestBackendSelection:
         """A Nous OAuth token must not beat an explicit TAVILY_API_KEY."""
         from tools.web_tools import _get_backend
         with patch("tools.web_tools._load_web_config", return_value={}), \
-             patch("tools.web_tools._is_tool_gateway_ready", return_value=True), \
              patch.dict(os.environ, {"TAVILY_API_KEY": "tvly-test"}):
             assert _get_backend() == "tavily"
-
-    def test_managed_gateway_only_falls_through_to_firecrawl(self):
-        """When no explicit-credential backend is configured, a Nous-managed
-        gateway token still selects firecrawl — the convenience path is
-        preserved, just no longer pre-empts."""
-        from tools.web_tools import _get_backend
-        with patch("tools.web_tools._load_web_config", return_value={}), \
-             patch("tools.web_tools._is_tool_gateway_ready", return_value=True):
-            assert _get_backend() == "firecrawl"
 
 
 class TestParallelClientConfig:
@@ -557,7 +530,6 @@ class TestExaClientConfig:
 
 class TestWebSearchSchema:
     """Test suite for web_search tool schema and handler wiring."""
-
 
 
     def test_web_search_clamps_limit_before_backend_call(self):
@@ -770,8 +742,6 @@ class TestCheckWebApiKey:
             assert check_web_api_key() is True
 
 
-
-
 class TestNonBuiltinProviderAvailability:
     """Regression: a plugin-registered WebSearchProvider with no built-in
     provider credentials must still light up web_search / web_extract tools.
@@ -870,7 +840,6 @@ class TestNonBuiltinProviderAvailability:
                    return_value={"extract_backend": "fake-plugin-prov"}):
             from tools.web_tools import _get_extract_backend
             assert _get_extract_backend() == "fake-plugin-prov"
-
 
 
 class TestFirecrawlEnvResolution:

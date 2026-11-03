@@ -45,8 +45,6 @@ from gateway.platforms.api_server import (
 # ---------------------------------------------------------------------------
 
 
-
-
 # ---------------------------------------------------------------------------
 # _redact_api_error_text — guards every outward error site (envelopes, SSE
 # error events, cron-endpoint 500 bodies) that routes raw exception text to
@@ -209,7 +207,6 @@ class TestAdapterInit:
         assert adapter.platform == Platform.API_SERVER
 
 
-
     def test_create_agent_forwards_runtime_config(self, monkeypatch):
         captured = {}
 
@@ -292,9 +289,6 @@ class TestAuth:
 
 
 class TestConcurrencyCap:
-
-
-
 
 
     @pytest.mark.asyncio
@@ -925,10 +919,6 @@ class TestModelsEndpoint:
             assert data["data"][0]["root"] == "lucas"
 
 
-
-
-
-
 # ---------------------------------------------------------------------------
 # /v1/capabilities endpoint
 # ---------------------------------------------------------------------------
@@ -1007,7 +997,6 @@ class TestToolsetsEndpoint:
             ("default", "Default Tools", "Core tools"),
             ("web", "Web Tools", "Search and extract"),
         ]
-        feature_snapshot = object()
         with patch(
             "hermes_cli.tools_config._get_effective_configurable_toolsets",
             return_value=fake_toolsets,
@@ -1015,9 +1004,6 @@ class TestToolsetsEndpoint:
             "hermes_cli.tools_config._get_platform_tools",
             return_value={"default"},
         ), patch(
-            "hermes_cli.tools_config.get_nous_subscription_features",
-            return_value=feature_snapshot,
-        ) as resolve_features, patch(
             "hermes_cli.tools_config._toolset_has_keys",
             return_value=True,
         ) as has_keys, patch(
@@ -1041,12 +1027,7 @@ class TestToolsetsEndpoint:
                 assert by_name["web"]["tools"] == ["web_search"]
                 assert by_name["default"]["configured"] is True
 
-        resolve_features.assert_called_once()
         assert has_keys.call_count == len(fake_toolsets)
-        assert all(
-            call.kwargs["features"] is feature_snapshot
-            for call in has_keys.call_args_list
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -1988,8 +1969,6 @@ class TestMultipleSystemMessages:
 # ---------------------------------------------------------------------------
 
 
-
-
 class TestPlatformEventCallbackEndpoint:
 
     @pytest.mark.asyncio
@@ -2554,7 +2533,6 @@ class TestSessionKeyHeader:
             assert call_kwargs["gateway_session_key"] == "webui:chan-1"
 
 
-
 # ---------------------------------------------------------------------------
 # Per-client model routing (model_routes)
 # ---------------------------------------------------------------------------
@@ -2974,8 +2952,6 @@ class TestDirectModelRequestsGate:
         assert "requested_model" not in overrides
 
 
-
-
     @pytest.mark.asyncio
     async def test_chat_completions_bare_model_honored_when_enabled(self):
         adapter = APIServerAdapter(
@@ -2997,8 +2973,6 @@ class TestDirectModelRequestsGate:
                 )
         assert resp.status == 200
         assert mock_run.call_args.kwargs.get("requested_model") == "openai/gpt-5"
-
-
 
 
 # ---------------------------------------------------------------------------

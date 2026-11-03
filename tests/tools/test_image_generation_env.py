@@ -8,9 +8,6 @@ def test_fal_key_whitespace_is_unset(monkeypatch):
 
     from tools import image_generation_tool
 
-    monkeypatch.setattr(
-        image_generation_tool, "_resolve_managed_fal_gateway", lambda: None
-    )
 
     assert image_generation_tool.check_fal_api_key() is False
 
@@ -29,12 +26,6 @@ def test_image_generate_tool_returns_actionable_error_when_no_backend(monkeypatc
 
     monkeypatch.setattr(
         image_generation_tool, "fal_key_is_configured", lambda: False
-    )
-    monkeypatch.setattr(
-        image_generation_tool, "_resolve_managed_fal_gateway", lambda: None
-    )
-    monkeypatch.setattr(
-        image_generation_tool, "managed_nous_tools_enabled", lambda: False
     )
 
     result = json.loads(
