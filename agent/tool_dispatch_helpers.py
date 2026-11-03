@@ -608,3 +608,26 @@ __all__ = [
     "_trajectory_normalize_msg",
     "make_tool_result_message",
 ]
+
+
+def dispatch_registry_tool(agent, ref, next_args):
+    import model_tools
+
+    with model_tools.suppress_post_tool_call_hook():
+        return model_tools.handle_function_call(
+            ref.name,
+            next_args,
+            ref.task_id,
+            tool_call_id=ref.call_id,
+            session_id=agent.session_id or "",
+            turn_id=getattr(agent, "_current_turn_id", "") or "",
+            api_request_id=getattr(agent, "_current_api_request_id", "") or "",
+            enabled_tools=list(agent.valid_tool_names) if agent.valid_tool_names else None,
+            skip_pre_tool_call_hook=True,
+            skip_tool_request_middleware=True,
+            skip_tool_execution_middleware=True,
+            tool_request_middleware_trace=list(ref.trace),
+            enabled_toolsets=getattr(agent, "enabled_toolsets", None),
+            disabled_toolsets=getattr(agent, "disabled_toolsets", None),
+            parent_agent=agent,
+        )

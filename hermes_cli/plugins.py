@@ -464,40 +464,18 @@ class PluginContext(PluginCapabilityCtxMixin):
         self, name: str, toolset: str, schema: dict, handler: Callable,
         check_fn: Callable | None = None, requires_env: list | None = None, is_async: bool = False,
         description: str = "", emoji: str = "", override: bool = False,
+        execution_timeout: float | None = None,
     ) -> Optional[PluginRegistration]:
         """Register a tool in the global registry and track it as plugin-provided. ``override=True``
         replaces a same-named built-in (without it a name claimed by another toolset is rejected) and
         needs operator opt-in via ``plugins.entries.<plugin_id>.allow_tool_override: true`` — otherwise
         any enabled plugin could silently replace a privileged built-in like ``write_file`` (#23194)."""
-        if override and not self._tool_override_allowed(name):
-            raise PluginToolOverrideError(
-                f"Plugin {self.manifest.name!r} cannot override built-in tool {name!r}. Set "
-                f"plugins.entries.{self.plugin_id}.allow_tool_override: true "
-                f"in config.yaml to allow this plugin to replace built-in tools."
-            )
-        from tools.registry import registry
-        scope = self._manager.scope_key
-        previous = registry.snapshot_registration(name, scope=scope)
-        if previous is None and not override and registry.get_entry(name, scope=scope) is not None:
-            logger.warning("Plugin %s tried to shadow global tool %s without override=True",
-                           self.manifest.name, name)
-            return None
-        registry.register(
-            name=name, toolset=toolset, schema=schema, handler=handler, check_fn=check_fn,
-            requires_env=requires_env, is_async=is_async, description=description, emoji=emoji,
-            override=override, scope=scope,
+        from hermes_cli.plugins_tool_registration import register_plugin_tool
+        return register_plugin_tool(
+            self, name, toolset, schema, handler, check_fn=check_fn, requires_env=requires_env,
+            is_async=is_async, description=description, emoji=emoji, override=override,
+            execution_timeout=execution_timeout,
         )
-        registered = registry.snapshot_registration(name, scope=scope)
-        handle = None
-        if registered is not None and registered is not previous and registered.handler is handler:
-            self._manager._plugin_tool_names.add(name)
-            handle = self._manager._track_scoped_registration(
-                self.manifest, "tool", name, registry, registered, previous,
-                finalize=lambda: self._manager._remove_tool_name_if_unowned(name),
-            )
-        logger.debug("Plugin %s registered tool: %s%s", self.manifest.name, name,
-                     " (override)" if override else "")
-        return handle
 
     def call_mcp(
         self, server: str, tool: str, arguments: Optional[dict[str, Any]] = None,

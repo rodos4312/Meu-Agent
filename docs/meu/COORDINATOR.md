@@ -84,3 +84,22 @@ outcomes, clear failure states and review before integration. External-agent ACP
 bridges, cloud placement, recursive swarms and authentication sharing are not
 required to deliver those principles in Meu. No OpenClaw code or new service
 dependency was copied into this implementation.
+
+The implementation was also inspected at that same pinned revision. Its
+[run types](https://github.com/openclaw/openclaw/blob/99652357adba0bbfcdaa18277b7d26ea9d3dffce/src/agents/subagents/registry/subagent-registry.types.ts)
+represent execution and completion delivery separately. Its
+[persistence owner](https://github.com/openclaw/openclaw/blob/99652357adba0bbfcdaa18277b7d26ea9d3dffce/src/agents/subagents/registry/subagent-registry-persistence.ts)
+serializes restoration against new admissions, and restored historical rows do
+not automatically regain live completion authority. Meu's corresponding project
+decision is to retain an unknown/interrupted outcome and require reconciliation
+before another attempt, while leaving native receipts/authority with the existing
+runtime. A local schema test additionally verifies that the new project tool
+actually reaches the model's delegation tool definitions.
+
+The full executor path also passes the live parent only to local handlers that
+explicitly declare `parent_agent`. Hosted callbacks and catch-all keyword handlers
+do not receive that object. The existing registry execution-timeout metadata is
+now available through `PluginContext.register_tool`; project batches request a
+one-hour transport budget while retaining native child iteration/stop limits.
+This closes the difference between direct registry tests and a real model tool
+call. Tests cover both normal executor dispatch and transport exclusion.

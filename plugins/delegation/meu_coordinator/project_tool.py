@@ -100,6 +100,7 @@ def register(ctx, task_parameters):
         "artifacts": {"type": "array", "items": {"type": "string"}},
     }
     ctx.register_tool(name="coordinate_project", toolset="delegation", check_fn=available, handler=handle,
+                      execution_timeout=3600,
                       schema={"name": "coordinate_project", "description":
                               "Coordinate a persistent multi-stage project. Create a dependency plan once. Run selects up to two "
                               "independent ready tasks with disjoint write scopes and native Flash/Pro helpers. Status resumes "

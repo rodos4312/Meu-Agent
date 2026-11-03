@@ -1708,29 +1708,10 @@ def _resolve_sequential_dispatch(agent, ref: _ToolCallRef, messages: list) -> _S
         )
 
     # Registry tools: post hook is owned by this executor (inner observer suppressed).
-    def _execute(next_args: dict) -> Any:
-        import model_tools
-
-        with model_tools.suppress_post_tool_call_hook():
-            return model_tools.handle_function_call(
-                function_name,
-                next_args,
-                effective_task_id,
-                tool_call_id=tool_call_id,
-                session_id=agent.session_id or "",
-                turn_id=getattr(agent, "_current_turn_id", "") or "",
-                api_request_id=getattr(agent, "_current_api_request_id", "") or "",
-                enabled_tools=list(agent.valid_tool_names) if agent.valid_tool_names else None,
-                skip_pre_tool_call_hook=True,
-                skip_tool_request_middleware=True,
-                skip_tool_execution_middleware=True,
-                tool_request_middleware_trace=list(middleware_trace),
-                enabled_toolsets=getattr(agent, "enabled_toolsets", None),
-                disabled_toolsets=getattr(agent, "disabled_toolsets", None),
-            )
+    from agent.tool_dispatch_helpers import dispatch_registry_tool
 
     return _SequentialDispatch(
-        execute=_execute,
+        execute=lambda next_args: dispatch_registry_tool(agent, ref, next_args),
         spinner=_start_quiet_tool_spinner(agent, function_name, function_args) if agent.quiet_mode else None,
         middleware_trace_arg=middleware_trace,
         error_result=lambda e: f"Error executing tool '{function_name}': {e}",

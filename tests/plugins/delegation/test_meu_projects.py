@@ -12,8 +12,8 @@ pytestmark = pytest.mark.usefixtures("coordinator")
 
 
 def project(parent, action, **values):
-    from tools.registry import registry
-    return json.loads(registry.dispatch("coordinate_project", {"action": action, "project": "demo", **values}, parent_agent=parent))
+    from model_tools import handle_function_call
+    return json.loads(handle_function_call("coordinate_project", {"action": action, "project": "demo", **values}, parent_agent=parent))
 
 
 def create(parent, root, tasks=None):
@@ -47,6 +47,33 @@ def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator
         f"\nwith open_project(Path({str(home)!r}),'demo') as p: assert p.summary()['complete']"
     subprocess.run([sys.executable, "-c", script], check=True, timeout=30,
                    cwd=Path(__file__).resolve().parents[3])
+
+
+def test_project_tool_reaches_the_actual_model_schema_with_delegation_enabled(coordinator):
+    from model_tools import get_tool_definitions
+    from toolsets import resolve_toolset
+    assert "coordinate_project" in resolve_toolset("delegation")
+    definitions = get_tool_definitions(enabled_toolsets=["delegation"], quiet_mode=True,
+                                       skip_tool_search_assembly=True)
+    project_schema = next(item["function"] for item in definitions if item["function"]["name"] == "coordinate_project")
+    assert project_schema["parameters"]["required"] == ["action", "project"]
+
+
+def test_normal_agent_executor_passes_parent_to_project_handler(coordinator, tmp_path):
+    from agent.tool_executor import _ToolCallRef, _resolve_sequential_dispatch
+    from agent.tool_dispatch_helpers import _extend_tool_timeout
+    _, _, parent = coordinator
+    parent._context_engine_tool_names = set()
+    parent._memory_manager = None
+    parent.quiet_mode = False
+    parent.valid_tool_names = {"coordinate_project"}
+    parent.enabled_toolsets = ["delegation"]
+    parent.disabled_toolsets = []
+    args = {"action": "create", "project": "demo", "root": str(tmp_path), "tasks": [task(id="inspect")]}
+    dispatch = _resolve_sequential_dispatch(parent, _ToolCallRef("coordinate_project", args, "test", "call", []), [])
+    result = json.loads(dispatch.execute(args))
+    assert result.get("ready") == ["inspect"], result
+    assert _extend_tool_timeout("coordinate_project", 120) == 3600
 
 
 def test_interrupted_work_requires_reconciliation_and_explicit_bounded_retry(coordinator, tmp_path):

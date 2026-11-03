@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from hermes_constants import hermes_home_key, normalize_scope
 
@@ -1063,6 +1063,19 @@ def tool_error(message, **extra) -> str:
 def tool_result(data=None, **kwargs) -> str:
     """JSON-encode a dict positional arg *or* keyword arguments (not both)."""
     return json.dumps(data if data is not None else kwargs, ensure_ascii=False)
+
+
+def local_agent_kwargs(handler: Callable, agent: Any) -> dict:
+    """Opt-in live context for local handlers; never serialize an agent into a host/MCP transport."""
+    if agent is None or getattr(handler, "__hermes_plugin_host_ref__", None) is not None:
+        return {}
+    try:
+        parameter = inspect.signature(handler).parameters.get("parent_agent")
+    except (TypeError, ValueError):
+        return {}
+    if parameter is not None and parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+        return {"parent_agent": agent}
+    return {}
 
 
 def _kwargs_accepted_by(handler: Callable, kwargs: dict) -> dict:
