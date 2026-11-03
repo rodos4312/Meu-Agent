@@ -165,6 +165,11 @@ If any answer is "not sure," that's the part to go verify.
 
 ## Provider setup and local connector persistence
 
+Nous Cloud/Portal and `hermes:cloud:*` IPC are removed. Gateway sign-in uses
+generic OAuth/password. Persisted `cloud` is a legacy remote alias: preserve
+IDs, credentials, cookie partitions and update policy. New connections offer
+local, remote or SSH; settings reads old Cloud addresses through the remote form.
+
 The retired Nous free-tier sign-in, offer, handoff and challenge-window flows are
 removed. Do not restore their RPC polling or renderer state. Provider setup uses
 the generic OAuth/API-key flow and authoritative runtime readiness.

@@ -5,7 +5,7 @@ sidebar_position: 5
 # Connecting Desktop to Many Hermes Instances
 
 Register every Hermes backend you own — the local runtime, remote gateways on
-your LAN or VPS, SSH hosts, and Hermes Cloud instances — in one desktop app,
+your LAN or VPS and SSH hosts — in one desktop app,
 and use the agents on all of them side by side. Connections are persistent:
 each registered gateway dials its own backends and WebSockets on demand, and
 background agents keep streaming while you look at another gateway.
@@ -35,7 +35,7 @@ redirect there). Three doors lead to it:
 
 The **Registered gateways** section of **Settings → Gateways** manages a named
 list of Hermes gateways. Its intro says it plainly: *"Manage this device and
-every Hermes gateway it can reach through remote, SSH, or Cloud connections."*
+every Hermes gateway it can reach through remote or SSH connections."*
 Each entry is a *connection*:
 
 | Kind | What it is | Auth |
@@ -43,7 +43,6 @@ Each entry is a *connection*:
 | **Local** | "The Hermes runtime managed by this app." | automatic |
 | **Remote gateway** | "A Hermes gateway reachable over HTTP(S) — LAN, Tailscale, or the internet." | session token or OAuth |
 | **SSH** | "A Hermes install reached over SSH." The app opens the tunnel and starts the dashboard for you | SSH key + adopted token |
-| **Hermes Cloud** | "A hosted instance discovered through your Hermes Cloud account." | portal sign-in |
 
 Rules worth knowing:
 
@@ -72,9 +71,8 @@ Rules worth knowing:
   kinds, so a cloud entry and a remote entry can't point at the same URL);
   **SSH** entries are deduplicated on the normalized `user@host:port` plus
   remote profile.
-- Cloud entries normally come from the Hermes Cloud sign-in/discovery flow at
-  the top of the Gateways page — the **Hermes Cloud** kind in the add-connection
-  editor points you there.
+- Legacy Cloud entries remain readable as remote addresses. Meu has no Portal
+  discovery, login or session-renewal service.
 
 Switch gateways from the **Sessions** sidebar. Profiles, chats, messaging, and
 cron stay scoped to that gateway; the app-managed window backend is still chosen
@@ -99,22 +97,14 @@ are remembered on this desktop. Collapsing a gateway preserves its profiles'
 individual collapse states. Each profile's new-session action targets that
 profile on its owning gateway.
 
-The Hermes Cloud panel also lists **Saved Cloud gateways** when portal discovery
-is signed out. **Use gateway** selects an existing saved connection without
-changing the default gateway; **Active in this window** identifies the current
-one. Adding a new instance uses its friendly Cloud name, while existing custom
-connection names are preserved. Saved connections still need valid gateway
-authentication; manage sign-in from the registered connection controls.
 
 ## Adding a connection, step by step
 
 1. Open **Settings → Gateways** and scroll to the connections registry (or
    click the plug in the profile rail).
 2. Click **Add connection**.
-3. Pick the kind: **Local**, **Hermes Cloud**, **Remote gateway**, or **SSH**.
-   (**Local** is disabled while the app-managed local entry exists — which is
-   almost always; **Hermes Cloud** directs you to the cloud sign-in/discovery
-   flow above.)
+3. Pick **Local**, **Remote gateway**, or **SSH**. **Local** is disabled
+   while the app-managed local entry exists.
 4. Fill the fields:
    - **Name** — required, unique; the "device name" shown everywhere this
      instance appears (placeholder: `Homelab`). Max 64 characters.
@@ -125,7 +115,7 @@ authentication; manage sign-in from the registered connection controls.
        - **Session token** — paste the dashboard session token from the
          remote gateway. When editing, *"Leave blank to keep the saved
          token."*
-       - **OAuth** — sign in through the Nous Portal browser flow; no token
+       - **OAuth** — sign in through the gateway's configured identity provider; no token
          to paste.
    - *SSH only:*
      - **SSH host** — one composite field in `user@host:22` form (user and
@@ -304,8 +294,8 @@ connection in parallel:
   Settings → Updates).
 - **Remote and SSH** connections are told to update themselves via their own
   backend — the update runs on *that* machine.
-- **Hermes Cloud** instances are skipped with a *"Managed by Hermes Cloud"*
-  note: the platform manages their versions.
+- **Legacy Cloud** entries retain their externally managed update policy and
+  are skipped; removing Portal integration does not grant control of their host.
 
 Each instance reports independently, so one unreachable box never wedges the
 batch. Backends that manage updates externally (Docker, Nix) refuse politely

@@ -328,6 +328,22 @@ jobs:
       - name: Verify removed Nous surfaces and provider credential recovery
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/settings/moved-tabs.test.ts src/components/onboarding/index.test.tsx src/store/billing-block.test.ts src/lib/error-surface.test.ts src/components/error-boundary.test.tsx src/app/contrib/wiring-background-queue-drain.test.tsx src/app/session/hooks/use-message-stream/gateway-event/status.test.ts
+      - name: Verify remote connections after removing Nous Cloud
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project ui --maxWorkers 2
+          src/app/settings/gateway-settings.test.ts
+          src/app/settings/gateway-settings.test.tsx
+          src/app/settings/connections-registry.test.tsx
+          src/lib/browser-desktop-bridge.test.ts
+      - name: Verify gateway OAuth without Portal sessions
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project electron --maxWorkers 2
+          electron/oauth-login-window.test.ts
+          electron/oauth-login-flights.test.ts
+          electron/oauth-partition.test.ts
+          electron/connection-registry.test.ts
       - name: Verify Desktop never collects or offers usage statistics
         working-directory: apps/desktop
         run: npx vitest run --project ui src/app/session/hooks/use-prompt-actions/index.test.tsx src/app/session/hooks/use-prompt-actions/submission-destination.test.tsx src/store/notifications.test.ts src/components/version-details.test.tsx src/app/settings/about-settings.test.tsx

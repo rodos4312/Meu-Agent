@@ -270,15 +270,6 @@ declare global {
         options?: DesktopOauthLoginOptions
       ) => Promise<DesktopOauthLoginResult>
       oauthLogoutConnectionConfig: (remoteUrl: string) => Promise<DesktopOauthLogoutResult>
-      // Hermes Cloud: one portal login powers discovery + silent per-agent
-      // sign-in (cloud-auto-discovery Phase 3).
-      cloud: {
-        status: () => Promise<DesktopCloudStatus>
-        login: () => Promise<DesktopCloudStatus & { ok: boolean }>
-        logout: () => Promise<DesktopCloudStatus & { ok: boolean }>
-        discover: (org?: string) => Promise<DesktopCloudDiscoverResult>
-        agentSignIn: (dashboardUrl: string) => Promise<DesktopCloudAgentSignInResult>
-      }
       profile: {
         getDefault: () => Promise<DesktopProfileRoute | null>
         setDefault: (route: DesktopProfileRoute) => Promise<DesktopProfileRoute>
@@ -1132,11 +1123,9 @@ export interface DesktopActiveProfile {
 
 export interface DesktopConnectionConfig {
   envOverride: boolean
-  // The saved connection mode. 'cloud' is a Hermes Cloud connection: it carries
-  // a remote-shaped block (remoteUrl = the selected agent's dashboardUrl,
-  // remoteAuthMode 'oauth') but is remembered as cloud so settings reopens into
-  // the cloud picker. Resolution treats cloud exactly as remote
-  // (cloud-auto-discovery Q3/Q6).
+  // 'cloud' is a legacy persisted remote address, not a service capability.
+  // Settings reads it through the generic remote form; existing routes keep
+  // their IDs and credential partitions.
   mode: 'local' | 'remote' | 'cloud' | 'ssh'
   // The profile this config describes, or null for the global/default
   // connection. Per-profile entries let a profile point at its own backend.
@@ -1155,9 +1144,7 @@ export interface DesktopConnectionConfig {
   // encryption is opted out — plain text is the chosen mode there.
   remoteTokenPlainText: boolean
   remoteUrl: string
-  // For a 'cloud' connection: the persisted Hermes Cloud org (slug or id) the
-  // connected instance was discovered under, so Settings → Gateway can reopen
-  // into that org. Empty string for remote/local.
+  // Legacy route metadata; retained to preserve saved connection identity.
   cloudOrg: string
   sshHost: string
   sshUser: string
@@ -1179,8 +1166,7 @@ export interface DesktopConnectionConfigInput {
   // user opt-in from the renderer.
   allowPlainTextToken?: boolean
   remoteUrl?: string
-  // For a 'cloud' connection: the selected Hermes Cloud org (slug or id) to
-  // persist so Settings can reopen into it. Ignored for remote/local modes.
+  // Legacy route metadata accepted when editing an existing registry entry.
   cloudOrg?: string
   cloudName?: string
   sshHost?: string
@@ -1440,54 +1426,6 @@ export interface DesktopOauthLoginResult {
 
 export interface DesktopOauthLogoutResult {
   ok: boolean
-  connected: boolean
-}
-
-// --- Hermes Cloud (cloud-auto-discovery Phase 3) ---
-
-export interface DesktopCloudStatus {
-  // The portal base URL the desktop talks to (default or env-overridden).
-  portalBaseUrl: string
-  // Whether the OAuth partition holds portal access or renewal credentials
-  // (Privy or NAS). Discovery validates them with the portal.
-  signedIn: boolean
-}
-
-// A discovered Hermes Cloud agent — the trimmed DTO from NAS GET /api/agents.
-export interface DesktopCloudAgent {
-  id: string
-  name: string
-  status: string
-  // null until the agent has a provisioned dashboard (show "provisioning…").
-  dashboardUrl: string | null
-  // "active" | "degraded" | "down" | "unknown".
-  dashboardGatewayState: string
-}
-
-// An org the signed-in user belongs to — for the org picker shown when a
-// multi-org user's discovery call needs disambiguation (NAS 409).
-export interface DesktopCloudOrg {
-  id: string
-  slug: string | null
-  name: string
-  isPersonal: boolean
-  // "OWNER" | "MEMBER".
-  role: string
-}
-
-// Discovery result: either the agent list, OR a request to pick an org first
-// (multi-org user, no org chosen yet). The renderer shows a picker on the
-// latter and re-calls discover(org). On the agents branch, `org` echoes the
-// authoritatively-resolved org the list was scoped to (from NAS), so the
-// desktop persists it without relying on transient picker state.
-export type DesktopCloudDiscoverResult =
-  | { agents: DesktopCloudAgent[]; org?: DesktopCloudOrg | null; needsOrgSelection?: false }
-  | { needsOrgSelection: true; orgs: DesktopCloudOrg[] }
-
-export interface DesktopCloudAgentSignInResult {
-  // The agent gateway base URL the silent sign-in targeted.
-  baseUrl: string
-  // Whether the agent's gateway session cookie landed (silent cascade done).
   connected: boolean
 }
 

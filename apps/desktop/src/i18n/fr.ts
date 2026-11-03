@@ -1627,11 +1627,9 @@ export const frOverrides = {
       updateSkippedCloud: 'Gérée par Hermes Cloud',
       kindLocal: 'Locale',
       kindRemote: 'Gateway distante',
-      kindCloud: 'Hermes Cloud',
       kindSsh: 'SSH',
       kindLocalDesc: "L'environnement Meu géré par cette application.",
       kindRemoteDesc: 'Une gateway Meu accessible en HTTP(S), par le LAN, Tailscale ou Internet.',
-      kindCloudDesc: 'Une instance hébergée découverte via votre compte Hermes Cloud.',
       kindSshDesc: 'Une installation Meu accessible en SSH.',
       labelTitle: 'Nom',
       labelDesc:
@@ -1652,8 +1650,6 @@ export const frOverrides = {
       sameBackendHint: label => `Même backend que « ${label} »`,
       localAddHint:
         "La connexion locale est indisponible : la connexion gérée existe déjà (il ne peut y en avoir qu'une).",
-      cloudAddHint:
-        "Astuce : connectez-vous à Hermes Cloud ci-dessus pour découvrir automatiquement vos agents — utilisez ce formulaire uniquement pour enregistrer manuellement l'URL d'une instance connue.",
       save: 'Enregistrer la connexion',
       saving: 'Enregistrement…',
       cancel: 'Annuler',
@@ -1695,44 +1691,6 @@ export const frOverrides = {
       remoteDesc: 'Connecter ce shell desktop à un backend Meu distant.',
       remoteAuthHint:
         "Les gateways hébergés utilisent OAuth ou un nom d'utilisateur et un mot de passe ; les auto-hébergés peuvent utiliser un jeton de session.",
-      cloudTitle: 'Hermes Cloud',
-      cloudDesc:
-        "Connectez-vous une fois à Hermes Cloud et choisissez parmi les agents de votre compte — pas d'URL à coller.",
-      cloudSignInTitle: 'Hermes Cloud',
-      cloudSignIn: 'Se connecter à Hermes Cloud',
-      cloudSignedIn: 'Connecté à Hermes Cloud',
-      cloudNeedsSignIn: 'Connectez-vous à Hermes Cloud pour découvrir les agents de votre compte.',
-      cloudSignedInDesc:
-        'Vous êtes connecté. Choisissez un agent ci-dessous ; la session se rafraîchit automatiquement.',
-      cloudAgentsTitle: 'Vos agents',
-      cloudOrgPickerTitle: 'Choisir une organisation',
-      cloudOrgSelect: 'Sélectionner',
-      cloudOrgChange: "Changer d'organisation",
-      cloudOrgRole: role => `Rôle : ${role}`,
-      cloudLoadingAgents: 'Chargement de vos agents…',
-      cloudNoAgents: {
-        before: 'Aucun agent trouvé sur ce compte… Créez-en un dans le ',
-        linkText: 'portail Nous',
-        after: ', puis actualisez.'
-      },
-      cloudRefresh: 'Actualiser',
-      cloudConnect: 'Connecter',
-      cloudSavedTitle: 'Gateways Cloud enregistrés',
-      cloudSavedDesc:
-        'Utilisez un gateway enregistré sans modifier celui par défaut. Connectez-vous ci-dessous pour ajouter des instances. Gérez leurs noms et leur connexion dans la liste des connexions enregistrées.',
-      cloudUseSaved: 'Utiliser le gateway',
-      cloudActive: 'Actif dans cette fenêtre',
-      cloudConnecting: 'Connexion…',
-      cloudDiscoverFailed: 'Impossible de charger vos agents Hermes Cloud',
-      cloudConnectFailed: 'Impossible de se connecter à cet agent',
-      cloudSignInFailed: 'Échec de la connexion à Hermes Cloud',
-      cloudSignedOutTitle: 'Déconnecté de Hermes Cloud',
-      cloudSignedOutMessage: 'Session Hermes Cloud effacée.',
-      cloudConnectedTitle: 'Connecté',
-      cloudConnectedPill: 'Connecté',
-      cloudConnectedTo: name => `Connecté à ${name}.`,
-      cloudAgentProvisioning: 'Provisionnement…',
-      cloudStatusLabel: status => `État : ${status}`,
       remoteUrlTitle: 'URL distante',
       remoteUrlDesc:
         'URL de base du backend de tableau de bord distant. Les préfixes de chemin sont pris en charge, par exemple /hermes.',

@@ -47,13 +47,6 @@ export const BROWSER_BRIDGE_STUBS = {
   // uses the URL slug when no title is available; Electron keeps its resolver.
   fetchLinkTitle: async () => '',
   claimAmbientCue: async () => true,
-  cloud: {
-    agentSignIn: async (dashboardUrl: string) => ({ baseUrl: dashboardUrl, connected: false }),
-    discover: async () => ({ agents: [] }),
-    login: async () => ({ ok: false, portalBaseUrl: '', signedIn: false }),
-    logout: async () => ({ ok: true, portalBaseUrl: '', signedIn: false }),
-    status: async () => ({ portalBaseUrl: '', signedIn: false })
-  },
   continueBootstrapLocal: async () => ({ ok: true }),
   getBootProgress: async () => readyBootProgress(),
   getBootstrapState: async () => readyBootstrapState(),
@@ -63,9 +56,15 @@ export const BROWSER_BRIDGE_STUBS = {
   getRemoteDisplayReason: async () => 'Browser-hosted Desktop uses this server as its backend',
   windowControls: {
     custom: false,
-    minimize: () => { throw browserUnsupported('Native window controls') },
-    toggleMaximize: () => { throw browserUnsupported('Native window controls') },
-    close: () => { throw browserUnsupported('Native window controls') }
+    minimize: () => {
+      throw browserUnsupported('Native window controls')
+    },
+    toggleMaximize: () => {
+      throw browserUnsupported('Native window controls')
+    },
+    close: () => {
+      throw browserUnsupported('Native window controls')
+    }
   },
   getPathForFile: () => '',
   normalizePreviewTarget: async () => null,
@@ -126,8 +125,17 @@ export const BROWSER_BRIDGE_STUBS = {
     startAnyway: async () => ({ ok: false })
   },
   updates: {
-    apply: async () => ({ command: 'hermes update', manual: true, message: 'Run `hermes update` on the server host', ok: false }),
-    check: async () => ({ message: 'Use `hermes update` on the server host', reason: 'browser-hosted', supported: false }),
+    apply: async () => ({
+      command: 'hermes update',
+      manual: true,
+      message: 'Run `hermes update` on the server host',
+      ok: false
+    }),
+    check: async () => ({
+      message: 'Use `hermes update` on the server host',
+      reason: 'browser-hosted',
+      supported: false
+    }),
     onProgress: noopUnsubscribe
   },
   watchPreviewFile: async (url: string) => ({ id: `browser:${url}`, path: url })

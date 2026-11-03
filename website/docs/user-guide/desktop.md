@@ -523,7 +523,7 @@ Windows hand-off counts new output in this log as progress; a child that produce
 no output is still subject to the idle watchdog. Process liveness alone does not
 reset that watchdog, and cancelling an update does not wait for its build to finish.
 
-The desktop app and the Hermes backend it talks to update on separate clocks — the app package on your machine, the backend wherever it runs. When more than one update target exists (a remote gateway, or several registered gateways), the update affordances (**Update now** on the About panel, the ⌘K **Update Hermes** row, and the update-ready toast) update **everything**: the connected backend first, then every other eligible registered gateway (Hermes Cloud entries are platform-managed and skipped), and the desktop app itself last, since applying the client update relaunches the app. Single-machine installs keep the one-button experience.
+The desktop app and the Hermes backend it talks to update on separate clocks — the app package on your machine, the backend wherever it runs. When more than one update target exists (a remote gateway, or several registered gateways), the update affordances (**Update now** on the About panel, the ⌘K **Update Hermes** row, and the update-ready toast) update **everything**: the connected backend first, then every other eligible registered gateway (legacy Cloud entries retain their externally managed update policy and are skipped), and the desktop app itself last, since applying the client update relaunches the app. Single-machine installs keep the one-button experience.
 
 After any backend update, the app also re-checks its own version and warns with a one-click **Update desktop app** action if the GUI is still behind — so updating a remote backend can never silently leave you on a stale desktop build.
 
@@ -589,25 +589,26 @@ Everything connection-related lives on one settings page: **Settings → Gateway
 **Settings → Gateways → Connection mode** offers the alternatives to the local gateway:
 
 - **Remote gateway** — enter the URL of a `hermes serve` backend you run yourself and sign in. This is the mode the rest of this section walks through.
-- **Hermes Cloud** — sign in once to Hermes Cloud and pick from the agents on your account; no URL to paste. The app discovers your agents (with an organization picker if your account spans several orgs), and connecting to one switches the session over automatically. The status bar shows the cloud connection while it's active.
+- **SSH** — connect to a gateway through an SSH host.
+
+Meu no longer provides Nous Cloud discovery or Portal sign-in. Previously saved Cloud addresses remain available as remote gateways, using the gateway's own authentication.
 
 Gateway connections are **machine-level**: the Gateways page manages which gateway backends this desktop can connect to, and profiles are discovered *from* the gateways you connect. Sessions select one gateway at a time, while the adjacent profile rail selects a profile discovered on that gateway.
 
 ### The multi-connection registry
 
-Further down the same **Settings → Gateways** page, **Registered gateways** manages a named list of every Hermes gateway the app knows about — the local runtime, any number of remote gateways (LAN, Tailscale, internet), Hermes Cloud instances, and SSH hosts — all persisted together in one place. You can jump there from the plug button at the right end of the sidebar profile rail (**Connect another Hermes gateway…**) or via **⌘K → Gateways**. The full guide, including the union agent roster, `@name-device` handles, fleet-wide updates, and the plugin SDK surface, is at [Connecting Desktop to Many Hermes Instances](./multi-connection-desktop.md).
+Further down the same **Settings → Gateways** page, **Registered gateways** manages a named list of every Hermes gateway the app knows about — the local runtime, any number of remote gateways (LAN, Tailscale, internet), and SSH hosts — all persisted together in one place. You can jump there from the plug button at the right end of the sidebar profile rail (**Connect another Hermes gateway…**) or via **⌘K → Gateways**. The full guide, including the union agent roster, `@name-device` handles, fleet-wide updates, and the plugin SDK surface, is at [Connecting Desktop to Many Hermes Instances](./multi-connection-desktop.md).
 
 - **Every connection needs a unique name** (a device name such as "Homelab" or "Work laptop"). When the same profile name exists on several registered gateways, surfaces disambiguate it as `@profile-device` (e.g. `@research-homelab`).
 - **Switch gateways from the Sessions sidebar.** A named gateway selector appears when more than one gateway is registered and handles any registry size without making gateways look like profiles. The adjacent profile rail then shows only that gateway's agents and remembers the last profile used there; large profile sets condense independently.
 - **Hide the profile rail.** If your profiles are bots rather than workspaces, the colored strip of profile squares at the foot of the sidebar duplicates the sessions list. Turn it off from the Sessions view menu (**Profile rail**), the shell's right-click menu, or **⌘K → Toggle profile rail**. While it is hidden, a **Profiles** dropdown appears in the status bar next to the gateway selector with the same choices — this gateway's profiles, other gateways' agents, **New profile**, **Import profile…**, **Manage profiles…** — so switching profiles always has a door.
 - **Choose what opens after a restart.** **Open on launch** keeps the backward-compatible **Primary gateway** default, or can resume the **Last used** gateway after it connects successfully. This preference is stored outside the application bundle and survives Desktop updates.
-- **Add / edit / remove / test** connections from the panel. The **Add** flow offers all four kinds — **Local**, **Hermes Cloud**, **Remote gateway**, and **SSH** (the Local button is disabled while the app-managed local entry exists, and a hint points cloud adds at the sign-in/discovery flow above). The local entry is managed by the app and cannot be removed. **Test** probes the connection's own HTTP and WebSocket legs directly.
+- **Add / edit / remove / test** connections from the panel. The **Add** flow offers **Local**, **Remote gateway**, and **SSH** (the Local button is disabled while the app-managed local entry exists). The local entry is managed by the app and cannot be removed. **Test** probes the connection's own HTTP and WebSocket legs directly.
 - **Duplicates are rejected at save time**: only one **local** entry ever; remote and cloud entries are deduplicated on the normalized URL (trimmed, trailing slashes stripped, lowercased — across both kinds); SSH entries on the normalized `user@host:port` plus remote profile.
 - Existing settings are **imported automatically** the first time you run a build with the registry: your current global connection and any legacy per-profile overrides become named entries. The legacy settings file is left untouched, so older builds keep working.
-- Cloud entries come from the Hermes Cloud sign-in/discovery flow above, not from a hand-typed URL.
 - Tokens are stored encrypted with the OS keyring (with an explicit plain-text opt-in on keyring-less Linux).
 
-Side-by-side routing is live: each registered gateway dials its own backends and sockets on demand (keyed per connection + profile), the plugin SDK exposes the union agent roster (`host.agents()` / `host.ensureAgent()`), and **Update all instances** on the Gateways page dispatches `hermes update` to every eligible gateway at once — Hermes Cloud entries are skipped (the platform updates them), and each instance reports its own result.
+Side-by-side routing is live: each registered gateway dials its own backends and sockets on demand (keyed per connection + profile), the plugin SDK exposes the union agent roster (`host.agents()` / `host.ensureAgent()`), and **Update all instances** on the Gateways page dispatches `hermes update` to every eligible gateway at once — legacy Cloud entries are skipped to preserve their externally managed update policy, and each instance reports its own result.
 
 
 :::info The remote backend is a running `hermes serve` process
@@ -618,10 +619,10 @@ The connection has two halves: on the backend you protect it with an **auth prov
 
 **Pick a provider based on where the backend lives:**
 
-- **OAuth (Nous Portal) — preferred for anything reachable beyond your own machine.** Logins are verified against your Nous account, so this is the option suitable for a VPS, a public host, or any remote backend. Register the dashboard with `hermes dashboard register` (or the Portal [`/local-dashboards`](https://portal.nousresearch.com/local-dashboards) page) to provision its OAuth client, then sign in from the app with **Sign in with Nous Research**. A self-hosted OIDC provider works the same way if you run your own identity provider.
+- **OAuth / OIDC** — configure an identity provider on your gateway, then use the gateway sign-in offered by the app. Meu no longer opens a separate Nous Portal session.
 - **Username/password — local / trusted-network use only.** The simplest option when the backend is on the same trusted LAN or reachable only over a VPN (e.g. Tailscale). It protects a single shared credential with no external identity provider, so **do not use it for a dashboard exposed to the public internet** — reach for OAuth there instead.
 
-The rest of this section shows the username/password path because it's the quickest to stand up on a trusted network; for the OAuth path see [Web Dashboard → Default provider: Nous Research](./features/web-dashboard.md#default-provider-nous-research).
+The rest of this section shows the username/password path for a trusted network. For OAuth, configure your gateway with your own identity provider.
 
 ### On the backend (the remote machine)
 
@@ -655,7 +656,7 @@ Prefer not to keep a plaintext password at rest? Set `HERMES_DASHBOARD_BASIC_AUT
 Running the backend as a systemd service? Give the unit `EnvironmentFile=%h/.hermes/.env` so the credentials are in the environment at boot.
 
 :::warning
-The backend reads and writes your `.env` (API keys, secrets) and can run agent commands. The **username/password** setup shown above is for a trusted network — never expose a password-protected backend directly to the open internet; put it behind a VPN. [Tailscale](https://tailscale.com/) is the clean option: bind to the machine's tailscale IP (`--host <tailscale-ip>`) and use `http://<tailscale-ip>:9119` as the Remote URL so only your tailnet can reach it. To reach a backend over the public internet, use the **OAuth (Nous Portal)** provider instead.
+The backend reads and writes your `.env` (API keys, secrets) and can run agent commands. The **username/password** setup shown above is for a trusted network — never expose a password-protected backend directly to the open internet; put it behind a VPN. [Tailscale](https://tailscale.com/) is the clean option: bind to the machine's tailscale IP (`--host <tailscale-ip>`) and use `http://<tailscale-ip>:9119` as the Remote URL so only your tailnet can reach it. To reach a backend over the public internet, use the **OAuth / OIDC** provider instead.
 :::
 
 ### In the app

@@ -85,7 +85,7 @@ test('an unattended sign-in never shows its window and gives up after the deadli
   const attempt = h.start({ silent: true, background: true })
   const outcome = attempt.result.catch(error => error)
 
-  expect(h.created).toEqual([{ show: false, title: 'Connecting to Hermes Cloud agent…' }])
+  expect(h.created).toEqual([{ show: false, title: 'Connecting to gateway…' }])
   expect(h.windows[0].state.loaded).toBe(`${GATEWAY}/`)
 
   // Past the 2.5s reveal point a foreground silent window would have shown.

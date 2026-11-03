@@ -37,7 +37,6 @@ vi.mock('@/i18n', () => ({
         connections: {
           noSearchResults: 'No gateways match your search.',
           searchPlaceholder: 'Search gateways…',
-          kindCloud: 'Hermes Cloud',
           kindLocal: 'Local',
           kindRemote: 'Remote gateway',
           kindSsh: 'SSH',
@@ -183,17 +182,17 @@ describe('ConnectionSwitcher', () => {
 
     const result = screen.getByRole('menuitemradio', { name: 'Studio 10' })
     fireEvent.keyDown(search, { key: 'ArrowDown' })
-    expect(globalThis.document.activeElement).toBe(result)
+    expect(globalThis.window.document.activeElement).toBe(result)
 
     $findInPage.set({ active: true, query: '', matchOrdinal: 0, matchCount: 0, focusRequest: 0 })
     result.focus()
     fireEvent.keyDown(result, { key: 'f', metaKey: true })
-    expect(globalThis.document.activeElement).toBe(search)
+    expect(globalThis.window.document.activeElement).toBe(search)
     expect($findInPage.get().active).toBe(false)
 
     fireEvent.keyDown(search, { key: 'Escape' })
     expect(screen.queryByPlaceholderText('Search gateways…')).toBeNull()
-    await waitFor(() => expect(globalThis.document.activeElement).toBe(trigger))
+    await waitFor(() => expect(globalThis.window.document.activeElement).toBe(trigger))
 
     fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' })
     expect((screen.getByPlaceholderText('Search gateways…') as HTMLInputElement).value).toBe('')

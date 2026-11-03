@@ -20,7 +20,7 @@ import {
   sortConnectionsForDisplay
 } from '@/lib/connection-display'
 import { triggerHaptic } from '@/lib/haptics'
-import { Cloud, Globe, Loader2, Monitor, Pencil, Plus, RefreshCw, SearchIcon, Terminal, Trash2 } from '@/lib/icons'
+import { Globe, Loader2, Monitor, Pencil, Plus, RefreshCw, SearchIcon, Terminal, Trash2 } from '@/lib/icons'
 import { $activeConnectionId, setConnectionsRegistry } from '@/store/connections'
 import { refreshFleetRoster } from '@/store/fleet-roster'
 import { notify, notifyError } from '@/store/notifications'
@@ -28,7 +28,7 @@ import { notify, notifyError } from '@/store/notifications'
 import { EmptyState, ListRow, Pill, SectionHeading, SettingsBreadcrumbContext, ToggleRow } from './primitives'
 
 const KIND_ICONS: Record<DesktopConnectionKind, typeof Globe> = {
-  cloud: Cloud,
+  cloud: Globe,
   local: Monitor,
   remote: Globe,
   ssh: Terminal
@@ -534,7 +534,7 @@ export function ConnectionsRegistrySection() {
   }, [bridge, s.updateAllDone, s.updateAllFailed, s.updateSkippedCloud])
 
   const kindMeta: Record<DesktopConnectionKind, { label: string; desc: string }> = {
-    cloud: { desc: s.kindCloudDesc, label: s.kindCloud },
+    cloud: { desc: s.kindRemoteDesc, label: s.kindRemote },
     local: { desc: s.kindLocalDesc, label: s.kindLocal },
     remote: { desc: s.kindRemoteDesc, label: s.kindRemote },
     ssh: { desc: s.kindSshDesc, label: s.kindSsh }
@@ -698,17 +698,12 @@ export function ConnectionsRegistrySection() {
             {/* Kind is fixed once created (buttons disable on edit). On create
                 every kind is offered; Local is disabled while the managed
                 local entry exists (the registry holds at most one). */}
-            {(editor.id ? ([editor.kind] as const) : (['local', 'cloud', 'remote', 'ssh'] as const)).map(kind => (
+            {(editor.id ? ([editor.kind] as const) : (['local', 'remote', 'ssh'] as const)).map(kind => (
               <Button
                 disabled={Boolean(editor.id) || (kind === 'local' && hasLocal)}
                 key={kind}
                 onClick={() => {
                   setDupeError(null)
-
-                  // Cloud uses browser sign-in even after a token-auth remote edit.
-                  if (kind === 'cloud') {
-                    remote.setAuthMode('oauth')
-                  }
 
                   setEditor({ ...editor, kind })
                 }}
@@ -721,9 +716,6 @@ export function ConnectionsRegistrySection() {
           </div>
           <p className="text-xs text-muted-foreground">{kindMeta[editor.kind].desc}</p>
           {!editor.id && hasLocal ? <p className="text-xs text-muted-foreground">{s.localAddHint}</p> : null}
-          {!editor.id && editor.kind === 'cloud' ? (
-            <p className="text-xs text-muted-foreground">{s.cloudAddHint}</p>
-          ) : null}
 
           <ListRow
             action={

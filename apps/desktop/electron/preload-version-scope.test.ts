@@ -48,3 +48,18 @@ it('exposes working update checks without telemetry capabilities', async () => {
   await exposed.updates.check({ force: true })
   expect(host.invoke).toHaveBeenCalledExactlyOnceWith('hermes:updates:check', { force: true })
 })
+
+it('exposes only gateway sign-in and no Portal discovery capability', async () => {
+  const exposed = (await bridge()) as unknown as {
+    oauthLoginConnectionConfig: (url: string) => Promise<unknown>
+  }
+
+  host.invoke.mockClear()
+  expect(exposed).not.toHaveProperty('cloud')
+  await exposed.oauthLoginConnectionConfig('https://gateway.example')
+  expect(host.invoke).toHaveBeenCalledExactlyOnceWith(
+    'hermes:connection-config:oauth-login',
+    'https://gateway.example',
+    undefined
+  )
+})

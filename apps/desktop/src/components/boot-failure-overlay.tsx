@@ -11,7 +11,6 @@ import { LogView } from '@/components/ui/log-view'
 import type { DesktopConnectionConfig, DesktopOauthLoginResult } from '@/global'
 import { useI18n } from '@/i18n'
 import { WEBAPP_LAUNCH_REQUIRED } from '@/lib/browser-launch-session'
-import { reestablishCloudAgentSession } from '@/lib/cloud-agent-session'
 import { DESKTOP_DOCS_URL } from '@/lib/docs'
 import { openExternalLink } from '@/lib/external-link'
 import { ChevronLeft, ExternalLink, FileText, Loader2, LogIn, RefreshCw, SlidersHorizontal, Wrench } from '@/lib/icons'
@@ -296,12 +295,6 @@ export function BootFailureOverlay() {
     setBusy(null)
   }
 
-  // Clear this gateway's stale auth first, then re-establish it through the
-  // connection's owning login flow. Hermes Cloud must reuse its portal session
-  // and per-agent cascade; generic remote gateways use native/embedded OAuth.
-  // Reload after success so boot mints a fresh ticket against the new session.
-  // The cloud ladder is shared with Settings (reestablishCloudAgentSession) so
-  // the boot recovery and the in-Settings recovery cannot drift apart.
   const signInRemote = async () => {
     if (!remoteReauth) {
       return
@@ -312,41 +305,12 @@ export function BootFailureOverlay() {
     try {
       const desktop = window.hermesDesktop
 
-      let connected: boolean
-      // Only the oauth arm reports a reason (DesktopOauthLoginResult.error);
-      // the incomplete sign-in notice below surfaces it. The cloud ladder
-      // reports an outcome, handled in its own branch.
-      let error: string | undefined
-
-      if (connectionConfig?.mode === 'cloud' && desktop?.cloud) {
-        // The ladder drops this gateway's lapsed cookies itself — logging out
-        // here as well would fire the IPC twice for the cloud path.
-        const outcome = await reestablishCloudAgentSession(desktop, remoteReauth.url)
-
-        if (outcome === 'portal-incomplete') {
-          notify({
-            kind: 'warning',
-            title: t.boot.failure.signInIncompleteTitle,
-            message: t.boot.failure.signInIncompleteMessage
-          })
-
-          return
-        }
-
-        connected = true
-      } else {
-        await desktop?.oauthLogoutConnectionConfig?.(remoteReauth.url)
-
-        const result: DesktopOauthLoginResult | undefined = await desktop?.oauthLoginConnectionConfig(remoteReauth.url)
-        connected = result?.connected === true
-        error = result?.error
-      }
+      await desktop?.oauthLogoutConnectionConfig?.(remoteReauth.url)
+      const result: DesktopOauthLoginResult | undefined = await desktop?.oauthLoginConnectionConfig(remoteReauth.url)
+      const connected = result?.connected === true
+      const error = result?.error
 
       if (connected) {
-        if (connectionConfig?.mode === 'cloud') {
-          await desktop?.resetBootstrap().catch(() => undefined)
-        }
-
         notify({ kind: 'success', title: t.boot.failure.signedInTitle, message: t.boot.failure.signedInMessage })
         window.location.reload()
 
