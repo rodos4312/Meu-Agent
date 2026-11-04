@@ -712,6 +712,33 @@ class TestToolSelection:
         server = load_config()["mcp_servers"]["demo"]
         assert server["tools"]["include"] == ["a", "b", "c"]
 
+    def test_mt5_seeds_read_filter_before_discovery_and_keeps_it_on_empty_probe(self, catalog_dir, monkeypatch):
+        from pathlib import Path
+
+        from hermes_cli import mcp_catalog
+
+        name = "mt5-httpapi-read"
+        manifest = Path(__file__).resolve().parents[2] / "optional-mcps" / name / "manifest.yaml"
+        entry = mcp_catalog._parse_manifest(manifest)
+        allowlist = set(mcp_catalog.card_install_config(entry)["tools"]["include"])
+        assert {"list_positions", "get_history_deals", "get_backtest"} <= allowlist
+        assert {"request", "create_order", "close_position", "terminal_control"}.isdisjoint(allowlist)
+
+        def empty_probe(server_name):
+            assert set(mcp_catalog.installed_servers()[server_name]["tools"]["include"]) == allowlist
+            return []
+
+        monkeypatch.setattr(mcp_catalog, "_probe_tools", empty_probe)
+        mcp_catalog.install_entry(entry, preloaded_env={
+            "MT5_HTTPAPI_READ_URL": "http://127.0.0.1:8888/broker/demo/mcp/",
+            "MCP_MT5_HTTPAPI_READ_API_KEY": "test-token",
+        })
+
+        server = mcp_catalog.installed_servers()[name]
+        assert server["url"] == "http://127.0.0.1:8888/broker/demo/mcp/"
+        assert server["headers"] == {"Authorization": "Bearer ${MCP_MT5_HTTPAPI_READ_API_KEY}"}
+        assert set(server["tools"]["include"]) == allowlist
+
 
     def test_reinstall_preserves_prior_user_selection(
         self, catalog_dir, monkeypatch

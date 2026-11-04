@@ -1,0 +1,47 @@
+manifest_version: 1
+
+name: mt5-httpapi-read
+description: Read prices, positions, history, and backtests from your MetaTrader 5 bridge.
+source: https://github.com/psyb0t/mt5-httpapi
+
+transport:
+  type: http
+  url: "${MT5_HTTPAPI_READ_URL}"
+
+auth:
+  type: api_key
+  env:
+    - name: MT5_HTTPAPI_READ_URL
+      prompt: "Your terminal's MT5 MCP URL, including /mcp/"
+      required: true
+      secret: false
+    - name: MCP_MT5_HTTPAPI_READ_API_KEY
+      prompt: "Bearer token configured on your MT5 bridge"
+      required: true
+      secret: true
+
+tools:
+  default_enabled:
+    - ping
+    - get_terminal
+    - list_symbols
+    - get_symbol
+    - get_tick
+    - get_rates
+    - get_ticks
+    - get_rates_ta
+    - get_account
+    - list_positions
+    - get_position
+    - list_orders
+    - get_order
+    - get_history_orders
+    - get_history_deals
+    - get_backtest
+
+post_install: |
+  Connect to a self-hosted mt5-httpapi instance that you already operate.
+  Use the MCP URL for a single demo terminal and its configured bearer token.
+  The default selection exposes data retrieval only. The generic request tool,
+  terminal control, and order or position mutations are outside that selection.
+  Start a new Meu chat to load the connector.

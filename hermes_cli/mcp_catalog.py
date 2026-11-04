@@ -655,7 +655,7 @@ def _apply_tool_selection(
         elif prior_exclude is not None:
             mode, values = "exclude", prior_exclude
             msg = f"Kept your existing exclude list ({len(prior_exclude)} entries)."
-        elif manifest_default:
+        elif manifest_default is not None:
             mode, values = "include", manifest_default
             msg = f"Applied manifest default ({len(manifest_default)} tools). {refine_hint}"
         else:
@@ -672,24 +672,28 @@ def _apply_tool_selection(
     if not probed:
         # Keep a prior explicit selection: "no tools today" must not widen ``include: []`` to
         # "all tools" the next time the server does advertise some.
-        _write_tools_filter(name, "include", prior_selection)
+        if prior_selection is not None:
+            _write_tools_filter(name, "include", prior_selection)
+        elif prior_exclude is not None:
+            _write_tools_filter(name, "exclude", prior_exclude)
+        else:
+            _write_tools_filter(name, "include", entry.tools.default_enabled)
         _say("  Server reported no tools.", Colors.YELLOW)
         return
 
     tool_names = [t[0] for t in probed]
+    preferred = prior_selection if prior_selection is not None else entry.tools.default_enabled
 
     # Non-TTY: skip the checklist; same priority as the interactive pre-check.
     import sys as _sys
     if not _sys.stdin.isatty():
-        preferred = prior_selection if prior_selection is not None else (entry.tools.default_enabled or None)
         _write_tools_filter(
             name, "include", None if preferred is None else [n for n in preferred if n in tool_names]
         )
         return
 
     # A prior ``include: []`` (user chose zero tools) outranks manifest defaults, like the non-TTY path.
-    preferred = prior_selection if prior_selection is not None else (entry.tools.default_enabled or tool_names)
-    pre_set = {n for n in preferred if n in tool_names}
+    pre_set = set(tool_names if preferred is None else preferred)
     pre_indices = {i for i, n in enumerate(tool_names) if n in pre_set}
     _say(f"  Found {len(probed)} tool(s). Pre-checked: {len(pre_indices)}.")
 
@@ -704,7 +708,7 @@ def _apply_tool_selection(
         _write_tools_filter(name, "include", [])
         _say(f"  No tools selected. Run {configure_hint} to change.", Colors.YELLOW)
         return
-    if len(chosen_indices) == len(probed):
+    if len(chosen_indices) == len(probed) and entry.tools.default_enabled is None:
         # Clear the filter: tools the server adds later are auto-enabled too. To pin the current set,
         # re-run `hermes mcp configure <name>` and unselect a tool (switches to include-mode).
         _write_tools_filter(name, "include", None)
@@ -716,6 +720,17 @@ def _apply_tool_selection(
     chosen_names = [tool_names[i] for i in sorted(chosen_indices)]
     _write_tools_filter(name, "include", chosen_names)
     _say(f"  ✓ {len(chosen_names)}/{len(probed)} tools enabled.")
+
+
+def _seed_tools_filter(cfg: dict, entry: CatalogEntry, prior_include, prior_exclude) -> None:
+    if prior_include is not None:
+        cfg["tools"] = {"include": prior_include}
+    elif prior_exclude is not None:
+        cfg["tools"] = {"exclude": prior_exclude}
+    elif entry.tools.default_excluded:
+        cfg["tools"] = {"exclude": list(entry.tools.default_excluded)}
+    elif entry.tools.default_enabled is not None:
+        cfg["tools"] = {"include": list(entry.tools.default_enabled)}
 
 
 def card_install_config(entry: CatalogEntry) -> dict:
@@ -731,14 +746,7 @@ def card_install_config(entry: CatalogEntry) -> dict:
     cfg["enabled"] = True
     prior_include = _read_prior_tool_list(entry.name, "include")
     prior_exclude = _read_prior_tool_list(entry.name, "exclude")
-    if prior_include is not None:
-        cfg["tools"] = {"include": prior_include}
-    elif prior_exclude is not None:
-        cfg["tools"] = {"exclude": prior_exclude}
-    elif entry.tools.default_excluded:
-        cfg["tools"] = {"exclude": list(entry.tools.default_excluded)}
-    elif entry.tools.default_enabled:
-        cfg["tools"] = {"include": list(entry.tools.default_enabled)}
+    _seed_tools_filter(cfg, entry, prior_include, prior_exclude)
     return cfg
 
 
@@ -797,6 +805,9 @@ def _install_entry(entry: CatalogEntry, *, enable: bool, preloaded_env: Optional
         if not spec.secret and spec.name in env_values:
             server_cfg = _inline_non_secret_value(server_cfg, spec.name, env_values[spec.name])
     server_cfg["enabled"] = enable
+    # Publish the filter with the initial configuration so a concurrent
+    # gateway reload cannot register unrestricted tools during the probe.
+    _seed_tools_filter(server_cfg, entry, prior_selection, prior_exclude)
 
     from hermes_cli.mcp_config import _save_mcp_server
 
