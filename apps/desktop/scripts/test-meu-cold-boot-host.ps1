@@ -12,7 +12,7 @@ $meuCheck = Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/ro
     output = @{title = 'Waiting for a real Windows reboot'; summary = 'A disposable runner must report a different OS boot after restart.'}
 } | ConvertTo-Json -Depth 5)
 try {
-$meuProof = Join-Path $env:RUNNER_TEMP "meu-cold-boot-$env:GITHUB_RUN_ID"
+$meuProof = Join-Path $env:ProgramData "MeuColdBootProof/$env:GITHUB_RUN_ID"
 New-Item -ItemType Directory -Path $meuProof | Out-Null
 $meuTask = "MeuColdBootProof-$env:GITHUB_RUN_ID"
 $meuConfig = Join-Path $meuProof 'private-job-context.json'
