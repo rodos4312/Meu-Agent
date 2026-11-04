@@ -711,7 +711,7 @@ function UsagePanel({ error, loading, onRefresh, period, usage }: UsagePanelProp
           rows={byModel.slice(0, 6).map(entry => ({
             key: entry.model,
             label: entry.model,
-            value: `${compactNumber((entry.input_tokens || 0) + (entry.output_tokens || 0))}`
+            value: `${cc.statApiCalls} ${compactNumber(entry.api_calls)} · ${cc.statTokens} ${compactNumber(entry.input_tokens)} / ${compactNumber(entry.output_tokens)}`
           }))}
           title={cc.topModels}
         />
@@ -752,7 +752,7 @@ function UsageList({
           {rows.map(row => (
             <li className="flex items-center justify-between gap-2 py-1.5" key={row.key}>
               <span className="min-w-0 truncate font-mono text-[0.7rem] text-foreground">{row.label}</span>
-              <span className="shrink-0 text-[0.65rem] text-(--ui-text-tertiary)">{row.value}</span>
+              <span className="text-right text-[0.65rem] text-(--ui-text-tertiary)">{row.value}</span>
             </li>
           ))}
         </ul>

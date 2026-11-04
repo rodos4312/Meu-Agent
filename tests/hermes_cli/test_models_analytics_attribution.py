@@ -74,6 +74,24 @@ def test_session_switching_providers_yields_separated_rows(db, models):
     assert pairs[("anthropic/claude-opus-5", "nous")]["sessions"] == 1
 
 
+def test_usage_splits_auto_routes_and_keeps_older_session_totals(db, monkeypatch):
+    monkeypatch.setattr(web_server, "_open_session_db_for_profile", lambda *_args, **_kwargs: db)
+    db.create_session("auto", source="cli", model="deepseek-v4-flash")
+    _touch(db, "auto", "deepseek-v4-flash", "deepseek", input_tokens=100, output_tokens=10)
+    _touch(db, "auto", "deepseek-v4-pro", "deepseek", input_tokens=200, output_tokens=20, api_calls=2)
+    db.create_session("legacy", source="cli", model="deepseek-v4-pro")
+    db.update_token_counts("legacy", input_tokens=30, output_tokens=3, api_call_count=1, absolute=True)
+
+    result = web_server._get_usage_analytics(days=7)
+    models = {row["model"]: row for row in result["by_model"]}
+
+    assert set(models) == {"deepseek-v4-flash", "deepseek-v4-pro"}
+    assert models["deepseek-v4-flash"]["input_tokens"] == 100
+    assert models["deepseek-v4-flash"]["api_calls"] == 1
+    assert models["deepseek-v4-pro"]["input_tokens"] == 230
+    assert models["deepseek-v4-pro"]["api_calls"] == 3
+
+
 def test_phantom_pair_never_appears_for_switched_session(db, models):
     """The sessions-only pair (model of phase 1, provider of phase 2) must not exist."""
     db.create_session("s1", source="cli", model="gpt-5.6-sol")

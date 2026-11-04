@@ -81,6 +81,56 @@ def _rows(db, sql: str, cutoff: float) -> list[dict[str, Any]]:
     return [dict(r) for r in db._conn.execute(sql, (cutoff,)).fetchall()]
 
 
+def _usage_by_model(db, cutoff: float) -> list[dict[str, Any]]:
+    # Route deltas know the model used for each call. Session totals also
+    # contain legacy or absolute accounting that may lack a route delta.
+    try:
+        return _rows(db, """
+            WITH recent AS (
+                SELECT id, model, input_tokens, output_tokens, estimated_cost_usd, api_call_count
+                FROM sessions WHERE started_at > ?
+            ), routes AS (
+                SELECT u.session_id, u.model, SUM(u.input_tokens) AS input_tokens,
+                       SUM(u.output_tokens) AS output_tokens,
+                       SUM(u.estimated_cost_usd) AS estimated_cost, SUM(u.api_call_count) AS api_calls
+                FROM session_model_usage u JOIN recent s ON s.id = u.session_id
+                WHERE u.task = ''
+                GROUP BY u.session_id, u.model
+            ), accounted AS (
+                SELECT session_id, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
+                       SUM(estimated_cost) AS estimated_cost, SUM(api_calls) AS api_calls
+                FROM routes GROUP BY session_id
+            ), usage AS (
+                SELECT * FROM routes
+                UNION ALL
+                SELECT s.id, s.model,
+                       MAX(0, COALESCE(s.input_tokens, 0) - COALESCE(a.input_tokens, 0)),
+                       MAX(0, COALESCE(s.output_tokens, 0) - COALESCE(a.output_tokens, 0)),
+                       MAX(0, COALESCE(s.estimated_cost_usd, 0) - COALESCE(a.estimated_cost, 0)),
+                       MAX(0, COALESCE(s.api_call_count, 0) - COALESCE(a.api_calls, 0))
+                FROM recent s LEFT JOIN accounted a ON a.session_id = s.id
+                WHERE s.model IS NOT NULL AND (
+                    a.session_id IS NULL OR s.input_tokens > a.input_tokens OR s.output_tokens > a.output_tokens
+                    OR s.estimated_cost_usd > a.estimated_cost OR s.api_call_count > a.api_calls
+                )
+            )
+            SELECT model, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
+                   SUM(estimated_cost) AS estimated_cost, COUNT(DISTINCT session_id) AS sessions,
+                   SUM(api_calls) AS api_calls
+            FROM usage WHERE model IS NOT NULL GROUP BY model ORDER BY SUM(input_tokens + output_tokens) DESC
+        """, cutoff)
+    except sqlite3.OperationalError as exc:
+        if "no such table: session_model_usage" not in str(exc) and "no such column: u.task" not in str(exc):
+            raise
+        return _rows(db, """
+            SELECT model, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens,
+                   COALESCE(SUM(estimated_cost_usd), 0) AS estimated_cost,
+                   COUNT(*) AS sessions, SUM(COALESCE(api_call_count, 0)) AS api_calls
+            FROM sessions WHERE started_at > ? AND model IS NOT NULL
+            GROUP BY model ORDER BY SUM(input_tokens) + SUM(output_tokens) DESC
+        """, cutoff)
+
+
 def _get_usage_analytics(days: int = 30, profile: Optional[str] = None):
     from agent.insights import InsightsEngine
 
@@ -102,16 +152,7 @@ def _get_usage_analytics(days: int = 30, profile: Optional[str] = None):
             GROUP BY day ORDER BY day
         """, cutoff)
 
-        by_model = _rows(db, """
-            SELECT model,
-                   SUM(input_tokens) as input_tokens,
-                   SUM(output_tokens) as output_tokens,
-                   COALESCE(SUM(estimated_cost_usd), 0) as estimated_cost,
-                   COUNT(*) as sessions,
-                   SUM(COALESCE(api_call_count, 0)) as api_calls
-            FROM sessions WHERE started_at > ? AND model IS NOT NULL
-            GROUP BY model ORDER BY SUM(input_tokens) + SUM(output_tokens) DESC
-        """, cutoff)
+        by_model = _usage_by_model(db, cutoff)
 
         # Fold in auxiliary usage (vision, compression, ...) from session_model_usage.
         # Aux calls never touch the sessions counters, so this is add-only — no double count.
