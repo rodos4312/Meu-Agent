@@ -12283,6 +12283,18 @@
             "title": "State",
             "type": "string"
           },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider"
+          },
           "model": {
             "anyOf": [
               {

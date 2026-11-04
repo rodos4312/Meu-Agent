@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { parseMaybeObject, toolCallFailed } from '@/components/assistant-ui/tool/fallback-model'
 import { PreviewAttachment } from '@/components/chat/preview-attachment'
 import { useI18n } from '@/i18n'
+import { helperModelLabel } from '@/lib/model-status-label'
 
 export function ProjectProgress({ result, toolCallId }: { result: unknown; toolCallId: string }) {
   const { t } = useI18n()
@@ -81,7 +82,9 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
             {tasks.map(([id, row]) => {
               const task = parseMaybeObject(row.task)
               const repair = parseMaybeObject(row.repair)
-              const { model } = parseMaybeObject(row.result)
+              const receipt = parseMaybeObject(row.result)
+              const route = parseMaybeObject(receipt.route)
+              const helper = helperModelLabel(route.provider, route.model ?? receipt.model)
               const { state, attempt } = row
 
               const label =
@@ -97,10 +100,10 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
                     {typeof attempt === 'number' && attempt > 0 && (
                       <span className="text-muted-foreground">{labels.attempt(attempt)}</span>
                     )}
-                    {typeof model === 'string' &&
+                    {helper &&
                       state !== 'pending' &&
                       state !== 'running' &&
-                      state !== 'interrupted' && <span className="text-muted-foreground break-all">{model}</span>}
+                      state !== 'interrupted' && <span className="text-muted-foreground break-all">{helper}</span>}
                   </div>
                   {typeof task.goal === 'string' && <p className="break-words">{task.goal}</p>}
                   {typeof task.acceptance === 'string' && (

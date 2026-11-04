@@ -151,7 +151,7 @@ it('keeps one expandable project card with the latest attempt, model and checks'
     {
       state: 'verified',
       attempt: 2,
-      result: { model: 'deepseek-v4-pro' },
+      result: { model: 'legacy-model', route: { provider: 'openai-codex', model: 'gpt-6.1-sol' } },
       repair: { check: 'Keep exactly one record with ID constructor.' }
     },
     'verify'
@@ -184,7 +184,8 @@ it('keeps one expandable project card with the latest attempt, model and checks'
   expect(container.querySelector('[data-slot="project-progress"] details')).toBe(cards[0])
   expect(cards[0].open).toBe(true)
   expect(screen.getByText('Attempt 2')).toBeTruthy()
-  expect(screen.getByText('deepseek-v4-pro')).toBeTruthy()
+  expect(screen.getByText('ChatGPT or Codex Subscription · gpt-6.1-sol')).toBeTruthy()
+  expect(screen.queryByText('legacy-model')).toBeNull()
   expect(screen.getByText(task.acceptance)).toBeTruthy()
   expect(screen.getByText('Keep exactly one record with ID constructor.')).toBeTruthy()
 })

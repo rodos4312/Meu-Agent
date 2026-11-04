@@ -40,7 +40,7 @@ it('shows saved progress and reveals a verified file or opens the linked continu
       session_id: 'original',
       tasks: [
         { id: 'inspect', goal: 'Inspect', state: 'interrupted', artifacts: [] },
-        { id: 'write', goal: 'Write', state: 'verified', model: 'deepseek-v4-pro',
+        { id: 'write', goal: 'Write', state: 'verified', provider: 'openai-codex', model: 'gpt-6.1-sol',
           artifacts: [{ name: 'answer.txt', path: '/work/answer.txt' }] }
       ]
     }]
@@ -49,7 +49,7 @@ it('shows saved progress and reveals a verified file or opens the linked continu
   render(<CoordinatorWorkspace onRefresh={refresh} onResumeSession={resume} project={project} />)
   fireEvent.click(screen.getByText('plan · 1/2 verified'))
   expect(screen.getByText('Interrupted')).toBeTruthy()
-  expect(screen.getByText('Verified · deepseek-v4-pro')).toBeTruthy()
+  expect(screen.getByText('Verified · ChatGPT or Codex Subscription · gpt-6.1-sol')).toBeTruthy()
 
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(resume).toHaveBeenCalledWith('continued', session)

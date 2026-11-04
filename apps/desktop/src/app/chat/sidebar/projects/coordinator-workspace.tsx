@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import type { SessionInfo } from '@/hermes'
 import { useI18n } from '@/i18n'
+import { helperModelLabel } from '@/lib/model-status-label'
 import { $activeConnectionId } from '@/store/connections'
 import { shouldOfferLocalReveal } from '@/store/file-actions'
 import { revealPath } from '@/store/projects'
@@ -73,7 +74,7 @@ export function CoordinatorWorkspace({
                   <div>{task.goal}</div>
                   <div className="text-(--ui-text-secondary)">
                     {Object.hasOwn(states, task.state) ? states[task.state as keyof typeof states] : task.state}
-                    {task.model && ` · ${task.model}`}
+                    {(task.provider || task.model) && ` · ${helperModelLabel(task.provider, task.model)}`}
                   </div>
                   {task.artifacts.map(file =>
                     canReveal ? (

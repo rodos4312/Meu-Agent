@@ -270,6 +270,7 @@ class CoordinatorTask(Result):
     id: str
     goal: str
     state: str
+    provider: str | None = None
     model: str | None = None
     artifacts: list[CoordinatorArtifact]
 

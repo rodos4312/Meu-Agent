@@ -64,11 +64,14 @@ def _plan_summary(file, roots):
             continue
         if status == "running" and idle:
             status = "interrupted"
+        result = (row.get("result") or {}) if status in {"needs_review", "verified", "failed"} else {}
+        route = result.get("route") or {}
         tasks.append({
             "id": key,
             "goal": row["task"]["goal"],
             "state": status,
-            "model": (row.get("result") or {}).get("model"),
+            "provider": route.get("provider"),
+            "model": route.get("model") or result.get("model"),
             "artifacts": _files(root, row.get("artifacts") or {}) if status == "verified" else [],
         })
     return {

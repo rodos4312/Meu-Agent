@@ -2040,6 +2040,7 @@ export interface CoordinatorTask {
   id: string
   goal: string
   state: string
+  provider?: string | null
   model?: string | null
   artifacts: CoordinatorArtifact[]
 }

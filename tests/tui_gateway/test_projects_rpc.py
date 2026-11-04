@@ -704,7 +704,7 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
             "write": {
                 "state": "verified",
                 "task": {"goal": "Write"},
-                "result": {"model": "deepseek-v4-pro"},
+                "result": {"model": "legacy-model", "route": {"provider": "openai-codex", "model": "gpt-6.1-sol"}},
                 "artifacts": {"done.txt": {}, "missing.txt": {}, "../../other.txt": {}},
             },
         },
@@ -741,8 +741,8 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
         "root": str(coder_repo.resolve()),
         "session_id": "drill-coder-session",
         "tasks": [
-            {"id": "inspect", "goal": "Inspect", "state": "interrupted", "model": None, "artifacts": []},
-            {"id": "write", "goal": "Write", "state": "verified", "model": "deepseek-v4-pro",
+            {"id": "inspect", "goal": "Inspect", "state": "interrupted", "provider": None, "model": None, "artifacts": []},
+            {"id": "write", "goal": "Write", "state": "verified", "provider": "openai-codex", "model": "gpt-6.1-sol",
              "artifacts": [{"name": "done.txt", "path": str((coder_repo / "done.txt").resolve())}]},
         ],
     }]

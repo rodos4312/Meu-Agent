@@ -60,6 +60,14 @@ export function providerDisplayName(provider: string): string {
   return PROVIDER_DISPLAY_NAMES[normalized] ?? provider.trim()
 }
 
+/** Label a completed helper's recorded route, keeping older model-only receipts readable. */
+export function helperModelLabel(provider: unknown, model: unknown): string {
+  const name = typeof provider === 'string' ? providerDisplayName(provider) : ''
+  const id = typeof model === 'string' ? model.trim() : ''
+
+  return [name, id].filter(Boolean).join(' · ')
+}
+
 /** Strip provider prefix and normalize for display. */
 export function modelBaseId(model: string): string {
   const trimmed = model.trim()
