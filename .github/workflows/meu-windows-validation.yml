@@ -472,7 +472,10 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/app/shell/meu-navigation.test.tsx src/app/chat/sidebar/chat-sidebar.integration.test.tsx src/app/capabilities/index.test.tsx src/app/capabilities/plugins/plugins-tab.test.tsx src/app/capabilities/skills/skill-provenance.test.ts src/app/capabilities/skills/frontmatter.test.ts
       - name: Verify project progress, web sources and translation coverage
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
+        run: |
+          node scripts/i18n-keys.mjs --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx vitest run --project ui --maxWorkers 2 src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
