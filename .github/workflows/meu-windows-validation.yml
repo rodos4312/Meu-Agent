@@ -594,13 +594,13 @@ jobs:
           extras: '[]'
       - name: Install locked rehearsal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Download the pinned public dev.16 baseline
+      - name: Download the pinned public dev.17 baseline
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'meu-baseline-candidate'
           New-Item -ItemType Directory -Path $baseline | Out-Null
-          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.16'
-          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.16-win-x64.exe')) {
+          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.17'
+          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.17-win-x64.exe')) {
             Invoke-WebRequest -Uri "$release/$file" -OutFile (Join-Path $baseline $file) -TimeoutSec 180
           }
           # The rehearsal driver verifies the manifest signature and installer hashes before execution.
