@@ -60,6 +60,32 @@ def hold(file):
         kernel.CloseHandle(handle)
 
 
+def collect_old_environment(transaction, record):
+    payload = json.loads((transaction / "payload.json").read_text(encoding="utf-8-sig"))
+    sys.path[:0] = [str(transaction / "source"), str(transaction / "environment/Lib/site-packages")]
+    from hermes_cli.runtime_state import collect_generations
+    from pm.environments import install_state_dir, runtime_facts_path
+    from hermes_cli.meu_update_recovery import read_record, write_record
+    root = Path(record["root"])
+    generations = (install_state_dir(root) / "environments").resolve()
+    old = Path(payload["locations"]["environment"]).resolve()
+    if (old.parent.parent != generations or not generations.is_relative_to(Path(record["home"]).resolve() / "installs")
+            or old.parent.is_symlink() or old.is_symlink()):
+        raise ValueError("Collection target is outside the disposable installation's owned generations")
+    facts = read_record(runtime_facts_path(root))
+    if Path(facts["packages"]["venv"]["environment"]).resolve() != old:
+        raise ValueError("The baseline environment changed before the private collection checkpoint")
+    selected = generations / "meu-ci-failed-generation/venv"
+    selected.mkdir(parents=True)
+    (selected / "pyvenv.cfg").write_text("Controlled failed-generation selection", encoding="utf-8")
+    (selected.parent / ".lease-managed").touch()
+    facts["packages"]["venv"]["environment"] = str(selected)
+    write_record(runtime_facts_path(root), facts)
+    if old.parent not in collect_generations(root, min_age_seconds=0) or old.exists():
+        raise ValueError("The old generation was not actually collected")
+    print("Old baseline environment really collected", flush=True)
+
+
 action, location = sys.argv[1:3]
 if action == "hold":
     hold(location)
@@ -71,5 +97,7 @@ else:
     elif action == "installer":
         saved = json.loads((transaction / "resume.json").read_text(encoding="utf-8-sig"))
         end_owned(int(sys.argv[3]), record["nativeInstaller"], saved["parentCreated"])
+    elif action == "collect":
+        collect_old_environment(transaction, record)
     else:
         raise ValueError("Unknown private fault control action")

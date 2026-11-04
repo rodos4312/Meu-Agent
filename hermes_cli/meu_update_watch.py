@@ -112,7 +112,8 @@ def recover_installation(transaction: Path, executable: Path, launcher: str, sin
                                      transition(transaction, "waiting-for-files", blockedFile=str(file.relative_to(executable.parent))))
             transition(transaction, "recovering", blockedFile=None)
 
-    record = recovery.restore(transaction, stop_desktop=release_package)
+    record = recovery.restore(transaction, stop_desktop=release_package,
+                              restore_runtime=lambda: resumption.runtime.rehydrate(transaction))
     # Prove the restored backend starts before replacing the desktop package.
     endpoint = json.loads(run_cli([*command, "gateway", "ensure", "--json"], root, home, timeout=300))
     if (not isinstance(endpoint, dict) or endpoint.get("state") != "ready"

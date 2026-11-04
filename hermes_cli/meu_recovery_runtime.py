@@ -13,9 +13,10 @@ from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 
-from pm.environments import selected_venv, site_packages
+from pm.environments import selected_venv
 from pm.filesystem import durable_write_bytes
 
 HELPERS = ("meu_update_recovery.py", "meu_update_watch.py", "meu_recovery_runtime.py",
@@ -64,7 +65,8 @@ def freeze(transaction: Path) -> None:
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "site-packages", ".git")
     runtime = transaction / "runtime"
     shutil.copytree(_io_path(Path(sys.base_prefix)), _io_path(runtime), copy_function=_link_or_copy, ignore=ignore)
-    shutil.copytree(_io_path(site_packages(selected_venv(root))), _io_path(transaction / "dependencies"),
+    environment = selected_venv(root).resolve()
+    shutil.copytree(_io_path(environment), _io_path(transaction / "environment"),
                     copy_function=_link_or_copy, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     for name in HELPERS:
         shutil.copy2(Path(__file__).with_name(name), _io_path(transaction / name))
@@ -72,14 +74,24 @@ def freeze(transaction: Path) -> None:
     shutil.copy2(Path(__file__).with_name("meu_recovery_bootstrap.py"), _io_path(stdlib / "meu_recovery_start.py"))
     files = {name: _hash(transaction / name) for name in HELPERS}
     io_root = _io_path(transaction)
-    for directory in (source, runtime, transaction / "dependencies"):
+    for directory in (source, runtime, transaction / "environment"):
         for file in _io_path(directory).rglob("*"):
             if file.is_file():
                 files[file.relative_to(io_root).as_posix()] = _hash(file)
-    durable_write_bytes(transaction / "payload.json", json.dumps({"schema": 1, "files": files}).encode("utf-8"))
+    durable_write_bytes(transaction / "payload.json", json.dumps({
+        "schema": 1, "files": files,
+        "locations": {"runtime": str(Path(sys.base_prefix).resolve()), "environment": str(environment)},
+        "managedEnvironment": (environment.parent / ".lease-managed").is_file(),
+    }).encode("utf-8"))
+    durable_write_bytes(transaction / "transaction.json", json.dumps({
+        **record, "payloadHash": _hash(transaction / "payload.json"),
+    }).encode("utf-8"))
 
 
 def verify(transaction: Path) -> None:
+    record = json.loads((transaction / "transaction.json").read_text(encoding="utf-8-sig"))
+    if _hash(transaction / "payload.json") != record.get("payloadHash"):
+        raise ValueError("Retained recovery manifest changed")
     payload = json.loads((transaction / "payload.json").read_text(encoding="utf-8-sig"))
     if payload.get("schema") != 1 or not payload.get("files"):
         raise ValueError("Invalid retained recovery payload")
@@ -96,6 +108,69 @@ def verify(transaction: Path) -> None:
             parents.add(file.parent)
         if file.is_symlink() or _hash(file) != digest:
             raise ValueError("Retained recovery payload changed: " + name)
+
+
+def rehydrate(transaction: Path) -> None:
+    """Rebuild collected immutable paths before restoring facts that select them.
+
+    Called under the installation maintenance lock. Never overwrite different
+    existing bytes: a foreign edit is a reason to stop before data rewind.
+    """
+    verify(transaction)
+    payload = json.loads((transaction / "payload.json").read_text(encoding="utf-8-sig"))
+    for prefix, original in payload["locations"].items():
+        if prefix not in {"runtime", "environment"}:
+            raise ValueError("Unknown retained recovery location")
+        destination = Path(original)
+        if not destination.is_absolute() or destination.resolve() != destination:
+            raise ValueError("Retained runtime location moved outside its captured path")
+        _restore_tree(transaction, prefix, destination, payload["files"])
+    if payload.get("managedEnvironment"):
+        marker = Path(payload["locations"]["environment"]).parent / ".lease-managed"
+        if not marker.exists():
+            marker.touch()
+
+
+def _restore_tree(transaction: Path, prefix: str, destination: Path, files: dict) -> None:
+    root = _io_path(destination)
+    parents = set()
+    for name, digest in files.items():
+        if not name.startswith(prefix + "/") or name == "runtime/Lib/meu_recovery_start.py":
+            continue  # The standalone entry point was never part of the original PM Python.
+        file = root / name.removeprefix(prefix + "/")
+        if file.parent not in parents:
+            if not file.parent.resolve().is_relative_to(root):
+                raise ValueError("Retained runtime destination leaves its captured directory")
+            file.parent.mkdir(parents=True, exist_ok=True)
+            parents.add(file.parent)
+        if file.is_symlink():
+            raise ValueError("Retained runtime file became a symbolic link: " + str(file))
+        if file.exists():
+            if _hash(file) != digest:
+                raise ValueError("Existing runtime file differs from the retained generation: " + str(file))
+        else:
+            _restore_file(_io_path(transaction / name), file)
+
+
+def _restore_file(source: Path, destination: Path) -> None:
+    try:
+        os.link(source, destination)
+    except FileExistsError:
+        raise ValueError("Runtime destination appeared during recovery: " + str(destination)) from None
+    except OSError:
+        # A cross-volume copy must not leave half a DLL at its final name.
+        staged = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=".meu-restore-", delete=False) as output:
+                staged = Path(output.name)
+                with source.open("rb") as original:
+                    shutil.copyfileobj(original, output)
+                output.flush()
+                os.fsync(output.fileno())
+            staged.rename(destination)  # Windows refuses an existing destination; no foreign bytes replaced.
+        finally:
+            if staged is not None:
+                staged.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

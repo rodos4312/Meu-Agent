@@ -42,6 +42,7 @@ export function recoveryFault(scenario, { python, env }) {
           return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')).state : undefined
         }, { timeout: 180_000 }).toBe('failed')
       }
+      if (scenario === 'guardian-loss') run('collect', record.location)
       if (scenario === 'locked-package') {
         locker = spawn(python, ['-I', control, 'hold', path.join(path.dirname(executable), 'resources/app.asar')],
           { env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })

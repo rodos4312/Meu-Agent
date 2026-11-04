@@ -22,7 +22,7 @@ def main() -> None:
     if saved.get("runtimeDirectory"):
         os.environ["HERMES_RUNTIME_DIR"] = saved["runtimeDirectory"]
     # Windows ships this module in runtime/Lib, and pythonw.exe beside python.exe.
-    sys.path[:0] = ["\\\\?\\" + str(transaction / name) for name in (".", "source", "dependencies")]
+    sys.path[:0] = ["\\\\?\\" + str(transaction / name) for name in (".", "source", "environment/Lib/site-packages")]
     sys.argv = [str(transaction / "meu_update_watch.py"), "--transaction", str(transaction), "--resume"]
     runpy.run_path(sys.argv[0], run_name="__main__")
 

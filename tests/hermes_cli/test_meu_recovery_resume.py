@@ -119,6 +119,93 @@ def test_restore_can_continue_after_a_real_process_dies_after_database_import(in
     assert (transaction / "failed-state.zip").is_file()
 
 
+def test_missing_runtime_repair_failure_stops_before_rewinding_code_or_profile(installation):
+    home, root, cache, key, _old, new, git, _facts, homes = installation
+    transaction = recovery.prepare(root, home, cache, key, "git")
+    git("merge", "--ff-only", new)
+    for profile in homes:
+        sql(profile / "state.db", "ALTER TABLE payload ADD COLUMN failed_version TEXT")
+
+    def refuse():
+        raise ValueError("Existing runtime bytes differ")
+
+    with pytest.raises(ValueError, match="runtime bytes differ"):
+        recovery.restore(transaction, restore_runtime=refuse)
+    assert git("rev-parse", "HEAD") == new
+    for profile in homes:
+        assert "failed_version" in [row[1] for row in sql(profile / "state.db", "PRAGMA table_info(payload)")]
+
+
+def test_collected_environment_is_recreated_without_overwriting_foreign_bytes(tmp_path, monkeypatch):
+    from hermes_cli.runtime_state import collect_generations
+    from pm.environments import install_state_dir, runtime_facts_path
+    home, root, transaction = (tmp_path / name for name in ("home", "checkout", "retained"))
+    monkeypatch.setenv("HERMES_HOME", str(home))
+    monkeypatch.setenv("MEU_HOME", str(home))
+    current = install_state_dir(root) / "environments/current/venv"
+    old = install_state_dir(root) / "environments/old/venv"
+    for environment in (old, current):
+        environment.mkdir(parents=True)
+        (environment / "pyvenv.cfg").write_text("captured environment", encoding="utf-8")
+    (old.parent / ".lease-managed").touch()
+    recovery.write_record(runtime_facts_path(root), {"packages": {"venv": {"environment": str(current)}}})
+    captured = transaction / "environment/pyvenv.cfg"
+    captured.parent.mkdir(parents=True)
+    os.link(old / "pyvenv.cfg", captured)
+    recovery.write_record(transaction / "payload.json", {
+        "schema": 1, "files": {"environment/pyvenv.cfg": recovery.digest(captured)},
+        "locations": {"environment": str(old)}, "managedEnvironment": True,
+    })
+    recovery.write_record(transaction / "transaction.json", {"payloadHash": recovery.digest(transaction / "payload.json")})
+    assert old.parent in collect_generations(root, min_age_seconds=0)
+    assert not old.exists()
+    runtime.rehydrate(transaction)
+    assert (old / "pyvenv.cfg").read_text(encoding="utf-8") == "captured environment"
+    assert (old.parent / ".lease-managed").is_file()
+    # Replace the restored hard link before editing, preserving retained immutable bytes.
+    (old / "pyvenv.cfg").unlink()
+    (old / "pyvenv.cfg").write_text("foreign edit", encoding="utf-8")
+    with pytest.raises(ValueError, match="differs from the retained generation"):
+        runtime.rehydrate(transaction)
+    assert (old / "pyvenv.cfg").read_text(encoding="utf-8") == "foreign edit"
+    payload = recovery.read_record(transaction / "payload.json")
+    elsewhere = tmp_path / "foreign-destination"
+    payload["locations"]["environment"] = str(elsewhere)
+    recovery.write_record(transaction / "payload.json", payload)
+    with pytest.raises(ValueError, match="manifest changed"):
+        runtime.rehydrate(transaction)
+    assert not elsewhere.exists()
+
+
+@pytest.mark.platforms("windows")
+def test_cross_volume_restore_never_publishes_partial_files_or_overwrites_foreign_bytes(tmp_path, monkeypatch):
+    source, destination = tmp_path / "captured.dll", tmp_path / "restored.dll"
+    source.write_bytes(b"captured immutable library")
+    copy = shutil.copyfileobj
+
+    def different_volume(*_args):
+        raise OSError("Controlled cross-volume hard-link refusal")
+
+    def interrupted(_source, output):
+        output.write(b"partial")
+        raise OSError("Controlled interrupted copy")
+
+    monkeypatch.setattr(runtime.os, "link", different_volume)
+    monkeypatch.setattr(runtime.shutil, "copyfileobj", interrupted)
+    with pytest.raises(OSError, match="interrupted copy"):
+        runtime._restore_file(source, destination)
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".meu-restore-*"))
+    monkeypatch.setattr(runtime.shutil, "copyfileobj", copy)
+    runtime._restore_file(source, destination)
+    assert destination.read_bytes() == source.read_bytes()
+    destination.write_bytes(b"foreign edit")
+    with pytest.raises(FileExistsError):
+        runtime._restore_file(source, destination)
+    assert destination.read_bytes() == b"foreign edit"
+    assert not list(tmp_path.glob(".meu-restore-*"))
+
+
 def test_native_installer_identity_must_match_the_signed_target_bytes(installation):
     home, root, cache, key, _old, _new, _git, _facts, _homes = installation
     journal = recovery.read_record(cache / "meu-update-recovery.json")
@@ -220,7 +307,7 @@ def test_retained_interpreter_runs_offline_without_editable_paths_and_detects_da
     script = (
         "import sys,json;from pathlib import Path;"
         f"p=Path({str(transaction)!r});"
-        "sys.path[:0]=[str(p),str(p/'source'),str(p/'dependencies')];"
+        "sys.path[:0]=[str(p),str(p/'source'),str(p/'environment/Lib/site-packages')];"
         "import psutil,cryptography,meu_update_recovery;"
         "print(json.dumps([sys.base_prefix,psutil.__file__,cryptography.__file__]))"
     )
@@ -228,11 +315,26 @@ def test_retained_interpreter_runs_offline_without_editable_paths_and_detects_da
                             capture_output=True, text=True, timeout=60, check=False)
     assert result.returncode == 0, result.stderr
     assert all(Path(name).resolve().is_relative_to(transaction.resolve()) for name in json.loads(result.stdout))
-    recovery.write_record(transaction / "transaction.json", {"state": "healthy", "home": str(tmp_path)})
+    recovery.write_record(transaction / "transaction.json", {
+        **recovery.read_record(transaction / "transaction.json"), "state": "healthy", "home": str(tmp_path),
+    })
     recovery.write_record(transaction / "resume.json", {"runtimeDirectory": None})
     startup = subprocess.run([str(transaction / "runtime" / "pythonw.exe"), "-I", "-S", "-m", "meu_recovery_start"],
                              capture_output=True, timeout=60, check=False)
     assert startup.returncode == 0, (transaction / "watch.log").read_text(encoding="utf-8")
+    payload = recovery.read_record(transaction / "payload.json")
+    payload["locations"] = {name: str(tmp_path / "recreated" / name) for name in ("runtime", "environment")}
+    payload["managedEnvironment"] = False
+    recovery.write_record(transaction / "payload.json", payload)
+    recovery.write_record(transaction / "transaction.json", {
+        **recovery.read_record(transaction / "transaction.json"), "payloadHash": recovery.digest(transaction / "payload.json"),
+    })
+    runtime.rehydrate(transaction)
+    probe = subprocess.run([str(tmp_path / "recreated/runtime/python.exe"), "-I", "-S", "-c",
+                            "import sys;sys.path.insert(0,sys.argv[1]);import psutil,cryptography",
+                            str(tmp_path / "recreated/environment/Lib/site-packages")],
+                           capture_output=True, timeout=60, check=False)
+    assert probe.returncode == 0, probe.stderr
     # This helper is a separate copy; never mutate the hard-linked PM generations.
     (transaction / "meu_update_watch.py").write_text("damaged helper", encoding="utf-8")
     with pytest.raises(ValueError, match="payload changed"):

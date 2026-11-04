@@ -179,7 +179,8 @@ def prepare(root: Path, home: Path, directory: Path, key: str, executable: str) 
     return transaction
 
 
-def restore(transaction: Path, *, stop_desktop: Callable[[], None] | None = None) -> dict:
+def restore(transaction: Path, *, stop_desktop: Callable[[], None] | None = None,
+            restore_runtime: Callable[[], None] | None = None) -> dict:
     """Keep failed state first, then restore code, all profiles and dependencies."""
     record = read_record(transaction / "transaction.json")
     root, home = Path(record["root"]), Path(record["home"])
@@ -212,6 +213,8 @@ def restore(transaction: Path, *, stop_desktop: Callable[[], None] | None = None
             raise ValueError("New work was accepted after the update; automatic state rewind refused")
         if stop_desktop is not None:
             stop_desktop()
+        if restore_runtime is not None:
+            restore_runtime()
         # --keep refuses conflicting edits. No user branch or untracked files are removed.
         git(root, record["git"], "reset", "--keep", record["sourceCommit"])
         token = set_hermes_home_override(home)
