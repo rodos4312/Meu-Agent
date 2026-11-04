@@ -5,7 +5,7 @@ if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'rodos4312/M
 }
 $target = $env:GITHUB_SHA
 if ($target -cnotmatch '^[a-f0-9]{40}$') { throw 'Missing target commit.' }
-$baseline = '9f68584f49f8815735975afefec026de82cb2628'
+$baseline = '3d579b91195505ead13d2e98dea25f02d3bf472b'
 $scratch = Join-Path $env:RUNNER_TEMP 'meu-backend-upgrade'
 $profile = Join-Path $scratch 'profile'
 $checkout = Join-Path $scratch 'source'
