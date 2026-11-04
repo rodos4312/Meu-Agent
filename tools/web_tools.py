@@ -292,6 +292,13 @@ def web_search_tool(query: str, limit: int = 5) -> str:
         else:
             logger.info("Web search via %s: '%s' (limit: %d)", provider.name, query, limit)
             response_data = _memoized_search(provider, query, limit)
+            if response_data.get("success"):
+                # The ring records the actual vendor on failover. Keep that
+                # receipt and leave the memoized response untouched.
+                response_data = {
+                    **response_data,
+                    "data": {"served_by": provider.name, **response_data.get("data", {})},
+                }
 
         debug_call_data["results_count"] = len(response_data.get("data", {}).get("web", []))
         result_json = json.dumps(response_data, indent=2, ensure_ascii=False)

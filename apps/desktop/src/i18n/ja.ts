@@ -2416,6 +2416,29 @@ export const jaOverrides = {
     }
   },
 
+  webSources: {
+    title: '情報の取得方法',
+    search: 'ウェブ検索',
+    pagesRead: '読み取ったページ',
+    directRead: 'ページを直接読み取り',
+    provider: name => `プロバイダー: ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `${done}/${total} 件を検証済み`,
+    runningBatch: 'アシスタントが作業中',
+    acceptance: '合格基準',
+    repair: '修正の確認',
+    attempt: number => `試行 ${number}`,
+    states: {
+      pending: '保留中',
+      running: '実行中',
+      needs_review: '検証待ち',
+      verified: '検証済み',
+      failed: '失敗',
+      interrupted: '中断'
+    }
+  },
+
   statusStack: {
     hideStack: 'ステータススタックを隠す',
     showStack: 'ステータススタックを表示',

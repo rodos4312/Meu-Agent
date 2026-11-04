@@ -643,7 +643,7 @@ function collectResultItems(value: unknown): unknown[] {
   return payload === record ? [] : collectResultItems(payload)
 }
 
-function extractSearchResults(result: unknown, limit = 6): SearchResultRow[] {
+export function extractSearchResults(result: unknown, limit = 6): SearchResultRow[] {
   const list = collectResultItems(result)
 
   return list

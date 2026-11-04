@@ -3556,6 +3556,29 @@ export const esOverrides = {
       }
     }
   },
+  webSources: {
+    title: 'Cómo se encontró la información',
+    search: 'Búsqueda web',
+    pagesRead: 'Páginas leídas',
+    directRead: 'Lectura directa',
+    provider: name => `Proveedor: ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `${done}/${total} verificadas`,
+    runningBatch: 'Los asistentes están trabajando',
+    acceptance: 'Criterios de aceptación',
+    repair: 'Comprobación de la corrección',
+    attempt: number => `Intento ${number}`,
+    states: {
+      pending: 'Pendiente',
+      running: 'En curso',
+      needs_review: 'Pendiente de verificación',
+      verified: 'Verificada',
+      failed: 'Fallida',
+      interrupted: 'Interrumpida'
+    }
+  },
+
   statusStack: {
     hideStack: 'Ocultar la pila de estado',
     showStack: 'Mostrar la pila de estado',

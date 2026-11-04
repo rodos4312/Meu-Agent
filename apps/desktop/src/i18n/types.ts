@@ -2709,6 +2709,13 @@ export interface Translations extends NoticeTranslations {
     dropSession: string
   }
 
+  webSources: {
+    title: string
+    search: string
+    pagesRead: string
+    directRead: string
+    provider: (name: string) => string
+  }
   projectProgress: {
     verifiedCount: (done: number, total: number) => string
     runningBatch: string

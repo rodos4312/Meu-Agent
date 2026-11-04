@@ -3572,6 +3572,29 @@ export const frOverrides = {
       }
     }
   },
+  webSources: {
+    title: 'Comment les informations ont été trouvées',
+    search: 'Recherche web',
+    pagesRead: 'Pages consultées',
+    directRead: 'Lecture directe',
+    provider: name => `Fournisseur : ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `${done}/${total} vérifiées`,
+    runningBatch: 'Assistants en cours de travail',
+    acceptance: 'Critères de validation',
+    repair: 'Vérification de la correction',
+    attempt: number => `Tentative ${number}`,
+    states: {
+      pending: 'En attente',
+      running: 'En cours',
+      needs_review: 'En attente de vérification',
+      verified: 'Vérifiée',
+      failed: 'Échec',
+      interrupted: 'Interrompue'
+    }
+  },
+
   statusStack: {
     hideStack: 'Masquer la pile d’état',
     showStack: 'Afficher la pile d’état',

@@ -3077,6 +3077,29 @@ export const zhOverrides = {
     }
   },
 
+  webSources: {
+    title: '信息是如何找到的',
+    search: '网页搜索',
+    pagesRead: '已阅读的页面',
+    directRead: '直接阅读',
+    provider: name => `提供方：${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `已验证 ${done}/${total} 项`,
+    runningBatch: '助手正在处理',
+    acceptance: '通过标准',
+    repair: '修复验证',
+    attempt: number => `第 ${number} 次尝试`,
+    states: {
+      pending: '等待中',
+      running: '运行中',
+      needs_review: '等待验证',
+      verified: '已验证',
+      failed: '失败',
+      interrupted: '已中断'
+    }
+  },
+
   statusStack: {
     hideStack: '隐藏状态面板',
     showStack: '显示状态面板',

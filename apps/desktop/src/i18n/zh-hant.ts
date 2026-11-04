@@ -147,6 +147,29 @@ export const zhHantOverrides = {
     queueLostDiscard: '捨棄',
     queueLostDiscardTip: '閘道在該回合進行中重新啟動，無法完成。捨棄後其後的排隊回合將繼續執行。'
   },
+  webSources: {
+    title: '資訊是如何找到的',
+    search: '網頁搜尋',
+    pagesRead: '已閱讀的頁面',
+    directRead: '直接閱讀',
+    provider: name => `提供者：${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `已驗證 ${done}/${total} 項`,
+    runningBatch: '助手正在處理',
+    acceptance: '通過標準',
+    repair: '修正驗證',
+    attempt: number => `第 ${number} 次嘗試`,
+    states: {
+      pending: '等待中',
+      running: '執行中',
+      needs_review: '等待驗證',
+      verified: '已驗證',
+      failed: '失敗',
+      interrupted: '已中斷'
+    }
+  },
+
   statusStack: zhHantChat.statusStack,
   updates: zhHantBoot.updates,
   install: zhHantBoot.install,

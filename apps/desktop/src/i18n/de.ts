@@ -3561,6 +3561,29 @@ export const deOverrides = {
       }
     }
   },
+  webSources: {
+    title: 'Wie die Informationen gefunden wurden',
+    search: 'Websuche',
+    pagesRead: 'Gelesene Seiten',
+    directRead: 'Direkt gelesen',
+    provider: name => `Anbieter: ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `${done}/${total} geprüft`,
+    runningBatch: 'Assistenten arbeiten',
+    acceptance: 'Erfolgskriterien',
+    repair: 'Nachprüfung der Korrektur',
+    attempt: number => `Versuch ${number}`,
+    states: {
+      pending: 'Ausstehend',
+      running: 'Läuft',
+      needs_review: 'Wartet auf Prüfung',
+      verified: 'Geprüft',
+      failed: 'Fehlgeschlagen',
+      interrupted: 'Unterbrochen'
+    }
+  },
+
   statusStack: {
     hideStack: 'Statusstapel ausblenden',
     showStack: 'Statusstapel anzeigen',

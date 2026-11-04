@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { $activeSessionId } from '@/store/session'
 
-import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
+import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
 import { Thread } from '../thread'
 
 // The image card, delegate list and delivery notice decide pending-ness from
@@ -157,9 +157,13 @@ it('keeps one expandable project card with the latest attempt, model and checks'
     'verify'
   )
 
-  const running = sealedMessage('coordinate_project', { action: 'run', project: 'demo' }, {
-    completedAt: undefined
-  })
+  const running = sealedMessage(
+    'coordinate_project',
+    { action: 'run', project: 'demo' },
+    {
+      completedAt: undefined
+    }
+  )
 
   const { container, rerender } = render(
     <Harness message={{ ...started, status: { type: 'running' }, content: [...started.content, ...running.content] }} />
@@ -183,4 +187,80 @@ it('keeps one expandable project card with the latest attempt, model and checks'
   expect(screen.getByText('deepseek-v4-pro')).toBeTruthy()
   expect(screen.getByText(task.acceptance)).toBeTruthy()
   expect(screen.getByText('Keep exactly one record with ID constructor.')).toBeTruthy()
+})
+
+it('shows the serving search provider and separates discovered from read pages', async () => {
+  const search = sealedMessage(
+    'web_search',
+    { query: 'καιρός Αλιβέρι' },
+    {
+      result: {
+        success: true,
+        data: {
+          served_by: 'parallel',
+          rescued_from: 'exa',
+          web: [
+            { title: 'Candidate forecast', url: 'https://example.org/forecast' },
+            { title: 'Unsafe scheme', url: 'javascript:alert(1)' }
+          ]
+        }
+      }
+    }
+  )
+
+  const extract = sealedMessage(
+    'web_extract',
+    { urls: ['https://wttr.in/Aliveri'] },
+    {
+      result: JSON.stringify({
+        results: [
+          { title: 'Aliveri forecast', url: 'https://wttr.in/Aliveri', content: 'Cloudy' },
+          { title: 'Unreadable page', url: 'https://example.org/blocked', error: 'blocked' }
+        ]
+      })
+    }
+  )
+
+  render(
+    <ThreadRuntime
+      messages={[
+        userMessage('user-forecast', 'Τι καιρό θα κάνει;'),
+        search,
+        { ...extract, content: [...extract.content, { type: 'text', text: 'Cloudy tomorrow.' }] }
+      ]}
+    >
+      <Thread />
+    </ThreadRuntime>
+  )
+
+  const summary = await screen.findByText('How the information was found')
+  expect(summary.closest('details')?.open).toBe(false)
+  fireEvent.click(summary)
+  expect(screen.getByText('Web search · καιρός Αλιβέρι')).toBeTruthy()
+  expect(screen.getByText('Provider: parallel')).toBeTruthy()
+  expect(screen.getByText('Pages read')).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Candidate forecast' }).getAttribute('href')).toBe(
+    'https://example.org/forecast'
+  )
+  expect(screen.getByRole('link', { name: 'Aliveri forecast' }).getAttribute('href')).toBe('https://wttr.in/Aliveri')
+  expect(screen.queryByRole('link', { name: 'Unsafe scheme' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Unreadable page' })).toBeNull()
+})
+
+it('shows a direct page read without inventing a search or provider', async () => {
+  render(
+    <Harness
+      message={sealedMessage(
+        'web_extract',
+        { urls: ['https://wttr.in/Aliveri'] },
+        {
+          result: { results: [{ url: 'https://wttr.in/Aliveri', title: 'Forecast', content: 'Cloudy' }] }
+        }
+      )}
+    />
+  )
+
+  fireEvent.click(await screen.findByText('How the information was found'))
+  expect(screen.getByText('Read directly')).toBeTruthy()
+  expect(screen.queryByText(/Provider:/)).toBeNull()
 })

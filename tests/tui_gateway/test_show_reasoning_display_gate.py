@@ -266,6 +266,22 @@ def test_tool_progress_off_keeps_card_tool_lifecycle(monkeypatch):
         assert lifecycle == ["tool.start", "tool.complete"], tool_id
 
 
+@pytest.mark.parametrize("source", ["desktop", "tui"])
+def test_answer_only_keeps_web_sources_for_desktop(monkeypatch, source):
+    events = _capture(monkeypatch)
+    sid = "web-sources"
+    _session(monkeypatch, sid, show_reasoning=False, tool_progress="off")
+    server._sessions[sid]["source"] = source
+    for name, args in (
+        ("web_search", {"query": "Aliveri weather"}),
+        ("web_extract", {"urls": ["https://wttr.in/Aliveri"]}),
+    ):
+        server._on_tool_start(sid, name, name, args)
+        server._on_tool_complete(sid, name, name, args, json.dumps({"success": True}))
+        lifecycle = [event[0] for event in events if event[2].get("tool_id") == name]
+        assert lifecycle == (["tool.start", "tool.complete"] if source == "desktop" else [])
+
+
 def test_tool_progress_off_keeps_file_edit_lifecycle_pair(monkeypatch):
     """A file edit is a diff card (`isFileEditTool`): answer-only keeps it visible.
 

@@ -533,7 +533,7 @@ class TestWebSearchSchema:
              patch.object(tools.web_tools._debug, "save"):
             result = json.loads(tools.web_tools.web_search_tool("docs", limit=500))
 
-        assert result == {"success": True, "data": {"web": []}}
+        assert result == {"success": True, "data": {"served_by": "parallel", "web": []}}
         fake_search.assert_called_once_with("docs", 100)
 
 

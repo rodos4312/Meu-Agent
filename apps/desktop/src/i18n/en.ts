@@ -3146,6 +3146,14 @@ export const en: Translations = {
     }
   },
 
+  webSources: {
+    title: 'How the information was found',
+    search: 'Web search',
+    pagesRead: 'Pages read',
+    directRead: 'Read directly',
+    provider: name => `Provider: ${name}`
+  },
+
   projectProgress: {
     verifiedCount: (done, total) => `${done}/${total} verified`,
     runningBatch: 'Helpers working',

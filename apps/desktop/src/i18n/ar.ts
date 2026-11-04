@@ -122,6 +122,29 @@ export const arOverrides = {
     queueLostDiscard: 'تجاهل',
     queueLostDiscardTip: 'أعادت البوابة التشغيل أثناء هذا الدور ولا يمكن إكماله. تجاهله لتستمر الأدوار المنتظرة خلفه.'
   },
+  webSources: {
+    title: 'كيف عُثر على المعلومات',
+    search: 'البحث على الويب',
+    pagesRead: 'الصفحات المقروءة',
+    directRead: 'قراءة مباشرة',
+    provider: name => `المزوّد: ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `تم التحقق من ${done}/${total}`,
+    runningBatch: 'المساعدون يعملون',
+    acceptance: 'معايير النجاح',
+    repair: 'فحص الإصلاح',
+    attempt: number => `المحاولة ${number}`,
+    states: {
+      pending: 'قيد الانتظار',
+      running: 'قيد التنفيذ',
+      needs_review: 'بانتظار التحقق',
+      verified: 'تم التحقق',
+      failed: 'فشل',
+      interrupted: 'انقطع'
+    }
+  },
+
   statusStack: arChat.statusStack,
   updates: arBoot.updates,
   install: arBoot.install,

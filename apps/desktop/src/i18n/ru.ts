@@ -2649,6 +2649,29 @@ export const ruOverrides = {
       }
     }
   },
+  webSources: {
+    title: 'Как найдена информация',
+    search: 'Поиск в интернете',
+    pagesRead: 'Прочитанные страницы',
+    directRead: 'Открыто напрямую',
+    provider: name => `Провайдер: ${name}`
+  },
+  projectProgress: {
+    verifiedCount: (done, total) => `Проверено ${done}/${total}`,
+    runningBatch: 'Помощники работают',
+    acceptance: 'Критерии приёмки',
+    repair: 'Проверка исправления',
+    attempt: number => `Попытка ${number}`,
+    states: {
+      pending: 'Ожидает',
+      running: 'Выполняется',
+      needs_review: 'Ожидает проверки',
+      verified: 'Проверено',
+      failed: 'Ошибка',
+      interrupted: 'Прервано'
+    }
+  },
+
   statusStack: {
     hideStack: 'Скрыть панель состояния',
     showStack: 'Показать панель состояния',

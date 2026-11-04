@@ -52,6 +52,7 @@ import { resolveShowEarlierAction, shouldAutoShowEarlier, useTranscriptWindow } 
 import { useMessagesBelow } from './use-messages-below'
 import { useStickyPromptClip } from './use-sticky-prompt-clip'
 import { useTimelineReveal } from './use-timeline-reveal'
+import { WebSources } from './web-sources'
 
 type ThreadMessageComponents = ComponentProps<typeof ThreadPrimitive.MessageByIndex>['components']
 
@@ -496,7 +497,10 @@ const TurnRow = memo(function TurnRow({ components, group, resetKey, virtualized
             <ResponseMessages components={components} indices={group.indices} />
           </div>
         ) : (
-          <ThreadPrimitive.MessageByIndex components={components} index={group.index} />
+          <>
+            <ThreadPrimitive.MessageByIndex components={components} index={group.index} />
+            <WebSources indices={[group.index]} />
+          </>
         )}
       </MessageRenderBoundary>
     </div>

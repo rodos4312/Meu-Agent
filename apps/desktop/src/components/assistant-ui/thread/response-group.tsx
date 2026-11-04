@@ -2,6 +2,7 @@ import { ThreadPrimitive, useAuiState } from '@assistant-ui/react'
 import { type ComponentProps, createContext, useMemo } from 'react'
 
 import { contentHasVisibleText, messageContentText, PROCESS_NOTIFICATION_RE } from './content'
+import { WebSources } from './web-sources'
 
 interface GroupMessage {
   role: string
@@ -96,6 +97,7 @@ export function ResponseMessages({ components, indices }: ResponseMessagesProps)
           {section.indices.map(index => (
             <ThreadPrimitive.MessageByIndex components={components} index={index} key={index} />
           ))}
+          <WebSources indices={section.indices} />
         </div>
       </ResponseMessageIds.Provider>
     ) : (

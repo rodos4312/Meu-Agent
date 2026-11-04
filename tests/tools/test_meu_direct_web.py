@@ -41,6 +41,7 @@ def test_keyless_search_uses_vendor_directly(web_home, monkeypatch):
     monkeypatch.setattr(provider.httpx, "post", post)
     result = json.loads(web_search_tool("direct search regression"))
     assert result["success"] is True
+    assert result["data"]["served_by"] == "tavily"
     assert result["data"]["web"][0]["description"] == "Found page"
     assert len(requests) == 1
     url, kwargs = requests[0]
