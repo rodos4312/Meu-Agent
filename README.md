@@ -4,7 +4,7 @@
 
 **Meu Agent** is a personal AI assistant for Windows. It works with your files and projects, recalls past conversations, and can delegate parts of a complex task to other agents.
 
-**Local storage and independent providers.** A local Meu installation stores chat history, memory, and skills on your PC. Meu runs without a Nous Portal account, and usage reporting to Nous Research has been removed. Cloud model requests and web searches go to the services that handle them, and update checks contact GitHub.
+**Privacy starts on your PC.** A local Meu installation stores your chat history, memory, and skills on your own computer. You can use Meu without a central account or a Meu-hosted portal. When you use a cloud model or a web tool, the service handling the request receives the data sent for that task. Update checks contact GitHub.
 
 ## Download for Windows x64
 
