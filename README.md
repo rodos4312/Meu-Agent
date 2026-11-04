@@ -4,6 +4,8 @@
 
 **Meu Agent** is a personal AI assistant for Windows. It works with your files and projects, recalls past conversations, and can delegate parts of a complex task to other agents.
 
+**Local storage and independent providers.** A local Meu installation stores chat history, memory, and skills on your PC. Meu runs without a Nous Portal account, and usage reporting to Nous Research has been removed. Cloud model requests and web searches go to the services that handle them, and update checks contact GitHub.
+
 ## Download for Windows x64
 
 **[Download Meu 0.1.0-dev.18 for Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.18/Meu-0.1.0-dev.18-win-x64.exe)** · Preview release
@@ -17,7 +19,6 @@ After installation, configure your provider in **Settings → Providers** and se
 - **Choose your model provider.** Options include Anthropic, DeepSeek, Gemini, OpenAI Codex, and OpenRouter. You can also connect a local model through a compatible endpoint such as Ollama.
 - **Switch between DeepSeek Flash and Pro automatically.** With DeepSeek configured, **Auto · Flash / Pro** picks a model based on the task. You can also select a model from the chat.
 - **Coordinate project work.** The optional **Meu Coordinator** splits work into assignments, saves progress, and can delegate independent review and repair. Its current subagent routing uses DeepSeek Flash and Pro. Enable it in **Settings → Model → Subagents**, then start a new chat.
-- **Keep your workspace data locally.** A local installation stores conversations, memory, and skills on your PC. Model and web requests go to the configured providers. Meu removes Nous Portal sign-in and usage reporting to Nous Research.
 
 ## Development and credits
 
