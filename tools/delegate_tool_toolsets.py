@@ -22,6 +22,31 @@ DELEGATE_BLOCKED_TOOLS = frozenset(
 )
 DEFAULT_TOOLSETS = ["terminal", "file", "web"]
 
+
+def _restrict_child_toolsets(parent, allowed_tools):
+    """Resolve a scoped child from the parent's actual tools, without MCP or role additions."""
+    from model_tools import get_toolset_for_tool
+    from tools.mcp_tool_agent import agent_tool_names
+
+    names = getattr(parent, "valid_tool_names", None)
+    inherited = set(agent_tool_names(parent) if names is None else names)
+    allowed = allowed_tools & inherited - DELEGATE_BLOCKED_TOOLS
+    toolsets = sorted({name for tool in allowed if (name := get_toolset_for_tool(tool)) is not None})
+    if not toolsets:
+        raise ValueError("No tools in the delegation tool scope are available to the parent.")
+    return toolsets, allowed
+
+
+def _check_scoped_child_runtime(runtime):
+    from hermes_cli.runtime_provider_backends import _is_external_process_provider
+
+    for route in (runtime, *(runtime.get("fallback_model") or ())):
+        endpoint = str(route.get("base_url") or "").lower()
+        if (route.get("api_mode") == "acp" or route.get("acp_command")
+                or endpoint.startswith(("acp://", "acp+tcp://"))
+                or _is_external_process_provider(str(route.get("provider") or ""))):
+            raise ValueError("A delegation tool scope requires native child runtimes.")
+
 def _is_mcp_toolset_name(name: str) -> bool:
     """Return True for canonical MCP toolsets and their registered aliases."""
     if not name:

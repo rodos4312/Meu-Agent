@@ -107,7 +107,9 @@ def register(ctx, task_parameters):
                               "independent ready tasks with disjoint write scopes and native Flash/Pro helpers. Status resumes "
                               "the saved plan after restart. Completed helpers require parent verification: inspect artifacts, "
                               "run acceptance checks, then verify the exact attempt with evidence and artifact paths. Only verified "
-                              "prerequisites unlock later work. Changed artifacts invalidate acceptance. Interrupted tasks never "
+                              "prerequisites unlock later work. Changed artifacts invalidate acceptance. Resume and retry preserve "
+                              "each task's tool_access choice. Set tool_access=files_only on each "
+                              "task the user restricts to file tools. Interrupted tasks never "
                               "replay automatically: inspect side effects before an explicit retry. Failed routine tasks retry on Pro. "
                               "Stop when no pending tasks remain; report unverified/failed work honestly. No new approval policy.",
                               "parameters": {"type": "object", "properties": properties, "required": ["action", "project"]}})

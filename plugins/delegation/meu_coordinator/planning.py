@@ -33,6 +33,8 @@ def validate_plan(tasks: list[dict]) -> None:
             raise DelegationRouteError(f"Task {index}: supply concrete acceptance checks before delegating.")
         if type(task.get("parallel_safe")) is not bool:
             raise DelegationRouteError(f"Task {index}: explicitly set parallel_safe to true or false.")
+        if task.get("tool_access", "inherit") not in ("inherit", "files_only"):
+            raise DelegationRouteError(f"Task {index}: tool_access must be inherit or files_only.")
         if len(tasks) > 1 and not task["parallel_safe"]:
             raise DelegationRouteError(f"Task {index} depends on other work. Submit independent tasks now, "
                                        "wait for their results, then delegate the dependent task in a later call.")

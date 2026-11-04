@@ -29,6 +29,9 @@ Route vocabulary (:meth:`DelegationProvider.route_task` returns a dict with any 
 * ``label`` - short text shown with the child's progress and result (e.g. the option title).
 * ``instructions`` - task-specific instructions appended to the child's initial context;
   never changes a running parent's prompt or previous messages.
+* ``allowed_tools`` - optional nonempty list of exact native tool names. The child can
+  execute only names it also inherits from the parent. A route without this field uses
+  normal inheritance.
 
 A backend's own settings live under ``delegation.backends.<backend name>`` (:meth:`DelegationProvider.settings`),
 never beside the core ``delegation`` keys.
@@ -52,7 +55,7 @@ RESERVED_TASK_PARAMETERS = frozenset({
 #: Keys a route may carry; anything else in a provider's answer is ignored.
 ROUTE_KEYS = frozenset({
     "model", "provider", "base_url", "api_key", "api_mode", "request_overrides",
-    "reasoning_effort", "service_tier", "fallback_providers", "profile", "label", "instructions",
+    "reasoning_effort", "service_tier", "fallback_providers", "profile", "label", "instructions", "allowed_tools",
 })
 
 

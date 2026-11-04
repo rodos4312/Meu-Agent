@@ -53,7 +53,8 @@ def test_dependent_tasks_wait_for_a_later_call(coordinator):
 
 @pytest.mark.parametrize("patch", [{"acceptance": ""}, {"parallel_safe": "yes"}, {"write_paths": "src"},
                                   {"write_paths": ["../outside"]}, {"write_paths": ["C:\\private"]},
-                                  {"write_paths": ["src/*.py"]}, {"workload": "cheap"}])
+                                  {"write_paths": ["src/*.py"]}, {"workload": "cheap"},
+                                  {"tool_access": "terminal"}, {"tool_access": None}])
 def test_incomplete_or_invalid_plans_do_not_start_workers(coordinator, patch):
     _, built, parent = coordinator
     out = dispatch(parent, [task(**patch)])
@@ -65,6 +66,15 @@ def test_vision_task_routes_to_flash(coordinator):
     out = dispatch(parent, [task("vision")])
     assert out["results"][0]["status"] == "completed"
     assert built[0]["model"] == "deepseek-flash"
+
+
+def test_tool_scope_belongs_to_each_task_even_on_the_same_model_route(coordinator):
+    _, built, parent = coordinator
+    out = dispatch(parent, [task(tool_access="files_only"), task()])
+    assert [row["status"] for row in out["results"]] == ["completed", "completed"]
+    assert built[0]["allowed_tools"] == {"read_file", "write_file", "patch", "search_files"}
+    assert "allowed_tools" not in built[1]
+    assert built[0]["model"] == built[1]["model"] == "deepseek-flash"
 
 
 def test_schema_is_stable_and_coordinator_is_discoverable_for_settings(coordinator):

@@ -329,60 +329,34 @@ class TestDelegateTask(unittest.TestCase):
                     child_db.close()
                 parent_db.close()
 
-    def test_nous_child_rederives_api_mode_from_model(self):
-        """Portal is dual-wire — same provider + different model prefix must
-        not inherit the parent's Messages/chat_completions mode verbatim.
-        Native wire selected (opt-in since 2026-09-06, ``nous.anthropic_wire``)."""
-        with patch("hermes_cli.providers._nous_anthropic_wire", return_value="native"):
-            self._nous_child_rederives_api_mode_from_model()
-
-    def _nous_child_rederives_api_mode_from_model(self):
+    def test_deepseek_child_uses_its_own_wire_under_anthropic_parent(self):
         parent = _make_mock_parent(depth=0)
-        parent.base_url = "https://inference-api.nousresearch.com/v1"
-        parent.api_key = "portal-jwt"
-        parent.provider = "nous"
+        parent.base_url = "https://api.anthropic.com"
+        parent.api_key = "parent-test-key"
+        parent.provider = "anthropic"
         parent.api_mode = "anthropic_messages"
-        parent.model = "anthropic/claude-opus-4.8"
 
         with patch("run_agent.AIAgent") as MockAgent:
-            mock_child = MagicMock()
-            MockAgent.return_value = mock_child
-
             _build_child_agent(
                 task_index=0,
-                goal="Stay on chat completions",
+                goal="Use the pinned DeepSeek route",
                 context=None,
                 toolsets=None,
-                model="hermes-4-405b",
+                model="deepseek-v4-pro",
                 max_iterations=10,
                 parent_agent=parent,
                 task_count=1,
+                override_provider="deepseek",
+                override_base_url="https://api.deepseek.com/v1",
+                override_api_key="child-test-key",
+                override_api_mode="chat_completions",
             )
 
             _, kwargs = MockAgent.call_args
-            self.assertEqual(kwargs["provider"], "nous")
-            self.assertEqual(kwargs["model"], "hermes-4-405b")
+            self.assertEqual(kwargs["provider"], "deepseek")
+            self.assertEqual(kwargs["model"], "deepseek-v4-pro")
             self.assertEqual(kwargs["api_mode"], "chat_completions")
-
-        with patch("run_agent.AIAgent") as MockAgent:
-            mock_child = MagicMock()
-            MockAgent.return_value = mock_child
-            parent.api_mode = "chat_completions"
-            parent.model = "hermes-4-405b"
-
-            _build_child_agent(
-                task_index=0,
-                goal="Move onto Messages",
-                context=None,
-                toolsets=None,
-                model="anthropic/claude-opus-4.8",
-                max_iterations=10,
-                parent_agent=parent,
-                task_count=1,
-            )
-
-            _, kwargs = MockAgent.call_args
-            self.assertEqual(kwargs["api_mode"], "anthropic_messages")
+            self.assertEqual(kwargs["api_key"], "child-test-key")
 
 class TestToolNamePreservation(unittest.TestCase):
     """Verify _last_resolved_tool_names is restored after subagent runs."""

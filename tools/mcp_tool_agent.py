@@ -61,7 +61,7 @@ def _drop_session_tools(agent, new_defs: list, new_names: set) -> tuple:
     # Drops only: runs after a merge, where a carried or pinned entry keeps the bytes already sent. The one-shot
     # schema variants (``toolsets.agent_tool_surface``) shape fresh definitions, before any merge.
     from toolsets import agent_tool_drops
-    drops = agent_tool_drops(agent)
+    drops = agent_tool_drops(agent, new_names)
     if not drops:
         return new_defs, new_names
     return [entry for entry in new_defs if _def_name(entry) not in drops], new_names - drops

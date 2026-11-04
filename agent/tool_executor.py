@@ -704,7 +704,9 @@ def _dispatch_authorized_once(
         elif callback is not None:
             callback()
 
-    block_message, block_error_type = scope_block, "tool_scope_block"
+    from toolsets import delegation_tool_scope_error
+    block_message = delegation_tool_scope_error(agent, ref.name) or scope_block
+    block_error_type = "tool_scope_block"
     if block_message is None:
         block_error_type = "plugin_block"
         resolve = lambda: _pre_tool_block(agent, ref)

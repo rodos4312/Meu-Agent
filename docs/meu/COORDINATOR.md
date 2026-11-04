@@ -43,6 +43,13 @@ available. This is a plugin tool, with no additional core scheduler or model cal
 The parent creates a plan with a stable project id, absolute working directory,
 task ids, prerequisites and the existing workload/acceptance/write-scope contract.
 
+Set `tool_access: files_only` when an assignment calls for file tools only.
+The child can use the parent's available `read_file`, `write_file`, `patch`
+and `search_files` tools. Both the advertised tools and the executor apply this
+limit. Refused calls appear as errors in the child trace. The choice is saved
+with the task and reused after interruption or retry. An omitted choice uses
+normal inheritance. File tools continue to use their existing path policy.
+
 `run` selects at most two independent ready tasks (also respecting the configured
 native child limit). The existing delegation engine owns children, progress,
 stop/steer, provider credentials and budgets. Each child's contract includes the

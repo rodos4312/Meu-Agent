@@ -40,12 +40,14 @@ class TaskRoute:
     backend: str = "default"
     error: Optional[str] = None
     instructions: Optional[str] = None
+    allowed_tools: Optional[frozenset[str]] = None
 
     def report(self) -> Optional[dict[str, Any]]:
         """The ``route`` a backend-routed task's result carries (None for the default backend's unlabelled route)."""
         if self.backend == "default" and not self.label:
             return None
-        return {"backend": self.backend, **({"label": self.label} if self.label else {})}
+        return {"backend": self.backend, **({"label": self.label} if self.label else {}),
+                **({"allowed_tools": sorted(self.allowed_tools)} if self.allowed_tools is not None else {})}
 
     def refused_entry(self, index: int) -> dict[str, Any]:
         """Result entry for a task this route refused: no child was built for it."""
@@ -248,12 +250,19 @@ def _route_to_task_route(route: dict[str, Any], parent_agent: Any, cache: dict[s
     instructions = route.get("instructions")
     if instructions is not None and not isinstance(instructions, str):
         raise DelegationRouteError("Route instructions must be text.")
+    allowed_tools = None
+    if "allowed_tools" in route:
+        names = route["allowed_tools"]
+        if not isinstance(names, list) or not names or any(not isinstance(name, str) or not name for name in names):
+            raise DelegationRouteError("Route allowed_tools must be a nonempty list of tool names.")
+        allowed_tools = frozenset(names)
+        route = {name: value for name, value in route.items() if name != "allowed_tools"}
     route = _with_inherited_fallback(route, config or {})
     # The label is display-only: two labels on one route (or one profile) resolve once.
     key = json.dumps({k: v for k, v in route.items() if k not in {"label", "instructions"}}, sort_keys=True, default=str)
     if key not in cache:
         cache[key] = _resolve_route(route, parent_agent, backend)
-    return replace(cache[key], label=label, instructions=instructions)
+    return replace(cache[key], label=label, instructions=instructions, allowed_tools=allowed_tools)
 
 
 def child_task_context(task: Mapping[str, Any], route: TaskRoute, schema: Optional[dict]) -> Optional[str]:

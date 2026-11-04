@@ -41,13 +41,15 @@ def _verify(parent, name, attempt, artifact, evidence):
 
 def _start(root, parent):
     plan = [
-        task(id="normalize", paths=["rows.json"], goal="Normalize the payments CSV to JSON."),
+        task(id="normalize", paths=["rows.json"], tool_access="files_only",
+             goal="Normalize the payments CSV to JSON."),
         task("complex", ["report.json"], id="reconcile", depends_on=["normalize"],
-             goal="Deduplicate payment IDs, apply refunds, and write the reconciliation report."),
+             tool_access="files_only", goal="Deduplicate payment IDs, apply refunds, and write the reconciliation report."),
     ]
     assert create(parent, root, plan)["ready"] == ["normalize"]
     result = project(parent, "run")
     assert result["tasks"]["normalize"]["state"] == "needs_review", result
+    _assert_blocked_terminal(result["tasks"]["normalize"]["result"])
     assert result["ready"] == []
     with (root / "payments.csv").open(encoding="utf-8", newline="") as source:
         expected = [{"id": row["id"], "cents": int(row["cents"])} for row in csv.DictReader(source)]
@@ -59,6 +61,7 @@ def _start(root, parent):
 
 def _resume(root, parent, requests):
     status = project(parent, "status")
+    assert status["tasks"]["reconcile"]["task"]["tool_access"] == "files_only"
     assert status["tasks"]["normalize"]["state"] == "verified"
     assert status["tasks"]["normalize"]["attempt"] == 1
     assert status["tasks"]["reconcile"]["state"] == "interrupted"
@@ -71,6 +74,7 @@ def _resume(root, parent, requests):
     assert retry["ready"] == ["reconcile"]
     result = project(parent, "run")
     assert result["tasks"]["reconcile"]["state"] == "needs_review", result
+    _assert_blocked_terminal(result["tasks"]["reconcile"]["result"])
     assert "error" not in result["tasks"]["reconcile"]
     assert requests == ["deepseek-v4-pro"] * 3
     assert _read(root, "report.json") == {"net_cents": 700, "unique_payments": 2}
@@ -81,9 +85,33 @@ def _resume(root, parent, requests):
     assert verified["complete"], verified
 
 
+def _assert_blocked_terminal(result):
+    assert any(call["tool"] == "terminal" and call["status"] == "error" for call in result["tool_trace"]), result
+
+
+def _build_and_probe_scoped_child(build, **kwargs):
+    from agent.tool_executor import _run_agent_tool_execution_middleware
+    from tools.mcp_tool_agent import refresh_agent_mcp_tools
+
+    child = build(**kwargs)
+    refresh_agent_mcp_tools(child, enabled_override=["file", "terminal", "code_execution"])
+    assert child.valid_tool_names == {"read_file", "write_file", "patch", "search_files"}
+
+    def unexpected_dispatch(_args):
+        raise AssertionError("The terminal handler must never run.")
+
+    outcome = _run_agent_tool_execution_middleware(
+        child, function_name="terminal", function_args={"command": "echo denied"},
+        effective_task_id="scope-probe", tool_call_id="scope-probe", execute=unexpected_dispatch,
+    )
+    assert outcome.blocked and "delegation tool scope" in json.loads(outcome.result)["error"]
+    return child
+
+
 def _response(request, root, stage, requests):
     assert request.url.host == "api.deepseek.com"
     body = json.loads(request.content)
+    assert {entry["function"]["name"] for entry in body["tools"]} == {"read_file", "write_file", "patch", "search_files"}
     model = body["model"]
     requests.append(model)
     expected = ["deepseek-flash"] * 2 + ["deepseek-v4-pro"] * 2 if stage == "start" else ["deepseek-v4-pro"] * 3
@@ -102,6 +130,8 @@ def _response(request, root, stage, requests):
     if final_request:
         last = body["messages"][-1]
         assert last["role"] == "tool" and _read(root, name) == output, last
+        assert any(msg.get("tool_call_id") == "call_terminal" and "delegation tool scope" in msg["content"]
+                   for msg in body["messages"] if msg["role"] == "tool")
         if stage == "start" and model == "deepseek-v4-pro":
             os._exit(INTERRUPTED)
     else:
@@ -117,9 +147,14 @@ def _response(request, root, stage, requests):
         assert tool in {entry["function"]["name"] for entry in body["tools"]}
         call = {"id": f"call_{tool}", "type": "function",
                 "function": {"name": tool, "arguments": json.dumps(arguments)}}
+        calls = [call]
+        if tool != "read_file":
+            calls.insert(0, {"id": "call_terminal", "type": "function",
+                             "function": {"name": "terminal", "arguments": '{"command":"echo denied"}'}})
         if body.get("stream"):
-            call["index"] = 0
-        message = {"content": None, "tool_calls": [call]}
+            for index, call in enumerate(calls):
+                call["index"] = index
+        message = {"content": None, "tool_calls": calls}
         finish = "tool_calls"
     response = {"id": "rehearsal", "created": 0, "model": model}
     choice = {"index": 0, "finish_reason": finish}
@@ -134,13 +169,15 @@ def _response(request, root, stage, requests):
 def _rehearse(workspace, stage):
     from hermes_cli.plugins import PluginManager
     from model_tools import get_tool_definitions
+    from tools import delegate_tool
 
     requests = []
     root = workspace / "project"
     parent = SimpleNamespace(session_id="rehearsal-parent", provider="deepseek", model="deepseek-v4-pro",
                              base_url="https://api.deepseek.com/v1", api_key="meu-test-only", request_overrides={},
                              cwd=str(root), tool_progress_callback=None, _delegate_spinner=None,
-                             _safe_print=lambda line: None, enabled_toolsets=["file", "delegation"], disabled_toolsets=[])
+                             _safe_print=lambda line: None,
+                             enabled_toolsets=["file", "terminal", "code_execution", "delegation"], disabled_toolsets=[])
     def respond(request):
         try:
             return _response(request, root, stage, requests)
@@ -149,10 +186,13 @@ def _rehearse(workspace, stage):
             return httpx.Response(400, json={"error": {"message": "Rehearsal fixture assertion failed."}})
 
     transport = httpx.MockTransport(respond)
+    build = delegate_tool._build_child_preserving_parent_tools
     with (
         patch("hermes_cli.plugins.get_bundled_plugins_dir", return_value=workspace / "bundled"),
         patch("agent.process_bootstrap.build_keepalive_http_client",
               side_effect=lambda *args, **kwargs: httpx.Client(transport=transport)),
+        patch.object(delegate_tool, "_build_child_preserving_parent_tools",
+                     side_effect=lambda **kwargs: _build_and_probe_scoped_child(build, **kwargs)),
     ):
         manager = PluginManager()
         manager.discover_and_load()

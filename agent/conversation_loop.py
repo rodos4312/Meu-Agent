@@ -1023,10 +1023,13 @@ def _canonicalize_api_tool_calls(api_messages) -> None:
         am["tool_calls"] = new_tcs
 
 
-def _invalid_tool_name_error_content(name: str, valid_tool_names) -> str:
+def _invalid_tool_name_error_content(name: str, valid_tool_names, *, agent=None) -> str:
     """Error content for an unknown tool name. A blank name is a model echoing tool-call
     syntax seen in data (#47967) — dumping the catalog feeds that loop, so it gets a terse
     error; a nonempty wrong name still gets the catalog to self-correct."""
+    from toolsets import delegation_tool_scope_error
+    if scope_error := delegation_tool_scope_error(agent, name):
+        return f"Error: {scope_error}"
     if not (name or "").strip():
         return (
             "Tool call rejected: the tool name was empty. If tool-call XML or JSON appeared in file "

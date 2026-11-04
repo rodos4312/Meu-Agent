@@ -6,6 +6,8 @@ from agent.delegation_provider import DelegationProvider, DelegationRouteError
 
 from .planning import validate_plan
 
+_FILE_TOOLS = ("read_file", "write_file", "patch", "search_files")
+
 
 class MeuCoordinator(DelegationProvider):
     @property
@@ -32,6 +34,9 @@ class MeuCoordinator(DelegationProvider):
                            "Also include these checks in the task goal/context sent to the helper."},
             "parallel_safe": {"type": "boolean", "description": "Required. True only if this task needs no sibling's "
                               "result and can run independently in this call. Dependent work goes in later calls."},
+            "tool_access": {"type": "string", "enum": ["inherit", "files_only"],
+                            "description": "Choose files_only whenever the user restricts a helper to file tools. "
+                            "The runtime enforces this choice. Otherwise inherit the parent tool policy (default)."},
             "write_paths": {"type": "array", "items": {"type": "string"},
                             "description": "Required. Project-relative files/directories this helper may change; "
                             "[] for read-only work, ['.'] for the whole project. Include the same scope in goal/context. "
@@ -45,6 +50,7 @@ class MeuCoordinator(DelegationProvider):
             "parallel_safe and write_paths for EVERY task. You, the parent, assess complexity using the task's "
             "meaning; do not send every task to Pro or classify by keywords alone. Keep dependent work sequential: "
             "wait for prerequisite results, then pass their concrete artifacts/evidence in the next task's context. "
+            "Set tool_access=files_only when the user restricts a helper to file tools. "
             "Copy the acceptance checks and permitted write paths into each helper's goal/context. Workers share "
             "the project unless worktree isolation is configured; avoid conflicting edits. Inspect results and run "
             "the requested checks before calling the project complete. If a routine result fails its checks, "
@@ -64,12 +70,15 @@ class MeuCoordinator(DelegationProvider):
         model = "deepseek-v4-pro" if workload == "complex" else "deepseek-flash"
         paths = task.get("write_paths", [])
         scope = ", ".join(paths) if paths else "Read-only: do not modify project files."
-        return {"provider": "deepseek", "model": model,
+        route = {"provider": "deepseek", "model": model,
                 "label": f"{workload} · {model}", "fallback_providers": [],
                 "instructions": f"Coordinator task contract\nWrite scope: {scope}\n"
                 f"Acceptance checks: {task.get('acceptance', '')}\n"
                 "Return the work/artifact locations, checks actually run and their results, and any unresolved issues. "
                 "Do not claim an unrun check passed. Stay inside this task's write scope."}
+        if task.get("tool_access") == "files_only":
+            route["allowed_tools"] = list(_FILE_TOOLS)
+        return route
 
 
 def register(ctx) -> None:

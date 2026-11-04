@@ -52,7 +52,8 @@ from tools.delegate_tool_tasks import (
 )
 from tools.delegate_tool_tuning import pin_child_model, pin_child_service_tier
 from tools.delegate_tool_toolsets import (
-    DELEGATE_BLOCKED_TOOLS, _expand_parent_toolsets, _resolve_child_toolsets, _strip_blocked_tools,
+    DELEGATE_BLOCKED_TOOLS, _check_scoped_child_runtime, _expand_parent_toolsets, _resolve_child_toolsets,
+    _restrict_child_toolsets, _strip_blocked_tools,
 )
 from tools.delegate_tool_results import (
     _apply_summary_budget, _build_child_preserving_parent_tools, _run_child_lifecycle, _summarize_tool_arguments,
@@ -230,6 +231,7 @@ def _build_child_agent(
     override_reasoning_effort: Any = None,
     profile_home: Optional[Path] = None,
     override_service_tier: Optional[str] = None,  # a route's checked speed tier (tools/delegate_tool_tuning.py)
+    allowed_tools: Optional[frozenset[str]] = None,
 ):
     """Build (don't run) a child AIAgent on the main thread. override_* (from delegation config) replace parent
     inheritance so children can run on a different provider:model pair. ``profile_home`` builds (and later runs,
@@ -243,6 +245,8 @@ def _build_child_agent(
     child_depth = getattr(parent_agent, "_delegate_depth", 0) + 1
     max_spawn = _get_max_spawn_depth()
     effective_role = "orchestrator" if _get_orchestrator_enabled() and child_depth < max_spawn else "leaf"
+    if allowed_tools is not None:
+        effective_role = "leaf"
 
     # One subagent_id shared by the progress callback, spawn_requested event and
     # the live registry; parent_id is set when THIS parent is itself a subagent.
@@ -254,6 +258,8 @@ def _build_child_agent(
     # as auxiliary.review.
     delegation_cfg = _load_config()
     child_toolsets, child_disabled_toolsets = _resolve_child_toolsets(parent_agent, toolsets, effective_role)
+    if allowed_tools is not None:
+        child_toolsets, allowed_tools = _restrict_child_toolsets(parent_agent, allowed_tools)
     child_prompt = _build_child_system_prompt(
         goal, context, workspace_path=_resolve_workspace_hint(parent_agent), role=effective_role,
         max_spawn_depth=max_spawn, child_depth=child_depth,
@@ -280,6 +286,8 @@ def _build_child_agent(
         )
         if override_service_tier:
             rt["service_tier"] = override_service_tier
+        if allowed_tools is not None:
+            _check_scoped_child_runtime(rt)
         if override_request_overrides is not None:
             # honored whenever set, incl. the inherit branch where
             # _resolve_delegation_credentials already merged OVER the parent's
@@ -314,6 +322,11 @@ def _build_child_agent(
                         from hermes_state_registry import release_or_close
                         release_or_close(child_session_db)
                 raise
+        if allowed_tools is not None:
+            from toolsets import agent_tool_surface
+            child._delegate_allowed_tools = allowed_tools & child.valid_tool_names
+            child.tools = agent_tool_surface(child, child.tools)
+            child.valid_tool_names = set(child._delegate_allowed_tools)
         # Shared pool lets children rotate credentials on rate limits. A profile child loads ITS profile's pool
         # (inside the scope) and never shares the launching parent's.
         child_pool = _resolve_child_credential_pool(
@@ -448,6 +461,7 @@ def _route_overrides(route: Any) -> dict[str, Any]:
     return {
         **_credential_overrides(route.creds, route.routing_cfg),
         "override_reasoning_effort": route.reasoning_effort, "profile_home": route.profile_home,
+        **({"allowed_tools": route.allowed_tools} if route.allowed_tools is not None else {}),
     }
 
 
@@ -470,7 +484,7 @@ def _build_children(
         try:
             child = _build_child_preserving_parent_tools(
                 task_index=i, goal=t["goal"], context=_child_context,
-                toolsets=None,  # always inherit the parent's toolsets
+                toolsets=None,  # inherit unless the route narrows the child's exact tool names
                 model=route.creds["model"], max_iterations=max_iterations, task_count=len(task_list),
                 parent_agent=parent_agent, role=_normalize_role(t.get("role") or top_role), **_route_overrides(route),
             )

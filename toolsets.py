@@ -466,11 +466,19 @@ def session_disabled_toolsets(
     return [*(disabled or ()), *gated] if gated else disabled
 
 
-def agent_tool_drops(agent: Any) -> frozenset:
-    """Tool names *agent* never carries, whatever its toolsets resolved to: the side-agent drops and
-    the toolsets its session platform does not get. Applied at load, MCP refresh and prefix restore."""
+def delegation_tool_scope_error(agent: Any, name: str) -> Optional[str]:
+    allowed = getattr(agent, "_delegate_allowed_tools", None)
+    if isinstance(allowed, frozenset) and name not in allowed:
+        return f"Tool {str(name or '')[:80]!r} is blocked by the delegation tool scope."
+    return None
+
+
+def agent_tool_drops(agent: Any, tool_names=()) -> frozenset:
+    """Drop tools outside the agent's side-agent, platform and delegation scope."""
     from tools.connectors.turn import side_agent_tool_drops
-    return side_agent_tool_drops(agent) | session_platform_tool_drops(getattr(agent, "platform", None))
+    drops = side_agent_tool_drops(agent) | session_platform_tool_drops(getattr(agent, "platform", None))
+    allowed = getattr(agent, "_delegate_allowed_tools", None)
+    return drops | (frozenset(tool_names) - allowed) if isinstance(allowed, frozenset) else drops
 
 
 def agent_tool_surface(agent: Any, tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -480,7 +488,7 @@ def agent_tool_surface(agent: Any, tools: list[dict[str, Any]]) -> list[dict[str
     before any merge: a pinned or carried entry keeps the bytes already sent."""
     from agent.oneshot_footprint import agent_is_oneshot, oneshot_tool_schemas
     from tools.delegate_tool_config import agent_joins_delegation
-    drops = agent_tool_drops(agent)
+    drops = agent_tool_drops(agent, ((tool.get("function") or {}).get("name") for tool in tools))
     tools = [tool for tool in tools if (tool.get("function") or {}).get("name") not in drops] if drops else list(tools)
     return oneshot_tool_schemas(tools) if agent_is_oneshot(agent) or agent_joins_delegation(agent) else tools
 
