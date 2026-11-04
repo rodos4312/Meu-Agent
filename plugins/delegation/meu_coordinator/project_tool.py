@@ -33,13 +33,24 @@ def _run(state, parent_agent):
         tasks.append(task)
         row.update(state="running", attempt=row["attempt"] + 1)
     state.save()  # Before any child or side effect. An owner death leaves an explicit unknown outcome.
-    answer = json.loads(delegate_task(tasks=tasks, background=False, parent_agent=parent_agent))
+
+    def checkpoint(entry):
+        key = keys[entry["task_index"]]
+        outcome = entry.get("status")
+        okay = outcome == "completed" and entry.get("schema_valid") is not False
+        status = "needs_review" if okay else "interrupted" if outcome == "interrupted" else "failed"
+        state.record["tasks"][key].update(state=status, result=redact_child_value(entry))
+        state.save()
+
+    answer = json.loads(delegate_task(tasks=tasks, background=False, parent_agent=parent_agent,
+                                      project_root=state.record["root"], on_child_result=checkpoint))
     by_index = {entry["task_index"]: entry for entry in answer.get("results", [])}
     for index, key in enumerate(keys):
-        entry = by_index.get(index, {"status": "error", "error": answer.get("error", "No terminal child result")})
-        okay = entry.get("status") == "completed" and entry.get("schema_valid") is not False
-        state.record["tasks"][key].update(state="needs_review" if okay else "failed", result=redact_child_value(entry))
-        state.save()
+        if index in by_index:
+            checkpoint(by_index[index])
+        elif state.record["tasks"][key]["state"] == "running":
+            checkpoint({"task_index": index, "status": "error",
+                        "error": answer.get("error", "No terminal child result")})
 
 
 def handle(args, *, parent_agent=None, **_kwargs):
@@ -105,11 +116,13 @@ def register(ctx, task_parameters):
                       schema={"name": "coordinate_project", "description":
                               "Coordinate a persistent multi-stage project. Create a dependency plan once. Run selects up to two "
                               "independent ready tasks with disjoint write scopes and native Flash/Pro helpers. Status resumes "
-                              "the saved plan after restart. Completed helpers require parent verification: inspect artifacts, "
+                              "the saved plan after restart. Each finished helper is checkpointed before the batch joins. "
+                              "Delegate independent work in parallel and make reviewers depend on the deliverables they check. "
+                              "Completed helpers require parent verification: inspect artifacts, "
                               "run acceptance checks, then verify the exact attempt with evidence and artifact paths. Only verified "
                               "prerequisites unlock later work. Changed artifacts invalidate acceptance. Resume and retry preserve "
-                              "each task's tool_access choice. Set tool_access=files_only on each "
-                              "task the user restricts to file tools. Interrupted tasks never "
+                              "each task's tool_access choice. For a files_only task, reads and searches stay in its local "
+                              "workspace and edits stay in write_paths (empty means read-only). Interrupted tasks never "
                               "replay automatically: inspect side effects before an explicit retry. Failed routine tasks retry on Pro. "
                               "Stop when no pending tasks remain; report unverified/failed work honestly. No new approval policy.",
                               "parameters": {"type": "object", "properties": properties, "required": ["action", "project"]}})

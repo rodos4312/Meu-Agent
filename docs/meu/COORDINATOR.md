@@ -48,13 +48,26 @@ The child can use the parent's available `read_file`, `write_file`, `patch`
 and `search_files` tools. Both the advertised tools and the executor apply this
 limit. Refused calls appear as errors in the child trace. The choice is saved
 with the task and reused after interruption or retry. An omitted choice uses
-normal inheritance. File tools continue to use their existing path policy.
+normal inheritance.
+
+Checkpointed helpers start in the saved local project directory. For a
+`files_only` helper, reads and searches must start inside that workspace, and
+edits must also match the assignment's `write_paths`. An empty list makes the
+assignment read-only. Every patch destination is checked before applying the
+patch. Explicit paths through symbolic links or Windows reparse points are
+refused. These checks apply to the native file tools and are not OS isolation
+against concurrent changes by another process. Other helpers retain their
+existing tool policies. When worktree isolation is configured, the project
+helper fails to start if the requested checkout cannot be prepared. A
+successful isolated edit must be integrated before verifying the project's
+original artifact.
 
 `run` selects at most two independent ready tasks (also respecting the configured
 native child limit). The existing delegation engine owns children, progress,
 stop/steer, provider credentials and budgets. Each child's contract includes the
 project directory and the verified prerequisite results. Completed children become
-`needs_review`; completion alone never unlocks a dependent task.
+`needs_review` and are saved as their results arrive, even while a sibling runs.
+Completion alone never unlocks a dependent task.
 
 The parent runs the acceptance checks through its normal tools, then records
 `verify` with the exact attempt number, results/evidence and artifact files.
@@ -70,8 +83,8 @@ A new process/session can read `status` and continue the same plan. Acquiring th
 lock after a process died turns saved `running` tasks into `interrupted`, never an
 automatic replay. The parent inspects existing artifacts/side effects before an
 explicit evidenced retry; routine retries use Pro and attempts are capped at three.
-A held lock refuses duplicate project dispatch. This does not coordinate writes
-between independently named projects or provide a filesystem sandbox.
+A held lock refuses duplicate project dispatch. Independently named projects do
+not share this project lock.
 
 The project rehearsal uses a payments CSV with a duplicate and a refund. The
 native Flash helper writes the normalized rows, then the Pro helper writes an

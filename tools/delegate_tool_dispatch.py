@@ -11,7 +11,7 @@ import logging
 import time
 from concurrent.futures import FIRST_COMPLETED, wait as _cf_wait
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from tools.async_delegation import _new_delegation_id, record_unit_child
 from tools.delegate_tool_child_run import _attach_child, _detach_child, _fabricated_entry, _signal_child_stop
@@ -52,6 +52,7 @@ class _Batch:
     # Result entries of tasks their backend refused (no child): joined into a sync result, listed in a background
     # call's dispatch payload. Units carved for async dispatch never carry them.
     refused: list = field(default_factory=list)
+    on_child_result: Optional[Callable[[dict[str, Any]], None]] = None
 
     def owner_kwargs(self) -> dict[str, Any]:
         """Steer/stop authority of the originating session, passed to every child run."""
@@ -115,7 +116,9 @@ def _record_finished_child(batch: _Batch, entry: Any, honor_parent_interrupt: bo
     death before the unit's join — or anywhere before its durable completion write, the whole remaining window for a
     one-child unit — loses only children still running, never finished work (#116000). Best-effort by construction:
     ``record_unit_child`` never raises into the join."""
-    if not honor_parent_interrupt and batch.unit_id and isinstance(entry, dict):
+    if batch.on_child_result is not None:
+        batch.on_child_result(entry)
+    elif not honor_parent_interrupt and batch.unit_id and isinstance(entry, dict):
         record_unit_child(batch.unit_id, entry)
 
 def _run_children_parallel(batch: _Batch, results: list, *, honor_parent_interrupt: bool) -> None:
@@ -188,6 +191,9 @@ def _execute_and_aggregate(batch: _Batch, *, honor_parent_interrupt: bool = True
     record (retention pruning happens on future dispatches)."""
     from tools.delegation_live_log import update_manifest_statuses
     results: list = []
+    if batch.on_child_result is not None:
+        for entry in batch.refused:
+            batch.on_child_result(entry)
     if len(batch.children) == 1:
         results.append(batch.run_child(*batch.children[0]))
         # A one-child unit has no join to wait on, but everything after the child returns — host-owned finalize,

@@ -727,6 +727,14 @@ def _dispatch_authorized_once(
             }
             block_error_type = _PRUNED_TOOL_ARGUMENTS_ERROR
 
+    project_scope = vars(agent).get("_delegate_project_file_scope")
+    if block_body is None and project_scope is not None:
+        try:
+            state.args = ref.args = project_scope.prepare(ref.name, ref.args)
+        except (ValueError, OSError) as exc:
+            block_body = {"error": f"Blocked by project file scope: {exc}"}
+            block_error_type = "tool_scope_block"
+
     guardrail_decision = None
     if block_body is None:
         guardrail_decision = agent._tool_guardrails.before_call(ref.name, ref.args)

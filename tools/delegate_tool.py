@@ -571,6 +571,8 @@ def delegate_task(
     output_schema: Optional[dict[str, Any]] = None, images: Optional[list[str]] = None, action: Optional[str] = None,
     subagent_id: Optional[str] = None, message: Optional[str] = None, parent_agent=None,
     credentials_cfg: Optional[dict[str, Any]] = None,
+    project_root: Optional[str] = None,
+    on_child_result=None,
 ) -> str:
     """Spawn child agents (single ``goal`` or ``tasks=[...]`` batch) or control running ones. ``action``
     list/steer/stop run synchronously and bypass the pause gate, depth limit and async dispatch. ``role`` is legacy
@@ -596,6 +598,8 @@ def delegate_task(
     # background applies to single tasks AND batches: a batch is ONE async unit
     # that joins on every child and re-enters as a single consolidated message.
     background = is_truthy_value(background, default=False) if background is not None else False
+    if background and (project_root is not None or on_child_result is not None):
+        return tool_error("Checkpointed project delegation requires synchronous dispatch.")
 
     depth = getattr(parent_agent, "_delegate_depth", 0)
     max_spawn = _get_max_spawn_depth()
@@ -673,10 +677,15 @@ def delegate_task(
     )
     if err:
         return tool_error(err)
+    if project_root is not None:
+        for _, task, child in children:
+            child._delegate_project_root = project_root
+            if task.get("tool_access") == "files_only":
+                child._delegate_project_write_paths = tuple(task["write_paths"])
     batch = _Batch(
         task_list, children, parent_agent, creds, context, top_role, max_children,
         live_deleg_id, live_writers, live_paths, *origin, overall_start,
-        live_home=_live_home, refused=refused,
+        live_home=_live_home, refused=refused, on_child_result=on_child_result,
     )
     return _run_batch(batch, background)
 

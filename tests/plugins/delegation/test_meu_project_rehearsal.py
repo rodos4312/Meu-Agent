@@ -16,6 +16,7 @@ import httpx
 
 from tests.plugins.delegation.test_meu_coordinator import task
 from tests.plugins.delegation.test_meu_projects import create, project
+from tests.waiting import wait_until
 
 REPO = Path(__file__).resolve().parents[3]
 INTERRUPTED = 79
@@ -50,6 +51,8 @@ def _start(root, parent):
     result = project(parent, "run")
     assert result["tasks"]["normalize"]["state"] == "needs_review", result
     _assert_blocked_terminal(result["tasks"]["normalize"]["result"])
+    assert not (root.parent / "outside.json").exists()
+    assert not (root / "undeclared.json").exists()
     assert result["ready"] == []
     with (root / "payments.csv").open(encoding="utf-8", newline="") as source:
         expected = [{"id": row["id"], "cents": int(row["cents"])} for row in csv.DictReader(source)]
@@ -132,10 +135,16 @@ def _response(request, root, stage, requests):
         assert last["role"] == "tool" and _read(root, name) == output, last
         assert any(msg.get("tool_call_id") == "call_terminal" and "delegation tool scope" in msg["content"]
                    for msg in body["messages"] if msg["role"] == "tool")
+        if model == "deepseek-flash":
+            denied = {msg.get("tool_call_id") for msg in body["messages"]
+                      if msg["role"] == "tool" and "project file scope" in msg["content"]}
+            assert denied == {"call_outside", "call_undeclared", "call_move", "call_link", "call_search"}
+            broad = next(msg["content"] for msg in body["messages"] if msg.get("tool_call_id") == "call_broad_search")
+            assert "decoy.txt" not in broad and not json.loads(broad).get("error"), broad
         if stage == "start" and model == "deepseek-v4-pro":
             os._exit(INTERRUPTED)
     else:
-        arguments = {"path": str(root / name)}
+        arguments = {"path": name}
         if stage == "start":
             tool = "write_file"
             arguments["content"] = json.dumps(output)
@@ -151,6 +160,17 @@ def _response(request, root, stage, requests):
         if tool != "read_file":
             calls.insert(0, {"id": "call_terminal", "type": "function",
                              "function": {"name": "terminal", "arguments": '{"command":"echo denied"}'}})
+        if model == "deepseek-flash":
+            for call_id, function, args in (
+                ("call_outside", "write_file", {"path": str(root.parent / "outside.json"), "content": "outside"}),
+                ("call_undeclared", "write_file", {"path": "undeclared.json", "content": "outside write scope"}),
+                ("call_move", "patch", {"mode": "patch", "patch": "*** Begin Patch\n*** Move File: rows.json -> undeclared.json\n*** End Patch"}),
+                ("call_link", "read_file", {"path": "linked/decoy.txt"}),
+                ("call_search", "search_files", {"path": "linked", "pattern": "outside"}),
+                ("call_broad_search", "search_files", {"path": ".", "pattern": "outside"}),
+            ):
+                calls.insert(0, {"id": call_id, "type": "function",
+                                 "function": {"name": function, "arguments": json.dumps(args)}})
         if body.get("stream"):
             for index, call in enumerate(calls):
                 call["index"] = index
@@ -166,20 +186,71 @@ def _response(request, root, stage, requests):
     return httpx.Response(200, json=response)
 
 
+def _parallel_response(request, workspace):
+    assert request.url.host == "api.deepseek.com"
+    body = json.loads(request.content)
+    if body["model"] == "deepseek-v4-pro":
+        def finished_record():
+            record = _read(workspace / "home" / "coordinator", "demo.json")
+            return record if record["tasks"]["finished"]["state"] == "needs_review" else None
+
+        record = wait_until(finished_record, timeout=30, interval=0.1, what="the finished sibling's checkpoint")
+        assert record["tasks"]["slow"]["state"] == "running"
+        os._exit(INTERRUPTED)
+    message = {"content": "Finished the independent inspection."}
+    choice = {"index": 0, "finish_reason": "stop"}
+    response = {"id": "parallel", "created": 0, "model": body["model"]}
+    if body.get("stream"):
+        response.update(object="chat.completion.chunk", choices=[{**choice, "delta": message}])
+        return httpx.Response(200, headers={"content-type": "text/event-stream"},
+                              content=f"data: {json.dumps(response)}\n\ndata: [DONE]\n\n")
+    response.update(object="chat.completion", choices=[{**choice, "message": {"role": "assistant", **message}}])
+    return httpx.Response(200, json=response)
+
+
+def _start_parallel(root, parent):
+    plan = [task(id="finished", paths=[], tool_access="files_only"),
+            task("complex", [], id="slow", tool_access="files_only")]
+    assert create(parent, root, plan)["ready"] == ["finished", "slow"]
+    project(parent, "run")
+    raise AssertionError("The second worker should have stopped the process.")
+
+
+def _resume_parallel(parent, requests):
+    status = project(parent, "status")
+    assert status["tasks"]["finished"]["state"] == "needs_review"
+    assert status["tasks"]["finished"]["result"]["summary"] == "Finished the independent inspection."
+    assert status["tasks"]["slow"]["state"] == "interrupted"
+    assert status["ready"] == [] and requests == []
+
+
+def _missing_worktree(root, parent, requests):
+    plan = [task(id="isolated", paths=["rows.json"], tool_access="files_only")]
+    assert create(parent, root, plan)["ready"] == ["isolated"]
+    row = project(parent, "run")["tasks"]["isolated"]
+    assert row["state"] == "failed" and requests == [], row
+    assert "Could not prepare the requested project worktree" in row["result"]["error"], row
+    assert not (root / "rows.json").exists()
+
+
 def _rehearse(workspace, stage):
     from hermes_cli.plugins import PluginManager
     from model_tools import get_tool_definitions
     from tools import delegate_tool
+    from tools.terminal_tool import record_session_cwd
 
     requests = []
     root = workspace / "project"
     parent = SimpleNamespace(session_id="rehearsal-parent", provider="deepseek", model="deepseek-v4-pro",
                              base_url="https://api.deepseek.com/v1", api_key="meu-test-only", request_overrides={},
-                             cwd=str(root), tool_progress_callback=None, _delegate_spinner=None,
+                             cwd=str(workspace), _current_task_id="rehearsal-parent",
+                             tool_progress_callback=None, _delegate_spinner=None,
                              _safe_print=lambda line: None,
                              enabled_toolsets=["file", "terminal", "code_execution", "delegation"], disabled_toolsets=[])
     def respond(request):
         try:
+            if stage == "parallel":
+                return _parallel_response(request, workspace)
             return _response(request, root, stage, requests)
         except Exception:
             traceback.print_exc()
@@ -197,36 +268,65 @@ def _rehearse(workspace, stage):
         manager = PluginManager()
         manager.discover_and_load()
         try:
+            record_session_cwd(parent._current_task_id, str(workspace))
             parent.tools = get_tool_definitions(enabled_toolsets=parent.enabled_toolsets, quiet_mode=True,
                                                 skip_tool_search_assembly=True)
-            if stage == "start":
-                _start(root, parent)
-            else:
-                _resume(root, parent, requests)
+            stages = {
+                "start": (_start, (root, parent)),
+                "resume": (_resume, (root, parent, requests)),
+                "parallel": (_start_parallel, (root, parent)),
+                "parallel-resume": (_resume_parallel, (parent, requests)),
+                "missing-worktree": (_missing_worktree, (root, parent, requests)),
+            }
+            run, args = stages[stage]
+            run(*args)
         finally:
             manager.unload()
 
 
-def test_native_coordinator_recovers_a_real_file_project(tmp_path):
+def _run_stages(tmp_path, stages, *, worktree=False):
     root = tmp_path / "project"
-    root.mkdir()
-    (root / "payments.csv").write_text("id,cents\np1,1000\np1,1000\nr1,-300\n", encoding="utf-8")
+    root.mkdir(exist_ok=True)
     home = tmp_path / "home"
     home.mkdir()
-    (home / "config.yaml").write_text("delegation:\n  backend: meu_coordinator\nterminal:\n  backend: local\n",
-                                      encoding="utf-8")
+    (home / "config.yaml").write_text(
+        f"delegation:\n  backend: meu_coordinator\n  worktree_isolation: {str(worktree).lower()}\n"
+        "terminal:\n  backend: local\n", encoding="utf-8")
     shutil.copytree(REPO / "plugins" / "delegation", tmp_path / "bundled" / "delegation",
                     ignore=shutil.ignore_patterns("__pycache__"))
     env = {**os.environ, "HERMES_HOME": str(home), "MEU_HOME": str(home), "MEU_AGENT_MODE": "1",
            "DEEPSEEK_API_KEY": "meu-test-only", "PYTHONIOENCODING": "utf-8"}
-    for stage, expected in (("start", INTERRUPTED), ("resume", 0)):
+    for stage, expected in stages:
         log = tmp_path / f"{stage}.log"
         with log.open("wb") as output:
             result = subprocess.run([sys.executable, "-m", "tests.plugins.delegation.test_meu_project_rehearsal",
                                      str(tmp_path), stage], cwd=REPO, env=env,
                                     stdout=output, stderr=subprocess.STDOUT, timeout=120, check=False)
         assert result.returncode == expected, log.read_text(encoding="utf-8", errors="replace")
+
+
+def test_native_coordinator_recovers_a_real_file_project(tmp_path):
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "payments.csv").write_text("id,cents\np1,1000\np1,1000\nr1,-300\n", encoding="utf-8")
+    (tmp_path / "decoy.txt").write_text("outside", encoding="utf-8")
+    linked = root / "linked"
+    if os.name == "nt":
+        subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", str(linked), str(tmp_path)],
+                       check=True, capture_output=True)
+    else:
+        linked.symlink_to(tmp_path, target_is_directory=True)
+    _run_stages(tmp_path, (("start", INTERRUPTED), ("resume", 0)))
+    home = tmp_path / "home"
     assert _read(home / "coordinator", "demo.json")["tasks"]["reconcile"]["state"] == "verified"
+
+
+def test_finished_sibling_is_saved_before_parallel_batch_joins(tmp_path):
+    _run_stages(tmp_path, (("parallel", INTERRUPTED), ("parallel-resume", 0)))
+
+
+def test_requested_worktree_failure_does_not_start_in_shared_project(tmp_path):
+    _run_stages(tmp_path, (("missing-worktree", 0),), worktree=True)
 
 
 if __name__ == "__main__":

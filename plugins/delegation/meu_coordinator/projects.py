@@ -12,6 +12,7 @@ import re
 
 from hermes_dir_acl import make_user_dir
 from pm.filesystem import durable_write_bytes, lock_path
+from tools.delegate_workspace import local_project_root
 
 from .planning import validate_plan
 
@@ -25,9 +26,7 @@ def identifier(value):
 
 
 def new_project(project, root, tasks):
-    root = Path(root)
-    if not root.is_absolute() or not root.is_dir():
-        raise ValueError("Set root to the existing project's absolute directory.")
+    root = local_project_root(root)
     if not isinstance(tasks, list) or not 1 <= len(tasks) <= 100:
         raise ValueError("Supply 1 to 100 concrete project tasks.")
     rows = {}

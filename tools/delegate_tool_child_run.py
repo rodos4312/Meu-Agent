@@ -419,7 +419,8 @@ def _register_child(
     })
     return _subagent_id
 
-def _create_isolated_worktree(parent_agent: Any, parent_task_id: Any, subagent_id: Optional[str]):
+def _create_isolated_worktree(parent_agent: Any, parent_task_id: Any, subagent_id: Optional[str],
+                              project_root: str | None = None):
     """Opt-in worktree isolation: own git worktree off the parent's HEAD (the
     child's terminal starts there). Git-only, local-backend-only; failures
     degrade silently to the shared workspace. Returns the worktree info or None."""
@@ -436,7 +437,7 @@ def _create_isolated_worktree(parent_agent: Any, parent_task_id: Any, subagent_i
             from tools.terminal_tool import get_session_cwd as _gsc
             _parent_cwd = _gsc(parent_task_id)
         return subagent_worktree.create_subagent_worktree(
-            _parent_cwd or _resolve_workspace_hint(parent_agent), subagent_id=subagent_id,
+            project_root or _parent_cwd or _resolve_workspace_hint(parent_agent), subagent_id=subagent_id,
         )
     return None
 
@@ -809,17 +810,44 @@ class _ChildRun:
                 record_session_cwd(self.child_task_id, parent_cwd)
             register_container_alias(self.child_task_id, self.parent_task_id)
 
-        self.worktree_info = _create_isolated_worktree(self.parent_agent, self.parent_task_id, self.subagent_id)
+        project_root = vars(self.child).get("_delegate_project_root")
+        if project_root is not None:
+            self.seed_project_workspace(project_root)
+        else:
+            self.worktree_info = _create_isolated_worktree(self.parent_agent, self.parent_task_id, self.subagent_id)
         if self.worktree_info is not None:
-            with _quiet("worktree cwd seed failed: %s"), child_profile_scope(self.child):
-                from tools.terminal_tool import record_session_cwd as _rsc
-                _rsc(self.child_task_id, self.worktree_info["path"])
+            if project_root is None:
+                with _quiet("worktree cwd seed failed: %s"), child_profile_scope(self.child):
+                    record_session_cwd(self.child_task_id, self.worktree_info["path"])
             # The child's context is already built; carry the isolation contract on
             # the goal message instead (same turn, no system-prompt mutation).
             from tools.subagent_worktree import build_worktree_context_note
             self.goal = self.goal + build_worktree_context_note(self.worktree_info)
         self.wall_start = time.time()
         self.parent_reads_snapshot = list(file_state.known_reads(self.parent_task_id)) if self.parent_task_id else []
+
+    def seed_project_workspace(self, project_root: str) -> None:
+        from pathlib import Path
+        from tools.delegate_tool import _get_worktree_isolation
+        from tools.delegate_tool_routes import child_profile_scope
+        from tools.delegate_workspace import ProjectFileScope, local_project_root
+        from tools.terminal_tool import _get_env_config, record_session_cwd
+
+        with child_profile_scope(self.child):
+            if _get_env_config()["env_type"] != "local":
+                raise ValueError("Checkpointed project tasks require a local workspace.")
+            root = local_project_root(project_root)
+            if _get_worktree_isolation():
+                self.worktree_info = _create_isolated_worktree(
+                    self.parent_agent, self.parent_task_id, self.subagent_id, str(root))
+                if self.worktree_info is None:
+                    raise ValueError("Could not prepare the requested project worktree. The helper did not start.")
+                relative = root.relative_to(Path(self.worktree_info["repo_root"]))
+                root = local_project_root(str(Path(self.worktree_info["path"]) / relative))
+            record_session_cwd(self.child_task_id, str(root))
+            write_paths = vars(self.child).get("_delegate_project_write_paths")
+            if write_paths is not None:
+                self.child._delegate_project_file_scope = ProjectFileScope(root, write_paths)
 
     def finish_failed(
         self, entry: dict[str, Any], late_steer: Optional[str], *, preview: str, summary: str = "", status: Optional[str] = None,
