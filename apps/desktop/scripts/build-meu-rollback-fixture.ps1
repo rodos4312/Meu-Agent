@@ -12,6 +12,10 @@ $meuMainSource = [System.IO.File]::ReadAllText($meuMain)
 $meuFaultSeam = "const BOOT_FAKE_ERROR = process.env.HERMES_DESKTOP_BOOT_FAKE_ERROR || ''"
 if (-not $meuMainSource.Contains($meuFaultSeam)) { throw 'Startup-failure fixture seam changed.' }
 [System.IO.File]::WriteAllText($meuMain, $meuMainSource.Replace($meuFaultSeam, "const BOOT_FAKE_ERROR = 'Controlled Meu rollback rehearsal'"), [System.Text.UTF8Encoding]::new($false))
+$meuConfig = Resolve-Path 'electron-builder.config.cjs'
+$meuConfigSource = [System.IO.File]::ReadAllText($meuConfig)
+if (-not $meuConfigSource.Contains('  nsis: {')) { throw 'Private NSIS fixture seam changed.' }
+[System.IO.File]::WriteAllText($meuConfig, $meuConfigSource.Replace('  nsis: {', "  nsis: {`n    include: 'scripts/meu-interrupted-install.nsh',"), [System.Text.UTF8Encoding]::new($false))
 npm run build
 if ($LASTEXITCODE -ne 0) { throw 'Private fixture build failed.' }
 node scripts/run-electron-builder.mjs --win nsis --x64

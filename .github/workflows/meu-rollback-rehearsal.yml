@@ -20,6 +20,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'rodos4312/Meu-Agent' && github.ref == 'refs/heads/dev/meu-foundation'
     runs-on: windows-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [startup-failure, guardian-loss, locked-package, interrupted-install]
+    name: Recovery / ${{ matrix.scenario }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -47,12 +52,12 @@ jobs:
         run: node scripts/prepare-meu-release.mjs
       - name: Verify both signatures and rehearse real rollback
         shell: pwsh
-        run: ./apps/desktop/scripts/test-meu-rollback.ps1
+        run: ./apps/desktop/scripts/test-meu-rollback.ps1 -Scenario '${{ matrix.scenario }}'
       - name: Preserve bounded diagnostics without profile contents or installers
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: Meu-Windows-automatic-rollback-evidence
+          name: Meu-Windows-automatic-rollback-evidence-${{ matrix.scenario }}
           path: |
             ${{ runner.temp }}/meu-rollback/*.json
             ${{ runner.temp }}/meu-rollback/*.log

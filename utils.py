@@ -95,8 +95,9 @@ def racy_content_digest(path: str | Path, sig: tuple[int, int, int, int]) -> str
     (kernels without multigrain timestamps). Racy is judged on the later of mtime and ctime: userland
     can restore an older mtime after a write (``cp -p``, ``rsync --inplace -t``), never ctime. Read
     before the parse it guards: a write in between then costs one re-parse instead of pinning the
-    older content."""
-    if not mtime_is_racy(max(sig[0], sig[3])) or _frozen_config_worker(path):
+    older content. Windows ctime is creation time, so a restored mtime cannot establish freshness;
+    content-derived caches always hash there, except a worker's frozen config snapshot."""
+    if _frozen_config_worker(path) or (os.name != "nt" and not mtime_is_racy(max(sig[0], sig[3]))):
         return ""
     return _file_digest(path)
 

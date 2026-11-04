@@ -168,6 +168,13 @@ def prepare(root: Path, home: Path, directory: Path, key: str, executable: str) 
               "git": executable, "directory": str(directory.resolve()), "key": key,
               "target": journal["target"], "rollback": journal["rollback"],
               "archiveHash": archive_hash, "factsHash": facts_hash, "workState": executions, "state": "prepared"}
+    native = journal.get("nativeInstaller")
+    if native:
+        candidate = Path(native)
+        if (not candidate.is_absolute() or candidate.stat().st_size != journal["target"]["size"]
+                or digest(candidate) != journal["target"]["sha256"]):
+            raise ValueError("The native update executable does not match its signed installer")
+        record["nativeInstaller"] = str(candidate.resolve())
     write_record(transaction / "transaction.json", record)
     return transaction
 

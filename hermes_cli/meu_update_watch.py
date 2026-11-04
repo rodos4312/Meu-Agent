@@ -20,9 +20,15 @@ import psutil
 
 if __package__:
     from hermes_cli import meu_update_recovery as recovery
+    from hermes_cli import meu_recovery_resume as resumption
+    from hermes_cli import meu_recovery_windows as windows
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import meu_update_recovery as recovery
+    import meu_recovery_resume as resumption
+    import meu_recovery_windows as windows
+
+from pm.filesystem import lock_path
 
 
 def transition(transaction: Path, state: str, **fields) -> None:
@@ -70,10 +76,27 @@ def run_cli(command: list[str], root: Path, home: Path, *, timeout: int = 120) -
     return result.stdout
 
 
+def wait_for_native_installer(transaction: Path, since: float, *, timeout: float = 120) -> None:
+    record = recovery.read_record(transaction / "transaction.json")
+    native = record.get("nativeInstaller")
+    if not native:
+        return
+    expected = os.path.normcase(str(Path(native).resolve()))
+    owners = [process for process in psutil.process_iter(["exe", "create_time"])
+              if process.info["exe"] and os.path.normcase(process.info["exe"]) == expected
+              and process.info["create_time"] >= since]
+    if owners:
+        transition(transaction, "waiting-for-installer")
+        _gone, alive = psutil.wait_procs(owners, timeout=timeout)
+        if alive:
+            raise TimeoutError("The accepted native installer is still running; recovery did not touch profile data")
+
+
 def recover_installation(transaction: Path, executable: Path, launcher: str, since: float,
                          launcher_args: list[str] | None = None) -> None:
     record = recovery.read_record(transaction / "transaction.json")
     root, home = Path(record["root"]), Path(record["home"])
+    wait_for_native_installer(transaction, since)
     transition(transaction, "recovering")
     command = [launcher, *(launcher_args or [])]
     try:
@@ -82,7 +105,14 @@ def recover_installation(transaction: Path, executable: Path, launcher: str, sin
         # A damaged import can prevent stop even when no owner exists. The
         # canonical maintenance reservation in restore still refuses a live one.
         pass
-    record = recovery.restore(transaction, stop_desktop=lambda: stop_candidate(executable, since))
+    def release_package():
+        stop_candidate(executable, since)
+        if os.name == "nt":
+            windows.wait_for_package(executable.parent, on_blocked=lambda file:
+                                     transition(transaction, "waiting-for-files", blockedFile=str(file.relative_to(executable.parent))))
+            transition(transaction, "recovering", blockedFile=None)
+
+    record = recovery.restore(transaction, stop_desktop=release_package)
     # Prove the restored backend starts before replacing the desktop package.
     endpoint = json.loads(run_cli([*command, "gateway", "ensure", "--json"], root, home, timeout=300))
     if (not isinstance(endpoint, dict) or endpoint.get("state") != "ready"
@@ -109,7 +139,7 @@ def recover_installation(transaction: Path, executable: Path, launcher: str, sin
 
 def watch(transaction: Path, parent_pid: int, executable: Path, launcher: str,
           *, launcher_args: list[str] | None = None, timeout: float = 1200,
-          wait=threading.Event().wait, clock=time.monotonic) -> str:
+          wait=threading.Event().wait, clock=time.monotonic, durable: bool = False) -> str:
     """One bounded handoff; cancellation never restores over a running old app."""
     record = recovery.read_record(transaction / "transaction.json")
     recovery.verify_release(record["rollback"], record["key"], Path(record["directory"]))
@@ -117,7 +147,10 @@ def watch(transaction: Path, parent_pid: int, executable: Path, launcher: str,
     since = parent.create_time()
     if os.path.normcase(parent.exe()) != os.path.normcase(str(executable.resolve())):
         raise ValueError("Recovery parent does not own this Meu executable")
-    transition(transaction, "watching", watcherPid=os.getpid())
+    if durable:
+        resumption.prepare(transaction, parent, executable, launcher, launcher_args or [])
+    transition(transaction, "watching", watcherPid=os.getpid(), watcherCreated=psutil.Process().create_time(),
+               watcherExecutable=psutil.Process().exe())
     deadline = clock() + timeout
     # Polling also observes cancellation while the old process remains alive.
     while parent.is_running():
@@ -140,19 +173,33 @@ def watch(transaction: Path, parent_pid: int, executable: Path, launcher: str,
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--transaction", type=Path, required=True)
-    parser.add_argument("--parent-pid", type=int, required=True)
-    parser.add_argument("--executable", type=Path, required=True)
-    parser.add_argument("--launcher", required=True)
+    parser.add_argument("--parent-pid", type=int)
+    parser.add_argument("--executable", type=Path)
+    parser.add_argument("--launcher")
     parser.add_argument("--launcher-args", type=json.loads, default=[])
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--durable", action="store_true")
     args = parser.parse_args()
+    owner = lock_path(args.transaction / "guardian.lock", timeout=0)
+    if owner is None:
+        return 0  # A normal guardian or another logon already owns this transaction.
     try:
         if not isinstance(args.launcher_args, list) or any(not isinstance(value, str) or "\0" in value for value in args.launcher_args):
             raise ValueError("Invalid Meu recovery launcher arguments")
-        watch(args.transaction, args.parent_pid, args.executable, args.launcher, launcher_args=args.launcher_args)
+        if args.resume:
+            resumption.resume(args.transaction, recover_installation)
+        else:
+            if args.parent_pid is None or args.executable is None or args.launcher is None:
+                raise ValueError("The update guardian needs its original process and launcher identity")
+            watch(args.transaction, args.parent_pid, args.executable, args.launcher,
+                  launcher_args=args.launcher_args, durable=args.durable)
     except Exception as exc:
         transition(args.transaction, "recovery-failed", error=str(exc))
         logging.exception("Meu update recovery failed")
         return 1
+    finally:
+        os.close(owner)
+        resumption.finish(args.transaction)
     return 0
 
 

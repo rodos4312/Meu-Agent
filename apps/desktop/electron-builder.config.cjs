@@ -128,9 +128,9 @@ module.exports = {
   extraResources: [
     { from: '../../LICENSE', to: 'open-source-notices/Hermes-LICENSE.txt' },
     ...(appId === 'com.meuagent.desktop' ? [
-      { from: '../../hermes_cli/meu_update_recovery.py', to: 'meu-recovery/meu_update_recovery.py' },
-      { from: '../../hermes_cli/meu_update_watch.py', to: 'meu-recovery/meu_update_watch.py' }
-    ] : []),
+      'meu_update_recovery.py', 'meu_update_watch.py', 'meu_recovery_runtime.py',
+      'meu_recovery_resume.py', 'meu_recovery_bootstrap.py', 'meu_recovery_windows.py'
+    ].map(name => ({ from: `../../hermes_cli/${name}`, to: `meu-recovery/${name}` })) : []),
     {
       from: 'build/install-stamp.json',
       to: 'install-stamp.json'

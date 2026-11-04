@@ -6,17 +6,19 @@ import path from 'node:path'
 import { _electron, expect } from '@playwright/test'
 import { gt } from 'semver'
 import { installMeuUpgradeTransport, verifiedMeuCandidate } from './meu-upgrade-transport.mjs'
+import { recoveryFault } from './meu-recovery-faults.mjs'
 import trust from '../meu-update-key.json' with { type: 'json' }
 
 assert.equal(process.env.GITHUB_ACTIONS, 'true')
 assert.equal(process.env.GITHUB_REPOSITORY, 'rodos4312/Meu-Agent')
 assert.equal(process.platform, 'win32')
-const [mode, baselineDirectory, directory, scratch, executable, root, launcher] = process.argv.slice(2)
+const [mode, baselineDirectory, directory, scratch, executable, root, launcher, scenario = 'startup-failure'] = process.argv.slice(2)
 for (const value of [baselineDirectory, directory, scratch]) assert(path.isAbsolute(value))
 const baseline = verifiedMeuCandidate(baselineDirectory, trust.publicKey)
 const release = verifiedMeuCandidate(directory, trust.publicKey)
 assert.equal(release.commit, process.env.GITHUB_SHA)
 assert(gt(release.version, baseline.version))
+if (scenario !== 'startup-failure') assert.equal(baseline.commit, process.env.GITHUB_SHA)
 if (mode === 'validate') process.exit(0)
 assert.equal(mode, 'run')
 for (const value of [executable, root, launcher]) assert(path.isAbsolute(value))
@@ -92,6 +94,7 @@ const transaction = () => {
   const location = path.join(parent, entries[0])
   return { location, ...JSON.parse(fs.readFileSync(path.join(location, 'transaction.json'), 'utf8')) }
 }
+const fault = recoveryFault(scenario, { python, env })
 let app
 let phase = 'seed isolated profile'
 async function bounded(action, milliseconds, label) {
@@ -130,7 +133,8 @@ try {
     baselineDirectory,
     mode: 'valid',
     failOnRestart: true,
-    migrationPython: python
+    migrationPython: python,
+    recoveryControl: fault.control
   })
   // Real preparation can outlive Playwright's launch-time debugger waiter.
   // Detach only when Electron itself decides to quit; never force the app out.
@@ -170,6 +174,8 @@ try {
   await bounded(exited, 180_000, 'Old Meu process did not exit')
   console.log('[Meu rollback] old OS process exited without forcing it')
   app = null
+  phase = 'private interruption scenario: ' + scenario
+  await fault.afterHandoff(transaction, executable)
   phase = 'automatic package and database recovery'
   console.log('[Meu rollback] wait for automatic package and database recovery')
   await expect.poll(() => {
@@ -178,6 +184,7 @@ try {
   }, { timeout: 600_000, intervals: [1000] }).not.toBeUndefined()
   const record = transaction()
   assert.equal(record.state, 'rolled-back', record.error || 'Expected a controlled startup failure and rollback')
+  if (fault.resumed) await bounded(fault.resumed, 60_000, 'Retained recovery did not retire after rollback')
   assert(fs.statSync(path.join(record.location, 'failed-state.zip')).size > 0)
   assert.equal(record.restoredCommit, baseline.commit)
   phase = 'verify restored gateway and conversation'
@@ -214,7 +221,8 @@ try {
         restoredDatabaseSchema: true,
         preserved: ['conversation', 'configuration', 'API-key fixture', 'memory', 'skill'],
         failedStateRetained: true,
-        publicRelease: false
+        publicRelease: false,
+        scenario
       },
       null,
       2
@@ -239,5 +247,6 @@ try {
   if (fs.existsSync(mainLog)) fs.writeFileSync(path.join(scratch, 'main.log'), fs.readFileSync(mainLog).subarray(-131072))
   throw error
 } finally {
+  fault.dispose()
   if (app) await bounded(app.close(), 10_000, 'Fixture application did not close').catch(() => app.process().kill())
 }

@@ -103,6 +103,14 @@ export async function installMeuUpgradeTransport(app, input) {
           }
           // The unpublished next-version build owns its startup-failure seam;
           // the real Windows shell relaunch does not need environment injection.
+          if (input.recoveryControl) {
+            const { execFileSync } = process.getBuiltinModule('child_process')
+            const backups = path.join(process.env.MEU_HOME, 'backups')
+            const transactions = fs.readdirSync(backups).filter(name => /^meu-update-[a-f0-9]{32}$/.test(name))
+            if (transactions.length !== 1) throw new Error('Expected one owned recovery transaction')
+            execFileSync(input.migrationPython, ['-I', input.recoveryControl, 'guardian', path.join(backups, transactions[0])],
+              { windowsHide: true, timeout: 30_000 })
+          }
         }
         return send(channel, payload, ...args)
       }

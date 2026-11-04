@@ -68,7 +68,7 @@ export async function retainMeuInstaller(
   await writeFile(
     journal + '.partial',
     JSON.stringify(
-      { schema: 1, fromVersion: currentVersion, target: release, rollback, preparedAt: new Date().toISOString() },
+      { schema: 1, fromVersion: currentVersion, target: release, rollback, nativeInstaller: path.resolve(file), preparedAt: new Date().toISOString() },
       null,
       2
     ),

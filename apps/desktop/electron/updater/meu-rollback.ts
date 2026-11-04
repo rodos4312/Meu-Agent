@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import type { ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, openSync } from 'node:fs'
-import { copyFile, readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { promisify } from 'node:util'
@@ -119,9 +119,10 @@ export async function armMeuRollback(options: MeuRollbackOptions): Promise<void>
   )
   const { transaction } = JSON.parse(stdout) as { transaction: string }
   validateTransaction(options.home, transaction)
-  for (const file of ['meu_update_recovery.py', 'meu_update_watch.py']) {
-    await copyFile(path.join(options.helperDirectory, file), path.join(transaction, file))
-  }
+  await exec(runtime.command, [
+    '-I', '-c', bootstrap, path.join(options.helperDirectory, 'meu_recovery_runtime.py'),
+    '--transaction', transaction
+  ], { env, cwd: options.root, windowsHide: true, timeout: 30 * 60_000, maxBuffer: 8 * 1024 * 1024 })
   const journal = await jsonFile(path.join(options.directory, 'meu-update-recovery.json'))
   const commit = (journal?.target as { commit?: string } | undefined)?.commit
   const version = (journal?.target as { version?: string } | undefined)?.version
@@ -135,6 +136,7 @@ export async function armMeuRollback(options: MeuRollbackOptions): Promise<void>
       '-c',
       bootstrap,
       path.join(transaction, 'meu_update_watch.py'),
+      '--durable',
       '--transaction',
       transaction,
       '--parent-pid',

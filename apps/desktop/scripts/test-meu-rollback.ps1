@@ -1,4 +1,5 @@
 # A normal failed startup, real backend and real NSIS, in a disposable CI install.
+param([ValidateSet('startup-failure', 'guardian-loss', 'locked-package', 'interrupted-install')][string]$Scenario = 'startup-failure')
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent') {
     throw 'Rollback rehearsal requires a disposable Meu GitHub runner.'
@@ -18,7 +19,7 @@ $checkout = Join-Path $env:MEU_HOME 'meu-agent'
 $baseline = Join-Path $env:RUNNER_TEMP 'meu-rollback-baseline'
 $candidate = Join-Path $env:GITHUB_WORKSPACE 'apps/desktop/release/meu-release-candidate'
 $driver = Join-Path $PSScriptRoot 'test-meu-rollback.mjs'
-& node $driver validate $baseline $candidate $scratch
+& node $driver validate $baseline $candidate $scratch '' '' '' $Scenario
 if ($LASTEXITCODE -ne 0) { throw 'Rollback candidates failed verification.' }
 $verifiedBaseline = Get-Content -LiteralPath (Join-Path $baseline 'meu-release.json') -Raw | ConvertFrom-Json
 $arguments = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
@@ -47,7 +48,7 @@ try {
     try {
         if (-not $child.WaitForExit(180000) -or $child.ExitCode -ne 0) { throw 'Rollback baseline installation failed.' }
     } finally { $child.Dispose() }
-    & node $driver run $baseline $candidate $scratch $executable $checkout $launcher
+    & node $driver run $baseline $candidate $scratch $executable $checkout $launcher $Scenario
     if ($LASTEXITCODE -ne 0) { throw 'Automatic rollback rehearsal failed.' }
 } finally {
     if (Test-Path -LiteralPath $launcher) { & $launcher gateway stop }

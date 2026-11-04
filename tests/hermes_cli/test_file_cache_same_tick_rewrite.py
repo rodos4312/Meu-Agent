@@ -92,6 +92,22 @@ def test_an_mtime_restoring_rewrite_still_gets_a_content_digest(tmp_path):
     assert utils.file_cache_version(path)[-1] == utils.content_digest(path.read_bytes())
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows creation time cannot detect an in-place rewrite")
+def test_windows_config_cache_sees_rewrite_even_after_timestamps_settle(tmp_path, monkeypatch):
+    import utils
+    from hermes_cli.config_backend import config_cache_version
+    path = tmp_path / "config.yaml"
+    path.write_text("model: a\n", encoding="utf-8")
+    monkeypatch.setattr(utils, "mtime_is_racy", lambda _ns: False)
+    before = config_cache_version(path)
+    assert utils.load_yaml_file_readonly(path)["model"] == "a"
+    stat = path.stat()
+    path.write_text("model: b\n", encoding="utf-8")
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+    assert config_cache_version(path) != before
+    assert utils.load_yaml_file_readonly(path)["model"] == "b"
+
+
 _WORKER_PROBE = r"""
 import json, os, sys
 from pathlib import Path
@@ -108,12 +124,11 @@ def audit(event, args):
 sys.addaudithook(audit)
 from agent import skill_utils
 import providers
-from hermes_cli import free_tier_bootstrap, model_switch, profiles
+from hermes_cli import model_switch, profiles
 calls = {
     "skills": skill_utils.get_external_skills_dirs,
     "named_custom": lambda: providers._has_named_custom_provider("foo", home, "k"),
     "alias_source": model_switch._direct_alias_source_identity,
-    "free_tier": free_tier_bootstrap._config_stamp,
     "standalone": lambda: profiles.profile_is_standalone(home),
 }
 for name, call in calls.items():
