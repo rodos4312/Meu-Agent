@@ -26,7 +26,7 @@ def test_review_reopens_only_its_deliverable_and_rechecks_the_repair(coordinator
     root.mkdir()
     app = root / "app.js"
     initial = create(parent, root, [
-        task(paths=["app.js"], id="merge", goal="Implement the task merge."),
+        task(paths=["app.js"], id="merge", goal="Inspect the existing merge without editing it."),
         task(id="inspect", goal="Inspect the other project files."),
         task(id="review", depends_on=["merge"], review_of="merge", goal="Check the task merge."),
     ])
@@ -65,6 +65,9 @@ def test_review_reopens_only_its_deliverable_and_rechecks_the_repair(coordinator
     assert queued["tasks"]["review"]["state"] == "pending"
     project(parent, "run")
     assert "The task was dropped." in built[-1]["context"]
+    assert built[-1]["goal"].startswith("Repair the confirmed review finding")
+    assert "without editing it" not in built[-1]["goal"]
+    assert "verify the confirmed check" in built[-1]["context"]
     app.write_text("if (seen.has(t.id)) continue;", encoding="utf-8")
     project(parent, "verify", task="merge", attempt=2, passed=True, evidence="Constructor case passed.", artifacts=["app.js"])
     project(parent, "run")
