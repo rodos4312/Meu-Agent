@@ -1,16 +1,19 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DelegationRouting } from '@/api/delegation'
 import type { HermesApiRequest } from '@/global'
 import { queryClient } from '@/lib/query-client'
 
+import { CoordinatorModelSettings } from './coordinator-model-settings'
 import { DelegationRoutingSection } from './routing-section'
 import { SubagentModelGate } from './subagent-model-gate'
 
 // A stateful stand-in for the backend's /api/delegation routes (same shapes, same refusal).
 let routing: DelegationRouting
+let catalog: { slug: string; name: string; models: string[] }[]
 const writes: HermesApiRequest[] = []
 
 function backend(names: string[]): DelegationRouting['backends'] {
@@ -25,8 +28,10 @@ function backend(names: string[]): DelegationRouting['backends'] {
 }
 
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn()
   queryClient.clear()
   writes.length = 0
+  catalog = []
   routing = {
     configured: 'default',
     blocked_reason: null,
@@ -56,7 +61,7 @@ beforeEach(() => {
       }
 
       if (request.path.startsWith('/api/model/options')) {
-        return { providers: [] }
+        return { provider: 'openai-codex', providers: catalog }
       }
 
       throw new Error('404: Not Found')
@@ -66,10 +71,10 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-function mount() {
+function mount(generalSettings?: ReactNode) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <DelegationRoutingSection scope="work" />
+      <DelegationRoutingSection generalSettings={generalSettings} scope="work" />
       <SubagentModelGate scope="work">
         <div data-testid="subagent-model-row">Subagent Model</div>
       </SubagentModelGate>
@@ -80,6 +85,34 @@ function mount() {
 const radio = (name: RegExp) => screen.getByRole('radio', { name }) as HTMLButtonElement
 
 describe('Subagents routing', () => {
+  it('opens the General settings and saves a light model under the chosen provider', async () => {
+    routing = { ...routing, backends: backend(['default', 'meu_coordinator', 'meu_coordinator_general']) }
+    catalog = [
+      { slug: 'openai-codex', name: 'OpenAI Codex', models: ['gpt-6-luna', 'gpt-6.1-sol'] },
+      { slug: 'anthropic', name: 'Anthropic', models: ['claude-sonnet'] }
+    ]
+    const onConfigChange = vi.fn()
+
+    const config = { delegation: { backends: { meu_coordinator_general: { models: {
+      anthropic: { complex: 'claude-sonnet' }
+    } } } } }
+
+    mount(<CoordinatorModelSettings config={config} onConfigChange={onConfigChange} scope="work" />)
+    await screen.findByRole('radio', { name: /^meu_coordinator_general/ })
+    expect(screen.queryByRole('combobox', { name: 'Light tasks' })).toBeNull()
+    fireEvent.click(radio(/^meu_coordinator_general/))
+
+    const light = await screen.findByRole('combobox', { name: 'Light tasks' })
+
+    expect(light.textContent).toContain('Automatic')
+    fireEvent.keyDown(light, { key: 'ArrowDown' })
+    fireEvent.click(await screen.findByRole('option', { name: 'gpt-6-luna' }))
+    expect(onConfigChange).toHaveBeenCalledWith({ delegation: { backends: { meu_coordinator_general: { models: {
+      anthropic: { complex: 'claude-sonnet' },
+      'openai-codex': { routine: 'gpt-6-luna' }
+    } } } } })
+  })
+
   it('shows plugin modes with an install hint, never as choosable, until their backend registers', async () => {
     mount()
     await screen.findByText('Model routes and Profile routes come from the Advanced Delegation plugin.')

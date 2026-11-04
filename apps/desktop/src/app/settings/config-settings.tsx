@@ -40,6 +40,7 @@ import { PanelEmpty } from '../overlays/panel'
 import { ConfigField } from './config-field'
 import { configSubpageForField } from './config-subpages'
 import { DELEGATION_ROUTE_COMPANION_KEY, DelegationRouteRow } from './delegation-route-row'
+import { CoordinatorModelSettings } from './delegation/coordinator-model-settings'
 import { DelegationRoutingSlot } from './delegation/routing-section'
 import { SubagentModelGate } from './delegation/subagent-model-gate'
 import {
@@ -521,6 +522,9 @@ function ConfigSettingsInner({
       {/* Routing picks the strategy and owns its routes; the subagent model row below is the
           Default strategy's route and goes inert while another strategy decides. */}
       <DelegationRoutingSlot
+        generalSettings={
+          <CoordinatorModelSettings config={config} onConfigChange={updateConfig} scope={writeScope ?? scopeProfile} />
+        }
         readScope={scopeProfile}
         sectionId={activeSectionId}
         subpage={subpage}

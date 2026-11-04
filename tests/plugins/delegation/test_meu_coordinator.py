@@ -27,7 +27,7 @@ def test_semantic_plan_routes_short_complex_and_long_routine_work_independently(
     assert "results" in out, out
     assert [r["status"] for r in out["results"]] == ["completed", "completed"]
     assert [b["model"] for b in built] == ["deepseek-flash", "deepseek-v4-pro"]
-    assert all(b["override_provider"] == "deepseek" for b in built)
+    assert all(b["override_provider"] is None for b in built)
     assert "Acceptance checks:" in built[0]["context"]
     assert "Read-only" in built[0]["context"] and "src/api.py" in built[1]["context"]
     assert "routine" in out["results"][0]["route"]["label"]
@@ -39,6 +39,102 @@ def test_overlapping_parallel_writes_refuse_before_building_any_child(coordinato
     _, built, parent = coordinator
     out = dispatch(parent, [task(paths=paths[0]), task(paths=paths[1])])
     assert "overlapping write_paths" in out["error"]
+    assert built == []
+
+
+@pytest.mark.parametrize("catalog_kind", [
+    "verified", "curated", "other-account", "different-endpoint", "missing", "anthropic",
+])
+def test_coordinator_keeps_parent_transport_and_uses_its_discovered_catalog(coordinator, monkeypatch, catalog_kind):
+    from hermes_cli import models
+    from tools.delegate_tool_config import _resolve_child_runtime
+
+    home, built, parent = coordinator
+    parent.provider = "openai-codex"
+    parent.model = "gpt-6.1-sol"
+    parent.base_url = ("https://example.invalid/codex" if catalog_kind == "different-endpoint"
+                       else "https://chatgpt.com/backend-api/codex")
+    parent.api_mode = "codex_responses"
+    parent._fallback_chain = [{"provider": "deepseek", "model": "deepseek-v4-pro"}]
+    if catalog_kind == "anthropic":
+        parent.provider = "anthropic"
+        parent.model = "claude-sonnet-4-6"
+        parent.base_url = "https://api.anthropic.com"
+        parent.api_mode = "anthropic_messages"
+        ids = ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"]
+    else:
+        ids = ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-luna"]
+    if catalog_kind == "anthropic":
+        monkeypatch.setattr(models, "_fetch_anthropic_models", lambda **_: ids)
+        assert "claude-fable-5" in models.cached_provider_model_ids(parent.provider, force_refresh=True)
+    monkeypatch.setattr(models, "provider_model_ids", lambda *a, **kw: pytest.fail("Unexpected catalog request"))
+    if catalog_kind not in {"missing", "anthropic"}:
+        fingerprint = (models._credential_fingerprint(parent.provider)
+                       if catalog_kind != "other-account" else "other-account")
+        models._store_cache_entry(parent.provider, {
+            **models._cache_entry(fingerprint, ids), "fallback": catalog_kind == "curated",
+        })
+    (home / "config.yaml").write_text(yaml.safe_dump({
+        "delegation": {
+            "backend": "meu_coordinator_general",
+            "fallback_providers": [{"provider": "deepseek", "model": "deepseek-v4-pro"}],
+        }
+    }), encoding="utf-8")
+
+    out = dispatch(parent, [task(), task("standard")])
+    out_complex = dispatch(parent, [task("complex")])
+    assert [r["status"] for r in out["results"] + out_complex["results"]] == ["completed"] * 3
+    expected = ids[:3] if catalog_kind in {"verified", "anthropic"} else [parent.model] * 3
+    assert [b["model"] for b in built] == expected
+    for child in built:
+        assert child["override_provider"] is None
+        assert child["routing_cfg"]["fallback_providers"] == []
+        keys = ("model", "override_provider", "override_base_url", "override_api_key", "override_api_mode",
+                "override_acp_command", "override_acp_args", "routing_cfg")
+        runtime = _resolve_child_runtime(parent, {}, parent.api_key, **{key: child.get(key) for key in keys})
+        assert (runtime["provider"], runtime["base_url"], runtime["api_mode"], runtime["api_key"]) == (
+            parent.provider, parent.base_url, parent.api_mode, parent.api_key,
+        )
+        assert runtime["fallback_model"] is None
+
+
+def test_coordinator_does_not_spawn_on_parent_cross_provider_fallback(coordinator):
+    _, built, parent = coordinator
+    parent._primary_runtime = {"provider": "openai-codex"}
+    parent._fallback_activated = True
+
+    out = dispatch(parent, [task()])
+
+    assert "selected provider is temporarily unavailable" in out.get("error", ""), out
+    assert built == []
+
+
+def test_general_resumes_existing_projects_and_honors_only_active_provider_overrides(coordinator, tmp_path):
+    from tests.plugins.delegation.test_meu_projects import create, project
+
+    home, built, parent = coordinator
+    assert create(parent, tmp_path, [task(id="light"), task("complex", id="heavy")])["ready"] == ["light", "heavy"]
+    (home / "config.yaml").write_text(yaml.safe_dump({
+        "delegation": {
+            "backend": "meu_coordinator_general",
+            "backends": {"meu_coordinator_general": {"models": {
+                "deepseek": {"routine": "deepseek-flash", "complex": "deepseek-v4-pro"},
+                "openai-codex": {"routine": "gpt-6-luna", "complex": "gpt-6.1-sol"},
+            }}},
+        }
+    }), encoding="utf-8")
+    parent.provider = "openai-codex"
+    parent.model = "gpt-5.6-sol"
+    parent.base_url = "https://chatgpt.com/backend-api/codex"
+    assert project(parent, "run")["tasks"]["light"]["state"] == "needs_review"
+    assert [b["model"] for b in built] == ["gpt-6-luna", "gpt-6.1-sol"]
+
+
+def test_deepseek_coordinator_refuses_other_providers(coordinator):
+    _, built, parent = coordinator
+    parent.provider = "openai-codex"
+    out = dispatch(parent, [task()])
+    assert "requires a DeepSeek session" in out.get("error", ""), out
     assert built == []
 
 
@@ -83,8 +179,18 @@ def test_schema_is_stable_and_coordinator_is_discoverable_for_settings(coordinat
     first = json.dumps(registry.get_definitions({"delegate_task"}), sort_keys=True)
     second = json.dumps(registry.get_definitions({"delegate_task"}), sort_keys=True)
     assert first == second and '"parallel_safe"' in first and '"acceptance"' in first
-    entry = next(b for b in list_backends() if b.name == "meu_coordinator")
-    assert entry.available and entry.label == "Meu Coordinator"
+    backends = {b.name: b for b in list_backends()}
+    assert backends["meu_coordinator"].available and backends["meu_coordinator"].label == "Meu Coordinator · DeepSeek"
+    assert backends["meu_coordinator_general"].available
+    assert backends["meu_coordinator_general"].label == "Meu Coordinator · General"
+
+
+def test_bundled_first_use_resolves_the_general_backend_by_its_own_name(coordinator, monkeypatch):
+    from agent import delegation_registry
+
+    monkeypatch.setattr(delegation_registry, "_first_use", {})
+    assert delegation_registry._load_bundled("meu_coordinator_general").name == "meu_coordinator_general"
+    assert delegation_registry._load_bundled("meu_coordinator").name == "meu_coordinator"
 
 
 def test_another_profile_keeps_its_own_delegation_mode(coordinator, tmp_path, monkeypatch):

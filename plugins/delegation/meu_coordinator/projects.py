@@ -16,6 +16,7 @@ from pm.filesystem import durable_write_bytes, lock_path
 from tools.delegate_workspace import local_project_root
 
 from .planning import validate_plan
+from .routing import WORKLOADS
 
 _ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 
@@ -37,8 +38,8 @@ def new_project(project, root, tasks):
             raise ValueError("Project task ids must be unique.")
         if not isinstance(task.get("goal"), str) or not task["goal"].strip():
             raise ValueError("Every project task needs a concrete goal.")
-        if task.get("workload") not in {"routine", "complex", "vision"}:
-            raise ValueError("Set workload to routine, complex or vision.")
+        if task.get("workload") not in WORKLOADS:
+            raise ValueError("Set workload to routine, standard, complex or vision.")
         validate_plan([task])
         dependencies = task.get("depends_on", [])
         if not isinstance(dependencies, list) or any(not isinstance(dep, str) for dep in dependencies):

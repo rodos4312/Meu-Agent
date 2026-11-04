@@ -1,6 +1,13 @@
 import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 export const deDelegationRouting: DelegationRoutingTranslations = {
+  coordinator: {
+    title: 'Modelle für den allgemeinen Koordinator',
+    description: 'Lege optionale Modelle für diesen Anbieter fest. Helfer bleiben beim Anbieter der aktuellen Sitzung.',
+    routine: 'Einfache Aufgaben',
+    complex: 'Anspruchsvolle Aufgaben',
+    auto: 'Automatisch'
+  },
   title: 'Routing',
   settingsTitle: 'Subagent-Standards',
   intro: 'Wie jeder Subagent sein Modell erhält.',

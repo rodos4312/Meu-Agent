@@ -5,30 +5,36 @@ from typing import Any, Mapping
 from agent.delegation_provider import DelegationProvider, DelegationRouteError
 
 from .planning import validate_plan
+from .routing import DEEPSEEK_BACKEND, GENERAL_BACKEND, WORKLOADS, select_deepseek_model, select_model
 
 _FILE_TOOLS = ("read_file", "write_file", "patch", "search_files")
 
 
 class MeuCoordinator(DelegationProvider):
+    def __init__(self, *, general: bool = False) -> None:
+        self.general = general
+
     @property
     def name(self) -> str:
-        return "meu_coordinator"
+        return GENERAL_BACKEND if self.general else DEEPSEEK_BACKEND
 
     @property
     def display_name(self) -> str:
-        return "Meu Coordinator"
+        return "Meu Coordinator · General" if self.general else "Meu Coordinator · DeepSeek"
 
     @property
     def summary(self) -> str:
-        return "Plan each task: Flash for routine/visual work, Pro for complex work; check parallel write scopes."
+        if self.general:
+            return "Pick models by task from the session's provider and check parallel write scopes."
+        return "For DeepSeek sessions: use Flash for routine and visual work, Pro for harder work."
 
     def task_parameters(self, config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
         return {
             "workload": {
-                "type": "string", "enum": ["routine", "complex", "vision"],
+                "type": "string", "enum": list(WORKLOADS),
                 "description": "Required. Assess the actual subtask, not its length: routine = bounded extraction, "
-                "lookup, mechanical edits; complex = architecture, nontrivial code, debugging or critical review; "
-                "vision = interpreting images/screenshots (Flash supports images).",
+                "lookup or mechanical edits; standard = ordinary implementation or synthesis; complex = architecture, "
+                "difficult debugging or critical review; vision = interpreting images or screenshots.",
             },
             "acceptance": {"type": "string", "description": "Required. State what to check and the expected result or "
                            "evidence for a pass. Example: import two tasks with the same ID and confirm exactly one remains."},
@@ -50,7 +56,7 @@ class MeuCoordinator(DelegationProvider):
             "check. Delegate independent work that can proceed while you do something else, or work that needs "
             "a separate specialist. Use tasks=[...] even for one helper; supply workload, acceptance, "
             "parallel_safe and write_paths for EVERY task. You, the parent, assess complexity using the task's "
-            "meaning; do not send every task to Pro or classify by keywords alone. Keep dependent work sequential: "
+            "meaning; do not classify by keywords alone. Keep dependent work sequential: "
             "wait for prerequisite results, then pass their concrete artifacts/evidence in the next task's context. "
             "Set tool_access=files_only when the user restricts a helper to file tools. "
             "The coordinator passes acceptance checks and permitted write paths to every helper. Workers share "
@@ -67,13 +73,14 @@ class MeuCoordinator(DelegationProvider):
 
     def route_task(self, task: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:
         workload = task.get("workload")
-        if workload not in {"routine", "complex", "vision"}:
-            raise DelegationRouteError("Set workload to routine, complex or vision for this subtask.")
-        model = "deepseek-v4-pro" if workload == "complex" else "deepseek-flash"
+        if workload not in WORKLOADS:
+            raise DelegationRouteError("Set workload to routine, standard, complex or vision for this subtask.")
+        parent_route = config.get("parent_route") or {}
+        model = (select_model(workload, parent_route, self.settings(config).get("models"))
+                 if self.general else select_deepseek_model(workload, parent_route))
         paths = task.get("write_paths", [])
         scope = ", ".join(paths) if paths else "Read-only: do not modify project files."
-        route = {"provider": "deepseek", "model": model,
-                "label": f"{workload} · {model}", "fallback_providers": [],
+        route = {"model": model, "label": f"{workload} · {model or 'session model'}", "fallback_providers": [],
                 "instructions": f"Coordinator task contract\nWrite scope: {scope}\n"
                 f"Acceptance checks: {task.get('acceptance', '')}\n"
                 "Return the work/artifact locations, checks actually run and their results, and any unresolved issues. "
@@ -84,9 +91,11 @@ class MeuCoordinator(DelegationProvider):
 
 
 def register(ctx) -> None:
-    ctx.register_delegation_provider(MeuCoordinator())
+    coordinator = MeuCoordinator()
+    ctx.register_delegation_provider(coordinator)
+    ctx.register_delegation_provider(MeuCoordinator(general=True))
     # Minimal first-use routing registrars intentionally expose only the provider.
     # Session tool discovery uses the full plugin context and owns tool lifetime.
     if hasattr(ctx, "register_tool"):
         from .project_tool import register as register_projects
-        register_projects(ctx, MeuCoordinator().task_parameters({}))
+        register_projects(ctx, coordinator.task_parameters({}))

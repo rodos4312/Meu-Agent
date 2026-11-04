@@ -1,6 +1,13 @@
 import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 export const jaDelegationRouting: DelegationRoutingTranslations = {
+  coordinator: {
+    title: '汎用コーディネーターのモデル',
+    description: 'このプロバイダーのモデルを必要に応じて指定します。ヘルパーは現在のセッションのプロバイダーを使います。',
+    routine: '軽いタスク',
+    complex: '重いタスク',
+    auto: '自動'
+  },
   title: 'ルーティング',
   settingsTitle: 'サブエージェントの既定値',
   intro: '各サブエージェントがどのモデルを使うかを決めます。',

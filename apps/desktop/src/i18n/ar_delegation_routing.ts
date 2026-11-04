@@ -1,6 +1,13 @@
 import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 export const arDelegationRouting: DelegationRoutingTranslations = {
+  coordinator: {
+    title: 'نماذج المنسق العام',
+    description: 'اختر نماذج اختيارية لهذا المزود. يلتزم المساعدون بمزود الجلسة الحالية.',
+    routine: 'المهام البسيطة',
+    complex: 'المهام المعقدة',
+    auto: 'تلقائي'
+  },
   title: 'التوجيه',
   settingsTitle: 'الإعدادات الافتراضية للوكلاء الفرعيين',
   intro: 'كيف يحصل كل وكيل فرعي على نموذجه.',

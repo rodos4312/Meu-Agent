@@ -349,6 +349,23 @@ def resolve_task_routes(task_list: list[dict[str, Any]], config: Mapping[str, An
     except Exception as exc:
         logger.warning("delegation provider %s.validate_tasks() raised", provider.name, exc_info=True)
         return [], f"Delegation backend '{provider.name}' could not validate the plan: {exc}"
+    from tools.delegate_tool_config import _inherit_parent_endpoint
+
+    base_url, _ = _inherit_parent_endpoint(parent_agent, getattr(parent_agent, "base_url", None), None)
+    primary = getattr(parent_agent, "_primary_runtime", None)
+    primary_provider = None
+    if isinstance(primary, dict) and getattr(parent_agent, "_fallback_activated", False):
+        primary_provider = primary.get("provider")
+        requested = primary.get("requested_provider")
+        if primary_provider == "custom" and isinstance(requested, str) and requested.startswith("custom:"):
+            primary_provider = requested
+    config = {**config, "parent_route": {
+        "provider": getattr(parent_agent, "provider", None),
+        "requested_provider": getattr(parent_agent, "requested_provider", None),
+        "model": getattr(parent_agent, "model", None),
+        "base_url": base_url,
+        "primary_provider": primary_provider,
+    }}
     cache: dict[str, TaskRoute] = {}
     routes: list[TaskRoute] = []
     for i, task in enumerate(task_list):

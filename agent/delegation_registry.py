@@ -30,6 +30,7 @@ _registry: ProviderRegistry[DelegationProvider] = ProviderRegistry(
 _registry.export(globals())
 
 _BUNDLED_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+_BUNDLED_BACKEND_PACKAGES = {"meu_coordinator_general": "meu_coordinator"}
 
 
 def configured_backend(config: Mapping[str, Any]) -> str:
@@ -49,7 +50,8 @@ class _BundledRegistrar:
         self.name = name
 
     def register_delegation_provider(self, provider: DelegationProvider) -> None:
-        _first_use[self.name] = provider
+        if provider.name == self.name:
+            _first_use[self.name] = provider
 
 
 def _bundled_disabled(name: str) -> bool:
@@ -64,15 +66,16 @@ def _load_bundled(name: str) -> Optional[DelegationProvider]:
     disable takes effect without a restart."""
     from hermes_cli.plugins import get_bundled_plugins_dir
     from plugins import plugin_loader
-    if not _BUNDLED_NAME_RE.match(name) or _bundled_disabled(name):  # the name comes from config.yaml: never a path
+    package = _BUNDLED_BACKEND_PACKAGES.get(name, name)
+    if not _BUNDLED_NAME_RE.match(name) or _bundled_disabled(name) or (package != name and _bundled_disabled(package)):
         return None
     if name in _first_use:
         return _first_use[name]
-    plugin_dir = get_bundled_plugins_dir() / "delegation" / name
+    plugin_dir = get_bundled_plugins_dir() / "delegation" / package
     if not (plugin_dir / "plugin.yaml").is_file():
         return None
     module = plugin_loader.load_plugin_module(
-        f"plugins.delegation.{name.replace('-', '_')}", plugin_dir, parents=("plugins", "plugins.delegation"),
+        f"plugins.delegation.{package.replace('-', '_')}", plugin_dir, parents=("plugins", "plugins.delegation"),
         logger=logger)
     if module is None:
         return None

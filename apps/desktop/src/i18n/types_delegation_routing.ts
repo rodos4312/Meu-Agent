@@ -1,4 +1,11 @@
 export interface DelegationRoutingTranslations {
+  coordinator: {
+    title: string
+    description: string
+    routine: string
+    complex: string
+    auto: string
+  }
   title: string
   settingsTitle: string
   intro: string

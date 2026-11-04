@@ -1,6 +1,13 @@
 import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 export const ruDelegationRouting: DelegationRoutingTranslations = {
+  coordinator: {
+    title: 'Модели общего координатора',
+    description: 'При желании выберите модели для этого провайдера. Помощники используют провайдера текущей сессии.',
+    routine: 'Простые задачи',
+    complex: 'Сложные задачи',
+    auto: 'Автоматически'
+  },
   title: 'Маршрутизация',
   settingsTitle: 'Параметры субагентов по умолчанию',
   intro: 'Как каждый субагент получает свою модель.',

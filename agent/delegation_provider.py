@@ -120,4 +120,8 @@ class DelegationProvider(ProviderBase):
         ``task`` carries ``goal``, ``context``, ``index`` and the values the model supplied for
         this provider's :meth:`task_parameters` (absent when omitted). Raise
         :class:`DelegationRouteError` to refuse the task.
+
+        At routing time only, ``config["parent_route"]`` describes the live parent's
+        provider, requested provider, model and endpoint, plus the primary provider if fallback is active.
+        It contains no credentials.
         """

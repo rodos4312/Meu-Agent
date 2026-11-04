@@ -1167,6 +1167,14 @@ def _stepfun_catalog(normalized: str, force_refresh: bool) -> Optional[list[str]
     return _merge_unique(live, curated, key=_model_dedup_key) if curated else live
 
 
+class _PickerModelsWithAliases(list[str]):
+    """Picker rows and the subset actually returned by provider discovery."""
+
+    def __init__(self, rows: list[str], discovered: list[str]):
+        super().__init__(_chat_catalog_rows(rows))
+        self.discovered = _chat_catalog_rows(discovered)
+
+
 def _anthropic_catalog(normalized: str, force_refresh: bool) -> list[str]:
     model_cfg = _get_model_config_dict()
     cfg_base_url = cfg_api_key = ""
@@ -1181,7 +1189,7 @@ def _anthropic_catalog(normalized: str, force_refresh: bool) -> list[str]:
         return CuratedFallbackModels(curated)
     # The live /v1/models dump lags newly-routed curated aliases (reachable before enumerated):
     # curated first, then live-only extras, so a fresh curated model never disappears.
-    return live if cfg_base_url else _merge_unique(curated, live)
+    return _PickerModelsWithAliases(live if cfg_base_url else _merge_unique(curated, live), live)
 
 
 def _openai_catalog(normalized: str, force_refresh: bool) -> Optional[list[str]]:
@@ -1534,7 +1542,10 @@ def _live_result_entry(fp: str, live: list[str], existing: Any, at: Optional[flo
     fallback never replaces the account's real catalog for the same credentials, and when it is
     stored it is flagged so it expires on the short fallback TTL."""
     if not isinstance(live, CuratedFallbackModels):
-        return _cache_entry(fp, live, at)
+        entry = _cache_entry(fp, live, at)
+        if isinstance(live, _PickerModelsWithAliases):
+            entry["discovered"] = live.discovered
+        return entry
     if _cache_entry_valid(existing, fp) and not existing.get("fallback"):
         return None
     return {**_cache_entry(fp, live, at), "fallback": True}
@@ -1737,14 +1748,16 @@ def _model_requires_account_discovery(provider: Optional[str], model: str) -> bo
 
 def cached_provider_model_ids(
     provider: Optional[str], *, force_refresh: bool = False,
-    ttl_seconds: int = _PROVIDER_MODELS_CACHE_TTL, non_blocking: bool = False) -> list[str]:
+    ttl_seconds: int = _PROVIDER_MODELS_CACHE_TTL, non_blocking: bool = False,
+    verified_cache_only: bool = False) -> list[str]:
     """Disk-cached :func:`provider_model_ids`: fresh cache hit, else live fetch persisting a non-empty
     result. Always returns a list.
 
     ``non_blocking`` marks the GUI read path (``model.options``): it NEVER waits on a provider probe.
     A same-credentials row of any age is served as-is and a daemon thread warms the next open; a
     cold/mismatched row returns ``[]`` so the caller keeps its curated list. One degraded provider
-    (hanging or timing-out ``/v1/models``) therefore delays nothing but itself (#114215)."""
+    (hanging or timing-out ``/v1/models``) therefore delays nothing but itself (#114215).
+    ``verified_cache_only`` requires a fresh discovery and never starts a refresh."""
     normalized = _normalized_cache_slug(provider)
     if not normalized:
         return []
@@ -1754,6 +1767,14 @@ def cached_provider_model_ids(
     fp = _credential_fingerprint(normalized)
     entry = cache.get(normalized)
     now = time.time()
+
+    if verified_cache_only:
+        tier = _disk_serve_tier(entry, fp, now, is_ollama=is_ollama, ttl_seconds=ttl_seconds)
+        if tier == "fresh" and not entry.get("fallback") and not _configured_relay_base_url(normalized):
+            # Older Anthropic cache rows did not distinguish aliases from discovered IDs.
+            models = entry.get("discovered", []) if normalized == "anthropic" else entry["models"]
+            return _chat_catalog_rows(list(models)) if isinstance(models, list) else []
+        return []
 
     if not force_refresh:
         tier = _disk_serve_tier(entry, fp, now, is_ollama=is_ollama, ttl_seconds=ttl_seconds)

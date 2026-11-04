@@ -29,6 +29,7 @@ import {
 } from './routing-data'
 
 interface DelegationRoutingSlotProps {
+  generalSettings?: ReactNode
   sectionId: string
   /** Undefined = the whole section is shown (embedded consumers). */
   subpage?: string
@@ -38,16 +39,16 @@ interface DelegationRoutingSlotProps {
 }
 
 /** The Routing section on the page that owns `delegation.*` (Model › Subagents); nothing elsewhere. */
-export function DelegationRoutingSlot({ sectionId, subpage, writeScope, readScope }: DelegationRoutingSlotProps) {
+export function DelegationRoutingSlot({ generalSettings, sectionId, subpage, writeScope, readScope }: DelegationRoutingSlotProps) {
   if (sectionId !== 'model' || (subpage !== undefined && subpage !== 'delegation')) {
     return null
   }
 
-  return <DelegationRoutingSection scope={writeScope ?? readScope} />
+  return <DelegationRoutingSection generalSettings={generalSettings} scope={writeScope ?? readScope} />
 }
 
 /** Settings › Model › Subagents: how each subagent gets its model, and the routes of the chosen mode. */
-export function DelegationRoutingSection({ scope }: { scope: ProfileScope }) {
+export function DelegationRoutingSection({ generalSettings, scope }: { generalSettings?: ReactNode; scope: ProfileScope }) {
   const { t } = useI18n()
   const r = t.settings.model.subagents.routing
   const query = useDelegationRouting(scope)
@@ -77,6 +78,7 @@ export function DelegationRoutingSection({ scope }: { scope: ProfileScope }) {
             ))}
           </div>
         )}
+        {routing?.configured === 'meu_coordinator_general' && generalSettings}
       </SettingsSection>
       <SectionHeading icon={SlidersHorizontal} title={r.settingsTitle} />
     </>

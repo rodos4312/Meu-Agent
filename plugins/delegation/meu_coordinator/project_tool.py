@@ -4,11 +4,12 @@ from pathlib import Path
 
 from .projects import new_project, open_project
 from .reviews import REVIEW_SCHEMA, configure_review, request_fix, review_finding
+from .routing import COORDINATOR_BACKENDS
 
 
 def available():
     from hermes_cli.config import load_config_readonly
-    return (load_config_readonly().get("delegation") or {}).get("backend") == "meu_coordinator"
+    return (load_config_readonly().get("delegation") or {}).get("backend") in COORDINATOR_BACKENDS
 
 
 def _home(parent_agent):
@@ -118,7 +119,7 @@ def handle(args, *, parent_agent=None, **_kwargs):
     from agent.delegation_backends import pinned_backend, saved_backend
     if parent_agent is None or getattr(parent_agent, "_delegate_depth", 0):
         return json.dumps({"error": "Project coordination belongs to the parent agent only."})
-    if (pinned_backend(parent_agent) or saved_backend()) != "meu_coordinator":
+    if (pinned_backend(parent_agent) or saved_backend()) not in COORDINATOR_BACKENDS:
         return json.dumps({"error": "This session uses another delegation backend. Start a coordinator session first."})
     try:
         action, project = args.get("action"), args.get("project")
@@ -146,7 +147,7 @@ def register(ctx, task_parameters):
         "tasks": {"type": "array", "items": {"type": "object", "properties": {
             **task_parameters, "id": {"type": "string"}, "goal": {"type": "string"}, "context": {"type": "string"},
             "depends_on": {"type": "array", "items": {"type": "string"}},
-            "review_of": {"type": "string", "description": "Optional independent Pro review. Name the one deliverable in depends_on and use write_paths=[]."},
+            "review_of": {"type": "string", "description": "Optional independent complex review. Name the one deliverable in depends_on and use write_paths=[]."},
         }, "required": ["id", "goal", "workload", "acceptance", "parallel_safe", "write_paths"]}},
         "task": {"type": "string"}, "attempt": {"type": "integer"}, "passed": {"type": "boolean"},
         "evidence": {"type": "string", "description": "Checks actually run and results; for retry reconcile existing artifacts first."},
@@ -158,9 +159,9 @@ def register(ctx, task_parameters):
                               "Use for work with independent deliverables or dependent stages. Handle a small direct request yourself. "
                               "Create a dependency plan once and reuse it. Give each task a check and the expected result "
                               "or evidence for a pass. Run selects up to two "
-                              "independent ready tasks with disjoint write scopes and native Flash/Pro helpers. Status resumes "
+                              "independent ready tasks with disjoint write scopes and the session's model provider. Status resumes "
                               "the saved plan after restart. Each finished helper is checkpointed before the batch joins. "
-                              "Use Flash for bounded work, Pro for complex work, and review_of for consequential deliverables. "
+                              "Set workload by difficulty and use review_of for consequential deliverables. "
                               "A read-only Pro reviewer returns a verdict, exact check and observation. For needs_fix, reproduce "
                               "the failure yourself and call request_fix with the review task, review attempt and evidence. This "
                               "reopens only that deliverable for Pro repair and schedules its review again. "

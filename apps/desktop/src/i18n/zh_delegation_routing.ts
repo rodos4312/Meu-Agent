@@ -1,6 +1,13 @@
 import type { DelegationRoutingTranslations } from './types_delegation_routing'
 
 export const zhDelegationRouting: DelegationRoutingTranslations = {
+  coordinator: {
+    title: '通用协调器模型',
+    description: '为此提供商选择可选模型。助手始终使用当前会话的提供商。',
+    routine: '简单任务',
+    complex: '复杂任务',
+    auto: '自动'
+  },
   title: '路由',
   settingsTitle: '子智能体默认设置',
   intro: '决定每个子智能体使用哪个模型。',
