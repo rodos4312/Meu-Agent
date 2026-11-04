@@ -1,0 +1,30 @@
+name: Meu isolated cold boot infrastructure proof
+
+on:
+  push:
+    branches: [dev/meu-foundation]
+    paths: [.github/workflows/meu-cold-boot-proof.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  cold-boot:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'rodos4312/Meu-Agent' && github.ref == 'refs/heads/dev/meu-foundation'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: python
+          extras: '[]'
+      - name: Prove reporting survives a real reboot of this disposable VM
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./apps/desktop/scripts/test-meu-cold-boot-host.ps1
