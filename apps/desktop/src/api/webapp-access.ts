@@ -1,7 +1,7 @@
 import { hermesApi, profileScoped } from './client'
 
-// Web access: turn on the Webapp the gateway on THIS machine serves, for other devices, behind Nous
-// sign-in. The backend owns every fact here; the pane renders /status and asks for changes.
+// The local gateway serves the Webapp to other devices behind a configured sign-in provider.
+// The backend owns the status; the pane displays it and requests changes.
 
 export type WebAccessMode = 'lan' | 'public'
 

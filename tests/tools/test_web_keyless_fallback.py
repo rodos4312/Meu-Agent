@@ -488,14 +488,11 @@ class TestPickerTierRows:
         _write_provider_config(
             {"web_backend": "exa", "web_tier": "free", "env_vars": []},
             config,
-            managed_feature=None,
         )
         assert config["web"]["backend"] == "exa"
         assert config["web"]["provider_tier"]["exa"] == "free"
         # Re-selecting a tier-agnostic row clears the stale tier.
-        _write_provider_config(
-            {"web_backend": "exa", "env_vars": []}, config, managed_feature=None
-        )
+        _write_provider_config({"web_backend": "exa", "env_vars": []}, config)
         assert "exa" not in config["web"]["provider_tier"]
 
     def test_tier_match_highlights_correct_row(self):

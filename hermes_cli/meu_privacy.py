@@ -8,6 +8,7 @@ from typing import Any
 _RETIRED = (
     ("telemetry", "shared_metrics"), ("nous", "keepalive_interval_seconds"),
     ("nous", "anthropic_wire"), ("cron", "chronos"),
+    ("display", "credits_notices"), ("dashboard", "oauth"),
 )
 _RETIRED_CATALOG_URLS = {
     "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json",

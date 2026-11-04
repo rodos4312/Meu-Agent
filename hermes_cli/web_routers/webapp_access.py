@@ -30,7 +30,7 @@ _restart_gateway_after = late("_restart_gateway_after", "hermes_cli.web_server_g
 _gateway_restart_failure = late("gateway_restart_failure", "hermes_cli.web_server_gateway")
 # One Web Access change at a time in this backend (every Desktop window's pane talks to it): a
 # Start, Stop or Restart waits for the one in flight, from its build through the restart request,
-# so the Portal's callback, the config and the gateway all end on the last change asked for.
+# so the config and gateway end on the last change requested.
 _CHANGE_LOCK = threading.Lock()
 _CHANGE_POLL_SECONDS = 0.05
 
@@ -68,7 +68,7 @@ def _gateway_scope(profile: Optional[str], *, config_write: bool):
 
 async def _scoped(profile: Optional[str], fn: Callable[[Optional[str]], Any], *, config_write: bool = False) -> Any:
     """Run ``fn(gateway profile)`` in the gateway's scope off the loop; access errors become 400s.
-    Only a ``config.yaml`` write takes the config lock; registration waits on the portal outside it."""
+    Only a ``config.yaml`` write takes the config lock."""
 
     def _run():
         with _gateway_scope(profile, config_write=config_write) as gateway_profile:
@@ -83,8 +83,7 @@ async def _scoped(profile: Optional[str], fn: Callable[[Optional[str]], Any], *,
 async def _in_gateway_home(gateway: Optional[str], fn: Callable[[], Any]) -> Any:
     """Run ``fn()`` off the loop in the home and secret scope of the *gateway* profile that
     ``_scoped`` resolved, without the skills lock ``_profile_scope`` holds, which every config,
-    skills and tools request takes: for the slow steps (the bundle build, Portal registration),
-    which never touch skills. Access errors become 400s."""
+    skills and tools request takes. Access errors become 400s."""
     try:
         return await config_scoped_to_thread(gateway, fn)
     except webapp_access.WebappAccessError as exc:
@@ -127,10 +126,9 @@ async def start_webapp_access(body: StartBody, profile: Optional[str] = None):
     profile = destructive_profile(profile, "POST /api/webapp-access/start")
     async with _one_change_at_a_time():
         # Writes a standalone profile's first port claim, so it takes the config lock.
-        gateway, (host, port, public_url, _callback) = await _scoped(
+        gateway, (host, port, public_url) = await _scoped(
             profile, lambda gateway: (gateway, webapp_access.plan(body.mode, body.public_url)), config_write=True)
-        # The bundle before anything else lasting: a failed build registers, restarts and writes nothing
-        # but that port claim.
+        # If the build fails, keep the port claim without enabling the Webapp.
         await _in_gateway_home(gateway, webapp_access.build_bundle)
         await _scoped(profile, lambda _gateway: webapp_access.serve(host, public_url, port), config_write=True)
         return await _restart(gateway, "turning on Web Access")

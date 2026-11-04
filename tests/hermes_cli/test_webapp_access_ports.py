@@ -4,8 +4,7 @@ The default profile's gateway serves the documented address, 9120 unless ``webap
 A standalone profile has a gateway of its own; turning Web Access on there without a ``webapp.port`` used
 to bind 9120 too, which the default gateway's Webapp holds, so nothing was served. Start now gives such a
 profile the first port above 9120 that no other Hermes home claims and nothing listens on, and writes it to
-that profile's ``webapp.port``, so the gateway binds it, the launcher prints and opens it, the sign-in
-callback names it, and it stays the same across restarts. A ``webapp.port`` the user set always stays.
+that profile's ``webapp.port``, so the gateway binds it, the launcher prints and opens it, and it stays the same across restarts. A ``webapp.port`` the user set always stays.
 No test binds a real port: what listens is faked, and the probe itself is checked on OS-chosen ports.
 """
 import os
@@ -39,7 +38,7 @@ def machine(monkeypatch, tmp_path):
         return port not in listening
 
     monkeypatch.setattr(webapp_access, "_port_free", port_free, raising=False)
-    monkeypatch.setattr(webapp_access, "nous_signed_in", lambda: True)
+    monkeypatch.setattr(webapp_access, "_has_sign_in_provider", lambda: True)
     monkeypatch.setattr(webapp_access, "lan_address", lambda: "192.168.1.50")
     monkeypatch.setenv("HERMES_HOME", str(solo))
     return {"root": root, "solo": solo, "listening": listening, "probed": probed, "monkeypatch": monkeypatch}
@@ -57,8 +56,7 @@ def test_a_standalone_profile_without_a_port_gets_a_free_one_that_every_surface_
     assert webapp_access.gateway_home() == machine["solo"]
     planned = webapp_access.plan("lan")
     # 9120 is the default profile's, 9121 is in use, 9122 is the other profile's.
-    assert planned[-1] == "http://192.168.1.50:9123/auth/callback"
-    host, port, public_url, _callback = planned
+    host, port, public_url = planned
     assert (host, port, public_url) == ("0.0.0.0", 9123, "")
     webapp_access.serve(host, public_url, port)
     assert _webapp_block(machine["solo"]) == {"enabled": True, "host": "0.0.0.0", "port": 9123}
@@ -71,31 +69,30 @@ def test_a_standalone_profile_without_a_port_gets_a_free_one_that_every_surface_
 
 
 def test_the_chosen_port_stays_for_that_profile(machine):
-    host, port, public_url, _ = webapp_access.plan("lan")
+    host, port, public_url = webapp_access.plan("lan")
     webapp_access.serve(host, public_url, port)
     webapp_access.turn_off()
     machine["probed"].clear()
     machine["listening"].add(9123)  # its own gateway may hold it now
-    for mode, url, expected in (("lan", None, "http://192.168.1.50:9123/auth/callback"),
-                                ("public", "https://solo.example.test", "https://solo.example.test/auth/callback")):
-        host, port, public_url, callback = webapp_access.plan(mode, url)
+    for mode, url in (("lan", None), ("public", "https://solo.example.test")):
+        host, port, public_url = webapp_access.plan(mode, url)
         assert port is None  # nothing to write: the config already has it
-        assert callback == expected
+        assert public_url == (url or "")
         webapp_access.serve(host, public_url, port)
         assert _webapp_block(machine["solo"])["port"] == 9123
     assert machine["probed"] == []
 
 
 def test_the_own_url_mode_also_gets_a_free_port(machine):
-    host, port, _public_url, callback = webapp_access.plan("public", "https://solo.example.test")
-    assert (host, port, callback) == ("127.0.0.1", 9123, "https://solo.example.test/auth/callback")
+    host, port, public_url = webapp_access.plan("public", "https://solo.example.test")
+    assert (host, port, public_url) == ("127.0.0.1", 9123, "https://solo.example.test")
     assert machine["probed"][-1] == ("127.0.0.1", 9123)
 
 
 def test_the_default_profile_keeps_the_documented_port_and_writes_none(machine):
     machine["monkeypatch"].setenv("HERMES_HOME", str(machine["root"]))
-    host, port, public_url, callback = webapp_access.plan("lan")
-    assert port is None and callback == "http://192.168.1.50:9120/auth/callback"
+    host, port, public_url = webapp_access.plan("lan")
+    assert (host, port, public_url) == ("0.0.0.0", None, "")
     webapp_access.serve(host, public_url, port)
     assert "port" not in _webapp_block(machine["root"])
     assert machine["probed"] == []
@@ -105,23 +102,23 @@ def test_the_default_profile_keeps_the_documented_port_and_writes_none(machine):
 def test_a_port_the_user_set_is_never_replaced(machine, configured):
     """Even one another gateway holds, or an invalid one: the gateway then says why by the setting's name."""
     _write(machine["solo"], f"gateway:\n  standalone: true\nwebapp:\n  port: {configured}\n")
-    host, port, public_url, _callback = webapp_access.plan("lan")
+    host, port, public_url = webapp_access.plan("lan")
     assert port is None and machine["probed"] == []
     webapp_access.serve(host, public_url, port)
     assert _webapp_block(machine["solo"])["port"] == configured
 
 
-def test_a_port_the_managed_scope_sets_is_the_one_the_callback_names(machine, tmp_path):
+def test_a_port_the_managed_scope_sets_is_the_one_the_gateway_serves(machine, tmp_path):
     """An administrator's ``webapp.port`` wins over the profile's config when the gateway loads it, and
-    saving never writes over it: Start registers the callback on that port and writes none."""
+    saving never writes over it."""
     from gateway.webapp_listener import listener_plan
     from hermes_cli import managed_scope
 
     managed = _write(tmp_path / "managed", "webapp:\n  port: 9555\n")
     machine["monkeypatch"].setenv("HERMES_MANAGED_DIR", str(managed))
     managed_scope.invalidate_managed_cache()
-    host, port, public_url, callback = webapp_access.plan("lan")
-    assert (port, callback) == (None, "http://192.168.1.50:9555/auth/callback")
+    host, port, public_url = webapp_access.plan("lan")
+    assert port is None
     assert machine["probed"] == []
     webapp_access.serve(host, public_url, port)
     assert "port" not in _webapp_block(machine["solo"])
@@ -138,9 +135,9 @@ def test_with_no_free_port_start_refuses_and_names_the_setting(machine):
 
 
 @pytest.mark.parametrize("mode, url", [("lan", None), ("public", "https://solo.example.test")])
-def test_a_start_refused_for_no_nous_account_saves_no_port(machine, mode, url):
-    machine["monkeypatch"].setattr(webapp_access, "nous_signed_in", lambda: False)
-    with pytest.raises(webapp_access.WebappAccessError, match="Sign in to your Nous account"):
+def test_a_start_without_a_sign_in_provider_saves_no_port(machine, mode, url):
+    machine["monkeypatch"].setattr(webapp_access, "_has_sign_in_provider", lambda: False)
+    with pytest.raises(webapp_access.WebappAccessError, match="Configure a dashboard sign-in provider"):
         webapp_access.plan(mode, url)
     assert _webapp_block(machine["solo"]) == {} and machine["probed"] == []
 
@@ -177,7 +174,7 @@ def _start_in_a_process_of_its_own(home: str, first: bool, first_holds, second_s
 
     os.environ["HERMES_HOME"] = home
     set_hermes_home_override(Path(home))
-    webapp_access.nous_signed_in = lambda: True
+    webapp_access._has_sign_in_provider = lambda: True
     webapp_access.lan_address = lambda: "192.168.1.50"
     listening = {9121}
     try:
@@ -204,7 +201,7 @@ def _start_in_a_process_of_its_own(home: str, first: bool, first_holds, second_s
             if not first_holds.wait(_SYNC_SECONDS):
                 raise AssertionError("the first Start never chose a port")
         webapp_access._port_free = port_free
-        host, port, public_url, _callback = webapp_access.plan("lan")
+        host, port, public_url = webapp_access.plan("lan")
         webapp_access.serve(host, public_url, port)
         results.put((home, _webapp_block(Path(home)).get("port")))
     except BaseException:
@@ -239,13 +236,13 @@ def test_two_profiles_starting_at_once_never_save_the_same_port(machine):
 
 
 def test_a_start_that_fails_after_choosing_keeps_the_port(machine):
-    """The port is saved when it is chosen, before the bundle build and the registration, so another
+    """The port is saved when it is chosen, before the bundle build, so another
     profile never takes it; a Start that then fails leaves the profile that port and nothing else."""
     webapp_access.plan("lan")
     assert _webapp_block(machine["solo"]) == {"port": 9123}
     machine["probed"].clear()
-    _host, port, _public_url, callback = webapp_access.plan("lan")
-    assert (port, callback, machine["probed"]) == (None, "http://192.168.1.50:9123/auth/callback", [])
+    _host, port, _public_url = webapp_access.plan("lan")
+    assert port is None and machine["probed"] == []
 
 
 def test_the_probe_sees_a_port_a_listener_holds():

@@ -1438,15 +1438,7 @@ export const api = {
     ),
 };
 
-/** Identity payload returned by ``GET /api/auth/me`` (Phase 7).
- *
- * Returned by the dashboard's gated middleware when a valid session cookie
- * is attached, or as a synthetic ``provider=loopback`` identity after token
- * validation in local mode. ``email`` and ``display_name`` are empty strings under the
- * Nous Portal contract V1 (the access token has no email/name claims —
- * see Contract Anchor C4 in the plan). The AuthWidget surfaces a
- * truncated ``user_id`` instead.
- */
+/** Identity returned by the dashboard for a signed-in user or the validated local session. */
 export interface AuthMeResponse {
   user_id: string;
   email: string;

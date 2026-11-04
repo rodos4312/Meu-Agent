@@ -22,6 +22,8 @@ from hermes_cli.meu_privacy import strip_retired_settings
 LEGACY = {
     "model": {"provider": "deepseek", "default": "deepseek-v4-pro", "base_url": "https://api.deepseek.com/v1"},
     "memory": {"enabled": True},
+    "display": {"credits_notices": True, "show_cost": True},
+    "dashboard": {"oauth": {"client_id": "agent:old"}, "basic_auth": {"username": "admin"}},
     "nous": {"keepalive_interval_seconds": 900},
     "telemetry": {"shared_metrics": {
         "enabled": True, "send": True, "endpoint": "https://telemetry.nousresearch.com/v1/telemetry",
@@ -36,6 +38,8 @@ def _read(path):
 def _assert_private(raw):
     assert "shared_metrics" not in (raw.get("telemetry") or {})
     assert "keepalive_interval_seconds" not in (raw.get("nous") or {})
+    assert "credits_notices" not in (raw.get("display") or {})
+    assert "oauth" not in (raw.get("dashboard") or {})
 
 
 @pytest.mark.parametrize("document", [{}, LEGACY, {"telemetry": {"shared_metrics": {"enabled": False}}}])
@@ -61,6 +65,8 @@ def test_boot_migrates_legacy_opt_in_and_keeps_deepseek_and_memory(tmp_path, mon
     _assert_private(stored)
     assert stored["model"] == LEGACY["model"]
     assert stored["memory"] == LEGACY["memory"]
+    assert stored["display"] == {"show_cost": True}
+    assert stored["dashboard"] == {"basic_auth": {"username": "admin"}}
     assert "# Keep my settings" in path.read_text(encoding="utf-8")
     before = path.read_bytes()
     FileBackend().boot(tmp_path)
@@ -76,7 +82,8 @@ def test_every_writer_removes_legacy_settings(tmp_path, monkeypatch, writer):
         "document": lambda: write_config_document(path, LEGACY),
         "keys": lambda: write_config_keys(path, {
             "telemetry.shared_metrics.enabled": True, "telemetry.shared_metrics.send": True,
-            "nous.keepalive_interval_seconds": 5}),
+            "nous.keepalive_interval_seconds": 5, "dashboard.oauth.client_id": "agent:other",
+            "display.credits_notices": False}),
         "changes": lambda: write_changes(path, Changes(set={"telemetry": LEGACY["telemetry"], "nous": LEGACY["nous"]})),
         "save": lambda: config.save_config(config.load_config()),
         "unset": lambda: write_config_keys(path, {"telemetry": None}),
@@ -88,6 +95,19 @@ def test_every_writer_removes_legacy_settings(tmp_path, monkeypatch, writer):
     assert stored["memory"] == LEGACY["memory"]
     _assert_private(config.load_config())
     _assert_private(load_user_config_effective(path))
+
+
+def test_keys_catalog_lists_direct_search_and_omits_retired_services(monkeypatch, tmp_path):
+    from hermes_cli.web_routers.config_env import _get_env_vars_sync
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    entries = _get_env_vars_sync()
+    assert entries["FIRECRAWL_API_KEY"]["category"] == "tool"
+    assert entries["DEEPSEEK_API_KEY"]["provider"] == "deepseek"
+    assert not {
+        "HERMES_ANON_API_SECRET", "FIRECRAWL_GATEWAY_URL", "TOOL_GATEWAY_URL",
+        "CONNECTOR_GATEWAY_URL", "TOOL_GATEWAY_DOMAIN", "TOOL_GATEWAY_SCHEME", "TOOL_GATEWAY_USER_TOKEN",
+    }.intersection(entries)
 
 
 def test_migration_survives_restart(tmp_path, monkeypatch):

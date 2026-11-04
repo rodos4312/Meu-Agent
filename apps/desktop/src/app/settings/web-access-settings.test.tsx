@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('WebAccessSettings', () => {
-  it('offers Start only with a Nous account to sign in with', async () => {
+  it('offers Start only with a configured sign-in provider', async () => {
     const signedOut = renderPane({ ...OFF, auth_configured: false })
 
     expect((await screen.findByRole('button', { name: 'Start' })).hasAttribute('disabled')).toBe(true)

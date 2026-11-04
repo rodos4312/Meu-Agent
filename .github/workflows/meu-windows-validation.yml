@@ -201,6 +201,8 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/hermes_cli/test_meu_privacy.py
+          tests/hermes_cli/test_webapp_access.py
+          tests/hermes_cli/test_webapp_access_ports.py
           tests/hermes_cli/test_meu_independent_identity.py
           tests/tools/test_mcp_cimd.py
           tests/pm/test_artifact_mirror.py
@@ -212,6 +214,7 @@ jobs:
           tests/tools/test_connectors_catalog.py
           tests/tools/test_tool_search.py
           tests/tools/test_meu_direct_web.py
+          tests/tools/test_web_keyless_fallback.py
           tests/tools/test_meu_direct_media.py
           tests/tools/test_tts_openai_config.py
           tests/hermes_cli/test_web_capability_gateway_route.py
@@ -459,7 +462,7 @@ jobs:
         run: npx vitest run --project electron --maxWorkers 2 electron/window-open-policy.test.ts electron/remote-lifecycle.test.ts electron/update-stop-remedy.test.ts
       - name: Verify model credentials and Auto behavior
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/settings/web-access-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts
       - name: Verify Meu navigation, chat history and customization pages
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/shell/meu-navigation.test.tsx src/app/chat/sidebar/chat-sidebar.integration.test.tsx src/app/capabilities/index.test.tsx src/app/capabilities/plugins/plugins-tab.test.tsx src/app/capabilities/skills/skill-provenance.test.ts src/app/capabilities/skills/frontmatter.test.ts
