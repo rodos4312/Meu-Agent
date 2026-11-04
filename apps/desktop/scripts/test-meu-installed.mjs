@@ -8,7 +8,13 @@ import { _electron, expect } from '@playwright/test'
 const [executable, scratch] = process.argv.slice(2)
 assert(executable && scratch && path.isAbsolute(executable) && path.isAbsolute(scratch), 'Pass absolute executable and scratch paths')
 fs.mkdirSync(scratch, { recursive: true })
-const stamp = JSON.parse(fs.readFileSync(path.join(path.dirname(executable), 'resources/install-stamp.json'), 'utf8'))
+const resources = path.join(path.dirname(executable), 'resources')
+const stamp = JSON.parse(fs.readFileSync(path.join(resources, 'install-stamp.json'), 'utf8'))
+assert.deepEqual(
+  fs.readFileSync(path.join(resources, 'meu-bootstrap/scripts/install.ps1')),
+  fs.readFileSync(new URL('../../../scripts/install.ps1', import.meta.url)),
+  'The package must carry the bootstrap script from its own source checkout'
+)
 const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) =>
   value !== undefined && !/(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS|PRIVATE_KEY)$/.test(key)))
 Object.assign(env, {

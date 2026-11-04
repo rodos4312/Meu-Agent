@@ -316,6 +316,7 @@ function downloadInstallScript(ref, destPath) {
 async function resolveInstallScript({
   installStamp,
   sourceRepoRoot,
+  bundledInstallerRoot = null,
   hermesHome,
   emit,
   pinCommit = true,
@@ -342,6 +343,16 @@ async function resolveInstallScript({
       `Cannot resolve ${installScriptName()}: no SOURCE_REPO_ROOT and no install stamp. ` +
         'This packaged build was produced without a valid build-time stamp.'
     )
+  }
+
+  // The installer in the package was built with its immutable stamp. A
+  // live-branch repair still needs that branch's current installer.
+  const bundledScript = installRef.pinned ? resolveLocalInstallScript(bundledInstallerRoot) : null
+
+  if (bundledScript) {
+    emit({ type: 'log', line: `[bootstrap] using bundled ${installScriptName()} for ${installRef.ref.slice(0, 12)}` })
+
+    return { path: bundledScript, source: 'bundled', commit: installRef.ref, kind: installScriptKind() }
   }
 
   const cached = cachedScriptPath(hermesHome, installRef.cacheKey)
@@ -858,6 +869,7 @@ function openRunLog(logRoot) {
 
 function bootstrapPinPolicy(existingCheckout, opts) {
   const pinCommit = !existingCheckout || opts.pinExistingCheckout === true
+
   return { pinCommit, logUnpinned: existingCheckout && !pinCommit && opts.installStamp?.commit }
 }
 
@@ -866,6 +878,7 @@ async function runBootstrap(opts) {
     installStamp,
     activeRoot,
     sourceRepoRoot,
+    bundledInstallerRoot,
     hermesHome,
     logRoot,
     onEvent,
@@ -933,7 +946,7 @@ async function runBootstrap(opts) {
     }
 
     // 1. Resolve the platform installer.
-    const scriptInfo = await resolveInstallScript({ installStamp, sourceRepoRoot, hermesHome, emit, pinCommit })
+    const scriptInfo = await resolveInstallScript({ installStamp, sourceRepoRoot, bundledInstallerRoot, hermesHome, emit, pinCommit })
     abortSignal?.throwIfAborted()
 
     const installerKind = scriptInfo.kind || 'powershell'

@@ -5046,7 +5046,10 @@ async function ensureRuntime(
       installStamp: backend.installStamp,
       pinExistingCheckout: backend.upgrade === true,
       activeRoot: backend.activeRoot,
-      sourceRepoRoot: SOURCE_REPO_ROOT,
+      sourceRepoRoot: IS_PACKAGED ? null : SOURCE_REPO_ROOT,
+      bundledInstallerRoot: IS_PACKAGED && IS_WINDOWS && PRODUCT_IDENTITY.appId === 'com.meuagent.desktop'
+        ? path.join(process.resourcesPath, 'meu-bootstrap')
+        : null,
       hermesHome: HERMES_HOME,
       logRoot: path.join(HERMES_HOME, 'logs'),
       abortSignal: controller.signal,

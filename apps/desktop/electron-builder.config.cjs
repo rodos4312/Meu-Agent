@@ -249,7 +249,12 @@ module.exports = {
     // The updaters' relaunch waiter is PowerShell run outside the package. The
     // sealed payload's snapshot omits scripts/, so it ships as a resource
     // (RELAUNCH_WAITER_SCRIPT in electron/updater/relaunch-waiter.ts).
-    extraResources: [{ from: 'scripts/update-relaunch-waiter.ps1', to: 'update-relaunch-waiter.ps1' }],
+    extraResources: [
+      { from: 'scripts/update-relaunch-waiter.ps1', to: 'update-relaunch-waiter.ps1' },
+      ...(appId === 'com.meuagent.desktop'
+        ? [{ from: '../../scripts/install.ps1', to: 'meu-bootstrap/scripts/install.ps1' }]
+        : [])
+    ],
     ...windowsSigning()
   },
   // The Meu preview installer is separate from the official MSIX packaging.

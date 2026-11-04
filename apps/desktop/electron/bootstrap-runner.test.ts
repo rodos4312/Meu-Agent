@@ -195,10 +195,14 @@ test('resolveInstallScript refreshes the live branch for an existing checkout', 
     fs.writeFileSync(cached, 'stale installer\n')
 
     const refs = []
+    const bundled = path.join(home, 'scripts', SCRIPT_NAME)
+    fs.mkdirSync(path.dirname(bundled), { recursive: true })
+    fs.writeFileSync(bundled, 'bundled installer for a different source ref\n')
 
     const result = await resolveInstallScript({
       installStamp: { commit, branch: 'main' },
       sourceRepoRoot: null,
+      bundledInstallerRoot: home,
       hermesHome: home,
       emit: () => {},
       pinCommit: false,
@@ -215,6 +219,32 @@ test('resolveInstallScript refreshes the live branch for an existing checkout', 
     assert.equal(result.commit, null)
     assert.equal(result.path, cached)
     assert.equal(fs.readFileSync(cached, 'utf8'), 'fresh branch installer\n')
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('resolveInstallScript uses the packaged script for a pinned update even when the download is rate limited', async () => {
+  const home = mkTmpHome()
+
+  try {
+    const commit = 'a'.repeat(40)
+    const bundled = path.join(home, 'scripts', SCRIPT_NAME)
+    fs.mkdirSync(path.dirname(bundled), { recursive: true })
+    fs.writeFileSync(bundled, 'bundled pinned installer\n')
+
+    const result = await resolveInstallScript({
+      installStamp: { commit, branch: 'dev/meu-foundation' },
+      sourceRepoRoot: null,
+      bundledInstallerRoot: home,
+      hermesHome: home,
+      emit: () => {},
+      _download: async () => { throw new Error('HTTP 429') }
+    })
+
+    assert.equal(result.source, 'bundled')
+    assert.equal(result.commit, commit)
+    assert.equal(result.path, bundled)
   } finally {
     fs.rmSync(home, { recursive: true, force: true })
   }
