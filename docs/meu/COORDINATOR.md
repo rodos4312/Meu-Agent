@@ -51,7 +51,8 @@ project directory and the verified prerequisite results. Completed children beco
 
 The parent runs the acceptance checks through its normal tools, then records
 `verify` with the exact attempt number, results/evidence and artifact files.
-Successful writing tasks require real files. SHA-256 fingerprints bind acceptance
+Successful writing tasks require an artifact in their declared write scope.
+SHA-256 fingerprints bind acceptance
 to those files: modifications invalidate that task and downstream acceptance.
 This records the parent's verification; it is not independent proof that an LLM
 actually ran a claimed test. Existing tool policies still own check execution.
@@ -64,6 +65,14 @@ automatic replay. The parent inspects existing artifacts/side effects before an
 explicit evidenced retry; routine retries use Pro and attempts are capped at three.
 A held lock refuses duplicate project dispatch. This does not coordinate writes
 between independently named projects or provide a filesystem sandbox.
+
+The project rehearsal uses a payments CSV with a duplicate and a refund. The
+native Flash helper writes the normalized rows, then the Pro helper writes an
+incorrect report before its process exits abruptly. A new process keeps Flash's
+verified work, detects the interrupted Pro attempt, and retries only after
+reconciliation. The parent checks the corrected total and rejects the source CSV
+as evidence for the report. The rehearsal uses local files and mocked DeepSeek
+responses. It checks orchestration and recovery without measuring model quality.
 
 ## OpenClaw comparison, inspected 2026-11-03
 

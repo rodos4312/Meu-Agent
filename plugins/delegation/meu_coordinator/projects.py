@@ -91,17 +91,23 @@ class Project:
     def dependencies_ready(self, row):
         return all(self.record["tasks"][dep]["state"] == "verified" for dep in row["task"].get("depends_on", []))
 
-    def artifacts(self, names):
+    def artifacts(self, names, *, write_paths=()):
         if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
             raise ValueError("artifacts must list project-relative files.")
         root = Path(self.record["root"]).resolve()
+        scopes = [root / scope.strip().replace("\\", "/") for scope in write_paths]
+        has_deliverable = False
         result = {}
         for name in names:
             file = root / name
-            if Path(name).is_absolute() or not file.resolve().is_relative_to(root) or file.is_symlink():
+            resolved = file.resolve()
+            if Path(name).is_absolute() or not resolved.is_relative_to(root) or file.is_symlink():
                 raise ValueError("Verification artifacts must remain inside the project.")
             with file.open("rb") as stream:
                 result[name] = hashlib.file_digest(stream, "sha256").hexdigest()
+            has_deliverable |= any(resolved.is_relative_to(scope) for scope in scopes)
+        if scopes and not has_deliverable:
+            raise ValueError("A writing task needs an artifact in its declared write_paths before acceptance.")
         return result
 
     def ready(self):

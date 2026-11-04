@@ -66,13 +66,14 @@ def handle(args, *, parent_agent=None, **_kwargs):
                         raise ValueError("Only a completed, unverified task can be accepted/rejected with passed=true/false.")
                     if not state.dependencies_ready(row):
                         raise ValueError("Verify prerequisite tasks first.")
-                    artifacts = state.artifacts(args.get("artifacts", []))
-                    if args["passed"] and row["task"]["write_paths"] and not artifacts:
-                        raise ValueError("A writing task needs actual artifact files before acceptance.")
+                    write_paths = row["task"]["write_paths"] if args["passed"] else ()
+                    artifacts = state.artifacts(args.get("artifacts", []), write_paths=write_paths)
+                    row.pop("error", None)
                     row.update(state="verified" if args["passed"] else "failed", evidence=evidence, artifacts=artifacts)
                 else:
                     if row["state"] not in {"failed", "interrupted"} or row["attempt"] >= 3:
                         raise ValueError("Retry only failed/reconciled interrupted tasks, at most three attempts.")
+                    row.pop("error", None)
                     row.update(state="pending", evidence=evidence)
                     if row["task"]["workload"] == "routine":
                         row["task"]["workload"] = "complex"
