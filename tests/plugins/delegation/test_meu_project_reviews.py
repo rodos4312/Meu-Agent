@@ -68,9 +68,11 @@ def test_review_reopens_only_its_deliverable_and_rechecks_the_repair(coordinator
     assert built[-1]["goal"].startswith("Repair the confirmed review finding")
     assert "without editing it" not in built[-1]["goal"]
     assert "verify the confirmed check" in built[-1]["context"]
+    assert "Confirmed check: Import a task with id constructor." in built[-1]["context"]
     app.write_text("if (seen.has(t.id)) continue;", encoding="utf-8")
     project(parent, "verify", task="merge", attempt=2, passed=True, evidence="Constructor case passed.", artifacts=["app.js"])
     project(parent, "run")
+    assert "Repeat the confirmed repair check: Import a task with id constructor." in built[-1]["context"]
     assert [entry["model"] for entry in built] == ["deepseek-flash", "deepseek-flash", "deepseek-v4-pro",
                                                    "deepseek-v4-pro", "deepseek-v4-pro"]
     assert built[-1]["allowed_tools"] == {"read_file", "write_file", "patch", "search_files"}

@@ -32,6 +32,8 @@ def configure_review(state, row, task):
         "Report the exact check or reproduction steps and the observed result. "
         "Use inconclusive if you lack evidence. Do not edit the deliverable."
     )
+    if repair := target.get("repair"):
+        task["context"] += f"\nRepeat the confirmed repair check: {repair['check']}"
 
 
 def review_finding(state, reviewer):

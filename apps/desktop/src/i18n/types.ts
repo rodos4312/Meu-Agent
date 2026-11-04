@@ -2709,6 +2709,14 @@ export interface Translations extends NoticeTranslations {
     dropSession: string
   }
 
+  projectProgress: {
+    verifiedCount: (done: number, total: number) => string
+    runningBatch: string
+    acceptance: string
+    repair: string
+    attempt: (number: number) => string
+    states: Record<'pending' | 'running' | 'needs_review' | 'verified' | 'failed' | 'interrupted', string>
+  }
   statusStack: {
     hideStack: string
     showStack: string

@@ -3146,6 +3146,22 @@ export const en: Translations = {
     }
   },
 
+  projectProgress: {
+    verifiedCount: (done, total) => `${done}/${total} verified`,
+    runningBatch: 'Helpers working',
+    acceptance: 'Pass criteria',
+    repair: 'Repair check',
+    attempt: number => `Attempt ${number}`,
+    states: {
+      pending: 'Pending',
+      running: 'Running',
+      needs_review: 'Awaiting verification',
+      verified: 'Verified',
+      failed: 'Failed',
+      interrupted: 'Interrupted'
+    }
+  },
+
   statusStack: {
     hideStack: 'Hide status stack',
     showStack: 'Show status stack',

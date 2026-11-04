@@ -20,7 +20,7 @@ function sealedMessage(
   toolName: string,
   args: Record<string, unknown>,
   extra: Record<string, unknown> = {}
-): ThreadMessage {
+): Extract<ThreadMessage, { role: 'assistant' }> {
   return {
     id: `assistant-sealed-${toolName}`,
     role: 'assistant',
@@ -44,7 +44,7 @@ function sealedMessage(
       steps: [],
       custom: {}
     }
-  } as unknown as ThreadMessage
+  } as unknown as Extract<ThreadMessage, { role: 'assistant' }>
 }
 
 const Harness = ({ message }: { message: ThreadMessage }) => (
@@ -129,4 +129,58 @@ it('opens the saved project directory from the coordinator result without assist
   } finally {
     window.hermesDesktop = previousDesktop
   }
+})
+
+it('keeps one expandable project card with the latest attempt, model and checks', async () => {
+  const task = { goal: 'Fix the import', acceptance: 'Import duplicates and retain one record.' }
+
+  const snapshot = (action: string, row: object, toolCallId: string) =>
+    sealedMessage(
+      'coordinate_project',
+      { action, project: 'demo' },
+      {
+        toolCallId,
+        result: JSON.stringify({ project: 'demo', tasks: { import: { task, ...row } } })
+      }
+    )
+
+  const started = snapshot('create', { state: 'pending', attempt: 0 }, 'create')
+
+  const checked = snapshot(
+    'verify',
+    {
+      state: 'verified',
+      attempt: 2,
+      result: { model: 'deepseek-v4-pro' },
+      repair: { check: 'Keep exactly one record with ID constructor.' }
+    },
+    'verify'
+  )
+
+  const running = sealedMessage('coordinate_project', { action: 'run', project: 'demo' }, {
+    completedAt: undefined
+  })
+
+  const { container, rerender } = render(
+    <Harness message={{ ...started, status: { type: 'running' }, content: [...started.content, ...running.content] }} />
+  )
+
+  expect(await screen.findByText('Helpers working')).toBeTruthy()
+  const cards = container.querySelectorAll<HTMLDetailsElement>('[data-slot="project-progress"] details')
+  expect(cards).toHaveLength(1)
+  expect(cards[0].open).toBe(false)
+  fireEvent.click(screen.getByText('demo'))
+  expect(cards[0].open).toBe(true)
+
+  rerender(<Harness message={{ ...started, content: [...started.content, ...checked.content] }} />)
+
+  expect(await screen.findByText('1/1 verified')).toBeTruthy()
+  expect(screen.queryByText('0/1 verified')).toBeNull()
+  expect(screen.queryByText('Helpers working')).toBeNull()
+  expect(container.querySelector('[data-slot="project-progress"] details')).toBe(cards[0])
+  expect(cards[0].open).toBe(true)
+  expect(screen.getByText('Attempt 2')).toBeTruthy()
+  expect(screen.getByText('deepseek-v4-pro')).toBeTruthy()
+  expect(screen.getByText(task.acceptance)).toBeTruthy()
+  expect(screen.getByText('Keep exactly one record with ID constructor.')).toBeTruthy()
 })

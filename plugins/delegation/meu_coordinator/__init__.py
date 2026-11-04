@@ -30,8 +30,8 @@ class MeuCoordinator(DelegationProvider):
                 "lookup, mechanical edits; complex = architecture, nontrivial code, debugging or critical review; "
                 "vision = interpreting images/screenshots (Flash supports images).",
             },
-            "acceptance": {"type": "string", "description": "Required. Concrete evidence/checks needed to accept the result. "
-                           "Also include these checks in the task goal/context sent to the helper."},
+            "acceptance": {"type": "string", "description": "Required. State what to check and the expected result or "
+                           "evidence for a pass. Example: import two tasks with the same ID and confirm exactly one remains."},
             "parallel_safe": {"type": "boolean", "description": "Required. True only if this task needs no sibling's "
                               "result and can run independently in this call. Dependent work goes in later calls."},
             "tool_access": {"type": "string", "enum": ["inherit", "files_only"],
@@ -53,7 +53,7 @@ class MeuCoordinator(DelegationProvider):
             "meaning; do not send every task to Pro or classify by keywords alone. Keep dependent work sequential: "
             "wait for prerequisite results, then pass their concrete artifacts/evidence in the next task's context. "
             "Set tool_access=files_only when the user restricts a helper to file tools. "
-            "Copy the acceptance checks and permitted write paths into each helper's goal/context. Workers share "
+            "The coordinator passes acceptance checks and permitted write paths to every helper. Workers share "
             "the project unless worktree isolation is configured; avoid conflicting edits. Inspect results and run "
             "the requested checks before calling the project complete. If a routine result fails its checks, "
             "reassign that specific task as complex with the failure evidence, rather than repeating blindly. "
