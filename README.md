@@ -1,25 +1,26 @@
 # Meu Agent
 
-<img src="https://raw.githubusercontent.com/rodos4312/Meu-Agent/bd5872478b7b683e7b809e70239acd26f0e9fb1e/apps/desktop/public/meu-icon.png" alt="Λογότυπο Meu" width="72">
+<img src="https://raw.githubusercontent.com/rodos4312/Meu-Agent/bd5872478b7b683e7b809e70239acd26f0e9fb1e/apps/desktop/public/meu-icon.png" alt="Meu logo" width="72">
 
-Ο **Meu** είναι προσωπικός βοηθός για Windows. Δουλεύει με τα αρχεία και τα έργα σου, θυμάται προηγούμενες συνομιλίες και μπορεί να μοιράζει σύνθετες δουλειές σε βοηθούς.
+**Meu Agent** is a personal AI assistant for Windows. It works with your files and projects, recalls past conversations, and can delegate parts of a complex task to other agents.
 
-## Λήψη για Windows x64
+## Download for Windows x64
 
-**[Λήψη Meu 0.1.0-dev.18 για Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.18/Meu-0.1.0-dev.18-win-x64.exe)** · Δοκιμαστική έκδοση
+**[Download Meu 0.1.0-dev.18 for Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.18/Meu-0.1.0-dev.18-win-x64.exe)** · Preview release
 
-Στις [εκδόσεις του Meu](https://github.com/rodos4312/Meu-Agent/releases) θα βρεις τις σημειώσεις και τα διαθέσιμα αρχεία εγκατάστασης.
+See [Meu releases](https://github.com/rodos4312/Meu-Agent/releases) for release notes and installers.
 
-Μετά την εγκατάσταση, βάλε το κλειδί DeepSeek από **Settings → Model → Main model**. Τις επόμενες εκδόσεις μπορείς να τις ελέγχεις από **Settings → About → Version & updates**.
+After installation, configure your provider in **Settings → Providers** and select your model in **Settings → Model → Main model**. Check for app updates in **Settings → About → Version & updates**.
 
-## Τι προσφέρει ο Meu
+## What Meu can do
 
-- **DeepSeek Auto · Flash / Pro.** Ο Meu επιλέγει ανάμεσα στα δύο μοντέλα ανάλογα με την εργασία. Μπορείς επίσης να επιλέξεις μοντέλο από τη συνομιλία.
-- **Meu Coordinator.** Οργανώνει ένα έργο σε αναθέσεις, αποθηκεύει την πρόοδο και δίνει σε βοηθούς συγκεκριμένες εργασίες. Μπορεί να αναθέσει ανεξάρτητο έλεγχο και διόρθωση. Ενεργοποιείται από **Settings → Model → Subagents** για νέα συνομιλία.
-- **Τοπικά δεδομένα και επιλογή παρόχου.** Η τοπική εγκατάσταση διατηρεί συνομιλίες, μνήμη και skills στο PC. Οι κλήσεις μοντέλου και αναζήτησης πηγαίνουν στους αντίστοιχους παρόχους. Η σύνδεση στο Nous Portal και η αποστολή στατιστικών χρήσης στη Nous έχουν αφαιρεθεί από τον Meu.
+- **Choose your model provider.** Options include Anthropic, DeepSeek, Gemini, OpenAI Codex, and OpenRouter. You can also connect a local model through a compatible endpoint such as Ollama.
+- **Switch between DeepSeek Flash and Pro automatically.** With DeepSeek configured, **Auto · Flash / Pro** picks a model based on the task. You can also select a model from the chat.
+- **Coordinate project work.** The optional **Meu Coordinator** splits work into assignments, saves progress, and can delegate independent review and repair. Its current subagent routing uses DeepSeek Flash and Pro. Enable it in **Settings → Model → Subagents**, then start a new chat.
+- **Keep your workspace data locally.** A local installation stores conversations, memory, and skills on your PC. Model and web requests go to the configured providers. Meu removes Nous Portal sign-in and usage reporting to Nous Research.
 
-## Κώδικας και προέλευση
+## Development and credits
 
-Η ανάπτυξη γίνεται στον [`dev/meu-foundation`](https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation).
+Active development takes place on [`dev/meu-foundation`](https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation).
 
-Ο Meu βασίζεται στο [Hermes Agent της Nous Research](https://github.com/NousResearch/hermes-agent). Ο αρχικός κώδικας διανέμεται με την [άδεια MIT](LICENSE).
+Meu is based on [Hermes Agent by Nous Research](https://github.com/NousResearch/hermes-agent). See the [MIT license](LICENSE) for license and copyright details.
