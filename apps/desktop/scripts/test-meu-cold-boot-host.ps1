@@ -11,6 +11,7 @@ $meuCheck = Invoke-RestMethod -Method Post -Uri 'https://api.github.com/repos/ro
     external_id = "meu-cold-boot-$env:GITHUB_RUN_ID"
     output = @{title = 'Waiting for a real Windows reboot'; summary = 'A disposable runner must report a different OS boot after restart.'}
 } | ConvertTo-Json -Depth 5)
+try {
 $meuProof = Join-Path $env:RUNNER_TEMP "meu-cold-boot-$env:GITHUB_RUN_ID"
 New-Item -ItemType Directory -Path $meuProof | Out-Null
 $meuTask = "MeuColdBootProof-$env:GITHUB_RUN_ID"
@@ -19,7 +20,7 @@ $meuConfig = Join-Path $meuProof 'private-job-context.json'
    boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().ToString('o')
 } | ConvertTo-Json | Set-Content -LiteralPath $meuConfig -Encoding utf8
 $meuSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-& "$env:SystemRoot\System32\icacls.exe" $meuConfig /inheritance:r /grant:r "${meuSid}:(F)" '*S-1-5-18:(F)' | Out-Null
+& "$env:SystemRoot\System32\icacls.exe" $meuConfig /inheritance:r /grant:r "*${meuSid}:(F)" '*S-1-5-18:(F)' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Cannot protect the temporary job credential.' }
 $meuStartup = Join-Path $meuProof 'report-after-boot.ps1'
 @'
@@ -66,3 +67,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not retain the disposable test job; refu
 & "$env:SystemRoot\System32\shutdown.exe" /r /f /t 0
 if ($LASTEXITCODE -ne 0) { throw 'Disposable VM reboot was refused.' }
 [Threading.ManualResetEvent]::new($false).WaitOne(600000) | Out-Null
+} catch {
+    $meuFailure = @{status = 'completed'; conclusion = 'failure'; output = @{
+        title = 'Cold boot proof did not start'; summary = 'The disposable VM preflight failed before a verified reboot receipt.'
+    }} | ConvertTo-Json -Depth 4
+    Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/rodos4312/Meu-Agent/check-runs/$($meuCheck.id)" -Headers $meuHeaders -ContentType 'application/json' -Body $meuFailure | Out-Null
+    if ($meuTask -and (Get-ScheduledTask -TaskName $meuTask -ErrorAction SilentlyContinue)) {
+        Unregister-ScheduledTask -TaskName $meuTask -Confirm:$false
+    }
+    if ($meuConfig -and (Test-Path -LiteralPath $meuConfig)) { Remove-Item -LiteralPath $meuConfig }
+    throw
+}
