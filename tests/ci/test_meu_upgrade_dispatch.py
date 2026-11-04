@@ -39,3 +39,14 @@ def test_diagnostic_is_manual_dev_only_and_cannot_publish(event, repo, ref, allo
     downloads = [step["with"] for step in job["steps"] if step.get("uses", "").startswith("actions/download-artifact@")]
     assert downloads[0]["repository"] == "rodos4312/Meu-Agent"
     assert downloads[0]["run-id"] == "${{ inputs.candidate_run_id }}"
+
+
+@pytest.mark.parametrize("scope,expected", [
+    ("all", ["startup-failure", "guardian-loss", "locked-package", "interrupted-install"]),
+    ("native-faults", ["guardian-loss", "locked-package", "interrupted-install"]),
+])
+def test_recovery_rerun_scope_selects_only_the_requested_closed_set(scope, expected):
+    flow = yaml.safe_load((Path(__file__).resolve().parents[2] / ".github/workflows/meu-rollback-rehearsal.yml").read_text(encoding="utf-8"))
+    context = {"inputs": {"scope": scope}}
+    scenarios = flow["jobs"]["automatic-rollback"]["strategy"]["matrix"]["scenario"]
+    assert gha.render(scenarios, context) == expected

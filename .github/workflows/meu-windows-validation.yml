@@ -300,6 +300,7 @@ jobs:
           tests/hermes_cli/test_update_target_identity.py
           tests/hermes_cli/test_meu_update_recovery.py
           tests/hermes_cli/test_meu_recovery_resume.py
+          tests/scripts/desktop_update/test_meu_fault_control.py
           tests/hermes_cli/test_file_cache_same_tick_rewrite.py
           tests/tools/test_model_tools.py
           tests/hermes_cli/test_meu_backup_runtime.py

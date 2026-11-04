@@ -12,8 +12,6 @@ def require_runner():
         raise SystemExit("Fault control requires the disposable Meu Windows runner")
 
 
-require_runner()
-
 kernel = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 kernel.OpenProcess.restype = wintypes.HANDLE
@@ -36,10 +34,13 @@ def end_owned(pid, expected, since, created=None):
         times = [wintypes.FILETIME() for _ in range(4)]
         if not kernel.GetProcessTimes(handle, *(ctypes.byref(value) for value in times)):
             raise ctypes.WinError(ctypes.get_last_error())
-        actual = ((times[0].dwHighDateTime << 32) + times[0].dwLowDateTime) / 10_000_000 - 11644473600
-        if (os.path.normcase(os.path.realpath(image.value)) != os.path.normcase(os.path.realpath(expected))
-                or actual < since or (created is not None and abs(created - actual) > 0.001)):
-            raise ValueError("Fault target does not own the expected executable and creation time")
+        ticks = (times[0].dwHighDateTime << 32) + times[0].dwLowDateTime
+        actual = (ticks - 116444736000000000) / 10_000_000
+        wrong_time = abs(created - actual) > 0.001 if created is not None else actual + 0.001 < since
+        same_image = os.path.normcase(os.path.realpath(image.value)) == os.path.normcase(os.path.realpath(expected))
+        if not same_image or wrong_time:
+            raise ValueError(f"Fault target does not own the expected executable and creation time "
+                             f"(same_image={same_image}, creation_delta={actual - (created if created is not None else since):.9f})")
         if not kernel.TerminateProcess(handle, 83) or kernel.WaitForSingleObject(handle, 10000) != 0:
             raise RuntimeError("Owned fault target did not stop")
     finally:
@@ -86,18 +87,24 @@ def collect_old_environment(transaction, record):
     print("Old baseline environment really collected", flush=True)
 
 
-action, location = sys.argv[1:3]
-if action == "hold":
-    hold(location)
-else:
-    transaction = Path(location)
-    record = json.loads((transaction / "transaction.json").read_text(encoding="utf-8-sig"))
-    if action == "guardian":
-        end_owned(record["watcherPid"], record["watcherExecutable"], record["watcherCreated"], record["watcherCreated"])
-    elif action == "installer":
-        saved = json.loads((transaction / "resume.json").read_text(encoding="utf-8-sig"))
-        end_owned(int(sys.argv[3]), record["nativeInstaller"], saved["parentCreated"])
-    elif action == "collect":
-        collect_old_environment(transaction, record)
+def main():
+    require_runner()
+    action, location = sys.argv[1:3]
+    if action == "hold":
+        hold(location)
     else:
-        raise ValueError("Unknown private fault control action")
+        transaction = Path(location)
+        record = json.loads((transaction / "transaction.json").read_text(encoding="utf-8-sig"))
+        if action == "guardian":
+            end_owned(record["watcherPid"], record["watcherExecutable"], record["watcherCreated"], record["watcherCreated"])
+        elif action == "installer":
+            saved = json.loads((transaction / "resume.json").read_text(encoding="utf-8-sig"))
+            end_owned(int(sys.argv[3]), record["nativeInstaller"], saved["parentCreated"])
+        elif action == "collect":
+            collect_old_environment(transaction, record)
+        else:
+            raise ValueError("Unknown private fault control action")
+
+
+if __name__ == "__main__":
+    main()

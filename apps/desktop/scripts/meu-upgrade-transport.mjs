@@ -108,7 +108,12 @@ export async function installMeuUpgradeTransport(app, input) {
             const backups = path.join(process.env.MEU_HOME, 'backups')
             const transactions = fs.readdirSync(backups).filter(name => /^meu-update-[a-f0-9]{32}$/.test(name))
             if (transactions.length !== 1) throw new Error('Expected one owned recovery transaction')
-            execFileSync(input.migrationPython, ['-I', input.recoveryControl, 'guardian', path.join(backups, transactions[0])],
+            const transaction = path.join(backups, transactions[0])
+            const payload = JSON.parse(fs.readFileSync(path.join(transaction, 'payload.json'), 'utf8'))
+            const record = JSON.parse(fs.readFileSync(path.join(transaction, 'transaction.json'), 'utf8'))
+            if (!payload.locations?.environment || !record.payloadHash)
+              throw new Error('The signed baseline must contain complete retained-environment recovery')
+            execFileSync(input.migrationPython, ['-I', input.recoveryControl, 'guardian', transaction],
               { windowsHide: true, timeout: 30_000 })
           }
         }

@@ -10,6 +10,12 @@ on:
         description: 'Meu Windows validation run containing a signed baseline installer'
         required: true
         type: string
+      scope:
+        description: 'All recovery cases, or only cases requiring native process control'
+        required: false
+        type: choice
+        default: all
+        options: [all, native-faults]
 
 permissions:
   contents: read
@@ -23,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [startup-failure, guardian-loss, locked-package, interrupted-install]
+        scenario: ${{ fromJSON(inputs.scope == 'native-faults' && '["guardian-loss","locked-package","interrupted-install"]' || '["startup-failure","guardian-loss","locked-package","interrupted-install"]') }}
     name: Recovery / ${{ matrix.scenario }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
