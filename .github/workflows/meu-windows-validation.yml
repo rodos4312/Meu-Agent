@@ -216,6 +216,8 @@ jobs:
           tests/tools/test_tool_search.py
           tests/tools/test_meu_direct_web.py
           tests/tools/test_web_keyless_fallback.py
+          tests/tools/test_web_keyless_rescue.py
+          tests/tui_gateway/test_show_reasoning_display_gate.py
           tests/tools/test_meu_direct_media.py
           tests/tools/test_tts_openai_config.py
           tests/hermes_cli/test_web_capability_gateway_route.py
@@ -468,6 +470,9 @@ jobs:
       - name: Verify Meu navigation, chat history and customization pages
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/shell/meu-navigation.test.tsx src/app/chat/sidebar/chat-sidebar.integration.test.tsx src/app/capabilities/index.test.tsx src/app/capabilities/plugins/plugins-tab.test.tsx src/app/capabilities/skills/skill-provenance.test.ts src/app/capabilities/skills/frontmatter.test.ts
+      - name: Verify project progress, web sources and translation coverage
+        working-directory: apps/desktop
+        run: npx vitest run --project ui --maxWorkers 2 src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
@@ -594,13 +599,13 @@ jobs:
           extras: '[]'
       - name: Install locked rehearsal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Download the pinned public dev.17 baseline
+      - name: Download the pinned public dev.18 baseline
         shell: pwsh
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'meu-baseline-candidate'
           New-Item -ItemType Directory -Path $baseline | Out-Null
-          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.17'
-          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.17-win-x64.exe')) {
+          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.18'
+          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.18-win-x64.exe')) {
             Invoke-WebRequest -Uri "$release/$file" -OutFile (Join-Path $baseline $file) -TimeoutSec 180
           }
           # The rehearsal driver verifies the manifest signature and installer hashes before execution.
