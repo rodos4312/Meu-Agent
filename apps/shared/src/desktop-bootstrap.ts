@@ -44,6 +44,8 @@ export interface DesktopBootstrapState {
   } | null
   stages: Record<string, DesktopBootstrapStageResult>
   error: string | null
+  failureStage?: string | null
+  failureLogPath?: string | null
   log: Array<{ ts: number; stage: string | null; line: string; stream?: 'stdout' | 'stderr' }>
   startedAt: number | null
   completedAt: number | null
@@ -79,7 +81,7 @@ export type DesktopBootstrapEvent = { revision?: number } & (
     }
   | { type: 'log'; stage?: string | null; line: string; stream?: 'stdout' | 'stderr' }
   | { type: 'complete'; marker: Record<string, unknown> }
-  | { type: 'failed'; stage?: string | null; error: string }
+  | { type: 'failed'; stage?: string | null; error: string; logPath?: string }
   | {
       type: 'unsupported-platform'
       platform: string
@@ -113,6 +115,8 @@ function applySetupChoice(
     manifest: null,
     stages: {},
     error: null,
+    failureStage: null,
+    failureLogPath: null,
     setupChoice: ev.active
       ? {
           platform: ev.platform || state.setupChoice?.platform || 'unknown',
@@ -177,6 +181,8 @@ function reduceBootstrapEvent(
       manifest: { type: 'manifest', stages: ev.stages, protocolVersion: ev.protocolVersion },
       stages,
       error: null,
+      failureStage: null,
+      failureLogPath: null,
       setupChoice: null,
       startedAt: state.startedAt || now
     }
@@ -197,11 +203,18 @@ function reduceBootstrapEvent(
   }
 
   if (ev.type === 'complete') {
-    return { ...state, active: false, completedAt: now, error: null }
+    return { ...state, active: false, completedAt: now, error: null, failureStage: null, failureLogPath: null }
   }
 
   if (ev.type === 'failed') {
-    return { ...state, active: false, error: ev.error || 'unknown error', setupChoice: null }
+    return {
+      ...state,
+      active: false,
+      error: ev.error || 'unknown error',
+      failureStage: ev.stage ?? null,
+      failureLogPath: ev.logPath ?? null,
+      setupChoice: null
+    }
   }
 
   if (ev.type === 'unsupported-platform') {

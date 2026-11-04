@@ -462,7 +462,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
       return () => ipcRenderer.removeListener('hermes:zoom:changed', listener)
     }
   },
-  revealLogs: () => ipcRenderer.invoke('hermes:logs:reveal'),
+  revealLogs: (kind?: 'bootstrap') => ipcRenderer.invoke('hermes:logs:reveal', kind),
   getRecentLogs: () => ipcRenderer.invoke('hermes:logs:recent'),
   // Fire-and-forget: persists a renderer error-boundary catch (with component
   // stack) to desktop.log so crashes survive the window (#79428).

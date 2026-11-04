@@ -532,6 +532,12 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   // Main writes a plain lead sentence and keeps the raw installer error after
   // "Details:" (electron/bootstrap-failure-copy.ts); show them as two lines.
   const [failureLead, failureDetail] = splitFailureDetails(state.error)
+
+  const failureStage = state.failureStage
+  const failureStageLabel = failureStage
+    ? stages.find(stage => stage.name === failureStage)?.title || formatStageName(failureStage)
+    : null
+
   // Count the running stage as half-done so the bar advances *during* a long
   // stage instead of sitting frozen at the last completed step while its logs
   // stream (e.g. "0 of 2" pinned at 0% for the whole first stage).
@@ -577,7 +583,9 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
             <div className="mb-4 flex items-start gap-2 text-sm">
               <ErrorIcon className="mt-0.5 shrink-0" size="1rem" />
               <div className="min-w-0">
-                <div className="font-medium text-destructive">{copy.error}</div>
+                <div className="font-medium text-destructive">
+                  {copy.error}{failureStageLabel ? ` · ${failureStageLabel}` : ''}
+                </div>
                 <p className="mt-0.5 whitespace-pre-wrap break-words text-foreground/90">{failureLead}</p>
                 {failureDetail ? (
                   <p className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
@@ -658,16 +666,20 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
         {failed && (
           <div className="flex-shrink-0 bg-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                {copy.transcriptSaved}{' '}
-                <code className="font-mono text-(--ui-text-secondary)">%LOCALAPPDATA%\hermes\logs\</code>
+              <span className="min-w-0 truncate text-xs text-muted-foreground" title={state.failureLogPath ?? undefined}>
+                {state.failureLogPath && (
+                  <>
+                    {copy.transcriptSaved}{' '}
+                    <code className="font-mono text-(--ui-text-secondary)">{state.failureLogPath.split(/[\\/]/).at(-1)}</code>
+                  </>
+                )}
               </span>
               <div className="flex gap-2">
                 <Button onClick={() => setState(EMPTY_BOOTSTRAP_STATE)} size="sm" variant="ghost">
                   {t.common.close}
                 </Button>
                 <Button
-                  onClick={() => void window.hermesDesktop?.revealLogs?.().catch(() => undefined)}
+                  onClick={() => void window.hermesDesktop?.revealLogs?.('bootstrap').catch(() => undefined)}
                   size="sm"
                   variant="ghost"
                 >

@@ -932,6 +932,8 @@ async function runBootstrap(opts) {
       `runLog=${runLog.path}`
   })
 
+  let failedStage = 'installer-script'
+
   try {
     const existingCheckout = hasExistingGitCheckout(activeRoot)
     const { pinCommit, logUnpinned } = bootstrapPinPolicy(existingCheckout, opts)
@@ -952,6 +954,8 @@ async function runBootstrap(opts) {
     const installerKind = scriptInfo.kind || 'powershell'
 
     // 2. Fetch manifest
+    failedStage = 'installer-manifest'
+
     const manifest = await fetchManifest({
       scriptPath: scriptInfo.path,
       installerKind,
@@ -982,6 +986,8 @@ async function runBootstrap(opts) {
         return { ok: false, cancelled: true }
       }
 
+      failedStage = stage.name
+
       const ev = await runStage({
         scriptPath: scriptInfo.path,
         installerKind,
@@ -995,7 +1001,7 @@ async function runBootstrap(opts) {
       })
 
       if (ev.state === 'failed') {
-        emit({ type: 'failed', stage: stage.name, error: (ev as any).error || 'stage failed' })
+        emit({ type: 'failed', stage: stage.name, error: (ev as any).error || 'stage failed', logPath: runLog.path })
 
         return { ok: false, failedStage: stage.name, error: (ev as any).error }
       }
@@ -1028,6 +1034,7 @@ async function runBootstrap(opts) {
       pinnedBranch: installStamp ? installStamp.branch : null
     }
 
+    failedStage = 'complete'
     const marker = typeof writeMarker === 'function' ? writeMarker(markerPayload) : markerPayload
     emit({ type: 'complete', marker })
 
@@ -1039,9 +1046,10 @@ async function runBootstrap(opts) {
       return { ok: false, cancelled: true }
     }
 
-    emit({ type: 'failed', error: err.message || String(err) })
+    const error = err.message || String(err)
+    emit({ type: 'failed', stage: failedStage, error, logPath: runLog.path })
 
-    return { ok: false, error: err.message || String(err) }
+    return { ok: false, failedStage, error }
   } finally {
     try {
       await new Promise<void>(resolve => runLog.stream.end(resolve))

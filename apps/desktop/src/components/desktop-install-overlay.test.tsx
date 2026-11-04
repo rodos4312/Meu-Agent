@@ -39,6 +39,7 @@ function installDesktopMock(state: DesktopBootstrapState) {
     applyConnectionConfig: vi.fn(),
     oauthLoginConnectionConfig: vi.fn(),
     openExternal: vi.fn(),
+    revealLogs: vi.fn().mockResolvedValue({ ok: true }),
     emitBootstrapEvent: (event: DesktopBootstrapEvent) => {
       for (const listener of bootstrapListeners) {
         listener(event)
@@ -130,8 +131,19 @@ it('describes an existing runtime upgrade without calling it first-time setup', 
   expect(screen.getByText('Cancel update')).toBeTruthy()
   act(() => desktop.emitBootstrapEvent({ type: 'manifest', stages: [], protocolVersion: 1 }))
   expect(screen.getByText('Updating Meu')).toBeTruthy()
-  act(() => desktop.emitBootstrapEvent({ type: 'failed', error: 'fixture failure' }))
+  const logPath = 'C:\\MeuAgent\\logs\\bootstrap-attempt.log'
+  act(() => desktop.emitBootstrapEvent({
+    type: 'failed',
+    stage: 'installer-script',
+    error: 'Failed to download install.ps1: HTTP 429',
+    logPath
+  }))
   expect(screen.getByText('Update did not finish')).toBeTruthy()
+  expect(screen.getByText('Error · Installer script')).toBeTruthy()
+  expect(screen.getByText(/HTTP 429/)).toBeTruthy()
+  expect(screen.getByTitle(logPath).textContent).toContain('bootstrap-attempt.log')
+  fireEvent.click(screen.getByRole('button', { name: 'Open logs' }))
+  expect(desktop.revealLogs).toHaveBeenCalledWith('bootstrap')
 })
 
 describe('DesktopInstallOverlay first-run setup', () => {

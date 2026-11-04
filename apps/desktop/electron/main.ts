@@ -16575,8 +16575,20 @@ ipcMain.handle('hermes:fetchLinkTitle', (_event, url) => fetchLinkTitle(url))
 
 ipcMain.handle('hermes:resolveFavicon', (_event, url) => resolveFaviconCached(url))
 
-ipcMain.handle('hermes:logs:reveal', async () => {
+ipcMain.handle('hermes:logs:reveal', async (_event, kind) => {
+  // Only the runner's latest failure can select an exact file.
+  const bootstrapLog = kind === 'bootstrap' ? bootstrapState.failureLogPath : null
   try {
+    if (bootstrapLog && fileExists(bootstrapLog)) {
+      const error = await shell.openPath(bootstrapLog)
+      if (!error) {
+        return { ok: true, path: bootstrapLog }
+      }
+      shell.showItemInFolder(bootstrapLog)
+
+      return { ok: true, path: bootstrapLog }
+    }
+
     await fs.promises.mkdir(path.dirname(DESKTOP_LOG_PATH), { recursive: true })
 
     if (!fileExists(DESKTOP_LOG_PATH)) {

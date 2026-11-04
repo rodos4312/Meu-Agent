@@ -476,7 +476,7 @@ declare global {
         setPercent: (percent: number) => void
         onChanged: (callback: (payload: { level: number; percent: number }) => void) => () => void
       }
-      revealLogs: () => Promise<{ ok: boolean; path: string; error?: string }>
+      revealLogs: (kind?: 'bootstrap') => Promise<{ ok: boolean; path: string; error?: string }>
       getRecentLogs: () => Promise<{ path: string; lines: string[] }>
       /** Persist a renderer error-boundary catch to desktop.log (fire-and-forget). */
       reportRendererError?: (report: {

@@ -25,6 +25,28 @@ function mkTmpHome() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-bootstrap-test-'))
 }
 
+test('bootstrap failures before the manifest identify the step and the written log', async () => {
+  const home = mkTmpHome()
+  const events = []
+
+  try {
+    const result = await runBootstrap({
+      installStamp: null,
+      activeRoot: path.join(home, 'checkout'),
+      sourceRepoRoot: null,
+      hermesHome: home,
+      onEvent: event => events.push(event)
+    })
+
+    const failure = events.find(event => event.type === 'failed')
+    assert.equal(result.failedStage, 'installer-script')
+    assert.equal(failure?.stage, 'installer-script')
+    assert.match(fs.readFileSync(failure.logPath, 'utf8'), /no SOURCE_REPO_ROOT and no install stamp/)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
 test('runBootstrap bails immediately when the signal is already aborted', async () => {
   const controller = new AbortController()
   controller.abort()
