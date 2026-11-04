@@ -1,6 +1,6 @@
 import { type ThreadMessage } from '@assistant-ui/react'
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { $activeSessionId } from '@/store/session'
 
@@ -90,4 +90,43 @@ describe('tool parts sealed without a result', () => {
     expect(await screen.findByText('Interrupted')).toBeTruthy()
     expect(screen.queryByText('Result unavailable')).toBeNull()
   })
+})
+
+it('opens the saved project directory from the coordinator result without assistant text', async () => {
+  const root = 'C:/Users/Tester/Meu Tasks #1'
+  const folderUrl = 'file:///C:/Users/Tester/Meu%20Tasks%20%231'
+  const openDir = vi.fn(async () => ({ ok: true }))
+  const previousDesktop = window.hermesDesktop
+  window.hermesDesktop = {
+    ...previousDesktop,
+    normalizePreviewTarget: vi.fn(async () => ({
+      kind: 'file',
+      label: 'Meu Tasks #1',
+      path: root,
+      previewKind: 'directory',
+      source: folderUrl,
+      url: folderUrl
+    })),
+    openDir
+  } as typeof window.hermesDesktop
+
+  try {
+    render(
+      <Harness
+        message={sealedMessage(
+          'coordinate_project',
+          { action: 'status', project: 'demo' },
+          {
+            result: JSON.stringify({ project: 'demo', root, project_folder_url: folderUrl })
+          }
+        )}
+      />
+    )
+
+    expect(await screen.findByText(root)).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Open containing folder' }))
+    await waitFor(() => expect(openDir).toHaveBeenCalledWith(root))
+  } finally {
+    window.hermesDesktop = previousDesktop
+  }
 })

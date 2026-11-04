@@ -4,6 +4,7 @@ The lock spans the real synchronous delegation. A free lock with a saved running
 task means interrupted work, never permission to replay side effects automatically.
 """
 from contextlib import contextmanager
+from collections import Counter
 import hashlib
 import json
 import os
@@ -42,7 +43,10 @@ def new_project(project, root, tasks):
         dependencies = task.get("depends_on", [])
         if not isinstance(dependencies, list) or any(not isinstance(dep, str) for dep in dependencies):
             raise ValueError("depends_on must list prerequisite task ids.")
-        rows[key] = {"task": dict(task), "state": "pending", "attempt": 0}
+        stored = dict(task)
+        if "review_of" in task:
+            stored.update(workload="complex", tool_access="files_only")
+        rows[key] = {"task": stored, "state": "pending", "attempt": 0}
     visited = set()
 
     def visit(key, visiting):
@@ -56,6 +60,10 @@ def new_project(project, root, tasks):
 
     for key in rows:
         visit(key, set())
+    for row in rows.values():
+        target_id = row["task"].get("review_of")
+        if target_id is not None and "review_of" in rows[target_id]["task"]:
+            raise ValueError("Review a deliverable task, not another review.")
     return {"schema": 1, "project": identifier(project), "root": str(root.resolve()), "tasks": rows}
 
 
@@ -110,8 +118,12 @@ class Project:
         return result
 
     def ready(self):
+        rows = self.record["tasks"]
+        unblocks = Counter(dep for row in rows.values() if row["state"] == "pending"
+                           for dep in row["task"].get("depends_on", []))
         selected = []
-        for key, row in self.record["tasks"].items():
+        for key in sorted(rows, key=lambda task: -unblocks[task]):
+            row = rows[key]
             if row["state"] != "pending" or not self.dependencies_ready(row):
                 continue
             try:
@@ -125,6 +137,7 @@ class Project:
 
     def summary(self):
         return {**self.record, "ready": self.ready(),
+                "project_folder_url": Path(self.record["root"]).as_uri(),
                 "complete": all(row["state"] == "verified" for row in self.record["tasks"].values()),
                 "verification": "parent-confirmed checks and file hashes; helper completion alone never verifies a task"}
 

@@ -45,8 +45,10 @@ class MeuCoordinator(DelegationProvider):
 
     def description(self, config: Mapping[str, Any]) -> str:
         return (
-            "Meu coordination: first break the request into small deliverables with dependencies and acceptance "
-            "checks. Delegate only when it helps. Use tasks=[...] even for one helper; supply workload, acceptance, "
+            "Meu coordination: handle a straightforward request yourself when you can complete and check it in "
+            "one short pass. For larger work, separate deliverables by dependency and give each an acceptance "
+            "check. Delegate independent work that can proceed while you do something else, or work that needs "
+            "a separate specialist. Use tasks=[...] even for one helper; supply workload, acceptance, "
             "parallel_safe and write_paths for EVERY task. You, the parent, assess complexity using the task's "
             "meaning; do not send every task to Pro or classify by keywords alone. Keep dependent work sequential: "
             "wait for prerequisite results, then pass their concrete artifacts/evidence in the next task's context. "

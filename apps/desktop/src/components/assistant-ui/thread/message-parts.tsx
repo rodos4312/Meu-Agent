@@ -26,6 +26,7 @@ import { parseMaybeObject, toolCallFailed } from '@/components/assistant-ui/tool
 import { formatElapsed, useElapsedSeconds, useMeasuredDuration } from '@/components/chat/activity-timer'
 import { ActivityTimerText } from '@/components/chat/activity-timer-text'
 import { GeneratedImage } from '@/components/chat/generated-image-result'
+import { PreviewAttachment } from '@/components/chat/preview-attachment'
 import { SCAFFOLD_LABEL_CLASS, SCAFFOLD_META_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
 import { useI18n } from '@/i18n'
 import { mcpTargets, toolLabels } from '@/lib/connector-tools'
@@ -81,6 +82,29 @@ const DelegateToolPart: FC<TimelineToolCallProps> = props => {
   )
 }
 
+const ProjectFolderToolPart: FC<TimelineToolCallProps> = props => {
+  if (toolCallFailed(props) || settledWithoutResult(props)) {
+    return <ToolFallback {...props} />
+  }
+
+  if (props.args?.action !== 'create' && props.args?.action !== 'status') {
+    return null
+  }
+
+  const { project_folder_url: folder, root } = parseMaybeObject(props.result)
+
+  if (typeof folder !== 'string' || !/^file:\/\/\/(?!\/)/i.test(folder)) {
+    return null
+  }
+
+  return (
+    <div className="min-w-0">
+      <PreviewAttachment target={folder} />
+      {typeof root === 'string' && <div className="text-muted-foreground break-all text-xs">{root}</div>}
+    </div>
+  )
+}
+
 const ClarifyToolPart: FC<TimelineToolCallProps> = props => {
   // Stopped on this question, never answered: history. ClarifyTool reads
   // the session's live clarify request, so a later turn's question would
@@ -123,6 +147,7 @@ const ConnectionsToolPart: FC<TimelineToolCallProps> = props =>
 
 const TOOL_CARDS: Record<CardToolName, FC<TimelineToolCallProps>> = {
   clarify: ClarifyToolPart,
+  coordinate_project: ProjectFolderToolPart,
   delegate_task: DelegateToolPart,
   image_generate: ImageGenerateTool,
   manage_catalog: CatalogInstallTool,

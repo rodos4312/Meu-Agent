@@ -255,6 +255,7 @@ def test_tool_progress_off_keeps_card_tool_lifecycle(monkeypatch):
         "tool-image": ("image_generate", {"prompt": "a cat"}),
         "tool-catalog": ("manage_catalog", {"action": "list"}),
         "tool-delegate": ("delegate_task", {"goal": "do it"}),
+        "tool-project": ("coordinate_project", {"action": "status", "project": "demo"}),
     }
     for tool_id, (name, args) in cases.items():
         server._on_tool_start("hide-cards", tool_id, name, args)

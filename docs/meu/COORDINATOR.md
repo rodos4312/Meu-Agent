@@ -50,6 +50,13 @@ limit. Refused calls appear as errors in the child trace. The choice is saved
 with the task and reused after interruption or retry. An omitted choice uses
 normal inheritance.
 
+Each project response includes the saved directory and its encoded
+`project_folder_url`. The Desktop chat shows a folder card when a project is
+created or its status is opened. On a local Windows connection it opens the
+project directory in File Explorer. The folder and the coordinator's private
+checkpoint are separate. Keep deliverables in the project directory and
+include its folder link when reporting the result.
+
 Checkpointed helpers start in the saved local project directory. For a
 `files_only` helper, reads and searches must start inside that workspace, and
 edits must also match the assignment's `write_paths`. An empty list makes the
@@ -68,6 +75,9 @@ stop/steer, provider credentials and budgets. Each child's contract includes the
 project directory and the verified prerequisite results. Completed children become
 `needs_review` and are saved as their results arrive, even while a sibling runs.
 Completion alone never unlocks a dependent task.
+Among ready tasks, those blocking more pending work are considered first.
+The parent handles small direct requests itself and uses project coordination
+when distinct deliverables or dependencies justify the extra calls.
 
 The parent runs the acceptance checks through its normal tools, then records
 `verify` with the exact attempt number, results/evidence and artifact files.
@@ -76,6 +86,16 @@ SHA-256 fingerprints bind acceptance
 to those files: modifications invalidate that task and downstream acceptance.
 This records the parent's verification; it is not independent proof that an LLM
 actually ran a claimed test. Existing tool policies still own check execution.
+
+An optional independent review names one deliverable in `review_of` and
+`depends_on`, with empty `write_paths`. It runs on Pro with read-only access
+and returns a verdict, the check or reproduction steps, and what it observed.
+The checkpoint binds the report to the deliverable attempt and recorded file
+hashes. After reproducing a finding, the parent can call `request_fix` with the
+review task, its attempt and reproduction evidence. The coordinator reopens
+that deliverable for a bounded Pro repair and queues a fresh review after
+verification. Unrelated verified work stays accepted. A finding against an
+older version cannot reopen the current deliverable.
 
 Plans/results live under the owning profile's `coordinator/<project>.json`, using
 private directories, atomic writes and the existing cross-process filesystem lock.

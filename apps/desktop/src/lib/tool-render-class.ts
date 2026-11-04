@@ -32,6 +32,7 @@ export function isFileEditTool(toolName: string): boolean {
 // what a run summarizes and what the live ticker cycles through.
 const CARD_TOOL_NAMES = [
   'clarify',
+  'coordinate_project',
   'delegate_task',
   'image_generate',
   'manage_catalog',

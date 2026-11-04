@@ -41,6 +41,11 @@ def validate_plan(tasks: list[dict]) -> None:
         paths = task.get("write_paths")
         if not isinstance(paths, list):
             raise DelegationRouteError(f"Task {index}: supply write_paths ([] for read-only work).")
+        if "review_of" in task:
+            target = task["review_of"]
+            dependencies = task.get("depends_on")
+            if not isinstance(target, str) or dependencies != [target] or paths:
+                raise DelegationRouteError(f"Task {index}: a review must depend on its one deliverable and be read-only.")
         if task.get("images") and task.get("workload") != "vision":
             raise DelegationRouteError(f"Task {index}: use workload=vision for attached images.")
         scopes.append([_path(value) for value in paths])
