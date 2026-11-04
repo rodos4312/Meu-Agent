@@ -2,6 +2,7 @@ import './catalog.css'
 
 import { type CSSProperties, type ReactNode, useState } from 'react'
 
+import { Codicon } from '@/components/ui/codicon'
 import { RowButton } from '@/components/ui/row-button'
 import { cn } from '@/lib/utils'
 
@@ -67,6 +68,7 @@ interface CatalogCardProps {
   entry: CatalogEntry
   action: ReactNode
   accentIndex: number
+  showCategoryIcon?: boolean
   onOpen: (entry: CatalogEntry) => void
   onCategory: (category: string) => void
   onTag: (tag: string) => void
@@ -75,9 +77,6 @@ interface CatalogCardProps {
 }
 
 const isEditorialArt = (entry: CatalogEntry) => Boolean(entry.imageUrl?.includes('official-art'))
-
-/** Every card shows its artwork, the hero included (its slot is the right 42%, see catalog-discovery.css). */
-const showsCardImage = (entry: CatalogEntry) => Boolean(entry.imageUrl)
 
 function CatalogCardFooter({ entry, action, hero }: { entry: CatalogEntry; action: ReactNode; hero: boolean }) {
   return (
@@ -91,7 +90,7 @@ function CatalogCardFooter({ entry, action, hero }: { entry: CatalogEntry; actio
   )
 }
 
-export function CatalogCard({ entry, action, accentIndex, onOpen, onCategory, onTag, onSearch, variant = 'default', style }: CatalogCardProps) {
+export function CatalogCard({ entry, action, accentIndex, showCategoryIcon, onOpen, onCategory, onTag, onSearch, variant = 'default', style }: CatalogCardProps) {
   return (
     <article
       className={cn(
@@ -104,7 +103,7 @@ export function CatalogCard({ entry, action, accentIndex, onOpen, onCategory, on
       data-entry-id={entry.id}
       style={style}
     >
-      {showsCardImage(entry) && <CatalogImage className="catalog-card-image aspect-[2/1]" key={entry.imageUrl!} src={entry.imageUrl!} />}
+      {entry.imageUrl && <CatalogImage className="catalog-card-image aspect-[2/1]" key={entry.imageUrl} src={entry.imageUrl} />}
       {variant !== 'default' && <div className="catalog-card-topline">
         <span className="min-w-0 truncate" title={entry.author || catalogLabel(entry.source)}>{entry.author || catalogLabel(entry.source)}</span>
         {/* z-10: this slot precedes the title button, whose card-wide ::after
@@ -113,6 +112,11 @@ export function CatalogCard({ entry, action, accentIndex, onOpen, onCategory, on
       </div>}
       <div className="catalog-card-copy flex min-h-0 w-full flex-col gap-2 p-3">
         <div className="flex min-w-0 items-center gap-2.5">
+          {showCategoryIcon && (
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-accent text-(--ui-text-secondary)">
+              <Codicon name={catalogIcon(entry.category)} size="1rem" />
+            </span>
+          )}
           {/* Its ::after stretches over the whole card, so any empty spot opens the
               detail; real controls sit above it (`relative`). One focus stop per card. */}
           <RowButton

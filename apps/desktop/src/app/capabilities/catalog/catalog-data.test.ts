@@ -127,19 +127,22 @@ describe('public catalog data', () => {
 
   })
 
-  it('only renders plugin images hosted on GitHub so the browser never fans out to third-party hosts', () => {
+  it('ignores upstream plugin covers and keeps allowed detail screenshots', () => {
     const base = { name: 'x', tier: 'community', repo: 'https://github.com/o/r', sha: 'a'.repeat(40), version: '1.4.0' }
+    const screenshot = 'https://raw.githubusercontent.com/o/r/abc/screenshot.png'
 
-    const [github, offhost, http] = parseCatalog('plugins', [
-      { ...base, name: 'github', image: 'https://raw.githubusercontent.com/o/r/abc/banner.png' },
-      { ...base, name: 'offhost', image: 'https://cdn.example.com/banner.png' },
-      { ...base, name: 'http', image: 'http://github.com/o/r/banner.png' }
+    const [published, bundled] = parseCatalog('plugins', [
+      {
+        ...base,
+        image: 'https://raw.githubusercontent.com/o/r/abc/banner.png',
+        screenshots: [screenshot, 'https://cdn.example.com/screenshot.png', 'http://github.com/o/r/screenshot.png']
+      },
+      { name: 'Kanban', tier: 'bundled', identifier: 'desktop:kanban' }
     ])
 
-    expect(github.imageUrl).toBe('https://raw.githubusercontent.com/o/r/abc/banner.png')
-    expect(github.version).toBe('1.4.0')
-    expect(offhost.imageUrl).toBeNull()
-    expect(http.imageUrl).toBeNull()
+    expect(published.imageUrl).toBeNull()
+    expect(published.screenshots).toEqual([screenshot])
+    expect(bundled.imageUrl).toBeNull()
   })
 
   it('rejects a non-catalog response instead of treating an error payload as an empty catalog', () => {

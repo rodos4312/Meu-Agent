@@ -1,11 +1,11 @@
-import { skillCatalogInstallIdentifier } from '@hermes/shared'
+import { isOfficialSkillSource, skillCatalogInstallIdentifier } from '@hermes/shared'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 
 import { CATALOG_ORIGIN, sendWhenGatewayOpen } from '@/lib/plugin-catalog'
-import { activeGatewayProfileKey, requestGatewayForProfile } from '@/store/gateway'
 import { queryClient } from '@/lib/query-client'
+import { activeGatewayProfileKey, requestGatewayForProfile } from '@/store/gateway'
 
-import { curatedFeaturedRank, curationOwnsArtwork, officialCatalogArtwork } from './catalog-curation'
+import { curatedFeaturedRank, curatedSkillArtwork } from './catalog-curation'
 
 export type CatalogKind = 'skills' | 'plugins'
 
@@ -35,7 +35,7 @@ export interface CatalogEntry {
   license?: string
   sourceUrl: string | null
   docsUrl: string | null
-  /** Catalog-provided media, restricted to the same GitHub hosts as the website. */
+  /** Skill cover artwork. Plugin covers use the app's local category icons. */
   imageUrl: string | null
   screenshots?: string[]
   addedAt?: string
@@ -80,6 +80,10 @@ const isoDate = (value: unknown) => (Number.isFinite(Date.parse(text(value))) ? 
 
 /** Where an entry points: install id, source/docs links, artwork. */
 function catalogLinks(kind: CatalogKind, row: any, rawName: string, source: string) {
+  const imageUrl = kind === 'skills'
+    ? (isOfficialSkillSource(source) ? curatedSkillArtwork(row) : catalogImageUrl(row.image))
+    : null
+
   return {
     installIdentifier:
       kind === 'skills'
@@ -93,7 +97,7 @@ function catalogLinks(kind: CatalogKind, row: any, rawName: string, source: stri
     sourceUrl: webUrl(row.repo || row.sourceUrl),
     docsUrl:
       webUrl(row.docsUrl) || (text(row.docsPath) ? `${CATALOG_ORIGIN}/website/docs/user-guide/skills/${text(row.docsPath)}` : null),
-    imageUrl: curationOwnsArtwork(kind, row) ? officialCatalogArtwork(kind, row) : catalogImageUrl(row.image),
+    imageUrl,
     screenshots:
       kind === 'plugins'
         ? strings(row.screenshots)
@@ -202,6 +206,7 @@ export async function fetchCatalog(kind: CatalogKind): Promise<CatalogEntry[]> {
   const reply = await sendWhenGatewayOpen(() => requestGatewayForProfile<{ entries: unknown }>(
     activeGatewayProfileKey(), 'capabilities.catalog', { kind }, 20_000
   ))
+
   return parseCatalog(kind, reply.entries)
 }
 

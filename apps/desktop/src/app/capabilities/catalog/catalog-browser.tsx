@@ -421,6 +421,7 @@ export const CatalogBrowser = memo(function CatalogBrowser({
       onOpen={openEntry}
       onSearch={searchFor}
       onTag={filters.toggleTag}
+      showCategoryIcon={kind === 'plugins'}
       style={placement}
       variant={variant}
     />

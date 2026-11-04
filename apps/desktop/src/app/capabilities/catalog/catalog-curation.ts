@@ -16,24 +16,13 @@ const artworkUrl = (filename: string | undefined) =>
 interface CurationRow {
   name?: string
   category?: string
-  identifier?: string
   source?: string
   tier?: string
 }
 
-/** Official identities whose art the curation file owns: a reassignment there
- *  must win over a feed published with the old mapping. */
-export function curationOwnsArtwork(kind: 'skills' | 'plugins', row: CurationRow): boolean {
-  return kind === 'skills' ? isOfficialSkillSource(row.source) : row.tier === 'bundled'
-}
-
-/** Only first-party catalog identities receive editorial artwork. */
-export function officialCatalogArtwork(kind: 'skills' | 'plugins', row: CurationRow): string | null {
-  if (!curationOwnsArtwork(kind, row)) {return null}
-
-  return kind === 'skills'
-    ? artworkUrl((artwork.skills as Record<string, string>)[`${row.category}/${row.name}`])
-    : artworkUrl((artwork.plugins as Record<string, string>)[row.identifier ?? ''])
+/** The app's skill curation wins over artwork from older catalog feeds. */
+export function curatedSkillArtwork(row: CurationRow): string | null {
+  return artworkUrl((artwork.skills as Record<string, string>)[`${row.category}/${row.name}`])
 }
 
 /** Curated hero rank from the bundled curation file, for feeds published before

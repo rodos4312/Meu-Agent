@@ -30,6 +30,8 @@ function setup(kind: CatalogKind) {
       installIdentifier: `official/${name}`,
       source: 'official',
       tier: 'official',
+      maintainer: 'Example Maintainer',
+      image: `https://raw.githubusercontent.com/example/${name}/main/cover.jpg`,
       category: name === 'alpha' ? 'memory' : 'voice',
       description: `${name} workflow`,
       repo: `https://github.com/example/${name}`,
@@ -64,6 +66,20 @@ function setup(kind: CatalogKind) {
 
 const card = (name: string) =>
   screen.getAllByRole('article').find(article => within(article).queryByRole('button', { name }))!
+
+it('uses local plugin icons while keeping the maintainer and repository visible', () => {
+  const { entries } = setup('plugins')
+  const alpha = card('alpha')
+
+  expect(alpha.querySelector('img')).toBeNull()
+  expect(alpha.querySelector('.codicon-database')).toBeTruthy()
+  expect(within(alpha).getByText('Example Maintainer')).toBeTruthy()
+
+  fireEvent.click(within(alpha).getByRole('button', { name: 'alpha' }))
+  const dialog = screen.getByRole('dialog', { name: 'alpha' })
+  expect(dialog.querySelector('img')).toBeNull()
+  expect(within(dialog).getByRole('link', { name: 'Repository' }).getAttribute('href')).toBe(entries[0].sourceUrl)
+})
 
 describe.each(['skills', 'plugins'] as const)('%s catalog layouts', kind => {
   it('defaults to cards, with installed entries marked added', () => {
