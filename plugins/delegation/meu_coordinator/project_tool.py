@@ -123,6 +123,8 @@ def handle(args, *, parent_agent=None, **_kwargs):
     try:
         action, project = args.get("action"), args.get("project")
         initial = new_project(project, args.get("root", ""), args.get("tasks")) if action == "create" else None
+        if initial is not None and (session_id := getattr(parent_agent, "session_id", None)):
+            initial["session_id"] = session_id
         with open_project(_home(parent_agent), project, initial) as state:
             if action == "run":
                 _run(state, parent_agent)

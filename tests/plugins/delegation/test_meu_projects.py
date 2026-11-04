@@ -24,6 +24,7 @@ def create(parent, root, tasks=None):
 
 def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator, tmp_path):
     home, built, parent = coordinator
+    parent.session_id = "project-session"
     created = create(parent, tmp_path)
     assert "ready" in created, created
     assert created["ready"] == ["inspect"]
@@ -44,7 +45,8 @@ def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator
     assert verified["complete"]
     # A fresh process reads the persisted outcome without the original parent or manager.
     script = "from pathlib import Path;from plugins.delegation.meu_coordinator.projects import open_project;" \
-        f"\nwith open_project(Path({str(home)!r}),'demo') as p: assert p.summary()['complete']"
+        f"\nwith open_project(Path({str(home)!r}),'demo') as p:" \
+        "\n assert p.summary()['complete'] and p.record['session_id'] == 'project-session'"
     subprocess.run([sys.executable, "-c", script], check=True, timeout=30,
                    cwd=Path(__file__).resolve().parents[3])
 

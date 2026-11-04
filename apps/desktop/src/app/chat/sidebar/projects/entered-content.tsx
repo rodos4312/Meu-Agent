@@ -15,6 +15,7 @@ import { removeWorktreePath } from '@/store/projects'
 
 import { SidebarRowStack } from '../chrome'
 
+import { CoordinatorWorkspace } from './coordinator-workspace'
 import { PROJECT_SESSION_PAGE, useRevealedRows, useWorkspaceNodeOpen } from './model'
 import { SidebarWorkspaceGroup } from './workspace-group'
 import {
@@ -35,6 +36,8 @@ export function EnteredProjectContent({
   renderRows,
   onNewSession,
   onNewSessionSplit,
+  onRefreshProject,
+  onResumeSession,
   repoWorktrees,
   liveSessions,
   removedSessionIds
@@ -43,6 +46,8 @@ export function EnteredProjectContent({
   renderRows: (sessions: SessionInfo[]) => React.ReactNode
   onNewSession?: (path: null | string) => void
   onNewSessionSplit?: NewSessionSplitHandler
+  onRefreshProject?: () => void
+  onResumeSession?: (sessionId: string, session: SessionInfo) => void
   repoWorktrees?: Record<string, HermesGitWorktree[]>
   liveSessions?: SessionInfo[]
   removedSessionIds?: ReadonlySet<string>
@@ -61,6 +66,7 @@ export function EnteredProjectContent({
 
   return (
     <>
+      <CoordinatorWorkspace onRefresh={onRefreshProject} onResumeSession={onResumeSession} project={project} />
       {project.repos.map(repo => (
         <RepoFlatSection
           discoveredWorktrees={repo.path ? repoWorktrees?.[repo.path] : undefined}

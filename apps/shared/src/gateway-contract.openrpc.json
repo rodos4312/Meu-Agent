@@ -12210,6 +12210,108 @@
         "title": "ContextFileSource",
         "type": "object"
       },
+      "CoordinatorArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ],
+        "title": "CoordinatorArtifact",
+        "type": "object"
+      },
+      "CoordinatorPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "root": {
+            "title": "Root",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Session Id"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/CoordinatorTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "root",
+          "tasks"
+        ],
+        "title": "CoordinatorPlan",
+        "type": "object"
+      },
+      "CoordinatorTask": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "goal": {
+            "title": "Goal",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/CoordinatorArtifact"
+            },
+            "title": "Artifacts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "goal",
+          "state",
+          "artifacts"
+        ],
+        "title": "CoordinatorTask",
+        "type": "object"
+      },
       "CorrectionStatus": {
         "enum": [
           "queued",
@@ -27202,6 +27304,21 @@
             },
             "title": "Sessionids",
             "type": "array"
+          },
+          "coordinatorPlans": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CoordinatorPlan"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Coordinatorplans"
           }
         },
         "required": [

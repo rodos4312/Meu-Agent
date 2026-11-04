@@ -1,4 +1,4 @@
-export type { BillingBlock } from './gateway-contract.generated'
+export type { BillingBlock, CoordinatorPlan } from './gateway-contract.generated'
 export { hasAnsi, sanitizeAnsiForRender, stripAnsi } from './ansi'
 export { backendScopeKey, backendScopePrefix, LOCAL_CONNECTION_ID, registryBackendScopeKey } from './backend-scope'
 export { groupCatalogPlugins, PLUGIN_CATEGORIES, PLUGIN_CATEGORY_ORDER, sortCatalogPlugins } from './catalog-browse'

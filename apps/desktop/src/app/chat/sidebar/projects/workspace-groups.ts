@@ -1,3 +1,5 @@
+import type { CoordinatorPlan } from '@hermes/shared'
+
 import type { HermesGitBranch, HermesGitWorktree } from '@/global'
 import type { ProjectInfo, SessionInfo } from '@/hermes'
 import { normalize } from '@/lib/text'
@@ -52,6 +54,7 @@ export interface SidebarWorkspaceTree {
 
 /** A project node: human-named (or repo-derived), holds its repo subtree. */
 export interface SidebarProjectTree {
+  coordinatorPlans?: CoordinatorPlan[] | null
   id: string
   label: string
   path: null | string

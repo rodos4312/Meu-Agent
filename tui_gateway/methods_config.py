@@ -162,7 +162,17 @@ def _(rid, params: dict) -> dict:
         tree, _active = _stamped_project_tree(
             db, params, preview_limit=0, hydrate=True,
             session_limit=int(params.get("session_limit") or 5000), include_discovered=False)
-        return _ok(rid, {"project": next((p for p in tree["projects"] if p["id"] == project_id), None)})
+        project = next((p for p in tree["projects"] if p["id"] == project_id), None)
+        if project and not project["isNoProject"]:
+            from hermes_constants import get_hermes_home
+            from plugins.delegation.meu_coordinator.workspace import workspace_plans
+
+            paths = [project["path"]]
+            for repo in project["repos"]:
+                paths.append(repo["path"])
+                paths.extend(lane["path"] for lane in repo["groups"] if not lane.get("isKanban"))
+            project["coordinatorPlans"] = workspace_plans(get_hermes_home(), paths)
+        return _ok(rid, {"project": project})
 
 
 # ── config.get — one getter per key returning the result payload.

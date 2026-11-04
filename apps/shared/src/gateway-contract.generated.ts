@@ -1979,6 +1979,7 @@ export interface ProjectTreeNode {
   repos?: ProjectTreeRepo[]
   previewSessions?: ProjectTreeSession[]
   sessionIds?: string[]
+  coordinatorPlans?: CoordinatorPlan[] | null
 }
 export interface ProjectTreeRepo {
   id: string
@@ -2028,6 +2029,23 @@ export interface ProjectTreeSession {
   continuation_kind?: string | null
   profile?: string | null
   [key: string]: unknown
+}
+export interface CoordinatorPlan {
+  id: string
+  root: string
+  session_id?: string | null
+  tasks: CoordinatorTask[]
+}
+export interface CoordinatorTask {
+  id: string
+  goal: string
+  state: string
+  model?: string | null
+  artifacts: CoordinatorArtifact[]
+}
+export interface CoordinatorArtifact {
+  name: string
+  path: string
 }
 export interface ProjectsProjectSessionsParams {
   profile?: string | null

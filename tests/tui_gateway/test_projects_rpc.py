@@ -670,6 +670,11 @@ def test_projects_tree_is_scoped_to_the_requested_profile(monkeypatch, tmp_path)
 
 def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_path):
     """``projects.project_sessions`` on its own hydrates from the requested profile."""
+    import json
+    import os
+
+    from pm.filesystem import lock_path
+
     launch_home = _profile_dir(tmp_path, "launch")
     coder_home = _profile_dir(tmp_path, "coder")
     launch_repo = tmp_path / "repos" / "drill-launch"
@@ -683,7 +688,42 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
     _create_session(launch_home, "drill-launch-session", launch_repo)
     _create_session(coder_home, "drill-coder-session", coder_repo)
 
+    coordinator = coder_home / "coordinator"
+    coordinator.mkdir()
+    (coder_repo / "done.txt").write_text("verified", encoding="utf-8")
+    outside = tmp_path / "other.txt"
+    outside.write_text("private", encoding="utf-8")
+    checkpoint = coordinator / "demo.json"
+    record = {
+        "schema": 1,
+        "project": "demo",
+        "root": str(coder_repo),
+        "session_id": "drill-coder-session",
+        "tasks": {
+            "inspect": {"state": "running", "task": {"goal": "Inspect"}},
+            "write": {
+                "state": "verified",
+                "task": {"goal": "Write"},
+                "result": {"model": "deepseek-v4-pro"},
+                "artifacts": {"done.txt": {}, "missing.txt": {}, "../../other.txt": {}},
+            },
+        },
+    }
+    saved = json.dumps(record).encode()
+    checkpoint.write_bytes(saved)
+    (coordinator / "broken.json").write_text("{", encoding="utf-8")
+    (coordinator / "unrelated.json").write_text(
+        json.dumps({**record, "project": "unrelated", "root": str(launch_repo)}), encoding="utf-8"
+    )
+
     with _serving_launch_profile(launch_home):
+        lock = lock_path(checkpoint.with_suffix(".lock"), timeout=0)
+        assert lock is not None
+        try:
+            active = _call("projects.project_sessions", {"profile": "coder", "project_id": coder_project["id"]})
+            assert active["project"]["coordinatorPlans"][0]["tasks"][0]["state"] == "running"
+        finally:
+            os.close(lock)
         coder_drill = _call(
             "projects.project_sessions",
             {"profile": "coder", "project_id": coder_project["id"]},
@@ -696,8 +736,20 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
     assert coder_drill["project"]["id"] == coder_project["id"]
     coder_lane = coder_drill["project"]["repos"][0]["groups"][0]
     assert [s["id"] for s in coder_lane["sessions"]] == ["drill-coder-session"]
+    assert coder_drill["project"]["coordinatorPlans"] == [{
+        "id": "demo",
+        "root": str(coder_repo.resolve()),
+        "session_id": "drill-coder-session",
+        "tasks": [
+            {"id": "inspect", "goal": "Inspect", "state": "interrupted", "model": None, "artifacts": []},
+            {"id": "write", "goal": "Write", "state": "verified", "model": "deepseek-v4-pro",
+             "artifacts": [{"name": "done.txt", "path": str((coder_repo / "done.txt").resolve())}]},
+        ],
+    }]
+    assert checkpoint.read_bytes() == saved
 
     assert launch_drill["project"]["id"] == launch_project["id"]
+    assert launch_drill["project"]["coordinatorPlans"] == []
     launch_lane = launch_drill["project"]["repos"][0]["groups"][0]
     assert [s["id"] for s in launch_lane["sessions"]] == ["drill-launch-session"]
 

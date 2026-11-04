@@ -261,6 +261,26 @@ class ProjectTreeRepo(Result):
     sessionCount: int = 0
 
 
+class CoordinatorArtifact(Result):
+    name: str
+    path: str
+
+
+class CoordinatorTask(Result):
+    id: str
+    goal: str
+    state: str
+    model: str | None = None
+    artifacts: list[CoordinatorArtifact]
+
+
+class CoordinatorPlan(Result):
+    id: str
+    root: str
+    session_id: str | None = None
+    tasks: list[CoordinatorTask]
+
+
 class ProjectTreeNode(Result):
     """``project_tree._project_node`` — explicit, auto (git root) or the synthetic Home bucket."""
 
@@ -278,6 +298,7 @@ class ProjectTreeNode(Result):
     repos: list[ProjectTreeRepo] = Field(default_factory=list)
     previewSessions: list[ProjectTreeSession] = Field(default_factory=list)
     sessionIds: list[str] = Field(default_factory=list)
+    coordinatorPlans: list[CoordinatorPlan] | None = None
 
 
 class ProjectsTreeParams(ProfileParams):

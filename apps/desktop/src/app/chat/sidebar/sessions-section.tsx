@@ -146,6 +146,7 @@ interface SidebarSessionsSectionProps {
   // The entered project's flattened content: main-checkout sessions render
   // directly (no redundant repo/branch header); only linked worktrees nest.
   projectContent?: SidebarProjectTree
+  onRefreshProject?: () => void
   // Live git lanes (`git worktree list`) for repos in the entered project —
   // a VISUAL enhancer only (empty lanes), never session membership.
   projectRepoWorktrees?: Record<string, HermesGitWorktree[]>
@@ -223,6 +224,7 @@ export function SidebarSessionsSection({
   projectsLoading = false,
   onEnterProject,
   projectContent,
+  onRefreshProject,
   projectRepoWorktrees,
   liveSessions,
   removedSessionIds,
@@ -500,6 +502,8 @@ export function SidebarSessionsSection({
             liveSessions={liveSessions}
             onNewSession={onNewSessionInWorkspace}
             onNewSessionSplit={onNewSessionSplit}
+            onRefreshProject={onRefreshProject}
+            onResumeSession={onResumeSession}
             project={projectContent}
             removedSessionIds={removedSessionIds}
             renderRows={renderRowsDated}

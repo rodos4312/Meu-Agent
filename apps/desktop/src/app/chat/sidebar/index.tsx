@@ -1806,6 +1806,7 @@ export function ChatSidebar({
                 onEnterProject={onEnterProject}
                 onNewSessionInWorkspace={onNewSessionInWorkspace}
                 onNewSessionSplit={onNewSessionSplit}
+                onRefreshProject={retryProject}
                 onReorderProjects={showAllProfiles ? undefined : reorderProjects}
                 onReorderSessions={showAllProfiles ? undefined : reorderSessions}
                 onResumeSession={onResumeSession}
