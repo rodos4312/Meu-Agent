@@ -8,8 +8,8 @@ import sys
 def build_browser_parser(subparsers) -> None:
     """Attach the ``browser`` subcommand to ``subparsers``."""
     browser_parser = subparsers.add_parser(
-        "browser", help="Real-profile browsing helpers (close a browser locking its profile)",
-        description="Helpers for real-profile browsing (browser.use_real_profile). "
+        "browser", help="Browser utilities, including local PNG export",
+        description="Export SVG artwork locally or manage real-profile browsing (browser.use_real_profile). "
             "close-profile terminates the browser process tree holding your "
             "default profile so Hermes can copy it — DESTRUCTIVE (unsaved tabs "
             "in that browser are lost). The agent runs this only after you "
@@ -22,6 +22,19 @@ def build_browser_parser(subparsers) -> None:
     browser_close.add_argument(
         "--browser",
         help="Override detected default browser (chrome/edge/brave/brave-origin/chromium)")
+
+    render_png = browser_subparsers.add_parser("render-png", help="Render a self-contained SVG to PNG locally")
+    render_png.add_argument("source", help="SVG input file")
+    render_png.add_argument("output", help="New PNG output file")
+    render_png.add_argument("--width", type=int, required=True, help="Output width in pixels")
+    render_png.add_argument("--height", type=int, required=True, help="Output height in pixels")
+
+    def _dispatch_render_png(args):
+        from hermes_cli.browser_render_png import cmd_render_png
+
+        return cmd_render_png(args)
+
+    render_png.set_defaults(func=_dispatch_render_png)
 
     def _dispatch_browser(_args):
         from hermes_cli.browser_connect import (

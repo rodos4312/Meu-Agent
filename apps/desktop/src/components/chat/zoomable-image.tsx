@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { $transcriptLightbox, closeTranscriptLightbox, openTranscriptLightbox } from '@/store/transcript-lightbox'
 
 export interface ZoomableImageProps extends ComponentProps<'img'> {
+  alwaysShowSave?: boolean
   containerClassName?: string
   slot?: string
   /** Full-resolution source for the lightbox and download. When set, the inline
@@ -30,6 +31,7 @@ export interface ImageActionCopy {
 }
 
 export function ZoomableImage({
+  alwaysShowSave,
   className,
   containerClassName,
   src,
@@ -70,7 +72,12 @@ export function ZoomableImage({
           <img alt={alt ?? ''} className={className} src={src} {...props} />
         </button>
         {src && (
-          <ImageActionButton className="group-hover/image:opacity-100" copy={copy} onClick={download} saving={saving} />
+          <ImageActionButton
+            className={alwaysShowSave ? 'opacity-100' : 'group-hover/image:opacity-100'}
+            copy={copy}
+            onClick={download}
+            saving={saving}
+          />
         )}
       </span>
       {src && (

@@ -130,7 +130,26 @@ describe('MarkdownImage stream-ticket renewal', () => {
 })
 
 describe('MessageTextContent MEDIA directives', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it('shows a save button for an exported Windows PNG with spaces in its path', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo='
+    const saveImageFromUrl = vi.fn().mockResolvedValue(true)
+    vi.stubGlobal('hermesDesktop', { readFileDataUrl: vi.fn().mockResolvedValue(png), saveImageFromUrl })
+    render(<MessageTextContent text={'MEDIA:C:\\Meu Projects\\birthday card.png'} />)
+
+    const image = await screen.findByRole('img', { name: 'birthday card.png' })
+    expect(image.getAttribute('src')).toBe(png)
+    const save = screen.getByRole('button', { name: 'Download image' })
+    expect(save.classList.contains('opacity-100')).toBe(true)
+    expect(save.classList.contains('opacity-0')).toBe(false)
+
+    fireEvent.click(save)
+    await waitFor(() => expect(saveImageFromUrl).toHaveBeenCalledWith(png))
+  })
 
   it('renders a raw audio MEDIA directive through the canonical player instead of exposing the directive', async () => {
     const { container } = render(<MessageTextContent text="MEDIA:/tmp/group-voice.mp3" />)
