@@ -149,8 +149,8 @@ def _memory(agent, args: dict, ctx: InlineToolContext) -> Any:
         store=agent._memory_store,
     )
     # Mirror built-in memory writes to external providers; gating lives in
-    # MemoryManager.notify_memory_tool_write.
-    if agent._memory_manager:
+    # MemoryManager.notify_memory_tool_write. Project notes stay in the local scoped store.
+    if agent._memory_manager and args.get("target") != "project":
         agent._memory_manager.notify_memory_tool_write(
             result,
             args,

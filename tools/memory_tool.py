@@ -44,7 +44,7 @@ from tools.memory_tool_store import (
     ENTRY_DELIMITER, FAILURE_CLASS, MEMORY_BLOCK_HEADERS, PATCH_DROP_HINT, MemoryStore, _scan_memory_content)
 
 
-def load_on_disk_store() -> MemoryStore:
+def load_on_disk_store(*, project_cwd: str | None = None) -> MemoryStore:
     """Fresh on-disk MemoryStore with configured limits/flags for contexts with no live
     agent (gateway, Desktop, ``/memory``) so approvals enforce the SAME caps as
     ``agent_init``. Falls back to defaults if config can't load; never raises."""
@@ -54,9 +54,10 @@ def load_on_disk_store() -> MemoryStore:
         mem_cfg = get_builtin_memory_config(config)
         memory_enabled, user_profile_enabled = get_builtin_memory_store_flags(config)
         store = MemoryStore(int(mem_cfg.get("memory_char_limit", 2200)), int(mem_cfg.get("user_char_limit", 1375)),
-                            memory_enabled=memory_enabled, user_profile_enabled=user_profile_enabled)
+                            memory_enabled=memory_enabled, user_profile_enabled=user_profile_enabled,
+                            project_cwd=project_cwd)
     except Exception:
-        store = MemoryStore()  # config optional — fall back to defaults rather than break /memory
+        store = MemoryStore(project_cwd=project_cwd)  # config optional — don't break /memory
     store.load_from_disk()
     return store
 
@@ -67,6 +68,8 @@ def _pin_matched_entries(store: MemoryStore, payload: dict[str, Any]) -> Optiona
     re-running the old_text search at approve time could hit a newer entry that still
     contains it. Returns the JSON error when the search fails now, as the direct write would."""
     target = payload.get("target", "memory")
+    if target == "project":
+        payload["project_scope"] = store.project_scope.key
     if payload.get("action") == "batch":
         result = store.resolve_batch_entries(target, payload["operations"])
         if result.get("success"):
@@ -325,11 +328,11 @@ def _memory_target_error(
             "Missing required target. Retry with target='memory' or target='user' at the top level. "
             "For a batch, remove target from every operation; use separate calls for different stores. "
             "Nothing was written or staged.")}
-    if not isinstance(target, str) or target not in {"memory", "user"}:
+    if not isinstance(target, str) or target not in {"memory", "user", "project"}:
         from tools.registry import _bound_error_text
         FAILURE_CLASS.set("invalid_args")
         return {"success": False,
-                "error": _bound_error_text(f"Invalid memory target '{target}'. Use 'memory' or 'user'.")}
+                "error": _bound_error_text(f"Invalid memory target '{target}'. Use 'memory', 'user' or 'project'.")}
     if isinstance(operations, list):
         for index, op in enumerate(operations, 1):
             # A nested target equal to the call's (or null) is redundant, not wrong; only a
@@ -342,6 +345,10 @@ def _memory_target_error(
                     "Nothing was written or staged.")}
     if store.target_enabled(target):
         return None
+    if target == "project":
+        return {"success": False, "target": target, "error": (
+            "Project memory is unavailable. Select an existing project folder and enable agent notes "
+            "in memory settings before starting a new conversation. Nothing was saved to global memory.")}
     label = "USER.md" if target == "user" else "MEMORY.md"
     FAILURE_CLASS.set("disabled")
     return {"success": False, "error": f"Built-in {label} writes are disabled in memory config.", "target": target}
@@ -356,6 +363,9 @@ def apply_memory_pending(payload: dict[str, Any], store: MemoryStore) -> dict[st
     target_error = _memory_target_error(store, target, payload.get("operations"))
     if target_error is not None:
         return target_error
+    if target == "project" and payload.get("project_scope") != store.project_scope.key:
+        return {"success": False, "error": "This pending memory write belongs to another project or profile. "
+                                           "Review it in the original project's conversation; nothing was applied."}
     if any(not op.get("matched_entry") for op in destructive_ops(payload)):
         return {"success": False, "error": "This destructive pending write predates entry pinning and cannot be "
                                            "verified; nothing was applied. Reject it and recreate the change."}
@@ -378,7 +388,7 @@ MEMORY_SCHEMA = {
         "to free room AND add new ones, even when an add alone would overflow. The response "
         "reports current/limit chars and confirms completion; one batch call finishes the "
         "update, so don't repeat it.\n\n"
-        "WHEN: only for facts that apply to EVERY session regardless of task: who the user "
+        "WHEN: for 'memory' and 'user', only facts that apply to EVERY session regardless of task: who the user "
         "is, stable environment facts, standing conventions with no task home. Anything "
         "learned while doing a task (procedures, pitfalls, and the user's preferences and "
         "corrections for that kind of work) belongs in the task's skill via skill_manage, "
@@ -387,7 +397,10 @@ MEMORY_SCHEMA = {
         "IF FULL: an add is rejected with the current entries shown. Reissue as ONE batch that "
         "removes or shortens enough stale entries and adds the new one together.\n\n"
         "TARGETS: 'user' = who the user is (name, role, preferences, style). 'memory' = your "
-        "notes (environment, conventions, tool quirks, lessons).\n\n"
+        "notes (environment, conventions, tool quirks, lessons). 'project' = durable decisions, "
+        "constraints and conventions for the selected project folder ONLY. Use this target instead "
+        "of global notes for project-specific facts. It requires a selected workspace; if unavailable, "
+        "do not copy project notes to global memory.\n\n"
         "SKIP: trivial/obvious info, easily re-discovered facts, raw data dumps, task progress, "
         "completed-work logs, temporary TODO state (use session_search for those). Reusable "
         "procedures belong in a skill, not memory."
@@ -400,8 +413,8 @@ MEMORY_SCHEMA = {
         "properties": {
             "target": {
                 "type": "string",
-                "enum": ["memory", "user"],
-                "description": "Which memory store: 'memory' for personal notes, 'user' for user profile."
+                "enum": ["memory", "user", "project"],
+                "description": "'memory' for global notes, 'user' for user profile, 'project' for the selected workspace."
             },
             "operations": {
                 "type": "array",
@@ -438,7 +451,7 @@ MEMORY_SCHEMA = {
 # Schema text when only one built-in store is enabled: (target description, TARGETS replacement).
 _SINGLE_TARGET_TEXT = {
     ("memory",): ("The enabled built-in store: 'memory' for personal notes.",
-                  "TARGET: only 'memory' is enabled for personal notes (environment, conventions, "
+                  "TARGETS: 'memory' is enabled for global notes (environment, conventions, "
                   "tool quirks, lessons)."),
     ("user",): ("The enabled built-in store: 'user' for user profile.",
                 "TARGET: only 'user' is enabled for user profile facts (name, role, preferences, style).")}
@@ -449,14 +462,22 @@ def _build_memory_schema_overrides() -> dict[str, Any]:
     flags = _memory_surface_flags.get() or get_builtin_memory_store_flags()
     _memory_surface_flags.set(None)
     targets = [t for t, on in zip(("memory", "user"), flags) if on]
+    if flags[0]:
+        targets.append("project")
     parameters = copy.deepcopy(MEMORY_SCHEMA["parameters"])
     target_schema, description = parameters["properties"]["target"], MEMORY_SCHEMA["description"]
     target_schema["enum"] = targets
-    if narrowed := _SINGLE_TARGET_TEXT.get(tuple(targets)):
+    if narrowed := _SINGLE_TARGET_TEXT.get(tuple(t for t in targets if t != "project")):
         target_schema["description"], replacement = narrowed
+        if flags[0]:
+            target_schema["description"] += " 'project' stores notes for the selected workspace."
         description = description.replace(
             "TARGETS: 'user' = who the user is (name, role, preferences, style). 'memory' = your "
             "notes (environment, conventions, tool quirks, lessons).", replacement)
+    if not flags[0]:
+        start = description.index(" 'project' =")
+        end = description.index("\n\n", start)
+        description = description[:start] + description[end:]
     return {"description": description, "parameters": parameters}
 
 

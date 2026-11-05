@@ -947,6 +947,8 @@ def _pending_subcommand_store(session):
             if store is not None:
                 return store
     with contextlib.suppress(Exception):
+        if session and session.get("explicit_cwd"):
+            return _tools_mod("tools.memory_tool").load_on_disk_store(project_cwd=session.get("cwd"))
         return _tools_mod("tools.memory_tool").load_on_disk_store()
     return None
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from utils import atomic_json_write
 
-_TARGETS = {"MEMORY.md": "memory", "USER.md": "user"}
+_TARGETS = {"MEMORY.md": "memory", "USER.md": "user", "PROJECT.md": "project"}
 _FILENAMES = {target: filename for filename, target in _TARGETS.items()}
 _VERSION = re.compile(r"[a-f0-9]{32}\Z")
 _KEEP_PER_TARGET = 50
@@ -73,13 +73,15 @@ def memory_version_diff(directory: Path, version_id: str) -> str:
         fromfile=f"{path.name}@{version_id}", tofile=f"{path.name}@current", lineterm="\n")) or "No changes."
 
 
-def restore_memory_version(store, version_id: str) -> str:
+def restore_memory_version(store, version_id: str, *, target: str | None = None) -> str:
     """An explicit operator command; keep the active session's prompt snapshot frozen."""
     from tools.memory_tool import get_memory_dir
     from tools.memory_tool_store import _scan_memory_content
 
-    directory = get_memory_dir()
+    directory = store._path_for("project").parent if target == "project" else get_memory_dir()
     record = _version(directory, version_id)
+    if target == "project" and record["target"] != "project":
+        raise ValueError("This version does not belong to project memory")
     target, content = record["target"], record["content"]
     if error := _scan_memory_content(content):
         raise ValueError(error)

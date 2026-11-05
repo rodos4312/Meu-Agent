@@ -80,7 +80,7 @@ class TestBuiltinMemoryToolAvailability:
             hermes_home, memory_enabled=True, user_profile_enabled=False
         )
         definition = _memory_tool_definition()
-        assert definition["parameters"]["properties"]["target"]["enum"] == ["memory"]
+        assert definition["parameters"]["properties"]["target"]["enum"] == ["memory", "project"]
 
     def test_tool_present_by_default(self, hermes_home):
         """No config file at all must not strip a working tool."""

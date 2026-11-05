@@ -525,7 +525,8 @@ def _memory_parts(agent: Any) -> list[str]:
     tools the toolset config gated off)."""
     parts: list[str] = []
     if agent._memory_store:
-        for enabled, kind in ((agent._memory_enabled, "memory"), (agent._user_profile_enabled, "user")):
+        for enabled, kind in ((agent._memory_enabled, "memory"), (agent._user_profile_enabled, "user"),
+                              (agent._memory_enabled, "project")):
             block = agent._memory_store.format_for_system_prompt(kind) if enabled else None
             if block:
                 parts.append(block)

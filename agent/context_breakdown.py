@@ -88,17 +88,18 @@ def _split_tools(tools: Sequence[dict]) -> tuple[list[dict], list[dict], list[di
     return builtin, mcp, subagent
 
 
-def _memory_blocks(agent: Any) -> tuple[str, str]:
-    memory_block = user_block = ""
+def _memory_blocks(agent: Any) -> tuple[str, str, str]:
+    memory_block = user_block = project_block = ""
     store = getattr(agent, "_memory_store", None)
     try:
         if store is not None and getattr(agent, "_memory_enabled", True):
             memory_block = store.format_for_system_prompt("memory") or ""
+            project_block = store.format_for_system_prompt("project") or ""
         if store is not None and getattr(agent, "_user_profile_enabled", True):
             user_block = store.format_for_system_prompt("user") or ""
     except Exception:
         pass
-    return memory_block, user_block
+    return memory_block, user_block, project_block
 
 
 def _strip_blocks(text: str, *blocks: str) -> str:
@@ -181,12 +182,13 @@ def compute_session_context_breakdown(agent: Any, messages: Optional[list[dict]]
     parts = build_system_prompt_parts(agent)
     stable = parts.get("stable", "") or ""
     skills_index = _skills_block(stable)
-    memory_block, user_block = _memory_blocks(agent)
+    memory_block, user_block, project_block = _memory_blocks(agent)
     system_prompt_text = _join(
-        _strip_blocks(stable, skills_index), _strip_blocks(parts.get("volatile", "") or "", memory_block, user_block)
+        _strip_blocks(stable, skills_index),
+        _strip_blocks(parts.get("volatile", "") or "", memory_block, user_block, project_block)
     )
     breakdown = _categories(system_prompt_text, skills_index, list(getattr(agent, "tools", None) or []), messages,
-                            rules=parts.get("context", "") or "", memory=_join(memory_block, user_block))
+                            rules=parts.get("context", "") or "", memory=_join(memory_block, user_block, project_block))
     estimated_total = breakdown["estimated_total"]
 
     comp = getattr(agent, "context_compressor", None)
