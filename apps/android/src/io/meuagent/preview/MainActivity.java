@@ -18,9 +18,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -35,6 +38,7 @@ public final class MainActivity extends Activity {
     private TextView status;
     private MeuClient client;
     private String sessionId;
+    private String newSessionRequest;
     private Pending pending;
     private MeuQrScanner scanner;
 
@@ -129,6 +133,7 @@ public final class MainActivity extends Activity {
     private void showConnection() {
         client = null;
         pending = null;
+        newSessionRequest = null;
         showPairing(null, "");
     }
 
@@ -234,8 +239,11 @@ public final class MainActivity extends Activity {
                 onScreen(() -> {
                     secret.setText("");
                     client = candidate;
-                    sessionId = "meu-android-" + UUID.randomUUID();
-                    showChat();
+                    if (candidate.supportsSessions()) showSessions();
+                    else {
+                        sessionId = "meu-android-" + UUID.randomUUID();
+                        showChat(null);
+                    }
                 });
             } catch (IOException | JSONException error) {
                 onScreen(() -> {
@@ -246,10 +254,116 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void showChat() {
-        screen("Android preview · Test conversation");
+    private void showSessions() {
+        pending = null;
+        sessionId = null;
+        screen("Sessions");
+        LinearLayout page = root;
+        MeuClient connected = client;
+        Button create = button("New session");
+        Button refresh = button("Refresh sessions");
+        create.setEnabled(false);
+        refresh.setEnabled(false);
+        Button disconnect = button("Change connection");
+        disconnect.setOnClickListener(view -> showConnection());
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout entries = new LinearLayout(this);
+        entries.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(entries);
+        status = label("Loading sessions…", 14, MUTED);
+        root.addView(create);
+        root.addView(refresh);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(status);
+        root.addView(disconnect);
+
+        create.setOnClickListener(view -> {
+            if (newSessionRequest == null) newSessionRequest = UUID.randomUUID().toString();
+            String requestId = newSessionRequest;
+            loadSession(page, create, refresh, () -> connected.createSession(requestId), true);
+        });
+        refresh.setOnClickListener(view -> showSessions());
+        worker.execute(() -> {
+            try {
+                JSONArray sessions = connected.sessions();
+                onScreen(() -> {
+                    if (root != page) return;
+                    for (int index = 0; index < sessions.length(); index++) {
+                        JSONObject item = sessions.optJSONObject(index);
+                        if (item == null) continue;
+                        String title = item.optString("title", "New session");
+                        double started = item.optDouble("started_at", 0);
+                        String date = started > 0 ? DateFormat.getDateTimeInstance(DateFormat.SHORT,
+                                DateFormat.SHORT).format(new Date((long) (started * 1000))) : "";
+                        Button open = button(date.isEmpty() ? title : title + "\n" + date);
+                        open.setOnClickListener(view -> {
+                            newSessionRequest = null;
+                            loadSession(page, create, refresh,
+                                    () -> connected.openSession(item.optString("id")), false);
+                        });
+                        entries.addView(open);
+                    }
+                    status.setText(entries.getChildCount() == 0
+                            ? "Start a session to continue it here or on your computer."
+                            : "Sessions opened from Meu on Android");
+                    create.setEnabled(true);
+                    refresh.setEnabled(true);
+                });
+            } catch (IOException | JSONException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    status.setText(sessionErrorText(error));
+                    disconnect.setText("Pair again");
+                    refresh.setEnabled(true);
+                });
+            }
+        });
+    }
+
+    private interface SessionAttempt {
+        JSONObject load() throws IOException, JSONException;
+    }
+
+    private void loadSession(LinearLayout page, Button create, Button refresh,
+                             SessionAttempt attempt, boolean creating) {
+        if (!create.isEnabled()) return;
+        create.setEnabled(false);
+        refresh.setEnabled(false);
+        status.setText(creating ? "Creating session…" : "Opening session…");
+        worker.execute(() -> {
+            try {
+                JSONObject session = attempt.load();
+                String id = session.getString("id");
+                onScreen(() -> {
+                    if (root != page) return;
+                    if (creating) newSessionRequest = null;
+                    sessionId = id;
+                    showChat(session);
+                });
+            } catch (IOException | JSONException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    create.setEnabled(true);
+                    refresh.setEnabled(true);
+                    status.setText(sessionErrorText(error));
+                });
+            }
+        });
+    }
+
+    private void chatNavigation(Button leave) {
+        leave.setText(client.supportsSessions() ? "Sessions" : "Change connection");
+        leave.setOnClickListener(view -> {
+            if (client.supportsSessions()) showSessions();
+            else showConnection();
+        });
+    }
+
+    private void showChat(JSONObject session) {
+        screen(session == null ? "Android preview · Test conversation"
+                : session.optString("title", "New session"));
         Button leave = button("Change connection");
-        leave.setOnClickListener(view -> showConnection());
+        chatNavigation(leave);
         ScrollView scroll = new ScrollView(this);
         LinearLayout messages = new LinearLayout(this);
         messages.setOrientation(LinearLayout.VERTICAL);
@@ -259,6 +373,21 @@ public final class MainActivity extends Activity {
         input.setMaxLines(4);
         Button send = button("Send");
         status = label("Connected", 14, MUTED);
+        JSONArray history = session == null ? null : session.optJSONArray("messages");
+        if (history != null) {
+            if (session.optBoolean("history_limited")) {
+                messages.addView(label("Recent text only. Open this session on your computer for the full history.",
+                        14, MUTED));
+            }
+            for (int index = 0; index < history.length(); index++) {
+                JSONObject message = history.optJSONObject(index);
+                if (message == null) continue;
+                boolean user = "user".equals(message.optString("role"));
+                messages.addView(label((user ? "You\n" : "Meu\n") + message.optString("content"), 16,
+                        user ? ACCENT : INK));
+            }
+            scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+        }
         root.addView(leave);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         root.addView(status);
@@ -306,7 +435,7 @@ public final class MainActivity extends Activity {
                     scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
                     pending = null;
                     leave.setEnabled(true);
-                    leave.setText("Change connection");
+                    chatNavigation(leave);
                     if ("unknown".equals(outcome)) {
                         status.setText("Meu lost the execution state. Review the run on your computer.");
                         return;
@@ -326,12 +455,14 @@ public final class MainActivity extends Activity {
                     send.setText("Resume request");
                     if (paired && code == 0) {
                         leave.setText("Pair again");
+                        leave.setOnClickListener(view -> showConnection());
                         status.setText(error instanceof JSONException
                                 ? "Could not read Meu's reply. Resume this request or pair again."
                                 : "Connection to Meu lost. If both devices are still on the same network, "
                                     + "resume this request or pair again with a new code.");
                     } else if (closed) {
                         leave.setText("Pair again");
+                        leave.setOnClickListener(view -> showConnection());
                         status.setText("This pairing has ended. Show a new code in Meu on your computer.");
                     } else {
                         status.setText(errorText(error));
@@ -378,6 +509,13 @@ public final class MainActivity extends Activity {
         }
         return "Could not pair with Meu. Check that both devices are on the same local network "
                 + "and scan a new code from your computer.";
+    }
+
+    private static String sessionErrorText(Exception error) {
+        int code = httpStatus(error);
+        if (code == 404) return "This session is no longer available. Refresh the list.";
+        if (code == 401 || code == 410) return "This pairing ended. Show a new code on your computer.";
+        return "Could not load the session. Check the local connection and try again.";
     }
 
     private static String errorText(Exception error) {

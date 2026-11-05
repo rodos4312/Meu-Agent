@@ -8,6 +8,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -15,6 +16,7 @@ final class MeuClient {
     private final URI endpoint;
     private final String credential;
     private final SSLSocketFactory sockets;
+    private boolean mobileSessions;
 
     MeuClient(URI endpoint, String credential) {
         this(endpoint, credential, null);
@@ -28,6 +30,10 @@ final class MeuClient {
 
     boolean usesPairing() {
         return sockets != null;
+    }
+
+    boolean supportsSessions() {
+        return mobileSessions;
     }
 
     void verify() throws IOException, JSONException {
@@ -44,6 +50,7 @@ final class MeuClient {
                 || replay.optInt("retention_seconds") < 3600) {
             throw new IOException("Unsupported gateway");
         }
+        mobileSessions = paired && features.optBoolean("mobile_sessions");
     }
 
     static MeuClient pair(MeuPairing pairing) throws IOException, JSONException {
@@ -66,6 +73,19 @@ final class MeuClient {
         String runId = request("v1/runs", body, requestId).getString("run_id");
         if (!runId.matches("run_[a-zA-Z0-9_-]{1,128}")) throw new IOException("Invalid run ID");
         return runId;
+    }
+
+    JSONArray sessions() throws IOException, JSONException {
+        return request("meu/sessions", null, null).getJSONArray("sessions");
+    }
+
+    JSONObject createSession(String requestId) throws IOException, JSONException {
+        return request("meu/sessions", new JSONObject(), requestId);
+    }
+
+    JSONObject openSession(String sessionId) throws IOException, JSONException {
+        if (!sessionId.matches("local-[a-f0-9]{64}")) throw new IOException("Invalid session ID");
+        return request("meu/sessions/" + sessionId, null, null);
     }
 
     JSONObject status(String runId) throws IOException, JSONException {

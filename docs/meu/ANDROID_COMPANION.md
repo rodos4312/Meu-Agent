@@ -21,9 +21,15 @@ Gateways → Connect a phone** and choose **Show pairing code**. On Android, ope
 **Scan pairing code**, allow camera access and scan the code in Meu. Send a test
 message and confirm the response. Choose **Disconnect phone** to close access.
 
-The preview opens a new text-only conversation in the paired profile and uses
-that profile's model. Its temporary connection is limited to that conversation.
-The phone can resume an interrupted request during the pairing session. An
+After pairing, **New session** creates a normal session in the paired profile.
+The phone lists sessions created from Android and opens their recent text
+history. The same session appears on Windows and can be continued there.
+Reopen it on the phone to see replies added from Windows. Pairing again restores
+the session list. The preview lists up to 50 sessions and shows the most recent
+40 text messages, with a notice when the mobile display limits the history.
+
+Phone-created sessions use the paired profile's model and are text-only in
+this preview. The phone can resume an interrupted request during pairing. An
 already configured [HTTPS API server](../../website/docs/user-guide/features/api-server.md)
 can still be used through **Enter address manually**.
 
@@ -42,7 +48,8 @@ The Windows preview starts and stops its LAN listener from settings. The QR
 contains the local HTTPS endpoint, a five-minute single-use pairing challenge
 and the listener's short-lived certificate. The app verifies the TLS identity
 and exchanges the challenge for a temporary credential that is kept in memory.
-The server binds the connection to the issuing profile for at most one hour.
+The server binds the connection to the issuing profile and its phone-created
+sessions for at most one hour.
 Model credentials stay on the desktop. The preview has no file download or
 approval routes. See
 [Android network security](https://developer.android.com/privacy-and-security/security-config)

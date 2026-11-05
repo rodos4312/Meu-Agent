@@ -22,6 +22,8 @@ SESSION_SECONDS = 3600
 PRIVATE_NETWORKS = tuple(map(ipaddress.IPv4Network, ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")))
 KEY_PATTERN = re.compile(r"[0-9a-f-]{36}", re.ASCII)
 MAX_RUNS = 32
+MOBILE_SESSION_PREFIX = "meu-mobile-session:"
+SESSION_PATTERN = re.compile(r"local-[0-9a-f]{64}", re.ASCII)
 logger = logging.getLogger(__name__)
 
 
@@ -89,8 +91,8 @@ class MobilePreview:
         self.challenge = secrets.token_urlsafe(32)
         self.token = None
         self.connection = None
-        self.session = None
-        self.session_request = uuid.uuid4().hex
+        self.legacy_session = None
+        self.legacy_request = str(uuid.uuid4())
         self.runs = {}
         self.lock = asyncio.Lock()
 
@@ -99,6 +101,9 @@ class MobilePreview:
         app = web.Application(client_max_size=48 * 1024, middlewares=[self._guard])
         app.add_routes([
             web.post("/meu/pair", self._pair),
+            web.get("/meu/sessions", self._list_sessions, allow_head=False),
+            web.post("/meu/sessions", self._new_session),
+            web.get("/meu/sessions/{session_id}", self._open_session, allow_head=False),
             web.get("/v1/capabilities", self._capabilities, allow_head=False),
             web.post("/v1/runs", self._submit),
             web.get("/v1/runs/{run_id}", self._status, allow_head=False),
@@ -172,6 +177,7 @@ class MobilePreview:
         return body
 
     async def _pair(self, request):
+        from gateway.owner_identity import host_owner_subject
         from gateway.session_controls import AuthorityConnection
 
         body = await self._json(request)
@@ -179,7 +185,9 @@ class MobilePreview:
         if not (self.challenge and isinstance(challenge, str)
                 and secrets.compare_digest(self.challenge.encode(), challenge.encode())):
             raise web.HTTPUnauthorized()
-        identity = {"user_id": f"mobile-preview-{uuid.uuid4().hex}", "provider": "meu-mobile",
+        # The pairing belongs to this Desktop user. Only the fixed routes below may use it,
+        # and they only address sessions created by this listener.
+        identity = {"user_id": host_owner_subject(), "provider": "local",
                     "profile_id": self.authority.profile_id, "instance_id": self.authority.instance_id,
                     "capabilities": ["session:create", "session:read", "session:submit"]}
         self.connection = AuthorityConnection(self.authority, _MobileTransport(), identity)
@@ -190,7 +198,7 @@ class MobilePreview:
 
     async def _capabilities(self, _request):
         return web.json_response({"auth": {"required": True}, "features": {
-            "run_submission": True, "run_status": True,
+            "run_submission": True, "run_status": True, "mobile_sessions": True,
             "runs_idempotency": {"pairing_session": True, "retention_seconds": SESSION_SECONDS}}})
 
     async def _call(self, method, params):
@@ -203,6 +211,70 @@ class MobilePreview:
             raise web.HTTPConflict()
         return result["result"]
 
+    def _session_rows(self, session_id=None):
+        from hermes_state_local import POLICY_PREFIX
+
+        # The canonical creation receipt commits atomically with the session. Its server-generated
+        # request namespace identifies phone sessions even after a new pairing or gateway restart.
+        db = self.authority.db
+        with db._read_ctx() as conn:
+            rows = conn.execute("""
+                SELECT s.id, s.title, s.started_at, (
+                    SELECT substr(t.content, 1, 100)
+                    FROM messages t
+                    WHERE t.session_id = s.id AND t.role = 'user' AND t.active = 1
+                    AND coalesce(t.display_kind, '') != 'hidden'
+                    ORDER BY t.id LIMIT 1
+                ) AS opening
+                FROM sessions s JOIN state_meta m ON m.key = ? || s.id
+                WHERE json_extract(CASE WHEN json_valid(m.value) THEN m.value ELSE '{}' END,
+                                   '$.request_id') LIKE ?
+                AND (? IS NULL OR s.id = ?)
+                ORDER BY s.started_at DESC, s.id DESC
+                LIMIT 50
+                """, (POLICY_PREFIX, MOBILE_SESSION_PREFIX + "%", session_id, session_id)).fetchall()
+        return [{"id": row["id"], "title": row["title"] or " ".join((row["opening"] or "").split()) or "New session",
+                 "started_at": row["started_at"]} for row in rows]
+
+    async def _owned_session(self, session_id):
+        if not isinstance(session_id, str) or not SESSION_PATTERN.fullmatch(session_id):
+            raise web.HTTPNotFound()
+        rows = await asyncio.to_thread(self._session_rows, session_id)
+        if not rows:
+            raise web.HTTPNotFound()
+        return rows[0]
+
+    async def _create_session(self, key):
+        session = await self._call("session.create", {
+            "source": "gui", "request_id": MOBILE_SESSION_PREFIX + key, "toolsets": [],
+            "ignore_rules": True, "run_budget": 120,
+        })
+        return await self._owned_session(session["session_id"])
+
+    async def _list_sessions(self, _request):
+        return web.json_response({"sessions": await asyncio.to_thread(self._session_rows)})
+
+    async def _new_session(self, request):
+        key = request.headers.get("Idempotency-Key", "")
+        if not KEY_PATTERN.fullmatch(key):
+            raise web.HTTPBadRequest()
+        async with self.lock:
+            row = await self._create_session(key)
+        return web.json_response(row, status=201)
+
+    async def _open_session(self, request):
+        row = await self._owned_session(request.match_info["session_id"])
+        async with self.lock:
+            snapshot = await self._call("session.resume", {
+                "session_id": row["id"], "display_projection": True,
+            })
+        transcript = snapshot.get("display_messages") or []
+        text = [item for item in transcript if item.get("role") in {"user", "assistant"}
+                and isinstance(item.get("text"), str) and item["text"].strip()]
+        messages = [{"role": item["role"], "content": item["text"][:2500]} for item in text[-40:]]
+        limited = len(text) > 40 or any(len(item["text"]) > 2500 for item in text[-40:])
+        return web.json_response({**row, "messages": messages, "history_limited": limited})
+
     async def _submit(self, request):
         body = await self._json(request)
         text = body.get("input")
@@ -211,23 +283,30 @@ class MobilePreview:
                 or not text.strip() or len(text) > 8000 or not KEY_PATTERN.fullmatch(key)):
             raise web.HTTPBadRequest()
         async with self.lock:
+            requested_session = body.get("session_id")
+            if isinstance(requested_session, str) and requested_session.startswith("local-"):
+                session_id = (await self._owned_session(requested_session))["id"]
+                if not self.connection or session_id not in self.connection.subscriptions:
+                    await self._call("session.resume", {"session_id": session_id, "omit_messages": True})
+            elif requested_session is None or (isinstance(requested_session, str)
+                                               and requested_session.startswith("meu-android-")):
+                # Older Android previews used a client-side ID for a single chat.
+                if self.legacy_session is None:
+                    self.legacy_session = (await self._create_session(self.legacy_request))["id"]
+                session_id = self.legacy_session
+            else:
+                raise web.HTTPBadRequest()
             if key in self.runs:
-                previous, _ = self.runs[key]
-                if previous != text:
+                previous_session, previous, _ = self.runs[key]
+                if previous_session != session_id or previous != text:
                     raise web.HTTPConflict()
             else:
                 if len(self.runs) >= MAX_RUNS:
                     raise web.HTTPTooManyRequests()
-                if self.session is None:
-                    session = await self._call("session.create", {
-                        "source": "cli", "request_id": self.session_request, "toolsets": [],
-                        "ignore_rules": True, "run_budget": 120,
-                    })
-                    self.session = session["session_id"]
                 receipt = await self._call("prompt.submit", {
-                    "session_id": self.session, "text": text, "input_id": key,
+                    "session_id": session_id, "text": text, "input_id": key,
                 })
-                self.runs[key] = (text, receipt["admission_id"])
+                self.runs[key] = (session_id, text, receipt["admission_id"])
         return web.json_response({"run_id": f"run_{key}"}, status=202)
 
     async def _status(self, request):
@@ -236,7 +315,7 @@ class MobilePreview:
         if run is None:
             raise web.HTTPNotFound()
         receipt = await self._call("prompt.receipt", {
-            "session_id": self.session, "admission_id": run[1], "include_result": True,
+            "session_id": run[0], "admission_id": run[2], "include_result": True,
         })
         status = receipt["status"]
         result = receipt.get("result")
