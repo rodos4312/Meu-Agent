@@ -86,3 +86,8 @@ a forced process exit, an operator correction, and continuation in another Pytho
 process. It verifies persisted progress, current relevant notes, helper model
 routes and final artifacts. LLM responses are scripted locally; this checks the
 runtime and recovery, not a live model's reasoning quality.
+
+`apps/desktop/e2e/meu-project-memory.spec.ts` additionally launches the built
+Electron application against a real isolated Python backend. It checks edits
+against the actual notes file, closes and reopens Desktop, then verifies reading
+and deletion after restart. Screenshots are retained by the Windows CI job.
