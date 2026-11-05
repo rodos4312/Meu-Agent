@@ -38,7 +38,7 @@ on:
       - 'gateway/**'
       - 'tests/gateway/test_meu_memory_commands.py'
       - 'tests/tools/test_memory_tool.py'
-      - 'tests/tools/test_project_memory.py'
+      - 'tests/tools/test_project_memory*.py'
       - 'tests/tui_gateway/test_project_memory*.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
       - 'tests/hermes_cli/test_meu_setup_commands.py'
@@ -135,6 +135,7 @@ jobs:
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
+          tests/tools/test_project_memory_identity.py
           tests/tools/test_local_agent_context.py
           tests/tools/test_delegation_backends.py
           tests/tools/test_delegation_profile_route.py
@@ -307,6 +308,7 @@ jobs:
           tests/agent/test_retry_delay_parsers_shared.py
           tests/tools/test_meu_memory_lifecycle.py
           tests/tools/test_project_memory.py
+          tests/tools/test_project_memory_identity.py
           tests/tui_gateway/test_project_memory.py
           tests/tui_gateway/test_project_memory_rpc.py
           tests/tools/test_memory_tool.py

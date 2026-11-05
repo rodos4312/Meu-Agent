@@ -414,8 +414,11 @@ class MemoryStore:
 
             mkdir_under_hermes_home(path.parent)
             try:
+                if target == "project":
+                    from tools.project_memory import anchor_project_memory
+                    anchor_project_memory(self.project_scope)
                 self._write_file(path, result[0])
-            except RuntimeError as exc:
+            except (RuntimeError, OSError, ValueError) as exc:
                 return _error(f"Memory was not saved; the previous entries remain unchanged: {exc}", "other")
             self._set_entries(target, result[0])
             return self._success_response(target, result[1], **extra_fields)

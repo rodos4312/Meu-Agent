@@ -25,10 +25,22 @@ retains the existing policy for rebuilding the prompt.
   As part of the conversation context, recalled notes are processed by the selected LLM.
 
 The scope is fixed for the conversation. Start a new conversation after selecting a
-different folder. A folder rename, move, change of primary folder, or registration with
-a different primary folder changes its identity. Old notes remain on disk; automatic
-migration of these identities is not implemented. Selecting a broad parent folder does
-not infer separate projects from task titles or newly created child folders.
+different folder. After the first note write, an opaque `.meu/project-memory.json`
+marker lets notes and their existing history follow folder renames and moves,
+including copy-then-remove moves between filesystems. Existing notes acquire the
+marker when next opened. The profile-owned identity index keeps registered projects
+stable when their primary folder changes. No note contents or credentials are placed
+in the workspace marker. Reading a new empty workspace creates no marker.
+
+A copy whose original workspace still exists gets separate notes. A new project
+created at a moved project's old path also gets separate notes. Profiles remain
+isolated. Malformed markers and index conflicts do not merge or overwrite note
+stores. Preserve the marker when moving a workspace; a different primary folder's
+existing notes are not automatically merged. If workspace permissions prevent a
+marker write, existing path-based reads remain available and a write reports the
+failure. Selecting a broad parent folder does not infer separate projects from task
+titles or newly created child folders. Coordinator execution plans retain their
+explicit saved root; this identity change concerns project notes.
 
 ## Inspect and restore
 
