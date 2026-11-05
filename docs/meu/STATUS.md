@@ -18,6 +18,15 @@ signing is not a requirement for this distribution. See [Release retention](RELE
 for which versions remain available. No old repository, tags, or source history
 are removed by the maintenance pass.
 
+The disposable hosted Windows probe established the pre-reboot handoff, but
+[run 42063092869](https://github.com/rodos4312/Meu-Agent/actions/runs/42063092869)
+timed out without an authenticated receipt from a later OS boot. This does not
+establish whether Meu recovery passed or failed. The experimental workflow is
+retained in Git history and removed from active workflows. The remaining check
+needs an isolated Windows guest that stays available through a real restart,
+with evidence that the retained updater restored the app, backend and test data.
+No host restart or Windows feature change was performed.
+
 For reproducible opt-in checks, see `scripts/meu/coordinator_live_probe.py` and
 `scripts/meu/computer_use_live_probe.py`. The former makes real requests to the
 selected model provider. The latter runs only on Windows and only targets the
