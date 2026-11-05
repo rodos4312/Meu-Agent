@@ -37,8 +37,6 @@ on:
       - 'tui_gateway/**'
       - 'gateway/**'
       - 'tests/gateway/test_meu_memory_commands.py'
-      - 'tests/gateway/test_mobile_preview.py'
-      - 'tests/gateway/fixtures/mobile_preview_daemon.py'
       - 'tests/tools/test_memory_tool.py'
       - 'tests/tools/test_project_memory*.py'
       - 'tests/tui_gateway/test_project_memory*.py'
@@ -316,7 +314,6 @@ jobs:
           tests/tools/test_memory_tool.py
           tests/tools/test_memory_patch_action.py
           tests/gateway/test_meu_memory_commands.py
-          tests/gateway/test_mobile_preview.py
           tests/hermes_cli/test_desktop_slash_registry.py
           tests/agent/test_redact.py
           tests/agent/test_secret_scope.py
