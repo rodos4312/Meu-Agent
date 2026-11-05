@@ -134,11 +134,14 @@ class MobilePreview:
         self.deadline = 0
         self.code = self.challenge = self.token = None
         runner, self.runner = self.runner, None
-        if runner:
-            await runner.cleanup()
-        if self.connection:
-            await self.connection.close()
-            self.connection = None
+        connection, self.connection = self.connection, None
+        try:
+            if runner:
+                await runner.cleanup()
+        finally:
+            if connection:
+                await connection.close()
+            self.runs.clear()
 
     @web.middleware
     async def _guard(self, request, handler):
