@@ -251,7 +251,16 @@ export function UpdatesOverlay() {
         {phase === 'guiSkew' && <GuiSkewView message={apply.message} onDone={() => handleClose(false)} />}
 
         {phase === 'error' ? (
-          <ErrorView message={apply.message} onDismiss={() => handleClose(false)} onRetry={handleInstall} />
+          <ErrorView
+            downloadUrl={
+              !isBackend && status?.channel === 'meu-preview'
+                ? 'https://github.com/rodos4312/Meu-Agent/releases'
+                : undefined
+            }
+            message={apply.message}
+            onDismiss={() => handleClose(false)}
+            onRetry={handleInstall}
+          />
         ) : null}
 
         {phase === 'idle' && !isBackend && status?.retirement?.state === 'discontinued' && (
@@ -646,7 +655,17 @@ function ApplyingView({
   )
 }
 
-function ErrorView({ message, onDismiss, onRetry }: { message: string; onDismiss: () => void; onRetry: () => void }) {
+function ErrorView({
+  downloadUrl,
+  message,
+  onDismiss,
+  onRetry
+}: {
+  downloadUrl?: string
+  message: string
+  onDismiss: () => void
+  onRetry: () => void
+}) {
   const { t } = useI18n()
   const u = t.updates
 
@@ -663,6 +682,22 @@ function ErrorView({ message, onDismiss, onRetry }: { message: string; onDismiss
       <Button className="font-semibold" onClick={onRetry} size="lg">
         {u.tryAgain}
       </Button>
+      {downloadUrl && (
+        <Button asChild size="lg" variant="secondary">
+          <a
+            href={downloadUrl}
+            onClick={event => {
+              event.preventDefault()
+              void window.hermesDesktop?.openExternal?.(event.currentTarget.href)
+            }}
+            rel="noreferrer"
+            target="_blank"
+          >
+            <ExternalLink className="size-4" />
+            {u.openDownloadPage}
+          </a>
+        </Button>
+      )}
       <Button onClick={onDismiss} variant="text">
         {u.notNow}
       </Button>

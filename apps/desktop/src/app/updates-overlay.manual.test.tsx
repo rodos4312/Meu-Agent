@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n/context'
@@ -14,6 +14,42 @@ import {
 } from '@/store/updates'
 
 import { UpdatesOverlay } from './updates-overlay'
+
+it.each(['client', 'backend'] as const)(
+  'offers a trusted installer download only for a failed Meu %s update',
+  async target => {
+    const openExternal = vi.fn(async () => undefined)
+    window.hermesDesktop = { openExternal } as unknown as Window['hermesDesktop']
+    $updateOverlayTarget.set(target)
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({
+      supported: true,
+      channel: 'meu-preview',
+      mechanism: 'electron-updater',
+      updateAvailable: true,
+      fetchedAt: 1
+    })
+    const state = target === 'backend' ? $backendUpdateApply : $updateApply
+    state.set({ ...state.get(), applying: false, stage: 'error', message: 'Use the latest Meu installer.' })
+    await act(async () => {
+      render(
+        <I18nProvider configClient={null} initialLocale="en">
+          <UpdatesOverlay />
+        </I18nProvider>
+      )
+    })
+    expect(openExternal).not.toHaveBeenCalled()
+
+    if (target === 'client') {
+      const download = screen.getByRole('link', { name: en.updates.openDownloadPage })
+      expect(download.getAttribute('href')).toBe('https://github.com/rodos4312/Meu-Agent/releases')
+      fireEvent.click(download)
+      expect(openExternal).toHaveBeenCalledWith('https://github.com/rodos4312/Meu-Agent/releases')
+    } else {
+      expect(screen.queryByRole('link', { name: en.updates.openDownloadPage })).toBeNull()
+    }
+  }
+)
 
 afterEach((): void => {
   cleanup()

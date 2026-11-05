@@ -1,0 +1,52 @@
+name: Meu release retention
+run-name: Keep current Meu release and two previous releases
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview which releases to retain and remove without deleting anything'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-release-retention
+  cancel-in-progress: false
+
+jobs:
+  retain:
+    if: >-
+      github.repository == 'rodos4312/Meu-Agent' &&
+      ((github.event_name == 'release' && startsWith(github.event.release.tag_name, 'meu-v')) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev/meu-foundation'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          extras: '[]'
+          test-environment: 'true'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify retention and baseline selection behavior
+        working-directory: apps/desktop
+        run: npx vitest run --project electron scripts/meu-release-maintenance.test.mjs --maxWorkers 2
+      - name: Keep the current and two previous published Meu releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MEU_RETENTION_APPLY: ${{ github.event_name == 'release' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          args=()
+          if [ "$MEU_RETENTION_APPLY" = 'true' ]; then args+=(--apply); fi
+          node apps/desktop/scripts/meu-release-maintenance.mjs prune "${args[@]}"

@@ -16,6 +16,8 @@ See [Meu releases](https://github.com/rodos4312/Meu-Agent/releases) for release 
 
 After installation, configure your provider in **Settings → Providers** and select your model in **Settings → Model → Main model**. Check for app updates in **Settings → About → Version & updates**.
 
+We retain the current release and up to **two previous releases**, based on version count rather than age. If your installed version is no longer available for automatic recovery, download and run the latest installer over your existing installation. Keep your Meu data folder. See the [release retention policy](docs/meu/RELEASE_RETENTION.md).
+
 ## What Meu can do
 
 - **Choose your model provider.** Options include Anthropic, DeepSeek, Gemini, OpenAI Codex, and OpenRouter. You can also connect a local model through a compatible endpoint such as Ollama.

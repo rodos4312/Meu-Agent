@@ -422,7 +422,7 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/components/desktop-install-overlay.test.tsx src/components/chat/intro.test.tsx src/components/boot-failure-overlay.test.tsx src/lib/desktop-backend-wait.test.ts src/lib/with-timeout.test.ts src/app/gateway/hooks/use-gateway-boot.bootstrap.test.tsx src/app/gateway/hooks/use-gateway-boot.test.tsx
       - name: Verify Meu release origin, signatures and update recovery
         working-directory: apps/desktop
-        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/meu-rollback.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs
+        run: npx vitest run --project electron --maxWorkers 2 electron/updater/meu-release-feed.test.ts electron/updater/meu-key-updates.test.ts electron/updater/meu-signature.test.ts electron/updater/meu-windows.test.ts electron/updater/meu-recovery.test.ts electron/updater/meu-client.test.ts electron/updater/meu-prepare.test.ts electron/updater/meu-rollback.test.ts electron/updater/operation.test.ts scripts/prepare-meu-release.test.mjs scripts/write-build-stamp.test.mjs scripts/meu-release-maintenance.test.mjs
       - name: Verify installed-home isolation and upgrade setup behavior
         working-directory: apps/desktop
         shell: pwsh
@@ -622,16 +622,16 @@ jobs:
           extras: '[]'
       - name: Install locked rehearsal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Download the pinned public dev.21 baseline
+      - name: Download the newest verified previous public Meu baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $baseline = Join-Path $env:RUNNER_TEMP 'meu-baseline-candidate'
-          New-Item -ItemType Directory -Path $baseline | Out-Null
-          $release = 'https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.21'
-          foreach ($file in @('meu-release.json', 'Meu-0.1.0-dev.21-win-x64.exe')) {
-            Invoke-WebRequest -Uri "$release/$file" -OutFile (Join-Path $baseline $file) -TimeoutSec 180
-          }
-          # The rehearsal driver verifies the manifest signature and installer hashes before execution.
+          $version = (Get-Content -LiteralPath apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          node apps/desktop/scripts/meu-release-maintenance.mjs baseline $version $baseline
+          if ($LASTEXITCODE -ne 0) { throw 'Verified previous public baseline download failed.' }
       - name: Download the newly signed candidate
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
