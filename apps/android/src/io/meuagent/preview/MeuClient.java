@@ -26,6 +26,10 @@ final class MeuClient {
         this.sockets = sockets;
     }
 
+    boolean usesPairing() {
+        return sockets != null;
+    }
+
     void verify() throws IOException, JSONException {
         verify(false);
     }

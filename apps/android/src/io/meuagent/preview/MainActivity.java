@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
         Runnable useCode = () -> {
             try {
                 MeuPairing pairing = MeuPairing.parse(code.getText().toString());
-                connect(() -> MeuClient.pair(pairing), code, pair, manual, scan);
+                connect(() -> MeuClient.pair(pairing), true, code, pair, manual, scan);
             } catch (IllegalArgumentException | GeneralSecurityException error) {
                 status.setText("The pairing code is invalid or has expired.");
             }
@@ -214,7 +214,7 @@ public final class MainActivity extends Activity {
                 connect(() -> {
                     candidate.verify();
                     return candidate;
-                }, key, connect, back);
+                }, false, key, connect, back);
             } catch (IllegalArgumentException error) {
                 status.setText("Enter an HTTPS address with a hostname and optional port.");
             }
@@ -225,7 +225,7 @@ public final class MainActivity extends Activity {
         MeuClient open() throws IOException, JSONException;
     }
 
-    private void connect(ConnectionAttempt attempt, EditText secret, Button... buttons) {
+    private void connect(ConnectionAttempt attempt, boolean pairing, EditText secret, Button... buttons) {
         for (Button button : buttons) button.setEnabled(false);
         status.setText("Checking the connection…");
         worker.execute(() -> {
@@ -240,7 +240,7 @@ public final class MainActivity extends Activity {
             } catch (IOException | JSONException error) {
                 onScreen(() -> {
                     for (Button button : buttons) button.setEnabled(true);
-                    status.setText(errorText(error));
+                    status.setText(pairing ? pairingErrorText(error) : errorText(error));
                 });
             }
         });
@@ -293,12 +293,20 @@ public final class MainActivity extends Activity {
             try {
                 JSONObject result = waitForResult(connected, conversation, turn);
                 onScreen(() -> {
+                    if (result == null) {
+                        leave.setEnabled(true);
+                        send.setEnabled(true);
+                        send.setText("Resume request");
+                        status.setText("Meu is still working. Resume this request to check for its reply.");
+                        return;
+                    }
                     String outcome = result.optString("status");
                     String answer = result.optString("output", "");
                     if (!answer.isEmpty()) messages.addView(label("Meu\n" + answer, 16, INK));
                     scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
                     pending = null;
                     leave.setEnabled(true);
+                    leave.setText("Change connection");
                     if ("unknown".equals(outcome)) {
                         status.setText("Meu lost the execution state. Review the run on your computer.");
                         return;
@@ -311,9 +319,23 @@ public final class MainActivity extends Activity {
             } catch (IOException | JSONException error) {
                 onScreen(() -> {
                     leave.setEnabled(true);
-                    send.setEnabled(true);
+                    int code = httpStatus(error);
+                    boolean paired = connected.usesPairing();
+                    boolean closed = paired && (code == 401 || code == 410);
+                    send.setEnabled(!closed);
                     send.setText("Resume request");
-                    status.setText(errorText(error));
+                    if (paired && code == 0) {
+                        leave.setText("Pair again");
+                        status.setText(error instanceof JSONException
+                                ? "Could not read Meu's reply. Resume this request or pair again."
+                                : "Connection to Meu lost. If both devices are still on the same network, "
+                                    + "resume this request or pair again with a new code.");
+                    } else if (closed) {
+                        leave.setText("Pair again");
+                        status.setText("This pairing has ended. Show a new code in Meu on your computer.");
+                    } else {
+                        status.setText(errorText(error));
+                    }
                 });
             } catch (InterruptedException stopped) {
                 Thread.currentThread().interrupt();
@@ -338,16 +360,29 @@ public final class MainActivity extends Activity {
                     throw new IOException("Unsupported run status");
             }
         }
-        throw new IOException("Run still active");
+        return null;
     }
 
     private void onScreen(Runnable action) {
         runOnUiThread(() -> { if (!isDestroyed()) action.run(); });
     }
 
+    private static int httpStatus(Exception error) {
+        return error instanceof MeuClient.HttpError ? ((MeuClient.HttpError) error).status : 0;
+    }
+
+    private static String pairingErrorText(Exception error) {
+        int code = httpStatus(error);
+        if (code == 401 || code == 410) {
+            return "This pairing code has expired or was already used. Show a new code on your computer.";
+        }
+        return "Could not pair with Meu. Check that both devices are on the same local network "
+                + "and scan a new code from your computer.";
+    }
+
     private static String errorText(Exception error) {
-        if (error instanceof MeuClient.HttpError) {
-            int code = ((MeuClient.HttpError) error).status;
+        int code = httpStatus(error);
+        if (code != 0) {
             if (code == 401 || code == 403) {
                 return "Access was refused. Try a new pairing code or check the gateway key.";
             }
