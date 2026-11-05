@@ -1,9 +1,27 @@
 # Meu Android companion
 
-The first Android client connects to a running Meu desktop backend on the same
-Wi-Fi network. A paired phone can open existing projects and conversations,
-send a message, follow its helpers, and open the deliverables. Implementation
-follows the desktop release and Coordinator trial in [STATUS.md](STATUS.md).
+The Android chat preview comes before the Windows trial distribution. It
+connects to a running Meu API over HTTPS and starts a separate test conversation.
+The full companion will pair with a desktop on the same Wi-Fi network and let
+the phone open existing projects and conversations, follow helpers and open
+deliverables. See [STATUS.md](STATUS.md) for release status.
+
+## Installable chat preview
+
+Download the `Meu-Android-preview` artifact from the successful **Meu Android
+preview** run on `dev/meu-foundation`. It contains the APK and its SHA-256
+checksum. The app requires Android 8 or newer. To build it locally on Linux,
+install a JDK and Android SDK platform 35 with Build Tools 35.0.0, then run
+`bash apps/android/build-preview.sh`. Each build uses a separate test signer.
+Uninstall an earlier preview before installing a build with a different signer.
+
+Use a dedicated Meu test profile with an [enabled API server](../../website/docs/user-guide/features/api-server.md)
+behind HTTPS with a certificate trusted by Android. Enter the HTTPS origin and
+the gateway access key in the app. The key is held in memory for the connection.
+Each connection opens a new API-owned conversation. While that conversation is
+open, the app can resume a pending request after a connection error. Confirm
+that an interrupted send returns one reply and creates one run. Test with a
+Greek message and an incorrect access key before using real data.
 
 ## What the existing backend can supply
 
@@ -25,7 +43,7 @@ the desktop. Revoking the device closes its connection and invalidates its file
 access. See [Android network security](https://developer.android.com/privacy-and-security/security-config)
 and [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
-The first implementation slice pairs one Android phone, opens one synthetic
+The pairing implementation pairs one Android phone, opens one synthetic
 project, and sends one text message through the same backend as the desktop.
 Disconnect during the response, then reconnect. Verify that both clients show
 one submitted message and the same completed reply. Try a second profile, a

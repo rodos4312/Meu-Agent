@@ -27,15 +27,18 @@ needs an isolated Windows guest that stays available through a real restart,
 with evidence that the retained updater restored the app, backend and test data.
 No host restart or Windows feature change was performed.
 
-## After the consolidated release
+## Next trial steps
 
-1. Upgrade an existing desktop installation. Verify that projects, notes, and
-   settings open as expected and the installed version matches the update feed.
-2. Run a real project with the Coordinator. Check that each helper's assignment,
+1. Build and try the Android chat preview against a dedicated HTTPS Meu test
+   gateway. See the [Android companion plan](ANDROID_COMPANION.md).
+2. Upgrade an existing desktop installation with the Windows trial distribution.
+   Verify that projects, notes, and settings open as expected and the installed
+   version matches the update feed.
+3. Run a real project with the Coordinator. Check that each helper's assignment,
    progress, verification result, and deliverables are easy to find. Group fixes
    from this trial into a maintenance release.
-3. Begin the Android companion after the desktop trial. The first version uses
-   authenticated QR pairing on the same Wi-Fi network and a versioned gateway
+4. Extend the Android companion with authenticated QR pairing on the same
+   Wi-Fi network and a versioned gateway
    adapter. The desktop runs the work. The phone opens the paired profile's
    projects, sends messages, follows helper progress, and opens deliverables.
    Test reconnecting without duplicate messages and revoking a phone's access

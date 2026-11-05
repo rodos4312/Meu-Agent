@@ -1,0 +1,33 @@
+name: Meu Android preview
+
+on:
+  push:
+    branches: [dev/meu-foundation]
+    paths:
+      - 'apps/android/**'
+      - 'apps/desktop/assets/meu-icon.png'
+      - '.github/workflows/meu-android-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    if: github.repository == 'rodos4312/Meu-Agent' && github.ref == 'refs/heads/dev/meu-foundation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Build and verify the Android preview APK
+        run: bash apps/android/build-preview.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-Android-preview
+          path: |
+            apps/android/out/Meu-Android-preview.apk
+            apps/android/out/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
