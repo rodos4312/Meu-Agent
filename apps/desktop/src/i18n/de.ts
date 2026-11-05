@@ -24,11 +24,13 @@ import { deProjects } from './de_projects'
 import { deThemePicker } from './de_theme_picker'
 import { deUpdateChannel } from './de_update_channel'
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { introDe } from './intro-de'
 import { meuShellCopy } from './meu-shell'
 
 export const deOverrides = {
   meuShell: meuShellCopy['de'],
+  projectMemory: enProjectMemory,
   firstRun: deFirstRun,
   intro: introDe,
   connectors: deConnectorCard,

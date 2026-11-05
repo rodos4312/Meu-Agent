@@ -10,6 +10,7 @@ The pet wire predates the snake_case rule and travels camelCase (``displayName``
 from __future__ import annotations
 
 from pydantic import Field
+from typing import Literal
 
 from .base import JsonValue, Params, Result
 from .common import OkResult, OpenModel, ProfileParams, StoredSessionRow
@@ -328,6 +329,44 @@ class ProjectsProjectSessionsResult(Result):
 
 method("projects.project_sessions", params=ProjectsProjectSessionsParams, result=ProjectsProjectSessionsResult,
        doc="Fully hydrated lanes for one project, from the same grouping as projects.tree.")
+
+
+class ProjectMemoryEntry(Result):
+    id: str
+    content: str
+
+
+class ProjectMemorySnapshot(Result):
+    enabled: bool
+    root: str | None
+    path: str | None
+    revision: str
+    limit: int
+    entries: list[ProjectMemoryEntry]
+
+
+class ProjectMemoryParams(ProfileParams):
+    project_id: str
+
+
+class ProjectMemoryUpdateParams(ProjectMemoryParams):
+    action: Literal["add", "patch", "remove"]
+    revision: str
+    note_id: str | None = None
+    content: str | None = None
+
+
+class ProjectMemoryUpdateResult(Result):
+    memory: ProjectMemorySnapshot
+    saved: bool
+    conflict: bool
+    error: str | None
+
+
+method("projects.memory.get", params=ProjectMemoryParams, result=ProjectMemorySnapshot,
+       doc="Read local notes belonging to the selected project and profile.")
+method("projects.memory.update", params=ProjectMemoryUpdateParams, result=ProjectMemoryUpdateResult,
+       doc="Explicit operator edit of a project note, conditional on its last-read revision.")
 
 
 # ── pet: active mascot ────────────────────────────────────────────────────────────────────────

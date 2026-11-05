@@ -1,4 +1,5 @@
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { introZhHant } from './intro-zh-hant'
 import { meuShellCopy } from './meu-shell'
 import { zhHantArtifacts } from './zh-hant_artifacts'
@@ -16,6 +17,7 @@ import { zhHantSettings } from './zh-hant_settings'
 
 export const zhHantOverrides = {
   meuShell: meuShellCopy['zh-hant'],
+  projectMemory: enProjectMemory,
 
   catalog: {
     add: '新增',

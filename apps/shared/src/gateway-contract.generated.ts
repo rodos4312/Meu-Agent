@@ -2056,6 +2056,36 @@ export interface ProjectsProjectSessionsParams {
 export interface ProjectsProjectSessionsResult {
   project?: ProjectTreeNode | null
 }
+export interface ProjectMemoryParams {
+  profile?: string | null
+  project_id: string
+}
+export interface ProjectMemorySnapshot {
+  enabled: boolean
+  root: string | null
+  path: string | null
+  revision: string
+  limit: number
+  entries: ProjectMemoryEntry[]
+}
+export interface ProjectMemoryEntry {
+  id: string
+  content: string
+}
+export interface ProjectMemoryUpdateParams {
+  profile?: string | null
+  project_id: string
+  action: 'add' | 'patch' | 'remove'
+  revision: string
+  note_id?: string | null
+  content?: string | null
+}
+export interface ProjectMemoryUpdateResult {
+  memory: ProjectMemorySnapshot
+  saved: boolean
+  conflict: boolean
+  error: string | null
+}
 /** ``knownRevision``: the spritesheet revision the caller already holds (send-once bytes). */
 export interface PetInfoParams {
   profile?: string | null
@@ -5698,6 +5728,10 @@ export interface RpcMethods {
   'projects.get': { params: ProjectIdParams; result: ProjectResult }
   /** Every project of the profile (archived included) plus which one is active. */
   'projects.list': { params: ProfileParams; result: ProjectsPayload }
+  /** Read local notes belonging to the selected project and profile. */
+  'projects.memory.get': { params: ProjectMemoryParams; result: ProjectMemorySnapshot }
+  /** Explicit operator edit of a project note, conditional on its last-read revision. */
+  'projects.memory.update': { params: ProjectMemoryUpdateParams; result: ProjectMemoryUpdateResult }
   /** Fully hydrated lanes for one project, from the same grouping as projects.tree. */
   'projects.project_sessions': { params: ProjectsProjectSessionsParams; result: ProjectsProjectSessionsResult }
   /** Persist repo roots found by the client's (desktop-side) scan; return the merged list. */
@@ -6010,6 +6044,8 @@ export const RPC_METHODS = [
   'projects.for_cwd',
   'projects.get',
   'projects.list',
+  'projects.memory.get',
+  'projects.memory.update',
   'projects.project_sessions',
   'projects.record_repos',
   'projects.remove_folder',

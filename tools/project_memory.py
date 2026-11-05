@@ -11,6 +11,10 @@ from pathlib import Path
 from hermes_constants import get_hermes_home
 
 
+def note_id(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
+
+
 @dataclass(frozen=True)
 class ProjectMemoryScope:
     root: Path
@@ -22,7 +26,7 @@ class ProjectMemoryScope:
         return str(self.directory)
 
 
-def resolve_project_memory(cwd: str | None) -> ProjectMemoryScope | None:
+def resolve_project_memory(cwd: str | None, *, home: Path | None = None) -> ProjectMemoryScope | None:
     """Only an explicitly selected existing workspace may acquire project memory.
 
     Registered folders share their primary folder's identity. Otherwise
@@ -32,7 +36,7 @@ def resolve_project_memory(cwd: str | None) -> ProjectMemoryScope | None:
     if not cwd or not Path(cwd).is_absolute():
         return None
     root = Path(cwd).resolve()
-    home = get_hermes_home().resolve()
+    home = (home or get_hermes_home()).resolve()
     if not root.is_dir() or root in {Path(root.anchor), Path.home().resolve(), home}:
         return None
 

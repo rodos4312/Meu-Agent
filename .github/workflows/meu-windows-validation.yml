@@ -37,6 +37,8 @@ on:
       - 'gateway/**'
       - 'tests/gateway/test_meu_memory_commands.py'
       - 'tests/tools/test_memory_tool.py'
+      - 'tests/tools/test_project_memory.py'
+      - 'tests/tui_gateway/test_project_memory*.py'
       - 'tests/hermes_cli/test_meu_privacy.py'
       - 'tests/hermes_cli/test_meu_setup_commands.py'
       - 'tests/hermes_cli/test_meu_retired_login.py'
@@ -125,6 +127,7 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_projects.py
+          tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_local_agent_context.py
@@ -270,6 +273,7 @@ jobs:
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_projects.py
+          tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_local_agent_context.py
@@ -293,6 +297,9 @@ jobs:
           tests/plugins/model_providers/test_deepseek_profile.py
           tests/agent/test_retry_delay_parsers_shared.py
           tests/tools/test_meu_memory_lifecycle.py
+          tests/tools/test_project_memory.py
+          tests/tui_gateway/test_project_memory.py
+          tests/tui_gateway/test_project_memory_rpc.py
           tests/tools/test_memory_tool.py
           tests/tools/test_memory_patch_action.py
           tests/gateway/test_meu_memory_commands.py
@@ -487,7 +494,7 @@ jobs:
         run: |
           node scripts/i18n-keys.mjs --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
+          npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck

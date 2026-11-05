@@ -9,6 +9,7 @@
 import type { ErrorCodeKey } from '@/lib/error-surface'
 import type { TipId } from '@/lib/tips/catalog'
 
+import type { ProjectMemoryCopy } from './en_project_memory'
 import type { MeuShellCopy } from './meu-shell'
 import type { AppTourTranslations } from './types_app_tour'
 import type { BootTranslations } from './types_boot'
@@ -91,6 +92,7 @@ interface ModeOptionCopy {
 }
 
 export interface Translations extends NoticeTranslations {
+  projectMemory: ProjectMemoryCopy
   meuShell: MeuShellCopy
   appTour: AppTourTranslations
   firstRun: FirstRunCopy

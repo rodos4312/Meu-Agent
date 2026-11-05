@@ -363,7 +363,8 @@ class MemoryStore:
                    usage=self._usage(target),
                    **({"closest_entries": closest_entries} if closest_entries else {})))
 
-    def _mutate(self, target: str, mutate, *, skip_drift: bool = False) -> dict[str, Any]:
+    def _mutate(self, target: str, mutate, *, skip_drift: bool = False,
+                expected_revision: str | None = None) -> dict[str, Any]:
         """Lock, re-read from disk, run ``mutate(entries, limit)`` -> ``(new_entries, message)``
         or an error dict, then persist and return the success response. The reload aborts
         on an existing-but-unreadable file (even append-only ``add`` rewrites the whole
@@ -379,6 +380,12 @@ class MemoryStore:
             raw, read_ok = self._read_raw_checked(path)
             if not read_ok:
                 return _read_failed_error(path)
+            if expected_revision is not None:
+                from hashlib import sha256
+
+                if sha256(raw.encode("utf-8")).hexdigest() != expected_revision:
+                    return {"success": False, "conflict": True,
+                            "error": "Notes changed elsewhere. Reload them before saving; nothing was overwritten."}
             oversized = not skip_drift and self._has_oversized_entry(target, raw)
             before = list(dict.fromkeys(self._parse_entries(raw)))
             self._set_entries(target, before)
@@ -578,12 +585,13 @@ class MemoryStore:
         working[idx:idx + 1] = [patched]
         return None, previous_content, "none", patched
 
-    def apply_batch(self, target: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
+    def apply_batch(self, target: str, operations: list[dict[str, Any]], *,
+                    expected_revision: str | None = None) -> dict[str, Any]:
         """Apply add/replace/remove ops atomically against the FINAL budget, so one call
         can free space and add entries. All-or-nothing: any malformed / unmatched op or
         an over-limit result writes NOTHING and returns the first failure. Aborts do not
         echo ``current_entries`` — the store is unchanged and the model already has it."""
-        return self._batch(target, operations, commit=True)
+        return self._batch(target, operations, commit=True, expected_revision=expected_revision)
 
     def resolve_batch_entries(self, target: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
         """Dry-run ``apply_batch`` under the lock without persisting: the same content scan,
@@ -592,7 +600,8 @@ class MemoryStore:
         entry its replace/remove selects now (None for add), in batch order."""
         return self._batch(target, operations, commit=False)
 
-    def _batch(self, target: str, operations: list[dict[str, Any]], *, commit: bool) -> dict[str, Any]:
+    def _batch(self, target: str, operations: list[dict[str, Any]], *, commit: bool,
+               expected_revision: str | None = None) -> dict[str, Any]:
         from tools.memory_tool import _memory_target_error
         if target_error := _memory_target_error(self, target, operations):
             return target_error
@@ -663,7 +672,7 @@ class MemoryStore:
             if removed:
                 replaced_fields["removed_entries"] = removed
             return working, f"Applied {len(operations)} operation(s).", replaced_fields
-        return self._mutate(target, _apply, skip_drift=not commit)
+        return self._mutate(target, _apply, skip_drift=not commit, expected_revision=expected_revision)
 
     def format_for_system_prompt(self, target: str) -> Optional[str]:
         """Frozen load-time snapshot (NOT live state — mid-session writes don't touch
@@ -695,7 +704,9 @@ class MemoryStore:
         title = MEMORY_BLOCK_HEADERS[target]
         if target == "project":
             import json
+            from tools.project_memory import note_id
 
+            content = ENTRY_DELIMITER.join(f"[{note_id(entry)}] {entry}" for entry in entries)
             content = (f"Selected project folder: {json.dumps(str(self.project_scope.root))}\n"
                        "Use memory(target='project') for durable decisions and conventions specific "
                        "to this project. These notes load only in its future conversations. "

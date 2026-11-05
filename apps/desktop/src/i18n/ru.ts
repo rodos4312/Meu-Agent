@@ -2,6 +2,7 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { meuShellCopy } from './meu-shell'
 import { ruBoot } from './ru_boot'
 import { ruCatalog, ruSkillDeepLink } from './ru_catalog'
@@ -27,6 +28,7 @@ import { ruUpdateChannel } from './ru_update_channel'
 
 export const ruOverrides = {
   meuShell: meuShellCopy['ru'],
+  projectMemory: enProjectMemory,
   catalog: ruCatalog,
   connectors: ruConnectors.connectors,
   firstRun: ruFirstRun,

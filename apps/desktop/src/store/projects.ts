@@ -1,3 +1,4 @@
+import type { ProjectMemorySnapshot, ProjectMemoryUpdateResult } from '@hermes/shared'
 import { replaceEqualDeep } from '@tanstack/react-query'
 import { atom, computed } from 'nanostores'
 
@@ -412,6 +413,30 @@ async function activeProjectsContext(profile = projectProfile()): Promise<Active
 function applyPayload(payload: ProjectsPayload): void {
   $projects.set(payload.projects ?? [])
   $activeProjectId.set(payload.active_id ?? null)
+}
+
+export async function projectMemoryClient(projectId: string) {
+  const context = await activeProjectsContext()
+
+  const request = async <T>(method: string, params: Record<string, unknown> = {}): Promise<T> => {
+    if (!stillOnProjectsContext(context)) {
+      throw new Error('The active project connection or profile changed. Reopen project notes.')
+    }
+
+    const result = await gatewayRequestOn<T>(context.gateway, method, projectParams({ ...params, project_id: projectId }, context.profile))
+
+    if (!stillOnProjectsContext(context)) {
+      throw new Error('The active project connection or profile changed. Reopen project notes.')
+    }
+
+    return result
+  }
+
+  return {
+    load: () => request<ProjectMemorySnapshot>('projects.memory.get'),
+    update: (params: { action: 'add' | 'patch' | 'remove'; revision: string; note_id?: string; content?: string }) =>
+      request<ProjectMemoryUpdateResult>('projects.memory.update', params)
+  }
 }
 
 let projectsRefreshGeneration = 0

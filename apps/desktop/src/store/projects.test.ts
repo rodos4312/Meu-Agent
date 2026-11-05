@@ -26,6 +26,7 @@ import {
   pickProjectFolder,
   pickProjectFolders,
   projectIdForCwd,
+  projectMemoryClient,
   projectNameForCwd,
   refreshProjects,
   refreshProjectTree,
@@ -126,6 +127,37 @@ describe('project scope', () => {
 })
 
 describe('projects RPC profile forwarding', () => {
+  it('pins project note reads and edits to their original gateway and profile', async () => {
+    const request = vi.fn().mockResolvedValue({ enabled: true, entries: [] })
+    const gateway = { connectionState: 'open', request }
+    activeGateway.mockReturnValue(gateway as never)
+    gatewayAtom.set(gateway as never)
+    $activeGatewayProfile.set('coder')
+    const client = await projectMemoryClient('p_notes')
+    await client.load()
+    await client.update({ action: 'add', revision: 'r1', content: 'Use PNG.' })
+    expect(request).toHaveBeenNthCalledWith(1, 'projects.memory.get', { project_id: 'p_notes', profile: 'coder' })
+    expect(request).toHaveBeenNthCalledWith(2, 'projects.memory.update', {
+      project_id: 'p_notes', profile: 'coder', action: 'add', revision: 'r1', content: 'Use PNG.'
+    })
+    $activeGatewayProfile.set('other')
+    await expect(client.update({ action: 'add', revision: 'r1', content: 'Wrong owner.' })).rejects.toThrow('changed')
+    expect(request).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a late notes response after the owner changes', async () => {
+    const pending = deferred<unknown>()
+    const request = vi.fn().mockReturnValue(pending.promise)
+    const gateway = { connectionState: 'open', request }
+    activeGateway.mockReturnValue(gateway as never)
+    gatewayAtom.set(gateway as never)
+    const client = await projectMemoryClient('p_notes')
+    const result = client.load()
+    $activeGatewayProfile.set('other')
+    pending.resolve({ enabled: true, entries: [] })
+    await expect(result).rejects.toThrow('changed')
+  })
+
   it('distinguishes a failed drill-in from an empty project', async () => {
     const failure = new Error('gateway read failed')
     const request = vi.fn().mockRejectedValueOnce(failure).mockResolvedValueOnce({ project: null })

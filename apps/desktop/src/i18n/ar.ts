@@ -11,10 +11,12 @@ import { arDiagnostics } from './ar_diagnostics'
 import { arFirstRun } from './ar_first_run'
 import { arSettings } from './ar_settings'
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { meuShellCopy } from './meu-shell'
 
 export const arOverrides = {
   meuShell: meuShellCopy['ar'],
+  projectMemory: enProjectMemory,
 
   catalog: {
     add: 'إضافة',

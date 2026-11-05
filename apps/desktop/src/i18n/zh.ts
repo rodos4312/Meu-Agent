@@ -2,6 +2,7 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { introZh } from './intro-zh'
 import { meuShellCopy } from './meu-shell'
 import { zhCatalog, zhSkillDeepLink } from './zh_catalog'
@@ -28,6 +29,7 @@ import { zhUpdateChannel } from './zh_update_channel'
 
 export const zhOverrides = {
   meuShell: meuShellCopy['zh'],
+  projectMemory: enProjectMemory,
   catalog: zhCatalog,
   externalOpenFailed: {
     title: '无法打开此链接',

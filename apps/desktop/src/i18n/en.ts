@@ -25,6 +25,7 @@ import { enOnboarding } from './en_onboarding'
 import { enPluginPreviewAccess } from './en_plugin_preview_access'
 import { enPluginUpdate } from './en_plugin_update'
 import { enPreviewWeb } from './en_preview_web'
+import { enProjectMemory } from './en_project_memory'
 import { enProjects } from './en_projects'
 import { enThemePicker } from './en_theme_picker'
 import { enUninstallSection } from './en_uninstall_section'
@@ -34,6 +35,7 @@ import type { Translations } from './types'
 
 export const en: Translations = {
   meuShell: meuShellCopy['en'],
+  projectMemory: enProjectMemory,
   externalOpenFailed: enExternalOpenFailed,
   appTour: enAppTour,
   firstRun: enFirstRun,

@@ -2,6 +2,7 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { introJa } from './intro-ja'
 import { jaBoot } from './ja_boot'
 import { jaCatalog, jaSkillDeepLink } from './ja_catalog'
@@ -29,6 +30,7 @@ import { meuShellCopy } from './meu-shell'
 
 export const jaOverrides = {
   meuShell: meuShellCopy['ja'],
+  projectMemory: enProjectMemory,
   catalog: jaCatalog,
   connectors: jaConnectors.connectors,
   externalOpenFailed: {

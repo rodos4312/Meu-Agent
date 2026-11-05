@@ -2473,6 +2473,42 @@
       }
     },
     {
+      "name": "projects.memory.get",
+      "summary": "Read local notes belonging to the selected project and profile.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/ProjectMemoryParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/ProjectMemorySnapshot"
+        }
+      }
+    },
+    {
+      "name": "projects.memory.update",
+      "summary": "Explicit operator edit of a project note, conditional on its last-read revision.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/ProjectMemoryUpdateParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/ProjectMemoryUpdateResult"
+        }
+      }
+    },
+    {
       "name": "projects.project_sessions",
       "summary": "Fully hydrated lanes for one project, from the same grouping as projects.tree.",
       "params": [
@@ -27112,6 +27148,207 @@
           "created_at"
         ],
         "title": "ProjectInfo",
+        "type": "object"
+      },
+      "ProjectMemoryEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content"
+        ],
+        "title": "ProjectMemoryEntry",
+        "type": "object"
+      },
+      "ProjectMemoryParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "title": "ProjectMemoryParams",
+        "type": "object"
+      },
+      "ProjectMemorySnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectMemoryEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "root",
+          "path",
+          "revision",
+          "limit",
+          "entries"
+        ],
+        "title": "ProjectMemorySnapshot",
+        "type": "object"
+      },
+      "ProjectMemoryUpdateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "add",
+              "patch",
+              "remove"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "note_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note Id"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content"
+          }
+        },
+        "required": [
+          "project_id",
+          "action",
+          "revision"
+        ],
+        "title": "ProjectMemoryUpdateParams",
+        "type": "object"
+      },
+      "ProjectMemoryUpdateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "memory": {
+            "$ref": "#/components/schemas/ProjectMemorySnapshot"
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "boolean"
+          },
+          "conflict": {
+            "title": "Conflict",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "required": [
+          "memory",
+          "saved",
+          "conflict",
+          "error"
+        ],
+        "title": "ProjectMemoryUpdateResult",
         "type": "object"
       },
       "ProjectRef": {

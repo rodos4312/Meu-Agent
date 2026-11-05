@@ -41,14 +41,21 @@ def _verify(parent, name, attempt, artifact, evidence):
 
 
 def _start(root, parent):
+    from tools.memory_tool import load_on_disk_store
+
+    memory = load_on_disk_store(project_cwd=str(root))
+    assert memory.add("project", "Normalization retains duplicate payment rows.")["success"]
+    assert memory.add("project", "Reports subtract refunds from receipts.")["success"]
     plan = [
         task(id="normalize", paths=["rows.json"], tool_access="files_only",
              goal="Normalize the payments CSV to JSON."),
         task("complex", ["report.json"], id="reconcile", depends_on=["normalize"],
              tool_access="files_only", goal="Deduplicate payment IDs, apply refunds, and write the reconciliation report."),
     ]
-    assert create(parent, root, plan)["ready"] == ["normalize"]
-    result = project(parent, "run")
+    initial = create(parent, root, plan)
+    assert initial["ready"] == ["normalize"]
+    notes = {note["content"]: note["id"] for note in initial["memory_notes"]}
+    result = project(parent, "run", task_memory={"normalize": [notes["Normalization retains duplicate payment rows."]]})
     assert result["tasks"]["normalize"]["state"] == "needs_review", result
     _assert_blocked_terminal(result["tasks"]["normalize"]["result"])
     assert not (root.parent / "outside.json").exists()
@@ -58,7 +65,7 @@ def _start(root, parent):
         expected = [{"id": row["id"], "cents": int(row["cents"])} for row in csv.DictReader(source)]
     assert _read(root, "rows.json") == expected
     assert _verify(parent, "normalize", 1, "rows.json", "Compared all rows to the CSV.")["ready"] == ["reconcile"]
-    project(parent, "run")
+    project(parent, "run", task_memory={"reconcile": [notes["Reports subtract refunds from receipts."]]})
     raise AssertionError("The process should have exited after the report write.")
 
 
@@ -72,10 +79,20 @@ def _resume(root, parent, requests):
     assert not project(parent, "run")["complete"]
     assert requests == []
     assert _read(root, "report.json") == {"net_cents": 1700}
+    from tools.memory_tool import load_on_disk_store
+    from tui_gateway.project_memory import snapshot, update
+
+    memory = load_on_disk_store(project_cwd=str(root))
+    before = snapshot(memory)
+    original = next(note for note in before["entries"] if note["content"].startswith("Reports"))
+    edited = update(memory, {"action": "patch", "revision": before["revision"], "note_id": original["id"],
+                             "content": "Reports subtract refunds and remove duplicate payment IDs."})
+    assert edited["saved"]
+    current = next(note for note in edited["memory"]["entries"] if note["content"].startswith("Reports"))
     retry = project(parent, "retry", task="reconcile", attempt=1,
                     evidence="Existing report has the wrong total and can be regenerated locally.")
     assert retry["ready"] == ["reconcile"]
-    result = project(parent, "run")
+    result = project(parent, "run", task_memory={"reconcile": [current["id"]]})
     assert result["tasks"]["reconcile"]["state"] == "needs_review", result
     _assert_blocked_terminal(result["tasks"]["reconcile"]["result"])
     assert "error" not in result["tasks"]["reconcile"]
@@ -116,6 +133,14 @@ def _response(request, root, stage, requests):
     body = json.loads(request.content)
     assert {entry["function"]["name"] for entry in body["tools"]} == {"read_file", "write_file", "patch", "search_files"}
     model = body["model"]
+    context = json.dumps(body["messages"])
+    if model == "deepseek-flash":
+        assert "Normalization retains duplicate" in context and "Reports subtract" not in context
+    else:
+        assert "Reports subtract refunds" in context
+        assert "Normalization retains duplicate" not in context
+        if stage == "resume":
+            assert "remove duplicate payment IDs" in context
     requests.append(model)
     expected = ["deepseek-flash"] * 2 + ["deepseek-v4-pro"] * 2 if stage == "start" else ["deepseek-v4-pro"] * 3
     assert requests == expected[:len(requests)], requests

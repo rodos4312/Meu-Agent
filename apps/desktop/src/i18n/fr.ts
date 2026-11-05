@@ -2,6 +2,7 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale, type TranslationOverrides } from './define-locale'
+import { enProjectMemory } from './en_project_memory'
 import { frBoot } from './fr_boot'
 import { frClarify } from './fr_clarify'
 import { frConnectorAccounts } from './fr_connector_accounts'
@@ -29,6 +30,7 @@ import { meuShellCopy } from './meu-shell'
 
 export const frOverrides = {
   meuShell: meuShellCopy['fr'],
+  projectMemory: enProjectMemory,
   firstRun: frFirstRun,
   intro: introFr,
   connectors: frConnectorCard,

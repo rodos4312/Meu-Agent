@@ -1,5 +1,10 @@
 # Meu Coordinator
 
+Project note handoff and Desktop editing are described in [Project memory](PROJECT_MEMORY.md).
+Use `memory_notes` from project create/status to select relevant `task_memory` ids
+for each helper in the next batch. Selection stays within the owning project/profile;
+the runtime records the exact notes used by each attempt.
+
 Available in `0.1.0-dev.4` through **Settings → Model → Subagents → Meu Coordinator**.
 The choice is profile-scoped and persisted through the existing delegation API.
 It applies to new sessions; a running session retains its original tools and prompt.

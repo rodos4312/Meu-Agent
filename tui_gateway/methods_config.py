@@ -175,6 +175,34 @@ def _(rid, params: dict) -> dict:
         return _ok(rid, {"project": project})
 
 
+def _project_notes_store(params):
+    from tools.memory_tool import load_on_disk_store
+
+    with _profile_db(params) as db:
+        if db is None:
+            raise ValueError("Project storage is unavailable.")
+        tree, _active = _stamped_project_tree(db, params, preview_limit=0, hydrate=False,
+                                            session_limit=5000, include_discovered=True)
+        project = next((p for p in tree["projects"] if p["id"] == params["project_id"]), None)
+    if not project or project["isNoProject"] or not project.get("path"):
+        raise ValueError("Select an existing project folder before opening project notes.")
+    return load_on_disk_store(project_cwd=project["path"])
+
+
+@_projects_handler("projects.memory.get")
+def _(rid, params: dict) -> dict:
+    from tui_gateway.project_memory import snapshot
+
+    return _ok(rid, snapshot(_project_notes_store(params)))
+
+
+@_projects_handler("projects.memory.update")
+def _(rid, params: dict) -> dict:
+    from tui_gateway.project_memory import update
+
+    return _ok(rid, update(_project_notes_store(params), params))
+
+
 # ── config.get — one getter per key returning the result payload.
 
 def _display_raw() -> dict:

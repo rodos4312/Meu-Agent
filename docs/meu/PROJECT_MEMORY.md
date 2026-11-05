@@ -32,6 +32,18 @@ not infer separate projects from task titles or newly created child folders.
 
 ## Inspect and restore
 
+In Desktop, enter a project in the sidebar and choose **Project notes**. The panel
+shows stored facts and the local storage path, with Add, Edit and Delete actions.
+On a local connection, **Open notes folder** reveals the notes file in Explorer.
+Remote paths remain visible without offering to open them on the wrong machine.
+An older backend shows an update-required message rather than an empty memory.
+
+Each explicit operator edit goes through the same transactional memory store,
+character budget, content checks and version history. It uses the revision read by
+the panel. A concurrent agent/operator change refuses a stale save; it never
+silently overwrites the newer notes. The panel keeps the draft until the user
+reloads or cancels. Agent write approval defaults are unchanged.
+
 In a conversation with an active project store, the existing memory command supports
 these explicit project operations:
 
@@ -53,3 +65,24 @@ handler, startup prompt injection and inline dispatcher. It covers a fresh Pytho
 correction/rollback, project and profile isolation, Git subdirectories, registered folders,
 concurrent writes, absent workspaces, pending-write scope and local-only write callbacks.
 These automated checks do not establish the quality of an LLM's choice of which facts to save.
+
+## Coordinator handoff
+
+`coordinate_project` returns safe current project facts as `memory_notes`, each
+with a content-derived id. For `run`, the parent can supply `task_memory` mapping
+the next batch's task ids to relevant note ids. The parent uses the meaning of
+the assignment to select notes; there is no extra classification request. An
+empty list selects none. An omitted selection retains the task's previous ids
+for a retry. Without a prior selection, a helper receives no project notes.
+
+Only those notes enter that helper's initial context. They are background data,
+not instructions. The checkpoint records the exact `memory_used` for the attempt.
+Changed, removed or blocked notes refuse dispatch before any helper starts; read
+status and select the current note ids. The owning parent's database determines
+the profile even when an off-turn callback has a different ambient home.
+
+The native project rehearsal now combines note selection, actual file-tool work,
+a forced process exit, an operator correction, and continuation in another Python
+process. It verifies persisted progress, current relevant notes, helper model
+routes and final artifacts. LLM responses are scripted locally; this checks the
+runtime and recovery, not a live model's reasoning quality.
