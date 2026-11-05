@@ -51,7 +51,7 @@ Inspect `tools/` and desktop Windows computer-use handling plus relevant tests, 
 
 Εργασία αποκλειστικά στον `dev/meu-foundation`. Βάση ελέγχου: `b62cdc9af771d97f4a9280d8f42b18510198f85e`.
 Το Windows CI της βάσης ολοκληρώθηκε επιτυχώς, μαζί με τη δοκιμή installer/συντομεύσεων
-([εκτέλεση 41362371240](https://github.com/rodos4312/Meu-Agent/actions/runs/41362371240)).
+([εκτέλεση 41362371240](https://github.com/rodos4312/Meu-Agent-Legacy/actions/runs/41362371240)).
 Τα αποτελέσματα αυτής της βάσης δεν αποτελούν επαλήθευση της νέας αλλαγής.
 
 ### Εντοπισμένοι μηχανισμοί και αλλαγές
@@ -102,7 +102,7 @@ Inspect `tools/` and desktop Windows computer-use handling plus relevant tests, 
 ## Επόμενα στάδια — 2 Νοεμβρίου 2026
 
 Βάση: `a6b43264df4594843bc8ab43370882faac5bf754`, με επιτυχημένο
-[Windows CI 41364602590](https://github.com/rodos4312/Meu-Agent/actions/runs/41364602590).
+[Windows CI 41364602590](https://github.com/rodos4312/Meu-Agent-Legacy/actions/runs/41364602590).
 Η παρούσα ενότητα καταγράφει νεότερες αποφάσεις από τα αρχικά gates παραπάνω.
 Η οδηγία του ιδιοκτήτη είναι να διατηρηθούν οι υπάρχουσες ρυθμίσεις έγκρισης για
 μνήμη, skills και χρήση οθόνης: δεν προστέθηκαν επαναλαμβανόμενες ερωτήσεις ή νέες
