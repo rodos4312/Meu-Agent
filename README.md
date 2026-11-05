@@ -8,7 +8,7 @@
 
 ## Download for Windows x64
 
-**[Download Meu 0.1.0-dev.21 for Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.21/Meu-0.1.0-dev.21-win-x64.exe)** · Preview release
+**[Download Meu 0.1.0-dev.22 for Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.22/Meu-0.1.0-dev.22-win-x64.exe)** · Preview release
 
 See [Meu releases](https://github.com/rodos4312/Meu-Agent/releases) for release notes and installers.
 
@@ -18,7 +18,8 @@ After installation, configure your provider in **Settings → Providers** and se
 
 - **Choose your model provider.** Options include Anthropic, DeepSeek, Gemini, OpenAI Codex, and OpenRouter. You can also connect a local model through a compatible endpoint such as Ollama.
 - **Switch between DeepSeek Flash and Pro automatically.** With DeepSeek configured, **Auto · Flash / Pro** picks a model based on the task. You can also select a model from the chat.
-- **Coordinate project work.** The optional **Meu Coordinator** splits work into assignments, saves progress, and can delegate independent review and repair. Its current subagent routing uses DeepSeek Flash and Pro. Enable it in **Settings → Model → Subagents**, then start a new chat.
+- **Coordinate project work.** The optional **Meu Coordinator · General** splits work into assignments, saves progress, and can delegate independent review and repair. Helpers stay on the current conversation's provider, with optional model choices for light and heavy tasks. **Meu Coordinator · DeepSeek** offers Flash and Pro routing for DeepSeek sessions. Choose a coordinator in **Settings → Model → Subagents**, then start a new chat.
+- **Keep project notes locally.** Open a project in the sidebar and choose **Project notes** to view, add, edit or delete its saved decisions and preferences. Notes persist across restarts and apply to new conversations in that project. The Coordinator can pass selected notes to individual helpers; each attempt records which notes it used. See [Project memory](docs/meu/PROJECT_MEMORY.md) for scope, storage and history.
 
 ## Development and credits
 
