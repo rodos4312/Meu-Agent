@@ -39,7 +39,8 @@ No host restart or Windows feature change was performed.
    adapter. The desktop runs the work. The phone opens the paired profile's
    projects, sends messages, follows helper progress, and opens deliverables.
    Test reconnecting without duplicate messages and revoking a phone's access
-   from the desktop before moving on to voice and access away from home.
+   from the desktop before moving on to voice and access away from home. See the
+   [Android companion plan](ANDROID_COMPANION.md) for the first end-to-end test.
 
 An independent Android edition is a later decision if users need to run tasks
 while the desktop is off. The MT5 connector remains a separate workstream that
