@@ -69,7 +69,12 @@ test('project notes use real local files and survive a desktop restart', async (
       .filter({ hasText: /PROJECT\.md$/ })
       .innerText()
 
-    const relative = path.relative(sandbox.hermesHome, file)
+    // Python resolves Windows 8.3 aliases; compare both existing paths in native form.
+    const relative = path.relative(
+      fs.realpathSync.native(sandbox.hermesHome),
+      fs.realpathSync.native(file),
+    )
+
     expect(path.isAbsolute(relative)).toBe(false)
     expect(relative).not.toMatch(/^\.\./)
     expect(fs.readFileSync(file, 'utf8')).toContain('Export PNG in A4.')
