@@ -13,8 +13,15 @@ work=$(mktemp -d "$out/work.XXXXXX")
 mkdir -p "$work/res/drawable-nodpi" "$work/generated" "$work/classes" "$work/dex" "$work/test"
 
 javac --release 8 -d "$work/test" \
-  "$app/src/io/meuagent/preview/MeuEndpoint.java" "$app/test/MeuEndpointTest.java"
+  "$app/src/io/meuagent/preview/MeuEndpoint.java" \
+  "$app/src/io/meuagent/preview/MeuPairing.java" "$app/test/"*.java
 java -cp "$work/test" io.meuagent.preview.MeuEndpointTest
+for name in paired other; do
+  keytool -genkeypair -noprompt -keystore "$work/$name.p12" -storetype PKCS12 \
+    -storepass android -keypass android -alias gateway -keyalg RSA -keysize 2048 \
+    -validity 1 -dname "CN=$name" -ext SAN=IP:127.0.0.1 -ext BC=ca:false
+done
+java -cp "$work/test" io.meuagent.preview.MeuPairingTest "$work/paired.p12" "$work/other.p12"
 
 cp "$app/../desktop/assets/meu-icon.png" "$work/res/drawable-nodpi/meu_icon.png"
 "$tools/aapt2" compile --dir "$work/res" -o "$work/resources.zip"

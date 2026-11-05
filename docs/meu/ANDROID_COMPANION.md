@@ -32,16 +32,25 @@ Greek message and an incorrect access key before using real data.
 | Follow helpers | Use `delegation.status` for running helpers and the session's existing events and history for completed work. Filter running entries by the authorized parent session before returning them. |
 | Open a deliverable | Resolve a deliverable reference inside its owning session. Reuse the file ticket checks in `hermes_cli/web_routers/files.py` for the transfer. The phone-facing request accepts a deliverable reference instead of a desktop filesystem path. |
 
-## Pairing and the first end-to-end test
+## Built-in pairing and the first end-to-end test
 
-The desktop opts in to a dedicated LAN adapter with a small versioned API. Its
-QR code contains the local endpoint, a short-lived single-use pairing challenge,
-and information for verifying the desktop's TLS identity. The desktop confirms
-the new device and binds its credential to one profile. On Android, protect that
-credential with a key held in Android Keystore. Keep the model credentials on
-the desktop. Revoking the device closes its connection and invalidates its file
-access. See [Android network security](https://developer.android.com/privacy-and-security/security-config)
+Meu for Windows will start and stop a dedicated LAN adapter from its settings.
+Meu for Android will scan the pairing QR in the app. The QR contains the local
+HTTPS endpoint, a short-lived single-use pairing challenge and the certificate
+for that connection. The desktop confirms the new device and binds its
+credential to one profile. On Android, protect that credential with a key held
+in Android Keystore. Keep model credentials on the desktop. Revoking the device
+closes its connection and invalidates its file access. See
+[Android network security](https://developer.android.com/privacy-and-security/security-config)
 and [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+
+The Android preview can parse a pasted code and trust its certificate for
+that connection while retaining HTTPS hostname checks. Its test format is
+`meu1.<origin>.<gateway-key>.<certificate>` with separate unpadded base64url
+fields for the HTTPS origin, test key and DER leaf certificate. This direct-key
+format is for testing the Android transport. Desktop provisioning, one-time
+challenge exchange, in-app QR scanning and device revocation remain to be built
+before offering built-in pairing to users.
 
 The pairing implementation pairs one Android phone, opens one synthetic
 project, and sends one text message through the same backend as the desktop.

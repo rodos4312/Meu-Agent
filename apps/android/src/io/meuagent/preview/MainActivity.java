@@ -15,6 +15,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -108,6 +109,33 @@ public final class MainActivity extends Activity {
     private void showConnection() {
         client = null;
         pending = null;
+        showManualConnection();
+    }
+
+    private void showPairing() {
+        screen("Pair with Meu on your computer");
+        EditText code = field("Paste pairing code", InputType.TYPE_CLASS_TEXT
+                | InputType.TYPE_TEXT_VARIATION_PASSWORD, 8192);
+        code.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        Button pair = button("Pair");
+        Button manual = button("Enter address manually");
+        status = label("Paste the code shown in Meu on your computer.", 14, MUTED);
+        root.addView(code);
+        root.addView(pair);
+        root.addView(manual);
+        root.addView(status);
+        pair.setOnClickListener(view -> {
+            try {
+                MeuPairing pairing = MeuPairing.parse(code.getText().toString());
+                connect(new MeuClient(pairing.endpoint, pairing.key, pairing.sockets), pair, manual, code);
+            } catch (IllegalArgumentException | GeneralSecurityException error) {
+                status.setText("The pairing code is invalid or has expired.");
+            }
+        });
+        manual.setOnClickListener(view -> showManualConnection());
+    }
+
+    private void showManualConnection() {
         screen("Connect to your Meu test gateway");
         EditText address = field("https://your-meu-gateway", InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_VARIATION_URI, 512);
@@ -115,34 +143,38 @@ public final class MainActivity extends Activity {
                 | InputType.TYPE_TEXT_VARIATION_PASSWORD, 512);
         key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         Button connect = button("Connect");
+        Button back = button("Use a pairing code");
         status = label("Use the HTTPS address of your test setup.", 14, MUTED);
         root.addView(address);
         root.addView(key);
         root.addView(connect);
+        root.addView(back);
         root.addView(status);
-        connect.setOnClickListener(view -> connect(address, key, connect));
+        back.setOnClickListener(view -> showPairing());
+        connect.setOnClickListener(view -> {
+            try {
+                String credential = key.getText().toString().trim();
+                if (!credential.matches("[!-~]{1,512}")) {
+                    status.setText("Enter the test gateway access key.");
+                    return;
+                }
+                MeuClient candidate = new MeuClient(MeuEndpoint.parse(address.getText().toString()), credential);
+                connect(candidate, connect, back, key);
+            } catch (IllegalArgumentException error) {
+                status.setText("Enter an HTTPS address with a hostname and optional port.");
+            }
+        });
     }
 
-    private void connect(EditText address, EditText key, Button connect) {
-        final MeuClient candidate;
-        try {
-            String credential = key.getText().toString().trim();
-            if (!credential.matches("[!-~]{1,512}")) {
-                status.setText("Enter the test gateway access key.");
-                return;
-            }
-            candidate = new MeuClient(MeuEndpoint.parse(address.getText().toString()), credential);
-        } catch (IllegalArgumentException error) {
-            status.setText("Enter an HTTPS address with a hostname and optional port.");
-            return;
-        }
+    private void connect(MeuClient candidate, Button connect, Button switchMode, EditText secret) {
         connect.setEnabled(false);
+        switchMode.setEnabled(false);
         status.setText("Checking the connection…");
         worker.execute(() -> {
             try {
                 candidate.verify();
                 onScreen(() -> {
-                    key.setText("");
+                    secret.setText("");
                     client = candidate;
                     sessionId = "meu-android-" + UUID.randomUUID();
                     showChat();
@@ -150,6 +182,7 @@ public final class MainActivity extends Activity {
             } catch (IOException | JSONException error) {
                 onScreen(() -> {
                     connect.setEnabled(true);
+                    switchMode.setEnabled(true);
                     status.setText(errorText(error));
                 });
             }

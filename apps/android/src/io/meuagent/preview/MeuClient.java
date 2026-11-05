@@ -7,16 +7,23 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSocketFactory;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 final class MeuClient {
     private final URI endpoint;
     private final String credential;
+    private final SSLSocketFactory sockets;
 
     MeuClient(URI endpoint, String credential) {
+        this(endpoint, credential, null);
+    }
+
+    MeuClient(URI endpoint, String credential, SSLSocketFactory sockets) {
         this.endpoint = endpoint;
         this.credential = credential;
+        this.sockets = sockets;
     }
 
     void verify() throws IOException, JSONException {
@@ -47,6 +54,7 @@ final class MeuClient {
             throws IOException, JSONException {
         HttpsURLConnection connection = (HttpsURLConnection) endpoint.resolve(path).toURL().openConnection();
         try {
+            if (sockets != null) connection.setSSLSocketFactory(sockets);
             connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(8000);
             connection.setReadTimeout(15000);
