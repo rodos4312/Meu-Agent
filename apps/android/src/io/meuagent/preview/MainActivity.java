@@ -1,6 +1,8 @@
 package io.meuagent.preview;
 
 import android.app.Activity;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
@@ -27,12 +29,14 @@ public final class MainActivity extends Activity {
     private static final int MUTED = 0xff50576f;
     private static final int ACCENT = 0xff4541bb;
     private static final long RETRY_WINDOW_MS = 60 * 60 * 1000;
+    private static final int CAMERA_REQUEST = 4;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private LinearLayout root;
     private TextView status;
     private MeuClient client;
     private String sessionId;
     private Pending pending;
+    private MeuQrScanner scanner;
 
     private static final class Pending {
         final String requestId = UUID.randomUUID().toString();
@@ -52,6 +56,16 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         worker.shutdownNow();
         super.onDestroy();
+    }
+
+    @Override protected void onPause() {
+        if (scanner != null) scanner.stop();
+        super.onPause();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (scanner != null) scanner.start();
     }
 
     private int dp(int value) {
@@ -86,8 +100,13 @@ public final class MainActivity extends Activity {
     }
 
     private void screen(String subtitle) {
+        if (scanner != null) {
+            scanner.stop();
+            scanner = null;
+        }
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setFocusableInTouchMode(true);
         root.setBackgroundColor(0xfff7f8ff);
         root.setPadding(dp(24), dp(12), dp(24), dp(12));
         root.setOnApplyWindowInsetsListener((view, insets) -> {
@@ -104,35 +123,68 @@ public final class MainActivity extends Activity {
         root.addView(title);
         root.addView(label(subtitle, 16, MUTED));
         setContentView(root);
+        root.requestFocus();
     }
 
     private void showConnection() {
         client = null;
         pending = null;
-        showManualConnection();
+        showPairing(null, "");
     }
 
-    private void showPairing() {
+    private void showPairing(String scanned, String message) {
         screen("Pair with Meu on your computer");
         EditText code = field("Paste pairing code", InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_VARIATION_PASSWORD, 8192);
         code.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
-        Button pair = button("Pair");
+        Button scan = button("Scan pairing code");
+        Button pair = button("Connect with pasted code");
         Button manual = button("Enter address manually");
-        status = label("Paste the code shown in Meu on your computer.", 14, MUTED);
+        status = label(message.isEmpty() ? "On your computer, open Settings → Gateways → Connect a phone."
+                : message, 14, MUTED);
+        root.addView(scan);
         root.addView(code);
         root.addView(pair);
         root.addView(manual);
         root.addView(status);
-        pair.setOnClickListener(view -> {
+        scan.setOnClickListener(view -> scanPairing());
+        Runnable useCode = () -> {
             try {
                 MeuPairing pairing = MeuPairing.parse(code.getText().toString());
-                connect(new MeuClient(pairing.endpoint, pairing.key, pairing.sockets), pair, manual, code);
+                connect(() -> MeuClient.pair(pairing), code, pair, manual, scan);
             } catch (IllegalArgumentException | GeneralSecurityException error) {
                 status.setText("The pairing code is invalid or has expired.");
             }
-        });
+        };
+        pair.setOnClickListener(view -> useCode.run());
         manual.setOnClickListener(view -> showManualConnection());
+        if (scanned != null) {
+            code.setText(scanned);
+            useCode.run();
+        }
+    }
+
+    private void scanPairing() {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {Manifest.permission.CAMERA}, CAMERA_REQUEST);
+            return;
+        }
+        screen("Point the camera at the QR code in Meu on your computer.");
+        scanner = new MeuQrScanner(this, worker, code -> showPairing(code, ""),
+                () -> showPairing(null, "The rear camera is unavailable."));
+        root.addView(scanner, new LinearLayout.LayoutParams(-1, 0, 1));
+        Button cancel = button("Cancel scan");
+        cancel.setOnClickListener(view -> showPairing(null, ""));
+        root.addView(cancel);
+        scanner.start();
+    }
+
+    @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request == CAMERA_REQUEST) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) scanPairing();
+            else showPairing(null, "Allow camera access to scan the code, or paste it here.");
+        }
     }
 
     private void showManualConnection() {
@@ -150,7 +202,7 @@ public final class MainActivity extends Activity {
         root.addView(connect);
         root.addView(back);
         root.addView(status);
-        back.setOnClickListener(view -> showPairing());
+        back.setOnClickListener(view -> showPairing(null, ""));
         connect.setOnClickListener(view -> {
             try {
                 String credential = key.getText().toString().trim();
@@ -159,20 +211,26 @@ public final class MainActivity extends Activity {
                     return;
                 }
                 MeuClient candidate = new MeuClient(MeuEndpoint.parse(address.getText().toString()), credential);
-                connect(candidate, connect, back, key);
+                connect(() -> {
+                    candidate.verify();
+                    return candidate;
+                }, key, connect, back);
             } catch (IllegalArgumentException error) {
                 status.setText("Enter an HTTPS address with a hostname and optional port.");
             }
         });
     }
 
-    private void connect(MeuClient candidate, Button connect, Button switchMode, EditText secret) {
-        connect.setEnabled(false);
-        switchMode.setEnabled(false);
+    private interface ConnectionAttempt {
+        MeuClient open() throws IOException, JSONException;
+    }
+
+    private void connect(ConnectionAttempt attempt, EditText secret, Button... buttons) {
+        for (Button button : buttons) button.setEnabled(false);
         status.setText("Checking the connection…");
         worker.execute(() -> {
             try {
-                candidate.verify();
+                MeuClient candidate = attempt.open();
                 onScreen(() -> {
                     secret.setText("");
                     client = candidate;
@@ -181,8 +239,7 @@ public final class MainActivity extends Activity {
                 });
             } catch (IOException | JSONException error) {
                 onScreen(() -> {
-                    connect.setEnabled(true);
-                    switchMode.setEnabled(true);
+                    for (Button button : buttons) button.setEnabled(true);
                     status.setText(errorText(error));
                 });
             }
@@ -291,7 +348,10 @@ public final class MainActivity extends Activity {
     private static String errorText(Exception error) {
         if (error instanceof MeuClient.HttpError) {
             int code = ((MeuClient.HttpError) error).status;
-            if (code == 401 || code == 403) return "The gateway refused access. Check the access key.";
+            if (code == 401 || code == 403) {
+                return "Access was refused. Try a new pairing code or check the gateway key.";
+            }
+            if (code == 410) return "This connection expired. Show a new pairing code on your computer.";
             return "The gateway returned HTTP " + code + ".";
         }
         return "No result yet. Check the HTTPS address, certificate and gateway connection.";

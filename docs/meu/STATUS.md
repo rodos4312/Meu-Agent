@@ -29,8 +29,11 @@ No host restart or Windows feature change was performed.
 
 ## Next trial steps
 
-1. Build and try the Android chat preview against a dedicated HTTPS Meu test
-   gateway. See the [Android companion plan](ANDROID_COMPANION.md).
+1. Test the built-in Android QR pairing on a physical phone against the matching
+   Windows preview. The Windows gateway rehearsal completed a Greek test
+   message using a loopback model fixture, rejected a repeated pairing
+   challenge, replayed the same run and revoked the phone's access. See the
+   [Android companion plan](ANDROID_COMPANION.md).
 2. Upgrade an existing desktop installation with the Windows trial distribution.
    Verify that projects, notes, and settings open as expected and the installed
    version matches the update feed.

@@ -23,6 +23,7 @@ import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
 import { KeychainEncryptionSetting, useKeychainEncryption } from './keychain-encryption-setting'
 import { ManagedUpdatesSection } from './managed-updates-section'
+import { MobilePreviewPanel } from './mobile-preview-panel'
 import { EmptyState, ListRow, Pill, SettingsContent, SettingsSkeleton } from './primitives'
 import { SETTING_IDS, settingElementId } from './settings-manifest'
 import { enrichSelectedSshHost, selectSshHost } from './ssh-host-selection'
@@ -835,6 +836,8 @@ function GatewayConnectionSettings({ embedded, standalone }: { embedded: boolean
           />
         </div>
       )}
+
+      {!embedded && state.mode === 'local' && <MobilePreviewPanel />}
 
       {/* Preserve the full legacy page outside subpage navigation, without
           mounting registry editors in connection-only or recovery views. */}

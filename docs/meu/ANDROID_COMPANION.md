@@ -15,13 +15,17 @@ install a JDK and Android SDK platform 35 with Build Tools 35.0.0, then run
 `bash apps/android/build-preview.sh`. Each build uses a separate test signer.
 Uninstall an earlier preview before installing a build with a different signer.
 
-Use a dedicated Meu test profile with an [enabled API server](../../website/docs/user-guide/features/api-server.md)
-behind HTTPS with a certificate trusted by Android. Enter the HTTPS origin and
-the gateway access key in the app. The key is held in memory for the connection.
-Each connection opens a new API-owned conversation. While that conversation is
-open, the app can resume a pending request after a connection error. Confirm
-that an interrupted send returns one reply and creates one run. Test with a
-Greek message and an incorrect access key before using real data.
+Use a Meu Windows development build with the matching backend and connect the
+phone and computer to the same private network. In Windows, open **Settings →
+Gateways → Connect a phone** and choose **Show pairing code**. On Android, open
+**Scan pairing code**, allow camera access and scan the code in Meu. Send a test
+message and confirm the response. Choose **Disconnect phone** to close access.
+
+The preview opens a new text-only conversation in the paired profile and uses
+that profile's model. Its temporary connection is limited to that conversation.
+The phone can resume an interrupted request during the pairing session. An
+already configured [HTTPS API server](../../website/docs/user-guide/features/api-server.md)
+can still be used through **Enter address manually**.
 
 ## What the existing backend can supply
 
@@ -34,26 +38,21 @@ Greek message and an incorrect access key before using real data.
 
 ## Built-in pairing and the first end-to-end test
 
-Meu for Windows will start and stop a dedicated LAN adapter from its settings.
-Meu for Android will scan the pairing QR in the app. The QR contains the local
-HTTPS endpoint, a short-lived single-use pairing challenge and the certificate
-for that connection. The desktop confirms the new device and binds its
-credential to one profile. On Android, protect that credential with a key held
-in Android Keystore. Keep model credentials on the desktop. Revoking the device
-closes its connection and invalidates its file access. See
+The Windows preview starts and stops its LAN listener from settings. The QR
+contains the local HTTPS endpoint, a five-minute single-use pairing challenge
+and the listener's short-lived certificate. The app verifies the TLS identity
+and exchanges the challenge for a temporary credential that is kept in memory.
+The server binds the connection to the issuing profile for at most one hour.
+Model credentials stay on the desktop. The preview has no file download or
+approval routes. See
 [Android network security](https://developer.android.com/privacy-and-security/security-config)
 and [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
-The Android preview can parse a pasted code and trust its certificate for
-that connection while retaining HTTPS hostname checks. Its test format is
-`meu1.<origin>.<gateway-key>.<certificate>` with separate unpadded base64url
-fields for the HTTPS origin, test key and DER leaf certificate. This direct-key
-format is for testing the Android transport. Desktop provisioning, one-time
-challenge exchange, in-app QR scanning and device revocation remain to be built
-before offering built-in pairing to users.
+For the full companion, add a desktop device confirmation, persistent pairing
+with Android Keystore and scoped access to existing projects and deliverables.
 
-The pairing implementation pairs one Android phone, opens one synthetic
-project, and sends one text message through the same backend as the desktop.
+The next integration opens one synthetic project on a paired Android phone and
+sends one text message through the same backend as the desktop.
 Disconnect during the response, then reconnect. Verify that both clients show
 one submitted message and the same completed reply. Try a second profile, a
 reused pairing challenge, and a revoked device to verify that access is denied.

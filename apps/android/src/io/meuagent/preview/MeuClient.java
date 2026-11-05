@@ -27,14 +27,34 @@ final class MeuClient {
     }
 
     void verify() throws IOException, JSONException {
+        verify(false);
+    }
+
+    private void verify(boolean paired) throws IOException, JSONException {
         JSONObject capabilities = request("v1/capabilities", null, null);
         JSONObject features = capabilities.getJSONObject("features");
         JSONObject replay = features.getJSONObject("runs_idempotency");
         if (!capabilities.getJSONObject("auth").optBoolean("required")
                 || !features.optBoolean("run_submission") || !features.optBoolean("run_status")
-                || !replay.optBoolean("durable") || replay.optInt("retention_seconds") < 3600) {
+                || (!replay.optBoolean("durable") && !(paired && replay.optBoolean("pairing_session")))
+                || replay.optInt("retention_seconds") < 3600) {
             throw new IOException("Unsupported gateway");
         }
+    }
+
+    static MeuClient pair(MeuPairing pairing) throws IOException, JSONException {
+        if (!pairing.oneTime) {
+            MeuClient client = new MeuClient(pairing.endpoint, pairing.key, pairing.sockets);
+            client.verify();
+            return client;
+        }
+        MeuClient bootstrap = new MeuClient(pairing.endpoint, null, pairing.sockets);
+        String key = bootstrap.request("meu/pair", new JSONObject().put("challenge", pairing.key), null)
+                .getString("key");
+        if (!key.matches("[A-Za-z0-9_-]{32,128}")) throw new IOException("Invalid device key");
+        MeuClient client = new MeuClient(pairing.endpoint, key, pairing.sockets);
+        client.verify(true);
+        return client;
     }
 
     String submit(String session, String input, String requestId) throws IOException, JSONException {
@@ -58,12 +78,12 @@ final class MeuClient {
             connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(8000);
             connection.setReadTimeout(15000);
-            connection.setRequestProperty("Authorization", "Bearer " + credential);
+            if (credential != null) connection.setRequestProperty("Authorization", "Bearer " + credential);
             connection.setRequestProperty("Accept", "application/json");
             if (body != null) {
                 byte[] data = body.toString().getBytes(StandardCharsets.UTF_8);
                 connection.setRequestMethod("POST");
-                connection.setRequestProperty("Idempotency-Key", requestId);
+                if (requestId != null) connection.setRequestProperty("Idempotency-Key", requestId);
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
                 connection.setDoOutput(true);
                 connection.setFixedLengthStreamingMode(data.length);

@@ -17,18 +17,20 @@ final class MeuPairing {
     final URI endpoint;
     final String key;
     final SSLSocketFactory sockets;
+    final boolean oneTime;
 
-    private MeuPairing(URI endpoint, String key, SSLSocketFactory sockets) {
+    private MeuPairing(URI endpoint, String key, SSLSocketFactory sockets, boolean oneTime) {
         this.endpoint = endpoint;
         this.key = key;
         this.sockets = sockets;
+        this.oneTime = oneTime;
     }
 
     static MeuPairing parse(String input) throws GeneralSecurityException {
         String code = input.trim();
         if (code.length() > 8192) throw new IllegalArgumentException("Pairing code is too long");
         String[] parts = code.split("\\.", -1);
-        if (parts.length != 4 || !"meu1".equals(parts[0])) {
+        if (parts.length != 4 || !("meu1".equals(parts[0]) || "meu2".equals(parts[0]))) {
             throw new IllegalArgumentException("Expected a Meu pairing code");
         }
         Base64.Decoder decoder = Base64.getUrlDecoder();
@@ -54,6 +56,6 @@ final class MeuPairing {
         trust.init(store);
         SSLContext tls = SSLContext.getInstance("TLS");
         tls.init(null, trust.getTrustManagers(), null);
-        return new MeuPairing(endpoint, key, tls.getSocketFactory());
+        return new MeuPairing(endpoint, key, tls.getSocketFactory(), "meu2".equals(parts[0]));
     }
 }

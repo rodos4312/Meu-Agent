@@ -11,6 +11,10 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 work=$(mktemp -d "$out/work.XXXXXX")
 mkdir -p "$work/res/drawable-nodpi" "$work/generated" "$work/classes" "$work/dex" "$work/test"
+zxing="$work/zxing.jar"
+curl --fail --silent --show-error --location --retry 2 \
+  https://repo.maven.apache.org/maven2/com/google/zxing/core/3.5.3/core-3.5.3.jar -o "$zxing"
+echo "8d8064c1636fdaef7189dd9055c7d59950a8940a12f2293956446ec3c109fd82  $zxing" | sha256sum --check
 
 javac --release 8 -d "$work/test" \
   "$app/src/io/meuagent/preview/MeuEndpoint.java" \
@@ -28,10 +32,13 @@ cp "$app/../desktop/assets/meu-icon.png" "$work/res/drawable-nodpi/meu_icon.png"
 "$tools/aapt2" link -I "$platform" --manifest "$app/AndroidManifest.xml" \
   --java "$work/generated" -o "$work/resources.apk" "$work/resources.zip"
 mapfile -t sources < <(find "$app/src" "$work/generated" -name '*.java' | sort)
-javac --release 8 -encoding UTF-8 -classpath "$platform" -d "$work/classes" "${sources[@]}"
+javac --release 8 -encoding UTF-8 -classpath "$platform:$zxing" -d "$work/classes" "${sources[@]}"
 jar cf "$work/classes.jar" -C "$work/classes" .
-"$tools/d8" --min-api 26 --lib "$platform" --output "$work/dex" "$work/classes.jar"
+"$tools/d8" --min-api 26 --lib "$platform" --output "$work/dex" "$work/classes.jar" "$zxing"
 jar uf "$work/resources.apk" -C "$work/dex" classes.dex
+mkdir -p "$work/notices/META-INF"
+cp "$app/ZXING-LICENSE.txt" "$work/notices/META-INF/ZXING-LICENSE.txt"
+jar uf "$work/resources.apk" -C "$work/notices" META-INF/ZXING-LICENSE.txt
 "$tools/zipalign" -f 4 "$work/resources.apk" "$work/aligned.apk"
 
 # A fresh key per preview build. This package is separate from any future production app.

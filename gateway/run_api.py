@@ -162,6 +162,9 @@ class GatewayDashboardMount:
         self._closed = True
         lifespan, self._lifespan = self._lifespan, None
         try:
+            if self.web is not None:
+                from hermes_cli.web_routers.mobile_preview import close_mobile_preview
+                await close_mobile_preview(self.web.app.state)
             if lifespan is not None:
                 await lifespan.__aexit__(None, None, None)
         finally:
