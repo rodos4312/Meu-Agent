@@ -1,6 +1,7 @@
 # Meu Windows Computer Use — Source Audit 01
 
-Status: static source review only. **Not** a Windows runtime benchmark, implementation or certification.
+The source audit below is historical. The [native rehearsal](#native-rehearsal)
+records verified Windows behavior; see [current status](STATUS.md) for release gates.
 Target: Windows 11 native (no WSL, no Docker), isolated Meu profile.
 
 ## Actual call path
@@ -14,7 +15,7 @@ Target: Windows 11 native (no WSL, no Docker), isolated Meu profile.
 
 ## Findings relevant to the previous manual test
 
-**F1 — Native Windows is supported by code, not yet validated on the user's host.**
+**F1 — Readiness does not establish input behavior.**
 The desktop status panel and `permissions.py` expressly handle `win32`. Driver readiness, actual UIAccess worker availability, session boundary and desktop permission must be checked at runtime. A passing `doctor` is necessary but does not prove mouse/keyboard actions complete correctly.
 
 **F2 — The approval problem is a policy/grant-scoping question, not proof that confirmation prompts can simply be disabled.**
@@ -26,7 +27,23 @@ The desktop status panel and `permissions.py` expressly handle `win32`. Driver r
 **F4 — Safe success means effect verified.**
 The backend distinguishes transport success (`ok`) from observable effect (`verified`, `effect`). A Meu UI should show and audit this distinction and stop/escalate carefully on `suspected_noop` rather than hallucinate success.
 
-## Baseline to collect on a real Windows 11 test machine (not run yet)
+## Native rehearsal
+
+The November 2026 rehearsal used Windows build 26200.9711 and the installed
+`cua-driver` v0.21.0. `status` and `doctor` passed. The actual Meu backend then
+captured a disposable form, clicked its controls, and typed Greek Unicode text.
+The form independently recorded the exact resulting value after every click.
+The median across five measured rounds was 229 ms for accessibility capture,
+92 ms for focusing the input, 192 ms for typing and 6 ms for the record click.
+These figures exclude model latency and approval dialogs.
+
+The driver accepted Ctrl+A in the background but the form did not select all.
+An explicit foreground retry on the same fixture produced the expected exact
+replacement text. Treat a transport success with an unverified effect as an
+action to check; use the existing approval and delivery policy for escalation.
+This test does not establish behavior in unrelated apps or on locked desktops.
+
+## Reproduce readiness and input checks
 
 Run in **PowerShell** after selecting a disposable, non-privileged test application and isolated Meu profile:
 

@@ -40,6 +40,7 @@ Review screenshots and log excerpts before posting. Remove API keys, tokens, pri
 ## Development and credits
 
 Active development takes place on [`dev/meu-foundation`](https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation).
+See [development and release status](docs/meu/STATUS.md) for tested changes and remaining release checks.
 
 Meu is maintained as an independent repository. The previous fork is retained at [Meu-Agent-Legacy](https://github.com/rodos4312/Meu-Agent-Legacy) for historical CI runs and repository records. Current development, downloads, issues and discussions belong in this repository.
 

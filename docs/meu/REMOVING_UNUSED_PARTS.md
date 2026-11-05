@@ -1,5 +1,8 @@
 # Αφαίρεση περιττών μερών από το Meu
 
+Historical removal ledger, in chronological order. Intermediate findings below
+can be superseded by later entries. See [current status](STATUS.md) for active work.
+
 Η συντήρηση του Meu χρειάζεται αφαίρεση των εγκαταλελειμμένων υλοποιήσεων,
 των εξαρτήσεων και των αποκλειστικών δοκιμών τους. Η απόκρυψη ενός κουμπιού ή
 μια συνάρτηση που επιστρέφει πάντα «απενεργοποιημένο» δεν ολοκληρώνει τον καθαρισμό.

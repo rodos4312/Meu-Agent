@@ -1,5 +1,9 @@
 # Συντονισμένη αναβάθμιση και Auto συνομιλίας
 
+Historical implementation notes for dev.5 and dev.6. See [current status](STATUS.md)
+and [distribution and updates](DISTRIBUTION_AND_UPDATES.md) for today's updater
+and release gates.
+
 Η αναβάθμιση σε 0.1.0-dev.5 ελέγχει την πραγματική Git έκδοση του ήδη
 εγκατεστημένου backend. Ένας backend που απλώς ξεκινά δεν θεωρείται πλέον
 ενημερωμένος. Η συσκευασμένη εφαρμογή Meu συγκρίνει την έκδοσή του με το
@@ -55,8 +59,5 @@ Flash/Pro παραμένει τοπική, χωρίς πρόσθετη χρεώ�
   μόνο κλήση σύνδεσης και επιτυχής σύνδεση μετά την ολοκλήρωση. Οι δύο
   περιπτώσεις αποτυγχάνουν στον προηγούμενο κώδικα με το ίδιο timeout.
 
-Οι έλεγχοι πρέπει να περάσουν στο ακριβές δημοσιευμένο commit πριν θεωρηθεί
-ο νέος installer διαθέσιμος. Παραμένουν εκκρεμή η υπογραφή διανομής, το πλήρες
-κανάλι αυτόματων ενημερώσεων, η αξιολόγηση συντονιστή σε πραγματικό έργο,
-η παρατεταμένη δοκιμή σταθερότητας/μνήμης και ο συνολικός έλεγχος της ορατής
-μετονομασίας σε Meu.
+The early installer gates were superseded by the verified release channel.
+The current release checks are maintained in [current status](STATUS.md).

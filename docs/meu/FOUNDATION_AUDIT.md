@@ -1,6 +1,9 @@
 # Meu Agent — Foundation Audit and Engineering Gates
 
-Status: foundation in development. The initial reconnaissance below is historical; see the dated privacy verification at the end. This is not a security certification or a release approval.
+Historical audit. The original fork, proposed approval defaults and early
+acceptance gates below describe the starting point. See [current status](STATUS.md)
+for the independent Meu repository and the remaining release checks. The dated
+privacy verification at the end is evidence for its tested revision.
 Base: fork of NousResearch/hermes-agent; development branch `dev/meu-foundation`.
 Target: Windows 11 native desktop, Greek-first, personal DeepSeek endpoint, optional Android bridge.
 
