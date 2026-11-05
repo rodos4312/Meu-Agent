@@ -10,7 +10,9 @@
 
 ## Download for Windows x64
 
-**[Download Meu 0.1.0-dev.22 for Windows x64](https://github.com/rodos4312/Meu-Agent/releases/download/meu-v0.1.0-dev.22/Meu-0.1.0-dev.22-win-x64.exe)** · Preview release
+**[Download the latest Meu release for Windows x64](https://github.com/rodos4312/Meu-Agent/releases)** · Preview releases
+
+Open the newest release and download its `Meu-<version>-win-x64.exe` installer.
 
 See [Meu releases](https://github.com/rodos4312/Meu-Agent/releases) for release notes and installers.
 
