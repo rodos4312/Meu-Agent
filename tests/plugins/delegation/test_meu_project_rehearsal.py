@@ -233,11 +233,15 @@ def _parallel_response(request, workspace):
     return httpx.Response(200, json=response)
 
 
-def _start_parallel(root, parent):
+def _start_parallel(root, parent, *, background=False):
     plan = [task(id="finished", paths=[], tool_access="files_only"),
             task("complex", [], id="slow", tool_access="files_only")]
     assert create(parent, root, plan)["ready"] == ["finished", "slow"]
-    project(parent, "run")
+    result = project(parent, "run")
+    if background:
+        assert result.get("dispatch", {}).get("status") == "dispatched", result
+        from tools.async_delegation import active_count
+        wait_until(lambda: active_count() == 0, timeout=30, what="controlled background process interruption")
     raise AssertionError("The second worker should have stopped the process.")
 
 
@@ -265,6 +269,7 @@ def _rehearse(workspace, stage):
     from tools.terminal_tool import record_session_cwd
 
     requests = []
+    mode = stage.removeprefix("background-")
     root = workspace / "project"
     parent = SimpleNamespace(session_id="rehearsal-parent", provider="deepseek", model="deepseek-v4-pro",
                              base_url="https://api.deepseek.com/v1", api_key="meu-test-only", request_overrides={},
@@ -274,7 +279,7 @@ def _rehearse(workspace, stage):
                              enabled_toolsets=["file", "terminal", "code_execution", "delegation"], disabled_toolsets=[])
     def respond(request):
         try:
-            if stage == "parallel":
+            if mode == "parallel":
                 return _parallel_response(request, workspace)
             return _response(request, root, stage, requests)
         except Exception:
@@ -289,6 +294,8 @@ def _rehearse(workspace, stage):
               side_effect=lambda *args, **kwargs: httpx.Client(transport=transport)),
         patch.object(delegate_tool, "_build_child_preserving_parent_tools",
                      side_effect=lambda **kwargs: _build_and_probe_scoped_child(build, **kwargs)),
+        patch("tools.delegate_tool_dispatch._resolve_async_wake_sid",
+              return_value="" if stage.startswith("background-") else None),
     ):
         manager = PluginManager()
         manager.discover_and_load()
@@ -301,6 +308,8 @@ def _rehearse(workspace, stage):
                 "resume": (_resume, (root, parent, requests)),
                 "parallel": (_start_parallel, (root, parent)),
                 "parallel-resume": (_resume_parallel, (parent, requests)),
+                "background-parallel": (_start_background_parallel, (root, parent)),
+                "background-parallel-resume": (_resume_parallel, (parent, requests)),
                 "missing-worktree": (_missing_worktree, (root, parent, requests)),
             }
             run, args = stages[stage]
@@ -348,6 +357,14 @@ def test_native_coordinator_recovers_a_real_file_project(tmp_path):
 
 def test_finished_sibling_is_saved_before_parallel_batch_joins(tmp_path):
     _run_stages(tmp_path, (("parallel", INTERRUPTED), ("parallel-resume", 0)))
+
+
+def _start_background_parallel(root, parent):
+    _start_parallel(root, parent, background=True)
+
+
+def test_background_project_recovers_finished_work_after_process_death(tmp_path):
+    _run_stages(tmp_path, (("background-parallel", INTERRUPTED), ("background-parallel-resume", 0)))
 
 
 def test_requested_worktree_failure_does_not_start_in_shared_project(tmp_path):

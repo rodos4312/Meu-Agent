@@ -1,6 +1,7 @@
-"""Persistent coordination at the plugin edge, reusing native delegation unchanged."""
+"""Persistent coordination at the plugin edge, using native delegation lifecycle callbacks."""
 import json
 from pathlib import Path
+from threading import RLock
 
 from .projects import new_project, open_project
 from .reviews import REVIEW_SCHEMA, configure_review, request_fix, review_finding
@@ -23,12 +24,13 @@ def _notes(parent_agent, root):
     return project_notes(_home(parent_agent), root, memory_enabled=getattr(parent_agent, "_memory_enabled", None))
 
 
-def _run(state, parent_agent, selections=None):
+def _run(state, parent_agent, selections=None, *, background=False, on_batch_result=None, guard=None):
     from tools.delegate_tool import _get_max_concurrent_children, delegate_task
     from tools.delegation_redaction import redact_child_result
     keys = state.ready()[:_get_max_concurrent_children()]
     if not keys:
         return
+    guard = guard or RLock()
     notes = selected_notes(state, keys, selections, _notes(parent_agent, state.record["root"]))
     tasks = []
     for key in keys:
@@ -54,30 +56,52 @@ def _run(state, parent_agent, selections=None):
                 + json.dumps(repair, ensure_ascii=False)
             )
         configure_review(state, row, task)
+        if background:
+            # One project lease belongs to one native completion unit, even when
+            # independent_completions splits ordinary delegations by task group.
+            task["group"] = "meu-project-" + state.record["project"]
         tasks.append(task)
         row.update(state="running", attempt=row["attempt"] + 1,
                    memory_ids=[note["id"] for note in notes[key]], memory_used=notes[key])
     state.save()  # Before any child or side effect. An owner death leaves an explicit unknown outcome.
 
     def checkpoint(entry):
-        key = keys[entry["task_index"]]
-        row = state.record["tasks"][key]
-        receipt = redact_child_result(entry, REVIEW_SCHEMA if "review_of" in row["task"] else None)
-        outcome = receipt.get("status")
-        okay = outcome == "completed" and receipt.get("schema_valid") is not False
-        status = "needs_review" if okay else "interrupted" if outcome == "interrupted" else "failed"
-        row.update(state=status, result=receipt)
-        state.save()
+        with guard:
+            key = keys[entry["task_index"]]
+            row = state.record["tasks"][key]
+            receipt = redact_child_result(entry, REVIEW_SCHEMA if "review_of" in row["task"] else None)
+            outcome = receipt.get("status")
+            okay = outcome == "completed" and receipt.get("schema_valid") is not False
+            status = "needs_review" if okay else "interrupted" if outcome == "interrupted" else "failed"
+            row.update(state=status, result=receipt)
+            state.save()
 
-    answer = json.loads(delegate_task(tasks=tasks, background=False, parent_agent=parent_agent,
-                                      project_root=state.record["root"], on_child_result=checkpoint))
-    by_index = {entry["task_index"]: entry for entry in answer.get("results", [])}
-    for index, key in enumerate(keys):
-        if index in by_index:
-            checkpoint(by_index[index])
-        elif state.record["tasks"][key]["state"] == "running":
-            checkpoint({"task_index": index, "status": "error",
-                        "error": answer.get("error", "No terminal child result")})
+    settled = False
+
+    def finish(answer):
+        nonlocal settled
+        with guard:
+            if settled:
+                return
+            settled = True
+            by_index = {entry["task_index"]: entry for entry in answer.get("results", [])}
+            try:
+                for index, key in enumerate(keys):
+                    if index in by_index:
+                        checkpoint(by_index[index])
+                    elif state.record["tasks"][key]["state"] == "running":
+                        checkpoint({"task_index": index, "status": "interrupted" if answer.get("interrupted") else "error",
+                                    "error": answer.get("error", "No terminal child result")})
+            finally:
+                if on_batch_result is not None:
+                    on_batch_result(answer)
+
+    answer = json.loads(delegate_task(tasks=tasks, background=background, parent_agent=parent_agent,
+                                      project_root=state.record["root"], on_child_result=checkpoint,
+                                      on_batch_result=finish if background else None))
+    if answer.get("status") != "dispatched":
+        finish(answer)
+    return answer
 
 
 def _update_task(state, args):
@@ -131,17 +155,19 @@ def handle(args, *, parent_agent=None, **_kwargs):
         return json.dumps({"error": "This session uses another delegation backend. Start a coordinator session first."})
     try:
         action, project = args.get("action"), args.get("project")
+        if action == "run":
+            from .project_background import run
+            return run(args, parent_agent)
         initial = new_project(project, args.get("root", ""), args.get("tasks")) if action == "create" else None
         if initial is not None and (session_id := getattr(parent_agent, "session_id", None)):
             initial["session_id"] = session_id
-        with open_project(_home(parent_agent), project, initial) as state:
-            if action == "run":
-                _run(state, parent_agent, args.get("task_memory"))
-            elif action in {"verify", "retry", "request_fix"}:
+        with open_project(_home(parent_agent), project, initial, read_only=action == "status") as state:
+            if action in {"verify", "retry", "request_fix"}:
                 _update_task(state, args)
             elif action not in {"create", "status"}:
                 raise ValueError("Use create, status, run, verify, retry or request_fix.")
-            state.save()
+            if action != "status":
+                state.save()
             summary = state.summary()
             summary["memory_notes"] = _notes(parent_agent, state.record["root"])
             return json.dumps(summary, ensure_ascii=False)
@@ -174,7 +200,9 @@ def register(ctx, task_parameters):
                               "Create a dependency plan once and reuse it. Give each task a check and the expected result "
                               "or evidence for a pass. Run selects up to two "
                               "independent ready tasks with disjoint write scopes and the session's model provider. Status resumes "
-                              "the saved plan after restart. Each finished helper is checkpointed before the batch joins. "
+                              "the saved plan after restart. Interactive runs return a background dispatch handle; end your "
+                              "turn after independent work and results return to this conversation. Status can read a live run. "
+                              "Finite sessions join synchronously. Each finished helper is checkpointed before the batch joins. "
                               "Set workload by difficulty and use review_of for consequential deliverables. "
                               "A read-only Pro reviewer returns a verdict, exact check and observation. For needs_fix, reproduce "
                               "the failure yourself and call request_fix with the review task, review attempt and evidence. This "

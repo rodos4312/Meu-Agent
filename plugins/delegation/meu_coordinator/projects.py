@@ -1,6 +1,6 @@
 """Profile-owned project checkpoints, using the existing filesystem lock/write primitives.
 
-The lock spans the real synchronous delegation. A free lock with a saved running
+The lock spans synchronous or detached native delegation. A free lock with a saved running
 task means interrupted work, never permission to replay side effects automatically.
 """
 from contextlib import contextmanager
@@ -144,12 +144,12 @@ class Project:
 
 
 @contextmanager
-def open_project(home, project, initial=None):
+def open_project(home, project, initial=None, *, read_only=False):
     directory = Path(home) / "coordinator"
     make_user_dir(directory, 0o700, parents=True, exist_ok=True)
     file = directory / (identifier(project) + ".json")
     fd = lock_path(file.with_suffix(".lock"), timeout=0)
-    if fd is None:
+    if fd is None and not read_only:
         raise ValueError("This project is already running; inspect its helpers instead of starting it again.")
     try:
         if file.is_symlink():
@@ -163,8 +163,10 @@ def open_project(home, project, initial=None):
         if record.get("schema") != 1 or record.get("project") != project:
             raise ValueError("Invalid coordinator project record.")
         state = Project(file, record)
-        state.refresh()
-        state.save()
+        if fd is not None:
+            state.refresh()
+            state.save()
         yield state
     finally:
-        os.close(fd)
+        if fd is not None:
+            os.close(fd)

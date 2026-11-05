@@ -1,5 +1,9 @@
 # Meu Coordinator
 
+Development branch, not yet distributed: checkpointed project runs now use
+native background execution in interactive sessions. The published dev.22
+installer does not contain this addition.
+
 Project note handoff and Desktop editing are described in [Project memory](PROJECT_MEMORY.md).
 Use `memory_notes` from project create/status to select relevant `task_memory` ids
 for each helper in the next batch. Selection stays within the owning project/profile;
@@ -80,6 +84,17 @@ stop/steer, provider credentials and budgets. Each child's contract includes the
 project directory and the verified prerequisite results. Completed children become
 `needs_review` and are saved as their results arrive, even while a sibling runs.
 Completion alone never unlocks a dependent task.
+Interactive project runs now return through native background delegation: the
+parent can finish its turn, use another chat, and receive the batch result in
+the originating conversation. `status` reads the current atomic checkpoint
+while the batch owns its project lock; another `run`, `verify` or retry cannot
+modify that project until the batch settles. Finite sessions and a full native
+background pool retain the synchronous fallback and its explanatory note.
+An ordinary turn interrupt leaves detached helpers running. Explicit helper
+stop, `/stop`, session close/reset and the native concurrency budgets retain
+their existing meanings. Closing the process does not keep inference running:
+after restart, saved unfinished work becomes `interrupted` and requires
+reconciliation before retry. Finished work remains available for review.
 Among ready tasks, those blocking more pending work are considered first.
 The parent handles small direct requests itself and uses project coordination
 when distinct deliverables or dependencies justify the extra calls.
@@ -131,7 +146,7 @@ The comparison is architectural guidance, not a claim of feature parity.
 | [Child completion requires parent review](https://docs.openclaw.ai/tools/subagents/slash-command) | Persist `needs_review` separately from `verified`; do not equate a finished helper with a finished project. |
 | [Retained results and duplicate delivery suppression](https://docs.openclaw.ai/tools/subagents/announce) | Reuse native Meu delegation receipts/transcripts; add project attempt ids and lock ownership, with no second delivery queue. |
 | [Parent-child hierarchy, limits and cascading stop](https://docs.openclaw.ai/tools/subagents/nesting) | Retain Meu's existing flat delegation, child cap and stop fan-out while testing this project layer. Increasing nesting is a later measured change. |
-| [Background execution and completion events](https://docs.openclaw.ai/tools/subagents/slash-command) | Keep native asynchronous delegation for ordinary background tasks. The new checkpointed `run` is a synchronous bounded batch; background project checkpoint integration remains separate work. |
+| [Background execution and completion events](https://docs.openclaw.ai/tools/subagents/slash-command) | Project `run` uses native asynchronous delegation in interactive sessions, with per-child checkpoints, an exclusive project lease, live status and explicit review. Finite sessions join synchronously. |
 
 The useful principles are stable task identity, explicit dependencies, retained
 outcomes, clear failure states and review before integration. External-agent ACP

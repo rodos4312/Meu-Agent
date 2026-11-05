@@ -128,6 +128,10 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_projects.py
+          tests/plugins/delegation/test_meu_project_background.py
+          tests/tools/test_async_delegation.py
+          tests/tools/test_delegate_capacity_interrupt.py
+          tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
@@ -274,6 +278,10 @@ jobs:
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_projects.py
+          tests/plugins/delegation/test_meu_project_background.py
+          tests/tools/test_async_delegation.py
+          tests/tools/test_delegate_capacity_interrupt.py
+          tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
@@ -405,7 +413,7 @@ jobs:
         run: |
           $tokens = $null
           $errors = $null
-          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/test-meu-native-upgrade.ps1', 'apps/desktop/scripts/test-meu-rollback.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
+          foreach ($script in @('scripts/install.ps1', 'apps/desktop/scripts/test-meu-installer.ps1', 'apps/desktop/scripts/test-meu-registration.ps1', 'apps/desktop/scripts/test-meu-native-upgrade.ps1', 'apps/desktop/scripts/test-meu-rollback.ps1', 'apps/desktop/scripts/scan-meu-package.ps1', 'apps/desktop/scripts/create-meu-update-key.ps1', 'apps/desktop/scripts/configure-meu-update-key.ps1')) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count -gt 0) { $errors | Format-List | Out-String | Write-Error; exit 1 }

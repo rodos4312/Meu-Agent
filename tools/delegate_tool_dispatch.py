@@ -53,6 +53,8 @@ class _Batch:
     # call's dispatch payload. Units carved for async dispatch never carry them.
     refused: list = field(default_factory=list)
     on_child_result: Optional[Callable[[dict[str, Any]], None]] = None
+    # Host lifecycle callback: once per joined native completion unit, including host failure.
+    on_batch_result: Optional[Callable[[dict[str, Any]], None]] = None
 
     def owner_kwargs(self) -> dict[str, Any]:
         """Steer/stop authority of the originating session, passed to every child run."""
@@ -116,10 +118,10 @@ def _record_finished_child(batch: _Batch, entry: Any, honor_parent_interrupt: bo
     death before the unit's join — or anywhere before its durable completion write, the whole remaining window for a
     one-child unit — loses only children still running, never finished work (#116000). Best-effort by construction:
     ``record_unit_child`` never raises into the join."""
+    if not honor_parent_interrupt and batch.unit_id and isinstance(entry, dict):
+        record_unit_child(batch.unit_id, entry)
     if batch.on_child_result is not None:
         batch.on_child_result(entry)
-    elif not honor_parent_interrupt and batch.unit_id and isinstance(entry, dict):
-        record_unit_child(batch.unit_id, entry)
 
 def _run_children_parallel(batch: _Batch, results: list, *, honor_parent_interrupt: bool) -> None:
     """Run the batch's children in parallel, appending entries to ``results`` (sorted by task_index on return, one
@@ -185,6 +187,19 @@ def _run_children_parallel(batch: _Batch, results: list, *, honor_parent_interru
     results.sort(key=lambda r: r["task_index"])  # match input order
 
 def _execute_and_aggregate(batch: _Batch, *, honor_parent_interrupt: bool = True) -> dict:
+    """Complete host-owned checkpoints before delivering an async result or releasing its owner."""
+    try:
+        result = _execute_batch(batch, honor_parent_interrupt=honor_parent_interrupt)
+    except BaseException:
+        if batch.on_batch_result is not None:
+            batch.on_batch_result({"error": "Delegation host interrupted before aggregation completed.", "interrupted": True})
+        raise
+    if batch.on_batch_result is not None:
+        batch.on_batch_result(result)
+    return result
+
+
+def _execute_batch(batch: _Batch, *, honor_parent_interrupt: bool = True) -> dict:
     """Run the batch's built children, join, finalize (hooks + cost rollup), return the combined dict. Shared by the
     sync path and the background runner; a background runner receives a per-group unit (a subset of the call's
     children) so each group JOINS only on itself. Live transcripts are finalized but retained as the full-fidelity
@@ -453,6 +468,12 @@ def _dispatch_background(batch: _Batch) -> str:
         session_key=session_key, origin_ui_session_id=origin_ui_session_id, origin_session_id=wake_sid,
         parent_session_id=getattr(parent_agent, "session_id", None), max_async_children=_get_max_async_children(),
     )
+
+    # The plugin's project lease may be released as soon as the last runnable
+    # child finishes. Settle refusals before any worker can reach that boundary.
+    if batch.on_child_result is not None:
+        for entry in batch.refused:
+            batch.on_child_result(entry)
 
     units = [replace(unit, refused=[]) for unit in _units_of(batch)]
     dispatched: list[tuple[_Batch, str]] = []
