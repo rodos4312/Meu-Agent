@@ -88,8 +88,9 @@ Interactive project runs now return through native background delegation: the
 parent can finish its turn, use another chat, and receive the batch result in
 the originating conversation. `status` reads the current atomic checkpoint
 while the batch owns its project lock; another `run`, `verify` or retry cannot
-modify that project until the batch settles. Finite sessions and a full native
-background pool retain the synchronous fallback and its explanatory note.
+modify that project until the batch settles. Finite sessions join synchronously.
+When native async admission falls back because delivery is unavailable or the
+pool is full, the tool response includes the existing explanatory note.
 An ordinary turn interrupt leaves detached helpers running. Explicit helper
 stop, `/stop`, session close/reset and the native concurrency budgets retain
 their existing meanings. Closing the process does not keep inference running:
