@@ -1,5 +1,7 @@
 """CI-only controller: the receipt token belongs to this live job, not the rebooted job."""
 import json
+import base64
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -35,11 +37,20 @@ def handoff(directory, run, attempt):
     baseline = json.loads((directory / "baseline.json").read_text(encoding="utf-8-sig"))
     assert baseline["run"] == run and baseline["attempt"] == attempt
     token = os.environ["GH_TOKEN"].encode()
-    encrypted = subprocess.run([
-        "openssl", "pkeyutl", "-encrypt", "-pubin", "-inkey", str(directory / "public.pem"),
-        "-pkeyopt", "rsa_padding_mode:oaep", "-pkeyopt", "rsa_oaep_md:sha256",
-    ], input=token, capture_output=True, check=True, timeout=30)
-    (directory / "envelope.bin").write_bytes(encrypted.stdout)
+    # Installation tokens can exceed OAEP's single-message limit. A protected
+    # header authenticates the length/hash of the ordered encrypted chunks.
+    header = json.dumps({"length": len(token), "sha256": hashlib.sha256(token).hexdigest()}).encode()
+    chunks = [header, *(token[i:i + 200] for i in range(0, len(token), 200))]
+    if len(chunks) > 16:
+        raise ValueError("Receipt token exceeds the bounded encrypted envelope")
+    encrypted = []
+    for chunk in chunks:
+        result = subprocess.run([
+            "openssl", "pkeyutl", "-encrypt", "-pubin", "-inkey", str(directory / "public.pem"),
+            "-pkeyopt", "rsa_padding_mode:oaep", "-pkeyopt", "rsa_oaep_md:sha256",
+        ], input=chunk, capture_output=True, check=True, timeout=30)
+        encrypted.append(base64.b64encode(result.stdout).decode())
+    (directory / "envelope.bin").write_text(json.dumps(encrypted), encoding="utf-8")
     print("Encrypted the controller job's repository-scoped receipt token for the disposable Windows VM.")
 
 

@@ -10,7 +10,19 @@ try {
   $key=[Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes((Join-Path $directory 'private.bin')),$null,[Security.Cryptography.DataProtectionScope]::LocalMachine)
   $read=0
   $rsa.ImportPkcs8PrivateKey($key,[ref]$read)
-  $token=[Text.Encoding]::UTF8.GetString($rsa.Decrypt([IO.File]::ReadAllBytes((Join-Path $directory 'envelope.bin')),[Security.Cryptography.RSAEncryptionPadding]::OaepSHA256))
+  $envelope=Join-Path $directory 'envelope.bin'
+  if ((Get-Item -LiteralPath $envelope).Length -gt 65536) { throw 'Encrypted receipt envelope is too large.' }
+  $chunks=@(Get-Content -LiteralPath $envelope -Raw | ConvertFrom-Json)
+  if ($chunks.Count -lt 2 -or $chunks.Count -gt 16) { throw 'Invalid encrypted receipt envelope.' }
+  $header=[Text.Encoding]::UTF8.GetString($rsa.Decrypt([Convert]::FromBase64String($chunks[0]),[Security.Cryptography.RSAEncryptionPadding]::OaepSHA256)) | ConvertFrom-Json
+  $plain=[Collections.Generic.List[byte]]::new()
+  foreach ($chunk in $chunks[1..($chunks.Count-1)]) {
+    $plain.AddRange($rsa.Decrypt([Convert]::FromBase64String($chunk),[Security.Cryptography.RSAEncryptionPadding]::OaepSHA256))
+  }
+  $bytes=$plain.ToArray()
+  $digest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+  if ($bytes.Length -ne $header.length -or $digest -cne $header.sha256) { throw 'Encrypted receipt envelope integrity check failed.' }
+  $token=[Text.Encoding]::UTF8.GetString($bytes)
 } finally { $rsa.Dispose() }
 $proof=@{schema=1;run=$baseline.run;attempt=$baseline.attempt;nonce=$baseline.nonce;
   before_boot_utc=$baseline.before_boot_utc;after_boot_utc=$after.ToString('o');observed_utc=[DateTime]::UtcNow.ToString('o');
