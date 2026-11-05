@@ -16,6 +16,7 @@ final class MeuClient {
     private final URI endpoint;
     private final String credential;
     private final SSLSocketFactory sockets;
+    private final MeuRelay relay;
     private boolean mobileSessions;
 
     MeuClient(URI endpoint, String credential) {
@@ -23,17 +24,37 @@ final class MeuClient {
     }
 
     MeuClient(URI endpoint, String credential, SSLSocketFactory sockets) {
+        this(endpoint, credential, sockets, null);
+    }
+
+    private MeuClient(URI endpoint, String credential, SSLSocketFactory sockets, MeuRelay relay) {
         this.endpoint = endpoint;
         this.credential = credential;
         this.sockets = sockets;
+        this.relay = relay;
     }
 
     boolean usesPairing() {
-        return sockets != null;
+        return sockets != null || relay != null;
     }
 
     boolean supportsSessions() {
         return mobileSessions;
+    }
+
+    String rememberedCode(MeuPairing pairing) {
+        return pairing.rememberedCode(credential);
+    }
+
+    static MeuClient reconnect(MeuPairing saved) throws IOException, JSONException {
+        MeuClient client = pairedClient(saved, saved.key);
+        client.verify(true);
+        return client;
+    }
+
+    private static MeuClient pairedClient(MeuPairing pairing, String credential) throws IOException {
+        MeuRelay relay = pairing.relaySecret == null ? null : new MeuRelay(pairing.endpoint, pairing.relaySecret);
+        return new MeuClient(pairing.endpoint, credential, pairing.sockets, relay);
     }
 
     void verify() throws IOException, JSONException {
@@ -59,11 +80,11 @@ final class MeuClient {
             client.verify();
             return client;
         }
-        MeuClient bootstrap = new MeuClient(pairing.endpoint, null, pairing.sockets);
+        MeuClient bootstrap = pairedClient(pairing, null);
         String key = bootstrap.request("meu/pair", new JSONObject().put("challenge", pairing.key), null)
                 .getString("key");
         if (!key.matches("[A-Za-z0-9_-]{32,128}")) throw new IOException("Invalid device key");
-        MeuClient client = new MeuClient(pairing.endpoint, key, pairing.sockets);
+        MeuClient client = pairedClient(pairing, key);
         client.verify(true);
         return client;
     }
@@ -101,6 +122,7 @@ final class MeuClient {
 
     private JSONObject request(String path, JSONObject body, String requestId)
             throws IOException, JSONException {
+        if (relay != null) return relay.request(path, body, requestId, credential);
         HttpsURLConnection connection = (HttpsURLConnection) endpoint.resolve(path).toURL().openConnection();
         try {
             if (sockets != null) connection.setSSLSocketFactory(sockets);

@@ -105,7 +105,7 @@ final class MeuQrScanner extends SurfaceView implements SurfaceHolder.Callback {
         try {
             String value = new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(frame)),
                     Collections.singletonMap(DecodeHintType.TRY_HARDER, Boolean.TRUE)).getText();
-            return value.startsWith("meu2.") && value.length() <= 8192 ? value : null;
+            return (value.startsWith("meu2.") || value.startsWith("meu3.")) && value.length() <= 8192 ? value : null;
         } catch (com.google.zxing.ReaderException error) {
             return null;
         }

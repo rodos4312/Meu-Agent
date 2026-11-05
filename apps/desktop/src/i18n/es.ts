@@ -1669,9 +1669,9 @@ export const esOverrides = {
       scopeNotRestored: (profile: string, error: string) => `No se restauró el perfil “${profile}”: ${error}`
     },
     gateway: {
-      mobileRemote: 'Conectar desde fuera de casa con Tailscale',
-      mobileNetworkHint: 'Vincula los dispositivos en casa o conecta ambos a la misma red de Tailscale.',
-      mobileRemoteError: 'No se pudo iniciar la vinculación remota. Comprueba la conexión de Tailscale y que Meu esté actualizado.',
+      mobileRemote: 'Conectar desde fuera de casa',
+      mobileNetworkHint: 'Vincula los dispositivos en casa o usa la conexión de Meu por Internet.',
+      mobileRemoteError: 'No se pudo iniciar la vinculación por Internet. Comprueba que el relé de Meu esté configurado y accesible.',
       loading: 'Cargando ajustes del gateway...',
       ...esGatewayHost,
       title: 'Conexión del gateway',

@@ -1676,9 +1676,9 @@ export const frOverrides = {
       scopeNotRestored: (profile: string, error: string) => `Profil « ${profile} » non restauré : ${error}`
     },
     gateway: {
-      mobileRemote: 'Se connecter à distance via Tailscale',
-      mobileNetworkHint: 'Associez vos appareils chez vous ou connectez-les au même réseau Tailscale.',
-      mobileRemoteError: 'Association à distance impossible. Vérifiez la connexion Tailscale et que Meu est à jour.',
+      mobileRemote: 'Se connecter à distance',
+      mobileNetworkHint: 'Associez vos appareils chez vous ou utilisez la connexion Internet de Meu.',
+      mobileRemoteError: 'Vérifiez que le relais Meu est configuré et accessible pour permettre l’association à distance.',
       loading: 'Chargement des paramètres du gateway...',
       ...frGatewayHost,
       title: 'Connexion au gateway',

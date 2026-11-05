@@ -21,6 +21,9 @@ class Model(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def reply(self, text, _messages):
+        return {"role": "assistant", "content": "RECOVERY_ACK_" + str(text)}, "stop"
+
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if body.get('messages'):
@@ -29,12 +32,12 @@ class Model(BaseHTTPRequestHandler):
         if text == 'BLOCK_STARTED':
             self.server.blocked.set()
             self.server.release.wait(60)
-        message = {'role': 'assistant', 'content': 'RECOVERY_ACK_' + str(text)}
-        payload = json.dumps({'id': 'local', 'choices': [{'index': 0, 'message': message, 'finish_reason': 'stop'}],
+        message, finish = self.reply(text, body.get('messages', []))
+        payload = json.dumps({'id': 'local', 'choices': [{'index': 0, 'message': message, 'finish_reason': finish}],
                               'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15}}).encode()
         kind = 'application/json'
         if body.get('stream'):
-            payload = ('data: ' + json.dumps({'id': 'local', 'choices': [{'index': 0, 'delta': message, 'finish_reason': 'stop'}]}) + '\n\ndata: [DONE]\n\n').encode()
+            payload = ('data: ' + json.dumps({'id': 'local', 'choices': [{'index': 0, 'delta': message, 'finish_reason': finish}]}) + '\n\ndata: [DONE]\n\n').encode()
             kind = 'text/event-stream'
         try:
             self.send_response(200)

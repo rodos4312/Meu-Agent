@@ -50,8 +50,8 @@ it('requests remote pairing only when selected and leaves the user a retry path'
 
   const api = vi.fn(async ({ path, method }: { path: string; method?: string }) => {
     if (method === 'POST') {
-      if (path.endsWith('/tailscale')) {
-        throw new Error('Tailscale unavailable')
+      if (path.endsWith('/internet')) {
+        throw new Error('Meu relay unavailable')
       }
 
       state = { state: 'waiting', code: 'meu2.test', seconds: 300 }
@@ -63,12 +63,12 @@ it('requests remote pairing only when selected and leaves the user a retry path'
   vi.stubGlobal('hermesDesktop', { api })
   render(<MobilePreviewPanel />)
 
-  const remote = screen.getByRole('checkbox', { name: 'Connect from outside home with Tailscale' })
+  const remote = screen.getByRole('checkbox', { name: 'Connect from outside home' })
   fireEvent.click(remote)
   fireEvent.click(screen.getByRole('button', { name: 'Show pairing code' }))
-  expect((await screen.findByRole('alert')).textContent).toContain('Could not start remote pairing')
+  expect((await screen.findByRole('alert')).textContent).toContain('Could not start internet pairing')
   expect(api).toHaveBeenCalledWith(expect.objectContaining({
-    method: 'POST', path: '/api/mobile-preview/tailscale', connectionId: 'local'
+    method: 'POST', path: '/api/mobile-preview/internet', connectionId: 'local'
   }))
   expect(screen.queryByRole('img')).toBeNull()
 

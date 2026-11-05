@@ -20,6 +20,28 @@ from tests.gateway.fixtures.local_recovery_probe import Model, child_env, daemon
 from tests.gateway.test_native_http_auth import headers, ticket
 
 
+class _WeatherModel(Model):
+    def reply(self, text, messages):
+        if text != "MOBILE_WEB_TEST":
+            return super().reply(text, messages)
+        if messages[-1]["role"] == "tool":
+            return {"role": "assistant", "content": messages[-1]["content"]}, "stop"
+        return {"role": "assistant", "tool_calls": [{
+            "id": "call_web", "index": 0, "type": "function",
+            "function": {"name": "web_extract", "arguments": '{"urls":["https://example.com/mobile-weather"]}'},
+        }]}, "tool_calls"
+
+
+def _wait_for_run(phone, run_id):
+    deadline = time.monotonic() + 35
+    while time.monotonic() < deadline:
+        result = phone.get(f"/v1/runs/{run_id}").json()
+        if result["status"] not in {"queued", "started"}:
+            return result
+        time.sleep(.1)
+    pytest.fail("The mobile turn did not finish")
+
+
 def _unpack(code):
     version, *fields = code.split(".")
     assert version == "meu2"
@@ -68,13 +90,23 @@ def test_tailscale_network_uses_only_the_vpn_adapter(monkeypatch):
     assert ipaddress.IPv4Address("192.168.1.2") not in interface.network
 
 
+def test_phone_tools_follow_the_profiles_web_setting():
+    from gateway.session_policy import MOBILE_SESSION_PREFIX, _resolve_toolsets
+
+    request = {"request_id": MOBILE_SESSION_PREFIX + "example", "toolsets": []}
+    enabled = {"platform_toolsets": {"cli": ["web", "terminal", "file"]}}
+    assert _resolve_toolsets(request, enabled, "gui", False) == {"web"}
+    enabled["agent"] = {"disabled_toolsets": ["web"]}
+    assert _resolve_toolsets(request, enabled, "gui", False) == set()
+
+
 @pytest.mark.parametrize("remote", [False, True], ids=["lan", "tailscale"])
 def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
     root = Path(__file__).resolve().parents[2]
     home, user = tmp_path / "state", tmp_path / "user"
     home.mkdir()
     user.mkdir()
-    peer = ThreadingHTTPServer(("127.0.0.1", 0), Model)
+    peer = ThreadingHTTPServer(("127.0.0.1", 0), _WeatherModel)
     peer.requests = []
     threading.Thread(target=peer.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{peer.server_port}/v1"
@@ -86,6 +118,7 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
     }))
     env = dict(child_env(), HOME=str(user), USERPROFILE=str(user), HERMES_HOME=str(home),
                PYTHONPATH=str(root), OPENAI_API_KEY="loopback-only", OPENAI_BASE_URL=base,
+               FIRECRAWL_API_KEY="test-only-no-live-calls",
                HERMES_DASHBOARD_SESSION_TOKEN="normal-http-owner", PYTHONUNBUFFERED="1")
     path = "/api/mobile-preview"
     start_path = f"{path}/tailscale" if remote else path
@@ -143,17 +176,13 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
                 collision = phone.post("/v1/runs", json={**body, "input": "different"},
                                        headers={"Idempotency-Key": key})
                 assert collision.status_code == 409
-                run_id = run.json()["run_id"]
-                deadline = time.monotonic() + 35
-                while time.monotonic() < deadline:
-                    result = phone.get(f"/v1/runs/{run_id}").json()
-                    if result["status"] not in {"queued", "started"}:
-                        break
-                    time.sleep(.1)
+                result = _wait_for_run(phone, run.json()["run_id"])
                 assert result["status"] == "completed", result
                 assert result["output"] == "RECOVERY_ACK_Γεια σου Meu"
                 assert len(peer.requests) == 1
-                assert not peer.requests[0].get("tools")
+                assert {tool["function"]["name"] for tool in peer.requests[0].get("tools", [])} == {
+                    "web_search", "web_extract",
+                }
                 assert phone.get("/v1/runs/run_foreign").status_code == 404
                 sidebar = desktop.get("/api/sessions?min_messages=1&exclude_sources=cron", headers=owner())
                 assert sidebar.status_code == 200, sidebar.text
@@ -171,6 +200,12 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
                 assert [row["content"] for row in messages][-2:] == [
                     "Συνέχεια από Windows", "RECOVERY_ACK_Συνέχεια από Windows"]
                 assert phone.get(f"/meu/sessions/{another_id}").json()["messages"] == []
+                weather = phone.post("/v1/runs", json={"input": "MOBILE_WEB_TEST", "session_id": another_id},
+                                     headers={"Idempotency-Key": str(uuid.uuid4())})
+                assert weather.status_code == 202
+                result = _wait_for_run(phone, weather.json()["run_id"])
+                assert result["status"] == "completed"
+                assert "fixture forecast" in result["output"]
                 assert desktop.delete(path, headers=owner()).json()["state"] == "off"
                 with pytest.raises(httpx.TransportError):
                     phone.get("/v1/capabilities")

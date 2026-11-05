@@ -638,9 +638,9 @@ export const arSettings = {
       clear: 'مسح'
     },
     gateway: {
-      mobileRemote: 'الاتصال من خارج المنزل عبر Tailscale',
-      mobileNetworkHint: 'أقرن الجهازين في المنزل أو وصّلهما بشبكة Tailscale نفسها.',
-      mobileRemoteError: 'تعذر بدء الاقتران عن بُعد. تحقّق من اتصال Tailscale ومن تحديث Meu.',
+      mobileRemote: 'الاتصال من خارج المنزل',
+      mobileNetworkHint: 'أقرن الجهازين في المنزل أو استخدم اتصال Meu عبر الإنترنت.',
+      mobileRemoteError: 'تعذر بدء الاقتران عبر الإنترنت. تحقّق من إعداد مرحّل Meu وإمكانية الوصول إليه.',
       loading: 'جار تحميل إعدادات البوابة...',
       unavailableTitle: 'إعدادات البوابة غير متاحة',
       unavailableDesc: 'جسر IPC في سطح المكتب لا يوفّر إعدادات البوابة.',

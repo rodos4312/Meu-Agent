@@ -18,6 +18,8 @@ from pathlib import Path
 
 from aiohttp import web
 
+from gateway.session_policy import MOBILE_SESSION_PREFIX
+
 PAIR_SECONDS = 300
 SESSION_SECONDS = 3600
 REMOTE_SESSION_SECONDS = 12 * 3600
@@ -25,7 +27,6 @@ PRIVATE_NETWORKS = tuple(map(ipaddress.IPv4Network, ("10.0.0.0/8", "172.16.0.0/1
 TAILSCALE_NETWORK = ipaddress.IPv4Network("100.64.0.0/10")
 KEY_PATTERN = re.compile(r"[0-9a-f-]{36}", re.ASCII)
 MAX_RUNS = 32
-MOBILE_SESSION_PREFIX = "meu-mobile-session:"
 SESSION_PATTERN = re.compile(r"local-[0-9a-f]{64}", re.ASCII)
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,12 @@ class _MobileTransport:
 
 
 class MobilePreview:
-    def __init__(self, authority, interface, *, remote=False):
+    def __init__(self, authority, interface, *, remote=False, relay_url=None):
         self.authority = authority
         self.interface = interface
         self.remote = remote
+        self.relay_url = relay_url
+        self.relay = None
         self.session_seconds = REMOTE_SESSION_SECONDS if remote else SESSION_SECONDS
         self.loop = asyncio.get_running_loop()
         self.deadline = 0
@@ -137,7 +140,22 @@ class MobilePreview:
         self.runner = runner
         port = runner.addresses[0][1]
         origin = f"https://{self.interface.ip}:{port}"
-        self.code = ".".join(("meu2", _encode(origin.encode()), _encode(self.challenge.encode()), _encode(certificate)))
+        if self.relay_url:
+            from agent.ssl_verify import _stdlib_ssl_context_class
+            from gateway.mobile_relay_link import MobileRelayLink
+
+            trust = _stdlib_ssl_context_class()(ssl.PROTOCOL_TLS_CLIENT)
+            trust.load_verify_locations(cadata=ssl.DER_cert_to_PEM_cert(certificate))
+            try:
+                self.relay = MobileRelayLink(self.relay_url, origin, trust)
+                await self.relay.start()
+            except BaseException:
+                await self.close()
+                raise
+            self.code = ".".join(("meu3", _encode(str(self.relay.exchange_url).encode()),
+                                  _encode(self.challenge.encode()), _encode(self.relay.secret)))
+        else:
+            self.code = ".".join(("meu2", _encode(origin.encode()), _encode(self.challenge.encode()), _encode(certificate)))
         self._expire_in(PAIR_SECONDS)
 
     def _expire_in(self, seconds):
@@ -159,6 +177,14 @@ class MobilePreview:
         self.code = self.challenge = self.token = None
         runner, self.runner = self.runner, None
         connection, self.connection = self.connection, None
+        relay, self.relay = self.relay, None
+        try:
+            if relay:
+                await relay.close()
+        finally:
+            await self._close_listener(runner, connection)
+
+    async def _close_listener(self, runner, connection):
         try:
             if runner:
                 await runner.cleanup()

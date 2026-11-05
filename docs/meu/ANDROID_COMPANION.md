@@ -19,13 +19,18 @@ Gateways → Connect a phone** and choose **Show pairing code**. On Android, ope
 **Scan pairing code**, allow camera access and scan the code in Meu. Send a test
 message and confirm the response. Choose **Disconnect phone** to close access.
 
-For access outside home, connect Windows and Android to the same
-[Tailscale network](https://tailscale.com/docs/concepts/tailscale-ip-addresses).
-In **Connect a phone**, select **Connect from outside home with Tailscale**
-before showing and scanning the QR code. Meu listens on the Tailscale interface
-and uses the QR code to verify its HTTPS identity. Keep the PC awake, online
-and connected to Tailscale. To check the connection, turn off Android Wi-Fi
-and send a message over mobile data with Tailscale connected.
+For access outside home, select **Connect from outside home** before showing
+and scanning the QR code. Keep the PC awake and online. Turn off Android Wi-Fi
+and send a message over mobile data to test the connection.
+
+Internet mode needs a deployed Meu relay. A deployment operator can run
+`python -m gateway.mobile_relay` with aiohttp on a server behind a public HTTPS
+reverse proxy that supports WebSocket upgrades. The proxy forwards the relay
+origin to port 8766 on the same server. Set `gateway.mobile_relay_url` to that
+HTTPS origin in the desktop profile's `config.yaml`. For a direct TLS listener
+use `--host 0.0.0.0 --cert fullchain.pem --key privkey.pem` and the intended
+public port. The relay forwards encrypted packets. The device secret comes from
+the QR code, so the relay cannot decrypt chat content or device credentials.
 
 After pairing, **New session** creates a normal session in the paired profile.
 The phone lists sessions created from Android and opens their recent text
@@ -34,8 +39,10 @@ Android refreshes the open session while the app is in the foreground. Pairing
 again restores the session list. The preview lists up to 50 sessions and shows the most recent
 40 text messages, with a notice when the mobile display limits the history.
 
-Phone-created sessions use the paired profile's model and are text-only in
-this preview. The phone can resume an interrupted request during pairing. An
+New phone-created sessions use the paired profile's model and its enabled
+public web tools. A configured web backend supplies live data. Earlier
+phone-created conversations retain the toolset they were created with. The
+phone can resume an interrupted request during pairing. An
 already configured [HTTPS API server](../../website/docs/user-guide/features/api-server.md)
 can still be used through **Enter address manually**.
 
@@ -51,19 +58,19 @@ can still be used through **Enter address manually**.
 ## Built-in pairing and the first end-to-end test
 
 The Windows preview starts and stops its private listener from settings. The QR
-contains the HTTPS endpoint, a five-minute single-use pairing challenge
-and the listener's short-lived certificate. The app verifies the TLS identity
-and exchanges the challenge for a temporary credential that is kept in memory.
-The server binds the connection to the issuing profile and its phone-created
-sessions for at most one hour on the home network or twelve hours via
-Tailscale. A full Android app or gateway restart requires a new pairing.
+contains the HTTPS endpoint, a five-minute single-use challenge and either the
+listener certificate or the encryption secret. Android saves the verified
+device credential encrypted with Android Keystore and reopens the last
+conversation on relaunch. The server binds the connection to the issuing profile
+and its phone-created sessions. The pairing lasts one hour on the local network
+or twelve hours over the internet. Restarting the backend ends the pairing.
 Model credentials stay on the desktop. The preview has no file download or
 approval routes. See
 [Android network security](https://developer.android.com/privacy-and-security/security-config)
 and [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
-For the full companion, add a desktop device confirmation, persistent pairing
-with Android Keystore and scoped access to existing projects and deliverables.
+Backend restart recovery and scoped access to existing projects and deliverables
+remain future work.
 
 The next integration opens one synthetic project on a paired Android phone and
 sends one text message through the same backend as the desktop.

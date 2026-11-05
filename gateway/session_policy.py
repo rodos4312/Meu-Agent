@@ -11,6 +11,7 @@ from pathlib import Path
 from hermes_state_runtime import RuntimeStoreError
 
 logger = logging.getLogger(__name__)
+MOBILE_SESSION_PREFIX = "meu-mobile-session:"
 
 CREATE_FIELDS = frozenset({'request_id', 'source', 'cwd', 'model', 'toolsets',
                            'provider', 'base_url', 'reasoning', 'max_turns', 'ignore_rules', 'api_key', 'editor',
@@ -654,6 +655,12 @@ def _resolve_toolsets(params, config, source, safe_mode, coding_posture=False, b
     from hermes_cli.tools_config import _get_platform_tools, enabled_mcp_server_names
     from hermes_cli.toolset_validation import saved_toolset_resolver
     from toolsets import validate_toolset
+    request_id = params.get("request_id")
+    if (source == "gui" and not bypass and isinstance(request_id, str)
+            and request_id.startswith(MOBILE_SESSION_PREFIX)):
+        # A paired phone may use the profile's public web tools. Never inherit the desktop
+        # shell, filesystem, account connectors, or default-on plugin toolsets.
+        return _get_platform_tools(config, "cli", include_default_mcp_servers=False) & {"web"}
     explicit = params.get('toolsets')
     if 'toolsets' in params:
         if not isinstance(explicit, list):

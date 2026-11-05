@@ -7,10 +7,12 @@ on:
       - 'apps/android/**'
       - 'apps/desktop/assets/meu-icon.png'
       - 'gateway/mobile_preview.py'
+      - 'gateway/mobile_relay*.py'
       - 'gateway/run_api.py'
       - 'gateway/session_policy.py'
       - 'hermes_cli/web_routers/mobile_preview.py'
       - 'tests/gateway/test_mobile_preview.py'
+      - 'tests/gateway/test_mobile_relay.py'
       - 'tests/gateway/fixtures/mobile_preview_daemon.py'
       - '.github/workflows/meu-android-preview.yml'
   workflow_dispatch:
@@ -35,7 +37,7 @@ jobs:
           packages: git,ripgrep
       - name: Verify one-time pairing and a canonical Meu turn on Windows
         shell: bash
-        run: scripts/run_tests.sh -j 1 tests/gateway/test_mobile_preview.py -- --override-ini=addopts= -q
+        run: scripts/run_tests.sh -j 1 tests/gateway/test_mobile_preview.py tests/gateway/test_mobile_relay.py -- --override-ini=addopts= -q
 
   apk:
     if: github.repository == 'rodos4312/Meu-Agent' && github.ref == 'refs/heads/dev/meu-foundation'

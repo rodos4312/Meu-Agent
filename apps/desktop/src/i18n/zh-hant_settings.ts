@@ -889,9 +889,9 @@ export const zhHantSettings = {
       clear: '清除'
     },
     gateway: {
-      mobileRemote: '透過 Tailscale 從外部連線',
-      mobileNetworkHint: '在家中配對，或將兩台裝置連線到同一個 Tailscale 網路。',
-      mobileRemoteError: '無法開始遠端配對。請檢查 Tailscale 連線，並確認 Meu 已更新。',
+      mobileRemote: '在外連線',
+      mobileNetworkHint: '在家中配對，或使用 Meu 的網際網路連線。',
+      mobileRemoteError: '無法透過網際網路配對。請檢查 Meu 中繼是否已設定且可存取。',
       loading: '正在載入閘道設定...',
       unavailableTitle: '閘道設定不可用',
       unavailableDesc: '桌面 IPC 橋接器未公開閘道設定。',

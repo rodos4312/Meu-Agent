@@ -44,6 +44,7 @@ public final class MainActivity extends Activity {
     private String newSessionRequest;
     private Pending pending;
     private MeuQrScanner scanner;
+    private SavedMeuConnection savedConnection;
     private Runnable chatRefresh;
     private boolean foreground;
 
@@ -59,7 +60,9 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
-        showConnection();
+        savedConnection = new SavedMeuConnection(this);
+        if (savedConnection.exists()) reconnect();
+        else showConnection();
     }
 
     @Override protected void onDestroy() {
@@ -144,10 +147,61 @@ public final class MainActivity extends Activity {
     }
 
     private void showConnection() {
+        savedConnection.forget();
         client = null;
         pending = null;
         newSessionRequest = null;
         showPairing(null, "");
+    }
+
+    private void reconnect() {
+        screen("Reconnecting to your computer");
+        LinearLayout page = root;
+        TextView message = label("Checking the saved connection…", 14, MUTED);
+        Button retry = button("Retry connection");
+        Button pairAgain = button("Pair again");
+        retry.setEnabled(false);
+        retry.setOnClickListener(view -> reconnect());
+        pairAgain.setOnClickListener(view -> showConnection());
+        root.addView(message);
+        root.addView(retry);
+        root.addView(pairAgain);
+        worker.execute(() -> {
+            try {
+                MeuClient candidate = MeuClient.reconnect(savedConnection.load());
+                JSONObject session = restoreSession(candidate, savedConnection.lastSession());
+                onScreen(() -> {
+                    if (root != page) return;
+                    client = candidate;
+                    if (session == null) showSessions();
+                    else {
+                        sessionId = session.optString("id");
+                        showChat(session);
+                    }
+                });
+            } catch (GeneralSecurityException | IllegalArgumentException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    message.setText("This saved pairing is no longer available. Show a new QR code on your computer.");
+                });
+            } catch (IOException | JSONException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    message.setText(sessionErrorText(error));
+                    retry.setEnabled(true);
+                });
+            }
+        });
+    }
+
+    private static JSONObject restoreSession(MeuClient candidate, String id) throws IOException, JSONException {
+        if (id.isEmpty()) return null;
+        try {
+            return candidate.openSession(id);
+        } catch (MeuClient.HttpError error) {
+            if (error.status == 404) return null;
+            throw error;
+        }
     }
 
     private void showPairing(String scanned, String message) {
@@ -169,7 +223,18 @@ public final class MainActivity extends Activity {
         Runnable useCode = () -> {
             try {
                 MeuPairing pairing = MeuPairing.parse(code.getText().toString());
-                connect(() -> MeuClient.pair(pairing), true, code, pair, manual, scan);
+                connect(() -> {
+                    MeuClient candidate = MeuClient.pair(pairing);
+                    if (pairing.oneTime && candidate.supportsSessions()) {
+                        try {
+                            savedConnection.save(candidate.rememberedCode(pairing));
+                        } catch (GeneralSecurityException | IOException error) {
+                            onScreen(() -> android.widget.Toast.makeText(this,
+                                    "Connected, but Android could not save this pairing.", android.widget.Toast.LENGTH_LONG).show());
+                        }
+                    }
+                    return candidate;
+                }, true, code, pair, manual, scan);
             } catch (IllegalArgumentException | GeneralSecurityException error) {
                 status.setText("The pairing code is invalid or has expired.");
             }
@@ -354,6 +419,7 @@ public final class MainActivity extends Activity {
                     if (root != page) return;
                     if (creating) newSessionRequest = null;
                     sessionId = id;
+                    if (savedConnection.exists()) savedConnection.rememberSession(id);
                     showChat(session);
                 });
             } catch (IOException | JSONException error) {
@@ -532,7 +598,7 @@ public final class MainActivity extends Activity {
                         leave.setOnClickListener(view -> showConnection());
                         status.setText(error instanceof JSONException
                                 ? "Could not read Meu's reply. Resume this request or pair again."
-                                : "Connection to Meu lost. Check your Wi-Fi or Tailscale connection, "
+                                : "Connection to Meu lost. Check your Wi-Fi or mobile data, "
                                     + "then resume this request or pair again.");
                     } else if (closed) {
                         leave.setText("Pair again");
@@ -581,8 +647,7 @@ public final class MainActivity extends Activity {
         if (code == 401 || code == 410) {
             return "This pairing code has expired or was already used. Show a new code on your computer.";
         }
-        return "Could not pair with Meu. Check that both devices are connected to the same Wi-Fi "
-                + "or Tailscale network, then scan a new code.";
+        return "Could not pair with Meu. Check that the computer is online and scan a new code.";
     }
 
     private static String sessionErrorText(Exception error) {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -53,8 +54,15 @@ async def start_mobile_tailscale(request: Request):
     return await _start_mobile(request, remote=True)
 
 
-async def _start_mobile(request: Request, *, remote: bool):
+@router.post("/internet")
+async def start_mobile_internet(request: Request):
+    return await _start_mobile(request, remote=True, internet=True)
+
+
+async def _start_mobile(request: Request, *, remote: bool, internet: bool = False):
+    from aiohttp import ClientError
     from gateway.mobile_preview import MobilePreview, local_network, tailscale_network
+    from gateway.session_policy import profile_config
 
     state, authority = _scope(request)
     async with _lock(state):
@@ -62,15 +70,24 @@ async def _start_mobile(request: Request, *, remote: bool):
         if existing and existing.state()["state"] != "off":
             if existing.authority is not authority:
                 raise HTTPException(409, "A phone connection is active in another profile.")
-            if existing.remote != remote:
+            if existing.remote != remote or bool(existing.relay_url) != internet:
                 raise HTTPException(409, "Disconnect the phone before changing networks.")
             return _state(existing.state())
         try:
-            interface = await asyncio.to_thread(tailscale_network if remote else local_network)
-            preview = MobilePreview(authority, interface, remote=remote)
+            relay_url = None
+            if internet:
+                config = await asyncio.to_thread(profile_config, authority)
+                gateway = config.get("gateway")
+                relay_url = gateway.get("mobile_relay_url") if isinstance(gateway, dict) else None
+                if not isinstance(relay_url, str) or not relay_url.strip():
+                    raise HTTPException(503, "The Meu internet relay has not been configured.")
+                interface = ipaddress.IPv4Interface("127.0.0.1/32")
+            else:
+                interface = await asyncio.to_thread(tailscale_network if remote else local_network)
+            preview = MobilePreview(authority, interface, remote=remote, relay_url=relay_url)
             await preview.start()
-        except (OSError, ValueError) as exc:
-            raise HTTPException(503, "Meu could not start pairing on a private local network.") from exc
+        except (ClientError, OSError, TimeoutError, ValueError) as exc:
+            raise HTTPException(503, "Meu could not start the selected mobile connection.") from exc
         state.mobile_preview = preview
         return _state(preview.state())
 

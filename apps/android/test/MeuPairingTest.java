@@ -35,6 +35,20 @@ public final class MeuPairingTest {
         handshake(pairing, paired, "127.0.0.1", true);
         handshake(pairing, other, "127.0.0.1", false);
         handshake(pairing, paired, "wrong.example", false);
+        String relay = "https://relay.example/v1/" + String.join("", java.util.Collections.nCopies(64, "0"))
+                + "/exchange";
+        String code = "meu3." + encode(relay) + "." + encode(KEY) + "."
+                + Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32]);
+        MeuPairing remote = MeuPairing.parse(code);
+        String deviceKey = KEY + "-device";
+        MeuPairing saved = MeuPairing.parseSaved(remote.rememberedCode(deviceKey));
+        if (!remote.oneTime || saved.oneTime || !deviceKey.equals(saved.key)
+                || !remote.endpoint.equals(saved.endpoint) || !java.util.Arrays.equals(remote.relaySecret, saved.relaySecret)) {
+            throw new AssertionError("Restoring a relay pairing must reuse its identity and replace the one-time challenge");
+        }
+        reject(remote.rememberedCode(deviceKey));
+        reject(code.replace(encode(relay), encode("https:broken")));
+        reject(code.replace(encode(relay), encode(relay + "?extra=1")));
         System.out.println("Meu Android pairing accepts the matching TLS identity and rejects mismatches.");
     }
 

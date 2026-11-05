@@ -84,7 +84,7 @@ function PairingControls({ profile }: { profile?: string }) {
     setError('')
 
     try {
-      const path = remoteStart ? `${PAIRING_PATH}/tailscale` : PAIRING_PATH
+      const path = remoteStart ? `${PAIRING_PATH}/internet` : PAIRING_PATH
       setPairing(await hermesApi<Pairing>({ connectionId: 'local', path, profile, method }))
     } catch {
       setError(remoteStart ? t.settings.gateway.mobileRemoteError : method === 'POST'
