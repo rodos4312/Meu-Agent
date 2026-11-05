@@ -42,6 +42,7 @@ foreach ($location in @('Desktop', 'Programs')) {
 # The shipped Windows executable must carry Meu resources, not the stock Electron/Hermes metadata.
 $exe = $shortcut.TargetPath
 $info = (Get-Item -LiteralPath $exe).VersionInfo
+& (Join-Path $PSScriptRoot 'test-meu-registration.ps1') -Executable $exe -Version $info.FileVersion
 if ($info.ProductName -ne 'Meu' -or $info.FileDescription -ne 'Meu') {
   throw "Wrong executable identity: $($info.ProductName) / $($info.FileDescription)"
 }
@@ -75,6 +76,7 @@ Write-Host '[PASS] Uninstall removes the app and preserves the Meu profile'
 
 Invoke-SmokeProcess $installer.FullName '/S'
 if (-not (Test-Path -LiteralPath $exe)) { throw 'Reinstall did not restore Meu.exe.' }
+& (Join-Path $PSScriptRoot 'test-meu-registration.ps1') -Executable $exe -Version $info.FileVersion
 if ([IO.File]::ReadAllText($proof) -ne $proofValue) { throw 'Reinstall lost the preserved profile.' }
 Remove-Item -LiteralPath $proof
 Write-Host '[PASS] Install/repair/uninstall/reinstall lifecycle completed'

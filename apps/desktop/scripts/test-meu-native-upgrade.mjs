@@ -1,9 +1,11 @@
 // Disposable Windows rehearsal: real packaged updater + NSIS, controlled release transport.
 // The agent backend is deliberately not started; public-feed/backend upgrade testing is separate.
+/* global window */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { _electron, expect } from '@playwright/test'
 import { gt } from 'semver'
@@ -210,6 +212,21 @@ try {
     })
     .toBe(release.version)
   console.log('[REHEARSAL] Installed executable reports the target version')
+  phase = 'Windows uninstall registration'
+  execFileSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-File',
+      fileURLToPath(new URL('./test-meu-registration.ps1', import.meta.url)),
+      '-Executable',
+      executable,
+      '-Version',
+      release.version
+    ],
+    { env, windowsHide: true, stdio: 'inherit', timeout: 30_000 }
+  )
   phase = 'installer automatic relaunch'
   await expect.poll(running, { timeout: 60_000, intervals: [1000] }).toBe(1)
   console.log('[PASS] Native NSIS handoff installed the new version and relaunched Meu')
@@ -240,6 +257,7 @@ try {
         commit: release.commit,
         transport: 'controlled-session',
         realNsis: true,
+        windowsRegistrationVerified: true,
         publicFeed: false,
         backendStarted: false,
         preserved: ['conversation', 'configuration', 'API-key fixture', 'memory', 'skill', 'desktop zoom']

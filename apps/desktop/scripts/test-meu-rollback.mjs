@@ -1,8 +1,10 @@
 // Uses installed app/backend; only release transport and NEW startup failure are controlled.
+/* global window */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { _electron, expect } from '@playwright/test'
 import { gt } from 'semver'
 import { installMeuUpgradeTransport, verifiedMeuCandidate } from './meu-upgrade-transport.mjs'
@@ -12,7 +14,8 @@ import trust from '../meu-update-key.json' with { type: 'json' }
 assert.equal(process.env.GITHUB_ACTIONS, 'true')
 assert.equal(process.env.GITHUB_REPOSITORY, 'rodos4312/Meu-Agent')
 assert.equal(process.platform, 'win32')
-const [mode, baselineDirectory, directory, scratch, executable, root, launcher, scenario = 'startup-failure'] = process.argv.slice(2)
+const [mode, baselineDirectory, directory, scratch, executable, root, launcher, scenario = 'startup-failure'] =
+  process.argv.slice(2)
 for (const value of [baselineDirectory, directory, scratch]) assert(path.isAbsolute(value))
 const baseline = verifiedMeuCandidate(baselineDirectory, trust.publicKey)
 const release = verifiedMeuCandidate(directory, trust.publicKey)
@@ -101,9 +104,13 @@ async function bounded(action, milliseconds, label) {
   try {
     return await Promise.race([
       action,
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(label)), milliseconds) })
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), milliseconds)
+      })
     ])
-  } finally { clearTimeout(timer) }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 try {
   console.log('[Meu rollback] seed isolated profile')
@@ -121,10 +128,15 @@ try {
   assert.equal(initial.endpoint.code_sha, baseline.commit)
   phase = 'wait for desktop attachment to the real gateway'
   console.log('[Meu rollback] wait for desktop attachment to the real gateway')
-  await expect.poll(async () => {
-    const progress = await page.evaluate(() => window.hermesDesktop.getBootProgress())
-    return !progress.error && progress.progress >= 94
-  }, { timeout: 180_000, intervals: [1000] }).toBe(true)
+  await expect
+    .poll(
+      async () => {
+        const progress = await page.evaluate(() => window.hermesDesktop.getBootProgress())
+        return !progress.error && progress.progress >= 94
+      },
+      { timeout: 180_000, intervals: [1000] }
+    )
+    .toBe(true)
   await installMeuUpgradeTransport(app, {
     release,
     directory,
@@ -138,9 +150,15 @@ try {
   // Real preparation can outlive Playwright's launch-time debugger waiter.
   // Detach only when Electron itself decides to quit; never force the app out.
   await app.evaluate(({ app }) => {
-    app.on('before-quit', event => console.log('[Meu rollback] before-quit', JSON.stringify({
-      prevented: event.defaultPrevented, resources: process.getActiveResourcesInfo()
-    })))
+    app.on('before-quit', event =>
+      console.log(
+        '[Meu rollback] before-quit',
+        JSON.stringify({
+          prevented: event.defaultPrevented,
+          resources: process.getActiveResourcesInfo()
+        })
+      )
+    )
     app.once('will-quit', () => {
       console.log('[Meu rollback] will-quit')
       process.getBuiltinModule('inspector').close()
@@ -166,8 +184,11 @@ try {
     else parent.once('exit', done)
   })
   void exited.catch(() => {})
-  const result = await bounded(page.evaluate(() => window.hermesDesktop.updates.apply()), 180_000,
-    'Fixture update preparation did not finish within three minutes')
+  const result = await bounded(
+    page.evaluate(() => window.hermesDesktop.updates.apply()),
+    180_000,
+    'Fixture update preparation did not finish within three minutes'
+  )
   assert.equal(result.ok, true, result.message)
   assert.equal(result.handedOff, true)
   await bounded(exited, 180_000, 'Old Meu process did not exit')
@@ -177,10 +198,17 @@ try {
   await fault.afterHandoff(transaction, executable)
   phase = 'automatic package and database recovery'
   console.log('[Meu rollback] wait for automatic package and database recovery')
-  await expect.poll(() => {
-    const record = transaction()
-    return ['rolled-back', 'recovery-failed', 'cancelled', 'healthy'].includes(record?.state) ? record.state : undefined
-  }, { timeout: 600_000, intervals: [1000] }).not.toBeUndefined()
+  await expect
+    .poll(
+      () => {
+        const record = transaction()
+        return ['rolled-back', 'recovery-failed', 'cancelled', 'healthy'].includes(record?.state)
+          ? record.state
+          : undefined
+      },
+      { timeout: 600_000, intervals: [1000] }
+    )
+    .not.toBeUndefined()
   const record = transaction()
   assert.equal(record.state, 'rolled-back', record.error || 'Expected a controlled startup failure and rollback')
   if (fault.resumed) await bounded(fault.resumed, 60_000, 'Retained recovery did not retire after rollback')
@@ -208,6 +236,20 @@ try {
     }
   ).trim()
   assert.equal(actual, baseline.version)
+  execFileSync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-File',
+      fileURLToPath(new URL('./test-meu-registration.ps1', import.meta.url)),
+      '-Executable',
+      executable,
+      '-Version',
+      baseline.version
+    ],
+    { env, windowsHide: true, stdio: 'inherit', timeout: 30_000 }
+  )
   fs.writeFileSync(
     path.join(scratch, 'result.json'),
     JSON.stringify(
@@ -216,6 +258,7 @@ try {
         rejected: release.version,
         restored: actual,
         realNsis: true,
+        windowsRegistrationVerified: true,
         realGateway: true,
         restoredDatabaseSchema: true,
         preserved: ['conversation', 'configuration', 'API-key fixture', 'memory', 'skill'],
@@ -234,8 +277,18 @@ try {
   const record = transaction()
   fs.writeFileSync(
     path.join(scratch, 'failure.json'),
-    JSON.stringify({ phase, error: error.message, recoveryState: record?.state, recoveryError: record?.error,
-      parentExitCode: app?.process().exitCode, parentSignalCode: app?.process().signalCode }, null, 2)
+    JSON.stringify(
+      {
+        phase,
+        error: error.message,
+        recoveryState: record?.state,
+        recoveryError: record?.error,
+        parentExitCode: app?.process().exitCode,
+        parentSignalCode: app?.process().signalCode
+      },
+      null,
+      2
+    )
   )
   if (record)
     for (const name of ['watch.log']) {
@@ -243,7 +296,8 @@ try {
       if (fs.existsSync(file)) fs.copyFileSync(file, path.join(scratch, name))
     }
   const mainLog = path.join(env.MEU_HOME, 'logs', 'desktop.log')
-  if (fs.existsSync(mainLog)) fs.writeFileSync(path.join(scratch, 'main.log'), fs.readFileSync(mainLog).subarray(-131072))
+  if (fs.existsSync(mainLog))
+    fs.writeFileSync(path.join(scratch, 'main.log'), fs.readFileSync(mainLog).subarray(-131072))
   throw error
 } finally {
   fault.dispose()
