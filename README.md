@@ -37,4 +37,6 @@ Review screenshots and log excerpts before posting. Remove API keys, tokens, pri
 
 Active development takes place on [`dev/meu-foundation`](https://github.com/rodos4312/Meu-Agent/tree/dev/meu-foundation).
 
+Meu is maintained as an independent repository. The previous fork is retained at [Meu-Agent-Legacy](https://github.com/rodos4312/Meu-Agent-Legacy) for historical CI runs and repository records. Current development, downloads, issues and discussions belong in this repository.
+
 Meu is based on [Hermes Agent by Nous Research](https://github.com/NousResearch/hermes-agent). See the [MIT license](LICENSE) for license and copyright details.
