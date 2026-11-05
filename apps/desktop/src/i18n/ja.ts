@@ -938,6 +938,9 @@ export const jaOverrides = {
       clear: 'クリア'
     },
     gateway: {
+      mobileRemote: 'Tailscale で外出先から接続',
+      mobileNetworkHint: '自宅でペアリングするか、両方の端末を同じ Tailscale ネットワークに接続します。',
+      mobileRemoteError: 'リモートペアリングを開始できませんでした。Tailscale の接続と Meu の更新状況を確認してください。',
       loading: 'ゲートウェイ設定を読み込み中...',
       ...jaGatewayHost,
       title: 'ゲートウェイ接続',

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { $apiRequestScope, hermesApi } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/i18n/context'
 
 type Pairing = { state: 'off' | 'waiting' | 'paired' | 'other-profile'; code?: string | null; seconds?: number }
 const PAIRING_PATH = '/api/mobile-preview'
@@ -14,10 +15,12 @@ export function MobilePreviewPanel() {
 }
 
 function PairingControls({ profile }: { profile?: string }) {
+  const { t } = useI18n()
   const [pairing, setPairing] = useState<Pairing>()
   const [qr, setQr] = useState<{ code: string; image: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [remote, setRemote] = useState(false)
 
   const active = pairing?.state === 'waiting' || pairing?.state === 'paired'
   useEffect(() => {
@@ -75,13 +78,16 @@ function PairingControls({ profile }: { profile?: string }) {
   }, [pairing?.code])
 
   async function change(method: 'POST' | 'DELETE') {
+    const remoteStart = method === 'POST' && remote
+
     setBusy(true)
     setError('')
 
     try {
-      setPairing(await hermesApi<Pairing>({ connectionId: 'local', path: PAIRING_PATH, profile, method }))
+      const path = remoteStart ? `${PAIRING_PATH}/tailscale` : PAIRING_PATH
+      setPairing(await hermesApi<Pairing>({ connectionId: 'local', path, profile, method }))
     } catch {
-      setError(method === 'POST'
+      setError(remoteStart ? t.settings.gateway.mobileRemoteError : method === 'POST'
         ? 'Pairing could not start. Check that the local Meu backend is running and this computer is on a private network.'
         : 'Meu could not disconnect the phone. Try again.')
     } finally {
@@ -96,7 +102,13 @@ function PairingControls({ profile }: { profile?: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
           <h3 className="text-sm font-semibold" id="mobile-pairing-title">Connect a phone</h3>
-          <p className="text-xs text-muted-foreground">Use Meu on Android over the same local network. Pairing opens a separate test chat in this profile.</p>
+          <p className="text-xs text-muted-foreground">{t.settings.gateway.mobileNetworkHint}</p>
+          {!active && pairing?.state !== 'other-profile' && (
+            <label className="flex items-center gap-2 text-xs">
+              <input checked={remote} disabled={busy} onChange={event => setRemote(event.target.checked)} type="checkbox" />
+              {t.settings.gateway.mobileRemote}
+            </label>
+          )}
         </div>
         <Button disabled={busy || pairing?.state === 'other-profile'} onClick={() => void change(active ? 'DELETE' : 'POST')} size="sm">
           {active ? 'Disconnect phone' : 'Show pairing code'}

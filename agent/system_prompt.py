@@ -755,6 +755,11 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     _help_guidance_slot = len(stable_parts)
     stable_parts.append(HERMES_AGENT_HELP_GUIDANCE_NO_SKILLS)
     stable_parts.extend(_guidance_parts(agent))
+    if getattr(agent, "tools", None) == []:
+        stable_parts.append(
+            "This chat has no tools. If a request requires live information or an action, "
+            "say what you cannot verify or do, in the user's language. Do not write tool-call markup."
+        )
     skills_prompt = _skills_prompt(agent)
     # Skill-pointer variant requires BOTH skill_view AND the hermes-agent skill
     # in the rendered index (pure string check — inherits the index's stability).

@@ -1,10 +1,8 @@
 # Meu Android companion
 
-The Android chat preview comes before the Windows trial distribution. It
-connects to a running Meu API over HTTPS and starts a separate test conversation.
-The full companion will pair with a desktop on the same Wi-Fi network and let
-the phone open existing projects and conversations, follow helpers and open
-deliverables. See [STATUS.md](STATUS.md) for release status.
+The Android preview pairs with a running Meu desktop over HTTPS. It supports
+shared text sessions. Existing desktop projects, helper activity and
+deliverables are planned. See [STATUS.md](STATUS.md) for release status.
 
 ## Installable chat preview
 
@@ -21,11 +19,19 @@ Gateways → Connect a phone** and choose **Show pairing code**. On Android, ope
 **Scan pairing code**, allow camera access and scan the code in Meu. Send a test
 message and confirm the response. Choose **Disconnect phone** to close access.
 
+For access outside home, connect Windows and Android to the same
+[Tailscale network](https://tailscale.com/docs/concepts/tailscale-ip-addresses).
+In **Connect a phone**, select **Connect from outside home with Tailscale**
+before showing and scanning the QR code. Meu listens on the Tailscale interface
+and uses the QR code to verify its HTTPS identity. Keep the PC awake, online
+and connected to Tailscale. To check the connection, turn off Android Wi-Fi
+and send a message over mobile data with Tailscale connected.
+
 After pairing, **New session** creates a normal session in the paired profile.
 The phone lists sessions created from Android and opens their recent text
 history. The same session appears on Windows and can be continued there.
-Reopen it on the phone to see replies added from Windows. Pairing again restores
-the session list. The preview lists up to 50 sessions and shows the most recent
+Android refreshes the open session while the app is in the foreground. Pairing
+again restores the session list. The preview lists up to 50 sessions and shows the most recent
 40 text messages, with a notice when the mobile display limits the history.
 
 Phone-created sessions use the paired profile's model and are text-only in
@@ -44,12 +50,13 @@ can still be used through **Enter address manually**.
 
 ## Built-in pairing and the first end-to-end test
 
-The Windows preview starts and stops its LAN listener from settings. The QR
-contains the local HTTPS endpoint, a five-minute single-use pairing challenge
+The Windows preview starts and stops its private listener from settings. The QR
+contains the HTTPS endpoint, a five-minute single-use pairing challenge
 and the listener's short-lived certificate. The app verifies the TLS identity
 and exchanges the challenge for a temporary credential that is kept in memory.
 The server binds the connection to the issuing profile and its phone-created
-sessions for at most one hour.
+sessions for at most one hour on the home network or twelve hours via
+Tailscale. A full Android app or gateway restart requires a new pairing.
 Model credentials stay on the desktop. The preview has no file download or
 approval routes. See
 [Android network security](https://developer.android.com/privacy-and-security/security-config)

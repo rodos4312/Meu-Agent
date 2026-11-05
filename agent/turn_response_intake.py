@@ -12,6 +12,7 @@ import logging
 import re
 from typing import Any, Dict, Optional
 
+from agent.deepseek_text_tools import clean_text_tool_calls, is_tool_free_deepseek
 from agent.provider_projection import splice_provider_projection
 from agent.think_scrubber import THINK_TAG_NAMES
 from agent.trajectory import has_incomplete_scratchpad
@@ -181,6 +182,8 @@ def normalize_model_response(
 
     if assistant_message.content is not None and not isinstance(assistant_message.content, str):
         assistant_message.content = _coerce_content_text(assistant_message.content)
+    if assistant_message.content and is_tool_free_deepseek(agent) and not assistant_message.tool_calls:
+        assistant_message.content = clean_text_tool_calls(assistant_message.content)
 
     # Agent-as-provider projection: splice the provider-agent's own tool work in as
     # call/result rows before this turn's assistant message; no-op for ordinary providers.

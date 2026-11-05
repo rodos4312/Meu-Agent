@@ -84,8 +84,13 @@ final class MeuClient {
     }
 
     JSONObject openSession(String sessionId) throws IOException, JSONException {
+        return openSession(sessionId, "");
+    }
+
+    JSONObject openSession(String sessionId, String revision) throws IOException, JSONException {
         if (!sessionId.matches("local-[a-f0-9]{64}")) throw new IOException("Invalid session ID");
-        return request("meu/sessions/" + sessionId, null, null);
+        String query = revision.matches("[0-9a-f]{64}") ? "?since=" + revision : "";
+        return request("meu/sessions/" + sessionId + query, null, null);
     }
 
     JSONObject status(String runId) throws IOException, JSONException {

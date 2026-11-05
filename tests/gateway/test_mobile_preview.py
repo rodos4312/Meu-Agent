@@ -3,11 +3,14 @@
 import asyncio
 import base64
 from http.server import ThreadingHTTPServer
+import ipaddress
 import json
 from pathlib import Path
+import socket
 import ssl
 import threading
 import time
+from types import SimpleNamespace
 import uuid
 
 import httpx
@@ -46,7 +49,27 @@ async def _desktop_session(home, desc, session_id=None):
                 await asyncio.sleep(.1)
 
 
-def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
+def test_tailscale_network_uses_only_the_vpn_adapter(monkeypatch):
+    import psutil
+
+    from gateway.mobile_preview import tailscale_network
+
+    adapters = {"Ethernet": [SimpleNamespace(family=socket.AF_INET, address="100.91.4.20")]}
+    monkeypatch.setattr(psutil, "net_if_addrs", lambda: adapters)
+    with pytest.raises(ValueError, match="Connect Tailscale"):
+        tailscale_network()
+    adapters["Tailscale"] = [
+        SimpleNamespace(family=socket.AF_INET6, address="fd7a:115c:a1e0::10"),
+        SimpleNamespace(family=socket.AF_INET, address="100.101.2.10", netmask="255.255.255.255"),
+    ]
+    interface = tailscale_network()
+    assert interface.ip == ipaddress.IPv4Address("100.101.2.10")
+    assert ipaddress.IPv4Address("100.120.8.44") in interface.network
+    assert ipaddress.IPv4Address("192.168.1.2") not in interface.network
+
+
+@pytest.mark.parametrize("remote", [False, True], ids=["lan", "tailscale"])
+def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
     root = Path(__file__).resolve().parents[2]
     home, user = tmp_path / "state", tmp_path / "user"
     home.mkdir()
@@ -65,15 +88,16 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
                PYTHONPATH=str(root), OPENAI_API_KEY="loopback-only", OPENAI_BASE_URL=base,
                HERMES_DASHBOARD_SESSION_TOKEN="normal-http-owner", PYTHONUNBUFFERED="1")
     path = "/api/mobile-preview"
+    start_path = f"{path}/tailscale" if remote else path
     try:
         with daemon(root, home, env, barrier=True, fixture="mobile_preview_daemon.py") as (_, desc), \
                 httpx.Client(base_url=desc["api_origin"], trust_env=False) as desktop:
             def owner():
                 return headers(ticket(home, desc))
 
-            assert desktop.post(path, headers={"Authorization": "Bearer normal-http-owner"}).status_code == 403
+            assert desktop.post(start_path, headers={"Authorization": "Bearer normal-http-owner"}).status_code == 403
             foreign = asyncio.run(_desktop_session(home, desc))
-            started = desktop.post(path, headers=owner())
+            started = desktop.post(start_path, headers=owner())
             assert started.status_code == 200, started.text
             assert started.json()["state"] == "waiting"
             origin, challenge, tls = _unpack(started.json()["code"])
@@ -85,8 +109,12 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
                 paired = phone.post("/meu/pair", json={"challenge": challenge})
                 assert paired.status_code == 200, paired.text
                 assert phone.post("/meu/pair", json={"challenge": challenge}).status_code == 401
-                assert desktop.get(path, headers=owner()).json()["state"] == "paired"
-                assert desktop.get(path, headers=owner()).json()["code"] is None
+                connected = desktop.get(path, headers=owner()).json()
+                assert connected["state"] == "paired"
+                assert connected["code"] is None
+                assert (connected["seconds"] > 3600) == remote
+                other_path = path if remote else f"{path}/tailscale"
+                assert desktop.post(other_path, headers=owner()).status_code == 409
                 phone.headers["Authorization"] = "Bearer " + paired.json()["key"]
                 assert phone.get("/v1/capabilities").status_code == 200
                 assert phone.get("/api/sessions").status_code == 404
@@ -130,16 +158,23 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
                 sidebar = desktop.get("/api/sessions?min_messages=1&exclude_sources=cron", headers=owner())
                 assert sidebar.status_code == 200, sidebar.text
                 assert session_id in {row["id"] for row in sidebar.json()["sessions"]}
+                session_path = f"/meu/sessions/{session_id}"
+                before = phone.get(session_path).json()
+                since = {"since": before["revision"]}
+                assert phone.get(session_path, params=since).json() == {"unchanged": True}
                 assert asyncio.run(_desktop_session(home, desc, session_id)) == session_id
                 assert len(peer.requests) == 2
-                messages = phone.get(f"/meu/sessions/{session_id}").json()["messages"]
+                updated = phone.get(session_path, params=since).json()
+                assert updated["revision"] != before["revision"]
+                assert phone.get(session_path, params={"since": updated["revision"]}).json() == {"unchanged": True}
+                messages = updated["messages"]
                 assert [row["content"] for row in messages][-2:] == [
                     "Συνέχεια από Windows", "RECOVERY_ACK_Συνέχεια από Windows"]
                 assert phone.get(f"/meu/sessions/{another_id}").json()["messages"] == []
                 assert desktop.delete(path, headers=owner()).json()["state"] == "off"
                 with pytest.raises(httpx.TransportError):
                     phone.get("/v1/capabilities")
-            restarted = desktop.post(path, headers=owner())
+            restarted = desktop.post(start_path, headers=owner())
             origin, challenge, tls = _unpack(restarted.json()["code"])
             with httpx.Client(base_url=origin, verify=tls, trust_env=False) as phone:
                 new_key = phone.post("/meu/pair", json={"challenge": challenge}).json()["key"]

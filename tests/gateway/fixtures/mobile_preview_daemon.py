@@ -6,4 +6,5 @@ import runpy
 import gateway.mobile_preview as mobile
 
 mobile.local_network = lambda: ipaddress.IPv4Interface("127.0.0.1/8")
+mobile.tailscale_network = mobile.local_network
 runpy.run_module("gateway.run", run_name="__main__")

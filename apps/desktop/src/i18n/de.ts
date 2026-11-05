@@ -1669,6 +1669,9 @@ export const deOverrides = {
       scopeNotRestored: (profile: string, error: string) => `Profil „${profile}“ nicht wiederhergestellt: ${error}`
     },
     gateway: {
+      mobileRemote: 'Von unterwegs über Tailscale verbinden',
+      mobileNetworkHint: 'Kopple die Geräte im Heimnetz oder verbinde beide mit demselben Tailscale-Netzwerk.',
+      mobileRemoteError: 'Fernkopplung fehlgeschlagen. Prüfe die Tailscale-Verbindung und ob Meu aktuell ist.',
       loading: 'Gateway-Einstellungen werden geladen…',
       ...deGatewayHost,
       title: 'Gateway-Verbindung',

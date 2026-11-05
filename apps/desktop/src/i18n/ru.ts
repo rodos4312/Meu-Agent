@@ -1032,6 +1032,9 @@ export const ruOverrides = {
       empty: 'Соединения пока не зарегистрированы.'
     },
     gateway: {
+      mobileRemote: 'Подключаться вне дома через Tailscale',
+      mobileNetworkHint: 'Выполните сопряжение дома или подключите оба устройства к одной сети Tailscale.',
+      mobileRemoteError: 'Не удалось начать удалённое сопряжение. Проверьте подключение Tailscale и обновления Meu.',
       loading: 'Загрузка настроек шлюза…',
       ...ruGatewayHost,
       title: 'Подключение шлюза',

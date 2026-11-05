@@ -1125,6 +1125,9 @@ export interface Translations extends NoticeTranslations {
       scopeNotRestored: (profile: string, error: string) => string
     }
     gateway: GatewayHostTranslations & {
+      mobileRemote: string
+      mobileNetworkHint: string
+      mobileRemoteError: string
       loading: string
       title: string
       envOverride: string

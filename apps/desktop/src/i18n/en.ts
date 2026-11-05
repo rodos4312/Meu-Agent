@@ -1334,6 +1334,9 @@ export const en: Translations = {
       scopeNotRestored: (profile: string, error: string) => `Profile “${profile}” not restored: ${error}`
     },
     gateway: {
+      mobileRemote: 'Connect from outside home with Tailscale',
+      mobileNetworkHint: 'Pair over your home network, or connect both devices to the same Tailscale network.',
+      mobileRemoteError: 'Could not start remote pairing. Check the Tailscale connection on this computer and make sure Meu is up to date.',
       loading: 'Loading gateway settings...',
       ...enGatewayHost,
       title: 'Gateway Connection',

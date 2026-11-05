@@ -1368,6 +1368,9 @@ export const zhOverrides = {
       scopeNotRestored: (profile: string, error: string) => `Profile“${profile}”未恢复：${error}`
     },
     gateway: {
+      mobileRemote: '通过 Tailscale 从外部连接',
+      mobileNetworkHint: '在家中配对，或将两台设备连接到同一个 Tailscale 网络。',
+      mobileRemoteError: '无法开始远程配对。请检查 Tailscale 连接，并确保 Meu 已更新。',
       loading: '正在加载网关设置...',
       ...zhGatewayHost,
       title: '网关连接',

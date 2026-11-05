@@ -1,4 +1,4 @@
-"""Temporary, profile-bound LAN listener for the native Meu Android preview."""
+"""Temporary, profile-bound private listener for the native Meu Android preview."""
 
 from __future__ import annotations
 
@@ -13,13 +13,16 @@ import ssl
 import tempfile
 import uuid
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 
 from aiohttp import web
 
 PAIR_SECONDS = 300
 SESSION_SECONDS = 3600
+REMOTE_SESSION_SECONDS = 12 * 3600
 PRIVATE_NETWORKS = tuple(map(ipaddress.IPv4Network, ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")))
+TAILSCALE_NETWORK = ipaddress.IPv4Network("100.64.0.0/10")
 KEY_PATTERN = re.compile(r"[0-9a-f-]{36}", re.ASCII)
 MAX_RUNS = 32
 MOBILE_SESSION_PREFIX = "meu-mobile-session:"
@@ -43,18 +46,32 @@ def local_network():
     raise ValueError("Meu could not find the local network for this computer.")
 
 
-def _tls(address: str) -> tuple[ssl.SSLContext, bytes]:
+def tailscale_network():
+    """Find Tailscale's local IPv4 interface, independently of the default route."""
+    import psutil
+
+    for name, addresses in psutil.net_if_addrs().items():
+        if name.casefold() not in {"tailscale", "tailscale0"}:
+            continue
+        for item in addresses:
+            if item.family == socket.AF_INET and ipaddress.IPv4Address(item.address) in TAILSCALE_NETWORK:
+                return ipaddress.IPv4Interface(f"{item.address}/{TAILSCALE_NETWORK.prefixlen}")
+    raise ValueError("Connect Tailscale on this computer before pairing.")
+
+
+def _tls(address: str, session_seconds: int) -> tuple[ssl.SSLContext, bytes]:
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from agent.ssl_verify import _stdlib_ssl_context_class
 
     key = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "Meu LAN Preview")])
+    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "Meu Android Preview")])
     now = datetime.now(UTC)
     cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(now - timedelta(minutes=5)).not_valid_after(now + timedelta(hours=2))
+            .not_valid_before(now - timedelta(minutes=5))
+            .not_valid_after(now + timedelta(seconds=session_seconds + PAIR_SECONDS + 60))
             .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.IPv4Address(address))]), False)
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), True)
             .add_extension(x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]), False)
@@ -80,9 +97,11 @@ class _MobileTransport:
 
 
 class MobilePreview:
-    def __init__(self, authority, interface):
+    def __init__(self, authority, interface, *, remote=False):
         self.authority = authority
         self.interface = interface
+        self.remote = remote
+        self.session_seconds = REMOTE_SESSION_SECONDS if remote else SESSION_SECONDS
         self.loop = asyncio.get_running_loop()
         self.deadline = 0
         self.expiry = None
@@ -97,7 +116,7 @@ class MobilePreview:
         self.lock = asyncio.Lock()
 
     async def start(self):
-        tls, certificate = await asyncio.to_thread(_tls, str(self.interface.ip))
+        tls, certificate = await asyncio.to_thread(_tls, str(self.interface.ip), self.session_seconds)
         app = web.Application(client_max_size=48 * 1024, middlewares=[self._guard])
         app.add_routes([
             web.post("/meu/pair", self._pair),
@@ -193,13 +212,13 @@ class MobilePreview:
         self.connection = AuthorityConnection(self.authority, _MobileTransport(), identity)
         self.challenge = self.code = None
         self.token = secrets.token_urlsafe(32)
-        self._expire_in(SESSION_SECONDS)
+        self._expire_in(self.session_seconds)
         return web.json_response({"key": self.token})
 
     async def _capabilities(self, _request):
         return web.json_response({"auth": {"required": True}, "features": {
             "run_submission": True, "run_status": True, "mobile_sessions": True,
-            "runs_idempotency": {"pairing_session": True, "retention_seconds": SESSION_SECONDS}}})
+            "runs_idempotency": {"pairing_session": True, "retention_seconds": self.session_seconds}}})
 
     async def _call(self, method, params):
         if self.connection is None:
@@ -264,6 +283,12 @@ class MobilePreview:
 
     async def _open_session(self, request):
         row = await self._owned_session(request.match_info["session_id"])
+        fingerprint = await asyncio.to_thread(
+            self.authority.db.conversation_revision, row["id"], include_ancestors=True,
+        )
+        revision = sha256(repr((row["title"], fingerprint)).encode()).hexdigest()
+        if request.query.get("since") == revision:
+            return web.json_response({"unchanged": True})
         async with self.lock:
             snapshot = await self._call("session.resume", {
                 "session_id": row["id"], "display_projection": True,
@@ -273,7 +298,7 @@ class MobilePreview:
                 and isinstance(item.get("text"), str) and item["text"].strip()]
         messages = [{"role": item["role"], "content": item["text"][:2500]} for item in text[-40:]]
         limited = len(text) > 40 or any(len(item["text"]) > 2500 for item in text[-40:])
-        return web.json_response({**row, "messages": messages, "history_limited": limited})
+        return web.json_response({**row, "messages": messages, "history_limited": limited, "revision": revision})
 
     async def _submit(self, request):
         body = await self._json(request)

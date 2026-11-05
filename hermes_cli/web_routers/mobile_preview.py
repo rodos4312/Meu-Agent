@@ -45,7 +45,16 @@ async def mobile_status(request: Request):
 
 @router.post("")
 async def start_mobile(request: Request):
-    from gateway.mobile_preview import MobilePreview, local_network
+    return await _start_mobile(request, remote=False)
+
+
+@router.post("/tailscale")
+async def start_mobile_tailscale(request: Request):
+    return await _start_mobile(request, remote=True)
+
+
+async def _start_mobile(request: Request, *, remote: bool):
+    from gateway.mobile_preview import MobilePreview, local_network, tailscale_network
 
     state, authority = _scope(request)
     async with _lock(state):
@@ -53,9 +62,12 @@ async def start_mobile(request: Request):
         if existing and existing.state()["state"] != "off":
             if existing.authority is not authority:
                 raise HTTPException(409, "A phone connection is active in another profile.")
+            if existing.remote != remote:
+                raise HTTPException(409, "Disconnect the phone before changing networks.")
             return _state(existing.state())
         try:
-            preview = MobilePreview(authority, await asyncio.to_thread(local_network))
+            interface = await asyncio.to_thread(tailscale_network if remote else local_network)
+            preview = MobilePreview(authority, interface, remote=remote)
             await preview.start()
         except (OSError, ValueError) as exc:
             raise HTTPException(503, "Meu could not start pairing on a private local network.") from exc

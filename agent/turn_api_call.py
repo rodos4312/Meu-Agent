@@ -48,6 +48,11 @@ def _should_stream(agent: Any) -> bool:
     must opt in; ACP transports and explicit session/provider disables stay non-streaming."""
     if getattr(agent, "_disable_streaming", False):
         return False
+    from agent.deepseek_text_tools import is_tool_free_deepseek
+
+    # Check the complete response before exposing internal tool markup to the chat.
+    if is_tool_free_deepseek(agent):
+        return False
     _base = str(agent.base_url or "").lower()
     if _base.startswith(("acp://", "acp+tcp://")):
         return False

@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -34,6 +36,7 @@ public final class MainActivity extends Activity {
     private static final long RETRY_WINDOW_MS = 60 * 60 * 1000;
     private static final int CAMERA_REQUEST = 4;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout root;
     private TextView status;
     private MeuClient client;
@@ -41,6 +44,8 @@ public final class MainActivity extends Activity {
     private String newSessionRequest;
     private Pending pending;
     private MeuQrScanner scanner;
+    private Runnable chatRefresh;
+    private boolean foreground;
 
     private static final class Pending {
         final String requestId = UUID.randomUUID().toString();
@@ -63,12 +68,16 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
+        foreground = false;
+        if (chatRefresh != null) ui.removeCallbacks(chatRefresh);
         if (scanner != null) scanner.stop();
         super.onPause();
     }
 
     @Override protected void onResume() {
         super.onResume();
+        foreground = true;
+        if (chatRefresh != null) chatRefresh.run();
         if (scanner != null) scanner.start();
     }
 
@@ -104,6 +113,10 @@ public final class MainActivity extends Activity {
     }
 
     private void screen(String subtitle) {
+        if (chatRefresh != null) {
+            ui.removeCallbacks(chatRefresh);
+            chatRefresh = null;
+        }
         if (scanner != null) {
             scanner.stop();
             scanner = null;
@@ -280,7 +293,10 @@ public final class MainActivity extends Activity {
         create.setOnClickListener(view -> {
             if (newSessionRequest == null) newSessionRequest = UUID.randomUUID().toString();
             String requestId = newSessionRequest;
-            loadSession(page, create, refresh, () -> connected.createSession(requestId), true);
+            loadSession(page, create, refresh, () -> {
+                JSONObject created = connected.createSession(requestId);
+                return connected.openSession(created.getString("id"));
+            }, true);
         });
         refresh.setOnClickListener(view -> showSessions());
         worker.execute(() -> {
@@ -373,20 +389,9 @@ public final class MainActivity extends Activity {
         input.setMaxLines(4);
         Button send = button("Send");
         status = label("Connected", 14, MUTED);
-        JSONArray history = session == null ? null : session.optJSONArray("messages");
-        if (history != null) {
-            if (session.optBoolean("history_limited")) {
-                messages.addView(label("Recent text only. Open this session on your computer for the full history.",
-                        14, MUTED));
-            }
-            for (int index = 0; index < history.length(); index++) {
-                JSONObject message = history.optJSONObject(index);
-                if (message == null) continue;
-                boolean user = "user".equals(message.optString("role"));
-                messages.addView(label((user ? "You\n" : "Meu\n") + message.optString("content"), 16,
-                        user ? ACCENT : INK));
-            }
-            scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+        if (session != null) {
+            renderHistory(session, messages);
+            scroll.post(() -> scroll.scrollTo(0, messages.getHeight()));
         }
         root.addView(leave);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
@@ -403,6 +408,75 @@ public final class MainActivity extends Activity {
             }
             sendTurn(input, send, leave, scroll, messages);
         });
+        if (session != null && session.optString("revision").matches("[0-9a-f]{64}")) {
+            watchChat(session.optString("revision"), scroll, messages);
+        }
+    }
+
+    private void renderHistory(JSONObject session, LinearLayout messages) {
+        JSONArray history = session.optJSONArray("messages");
+        if (history == null) return;
+        messages.removeAllViews();
+        if (session.optBoolean("history_limited")) {
+            messages.addView(label("Recent text only. Open this session on your computer for the full history.",
+                    14, MUTED));
+        }
+        for (int index = 0; index < history.length(); index++) {
+            JSONObject message = history.optJSONObject(index);
+            if (message == null) continue;
+            boolean user = "user".equals(message.optString("role"));
+            messages.addView(label((user ? "You\n" : "Meu\n") + message.optString("content"), 16,
+                    user ? ACCENT : INK));
+        }
+    }
+
+    private void watchChat(String initialRevision, ScrollView scroll, LinearLayout messages) {
+        MeuClient connected = client;
+        String conversation = sessionId;
+        chatRefresh = new Runnable() {
+            private String revision = initialRevision;
+            private boolean refreshing;
+
+            @Override public void run() {
+                if (!foreground || chatRefresh != this || refreshing) return;
+                if (pending != null) {
+                    ui.postDelayed(this, 3000);
+                    return;
+                }
+                refreshing = true;
+                worker.execute(() -> {
+                    try {
+                        JSONObject session = connected.openSession(conversation, revision);
+                        onScreen(() -> receive(session));
+                    } catch (IOException | JSONException error) {
+                        int code = httpStatus(error);
+                        onScreen(() -> {
+                            refreshing = false;
+                            if (!foreground || chatRefresh != this) return;
+                            if (pending == null && (code == 401 || code == 410 || code == 404)) {
+                                status.setText(sessionErrorText(error));
+                            } else {
+                                ui.postDelayed(this, 8000);
+                            }
+                        });
+                    }
+                });
+            }
+
+            private void receive(JSONObject session) {
+                refreshing = false;
+                if (!foreground || chatRefresh != this) return;
+                if (pending == null && session.has("messages")) {
+                    int position = scroll.getScrollY();
+                    boolean atEnd = !scroll.canScrollVertically(1);
+                    renderHistory(session, messages);
+                    revision = session.optString("revision");
+                    scroll.post(() -> scroll.scrollTo(0, atEnd ? messages.getHeight() : position));
+                }
+                ui.postDelayed(this, 3000);
+            }
+        };
+        if (foreground) ui.postDelayed(chatRefresh, 3000);
     }
 
     private void sendTurn(EditText input, Button send, Button leave, ScrollView scroll, LinearLayout messages) {
@@ -458,8 +532,8 @@ public final class MainActivity extends Activity {
                         leave.setOnClickListener(view -> showConnection());
                         status.setText(error instanceof JSONException
                                 ? "Could not read Meu's reply. Resume this request or pair again."
-                                : "Connection to Meu lost. If both devices are still on the same network, "
-                                    + "resume this request or pair again with a new code.");
+                                : "Connection to Meu lost. Check your Wi-Fi or Tailscale connection, "
+                                    + "then resume this request or pair again.");
                     } else if (closed) {
                         leave.setText("Pair again");
                         leave.setOnClickListener(view -> showConnection());
@@ -507,15 +581,15 @@ public final class MainActivity extends Activity {
         if (code == 401 || code == 410) {
             return "This pairing code has expired or was already used. Show a new code on your computer.";
         }
-        return "Could not pair with Meu. Check that both devices are on the same local network "
-                + "and scan a new code from your computer.";
+        return "Could not pair with Meu. Check that both devices are connected to the same Wi-Fi "
+                + "or Tailscale network, then scan a new code.";
     }
 
     private static String sessionErrorText(Exception error) {
         int code = httpStatus(error);
         if (code == 404) return "This session is no longer available. Refresh the list.";
         if (code == 401 || code == 410) return "This pairing ended. Show a new code on your computer.";
-        return "Could not load the session. Check the local connection and try again.";
+        return "Could not load the session. Check your connection to Meu and try again.";
     }
 
     private static String errorText(Exception error) {

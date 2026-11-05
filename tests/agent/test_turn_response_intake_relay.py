@@ -55,26 +55,46 @@ def _run(agent, *, content, tool_calls=None, reasoning=None, reasoning_content=N
         content=content, finish_reason="stop", tool_calls=tool_calls, reasoning=reasoning,
         reasoning_content=reasoning_content, reasoning_details=None,
     )
-    normalize_model_response(
+    verdict = normalize_model_response(
         agent, response=message, messages=[], api_messages=[], conversation_history={},
         api_call_count=1, api_duration=0.0, api_start_time=0.0, api_request_id="r1",
         effective_task_id="t1", turn_id="t1",
     )
-    return agent.calls
+    return verdict.assistant_message.content, agent.calls
 
 
 def test_plain_reply_is_not_relayed_as_reasoning():
     """#132477: a reply with no reasoning blocks must emit no ``reasoning.available`` at all."""
     agent = _Agent()
-    calls = _run(agent, content="The answer is 42.")
+    _, calls = _run(agent, content="The answer is 42.")
     assert calls == []
 
 
 def test_inline_thinking_block_is_relayed_without_the_reply():
     """Only the text inside the think block is reasoning; the visible reply is not."""
     agent = _Agent()
-    calls = _run(
+    _, calls = _run(
         agent,
         content="<REASONING_SCRATCHPAD>plan step one</REASONING_SCRATCHPAD>\nThe answer is 42.",
     )
     assert calls == [("reasoning.available", "_thinking", "plan step one", None)]
+
+
+def test_tool_free_deepseek_does_not_show_internal_tool_calls():
+    from agent.turn_api_call import _should_stream
+
+    agent = _Agent()
+    agent.provider = "deepseek"
+    agent.tools = []
+    block = '< | | DSML | | calls>\n< | | DSML | | invoke name="terminal">\n</ | | DSML | | calls>'
+    content, _ = _run(agent, content=block)
+    assert content == "I couldn't look that up because tools are unavailable in this chat."
+    content, _ = _run(agent, content="No live weather data.\n<｜DSML｜ function_calls>truncated command")
+    assert content == "No live weather data."
+    assert _should_stream(agent) is False
+
+    agent.tools = [{"type": "function"}]
+    assert _run(agent, content=block)[0] == block
+    agent.tools = []
+    agent.provider = "custom"
+    assert _run(agent, content=block)[0] == block
