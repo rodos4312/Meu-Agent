@@ -29,8 +29,12 @@ if ($Stage -eq 'prepare') {
 }
 $deadline=[DateTime]::UtcNow.AddMinutes(8)
 do {
-  $inventory=(& gh api "repos/rodos4312/Meu-Agent/actions/runs/$env:GITHUB_RUN_ID/artifacts?per_page=100" | ConvertFrom-Json)
-  $found=@($inventory.artifacts | Where-Object { $_.name -eq "meu-reboot-envelope-$env:GITHUB_RUN_ATTEMPT" })
+  $response=& gh api "repos/rodos4312/Meu-Agent/actions/runs/$env:GITHUB_RUN_ID/artifacts?per_page=100"
+  $found=@()
+  if ($LASTEXITCODE -eq 0) {
+    $inventory=$response | ConvertFrom-Json
+    $found=@($inventory.artifacts | Where-Object { $_.name -eq "meu-reboot-envelope-$env:GITHUB_RUN_ATTEMPT" })
+  }
   if ($found.Count -gt 0) { break }
   Start-Sleep -Seconds 5
 } while ([DateTime]::UtcNow -lt $deadline)
