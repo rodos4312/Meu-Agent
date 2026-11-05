@@ -100,6 +100,10 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
                 assert replay.json()["id"] == session_id
                 assert phone.get("/meu/sessions").json()["sessions"][0]["id"] == session_id
                 assert phone.get(f"/meu/sessions/{session_id}").json()["messages"] == []
+                another = phone.post("/meu/sessions", json={}, headers={"Idempotency-Key": str(uuid.uuid4())})
+                assert another.status_code == 201, another.text
+                another_id = another.json()["id"]
+                assert another_id != session_id
                 key = str(uuid.uuid4())
                 body = {"input": "Γεια σου Meu", "session_id": session_id}
                 assert phone.post("/v1/runs", json={**body, "session_id": foreign},
@@ -131,6 +135,7 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
                 messages = phone.get(f"/meu/sessions/{session_id}").json()["messages"]
                 assert [row["content"] for row in messages][-2:] == [
                     "Συνέχεια από Windows", "RECOVERY_ACK_Συνέχεια από Windows"]
+                assert phone.get(f"/meu/sessions/{another_id}").json()["messages"] == []
                 assert desktop.delete(path, headers=owner()).json()["state"] == "off"
                 with pytest.raises(httpx.TransportError):
                     phone.get("/v1/capabilities")
@@ -139,7 +144,8 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path):
             with httpx.Client(base_url=origin, verify=tls, trust_env=False) as phone:
                 new_key = phone.post("/meu/pair", json={"challenge": challenge}).json()["key"]
                 phone.headers["Authorization"] = "Bearer " + new_key
-                assert phone.get("/meu/sessions").json()["sessions"][0]["id"] == session_id
+                assert {row["id"] for row in phone.get("/meu/sessions").json()["sessions"]} == {
+                    session_id, another_id}
                 assert phone.get(f"/meu/sessions/{session_id}").json()["messages"] == messages
     finally:
         peer.shutdown()
