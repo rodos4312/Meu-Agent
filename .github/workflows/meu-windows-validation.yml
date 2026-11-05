@@ -1,4 +1,5 @@
 name: Meu Windows validation
+run-name: Meu Windows validation (${{ github.event_name }}, ${{ github.ref_name }})
 
 on:
   push:
