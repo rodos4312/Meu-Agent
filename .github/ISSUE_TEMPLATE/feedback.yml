@@ -1,0 +1,21 @@
+name: Share feedback
+description: Tell us about your experience using Meu.
+title: "[Feedback]: "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Meu. English and Greek feedback are welcome.
+        This report is public. Keep private information and API keys out of your message.
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your experience
+      description: What worked well? What was confusing or could be improved?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Meu version (optional)
