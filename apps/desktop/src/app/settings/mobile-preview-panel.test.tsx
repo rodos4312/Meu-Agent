@@ -79,16 +79,17 @@ it('requests remote pairing only when selected and leaves the user a retry path'
 
 it('shares only the explicitly selected local conversation in sync mode', async () => {
   const sessionId = 'local-' + 'a'.repeat(64)
+  let pairing: { state: string; code?: string; seconds?: number; sync?: boolean } = { state: 'off' }
   const api = vi.fn(async ({ method, path }: { method?: string; path: string }) => {
     if (path.startsWith('/api/sessions?')) {
       return { sessions: [{ id: sessionId, title: 'Trip plans' }] }
     }
 
     if (method === 'POST') {
-      return { state: 'waiting', code: 'meusync1.test', seconds: 300, sync: true }
+      pairing = { state: 'waiting', code: 'meusync1.test', seconds: 300, sync: true }
     }
 
-    return { state: 'off' }
+    return pairing
   })
 
   $apiRequestScope.set({ connectionId: null, profile: 'work' })
