@@ -7,6 +7,7 @@ Must never import hermes_state (cycle); shared constants live in hermes_state_co
 import logging
 import json
 import math
+import re
 import time
 from collections import Counter
 from datetime import datetime, timezone, UTC
@@ -343,6 +344,114 @@ class SessionPortabilityMixin:
                        include_inactive: bool = False) -> dict[str, Any]:
         messages = self.get_messages(session["id"], include_inactive=include_inactive, include_compacted=include_compacted)
         return {**session, "messages": messages, "timings": _export_timings(messages, session["id"])}
+
+    _MEU_SYNC_SESSION_ID = re.compile(r"(?:[0-9]{8}_[0-9]{6}_[0-9a-f]{6,12}|local-[0-9a-f]{64})")
+    _MEU_SYNC_MAX_MESSAGES = 1000
+    _MEU_SYNC_MAX_TEXT = 256 * 1024
+
+    def _meu_sync_text(self, conn, session_id):
+        """Project visible text from a single, uncompressed session."""
+        rows = conn.execute(
+            """SELECT role, content, message_uid FROM messages
+               WHERE session_id = ? AND active = 1 AND _compressed_summary = 0
+                 AND role IN ('user', 'assistant') AND coalesce(display_kind, '') = ''
+               ORDER BY id LIMIT ?""",
+            (session_id, self._MEU_SYNC_MAX_MESSAGES + 1),
+        ).fetchall()
+        if len(rows) > self._MEU_SYNC_MAX_MESSAGES:
+            raise ValueError("Sync transcript exceeds message limit")
+        messages = []
+        for row in rows:
+            content = self._decode_content(row["content"])
+            if isinstance(content, str) and content.strip():
+                messages.append({"role": row["role"], "content": content,
+                                 "message_uid": row["message_uid"]})
+        return messages
+
+    def _validate_meu_sync_text(self, messages):
+        if not isinstance(messages, list) or len(messages) > self._MEU_SYNC_MAX_MESSAGES:
+            raise ValueError("Invalid sync message count")
+        seen = set()
+        size = 0
+        for message in messages:
+            if not isinstance(message, dict) or set(message) != {"role", "content", "message_uid"}:
+                raise ValueError("Sync accepts visible text only")
+            role, content, uid = (message[key] for key in ("role", "content", "message_uid"))
+            if role not in ("user", "assistant") or not isinstance(content, str) or not content.strip():
+                raise ValueError("Invalid sync message")
+            if not isinstance(uid, str) or not re.fullmatch(r"[0-9a-f]{32}", uid) or uid in seen:
+                raise ValueError("Missing or duplicate durable message identity")
+            seen.add(uid)
+            size += len(content.encode("utf-8"))
+            if size > self._MEU_SYNC_MAX_TEXT:
+                raise ValueError("Sync transcript exceeds text limit")
+
+    def export_meu_sync_history(self, session_id):
+        """Export user/assistant text only, for use after a local share decision."""
+        if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
+            raise ValueError("Unsupported sync session ID")
+        with self._read_ctx() as conn:
+            row = conn.execute("SELECT parent_session_id, end_reason FROM sessions WHERE id = ?",
+                               (session_id,)).fetchone()
+            if row is None or row["parent_session_id"] or row["end_reason"] == "compression":
+                raise ValueError("Sync requires an independent session")
+            messages = self._meu_sync_text(conn, session_id)
+        self._validate_meu_sync_text(messages)
+        return {"id": session_id, "messages": messages}
+
+    def apply_meu_sync_history(self, history):
+        """Import text or append a strict extension. Never submit an agent turn.
+
+        A divergent transcript is reported without writing either version.
+        Caller owns profile authorization and conflict presentation.
+        """
+        from hermes_state_mutation_retirement import retired_in
+
+        if not isinstance(history, dict) or set(history) != {"id", "messages"}:
+            raise ValueError("Invalid sync history")
+        session_id, messages = history["id"], history["messages"]
+        if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
+            raise ValueError("Unsupported sync session ID")
+        self._validate_meu_sync_text(messages)
+
+        def _do(conn):
+            if retired_in(conn, session_id):
+                return "deleted"
+            row = conn.execute("SELECT parent_session_id, end_reason FROM sessions WHERE id = ?",
+                               (session_id,)).fetchone()
+            if row is None:
+                normalized = self._normalize_import_session(
+                    {"source": "gui"}, session_id, messages)
+                self._import_session_row(conn, normalized["session"], normalized["messages"], session_id)
+                return "created"
+            if row["parent_session_id"] or row["end_reason"] == "compression":
+                return "conflict"
+            local = self._meu_sync_text(conn, session_id)
+            self._validate_meu_sync_text(local)
+            common_length = min(len(local), len(messages))
+            if local[:common_length] != messages[:common_length]:
+                return "conflict"
+            if len(messages) <= len(local):
+                return "unchanged"
+            # A rewind can leave the current visible history as a strict prefix
+            # of the peer's old history. Never bring those discarded rows back.
+            tail = [dict(message) for message in messages[len(local):]]
+            archived_ids = {
+                row[0] for row in conn.execute(
+                    "SELECT message_uid FROM messages WHERE session_id = ? AND active = 0",
+                    (session_id,),
+                )
+            }
+            if any(message["message_uid"] in archived_ids for message in tail):
+                return "conflict"
+            self._check_transcript_write_guards(
+                conn, session_id, None,
+                reject_active_turn_lease=True, reject_active_compression_lock=True)
+            inserted, tools = self._insert_message_rows(conn, session_id, tail)
+            self._bump_session_counters(conn, session_id, inserted, tools, unit=False)
+            return "appended"
+
+        return self._execute_write(_do)
 
     def export_session(self, session_id: str, include_compacted: bool = False,
                        include_inactive: bool = False) -> Optional[dict[str, Any]]:

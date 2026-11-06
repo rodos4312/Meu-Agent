@@ -76,3 +76,36 @@ it('requests remote pairing only when selected and leaves the user a retry path'
   fireEvent.click(screen.getByRole('button', { name: 'Show pairing code' }))
   expect(await screen.findByRole('img', { name: 'Meu pairing QR code' })).toBeTruthy()
 })
+
+it('shares only the explicitly selected local conversation in sync mode', async () => {
+  const sessionId = 'local-' + 'a'.repeat(64)
+  const api = vi.fn(async ({ method, path }: { method?: string; path: string }) => {
+    if (path.startsWith('/api/sessions?')) {
+      return { sessions: [{ id: sessionId, title: 'Trip plans' }] }
+    }
+
+    if (method === 'POST') {
+      return { state: 'waiting', code: 'meusync1.test', seconds: 300, sync: true }
+    }
+
+    return { state: 'off' }
+  })
+
+  $apiRequestScope.set({ connectionId: null, profile: 'work' })
+  vi.stubGlobal('hermesDesktop', { api })
+  render(<MobilePreviewPanel />)
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Sync conversation history via Wi-Fi or Tailscale' }))
+  const button = screen.getByRole('button', { name: 'Show pairing code' })
+  expect((button as HTMLButtonElement).disabled).toBe(true)
+  await screen.findByRole('option', { name: 'Trip plans' })
+  fireEvent.change(screen.getByRole('combobox', { name: 'Conversation to share' }), {
+    target: { value: sessionId }
+  })
+  fireEvent.click(button)
+  expect(await screen.findByRole('img', { name: 'Meu pairing QR code' })).toBeTruthy()
+  expect(api).toHaveBeenCalledWith(expect.objectContaining({
+    method: 'POST', path: '/api/mobile-preview/sync', connectionId: 'local',
+    profile: 'work', body: { session_id: sessionId }
+  }))
+})
