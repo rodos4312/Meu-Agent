@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import ipaddress
+import json
 import logging
 import re
 import secrets
@@ -20,6 +21,8 @@ from aiohttp import web
 
 from gateway.session_policy import MOBILE_SESSION_PREFIX
 
+PROFILE_PAIRING_KEY = "meu.profile-sync.pairing.v1"
+PROFILE_CERT_SECONDS = 365 * 24 * 3600
 PAIR_SECONDS = 300
 SESSION_SECONDS = 3600
 REMOTE_SESSION_SECONDS = 12 * 3600
@@ -60,11 +63,13 @@ def tailscale_network():
     raise ValueError("Connect Tailscale on this computer before pairing.")
 
 
-def _tls(address: str, session_seconds: int, *, extra_addresses=()) -> tuple[ssl.SSLContext, bytes]:
+def _tls(address: str, session_seconds: int, *, extra_addresses=(), saved_pem=None):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
-    from agent.ssl_verify import _stdlib_ssl_context_class
+    if saved_pem is not None:
+        cert = x509.load_pem_x509_certificate(saved_pem)
+        return _tls_context(saved_pem), cert.public_bytes(serialization.Encoding.DER), saved_pem
 
     key = ec.generate_private_key(ec.SECP256R1())
     name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "Meu Android Preview")])
@@ -77,14 +82,20 @@ def _tls(address: str, session_seconds: int, *, extra_addresses=()) -> tuple[ssl
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), True)
             .add_extension(x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]), False)
             .sign(key, hashes.SHA256()))
-    # Use Python's server defaults (TLS 1.2+) without the gateway's outgoing OS trust adapter.
+    pem = cert.public_bytes(serialization.Encoding.PEM) + key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    return _tls_context(pem), cert.public_bytes(serialization.Encoding.DER), pem
+
+
+def _tls_context(contents):
+    from agent.ssl_verify import _stdlib_ssl_context_class
+
     context = _stdlib_ssl_context_class()(ssl.PROTOCOL_TLS_SERVER)
     with tempfile.TemporaryDirectory(prefix="meu-mobile-tls-") as folder:
         pem = Path(folder) / "tls.pem"
-        pem.write_bytes(cert.public_bytes(serialization.Encoding.PEM) + key.private_bytes(
-            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        pem.write_bytes(contents)
         context.load_cert_chain(str(pem))
-    return context, cert.public_bytes(serialization.Encoding.DER)
+    return context
 
 
 def _encode(value: bytes) -> str:
@@ -99,12 +110,19 @@ class _MobileTransport:
 
 class MobilePreview:
     def __init__(self, authority, interface, *, remote=False, relay_url=None,
-                 sync_session=None, sync_tailscale=None):
+                 sync_session=None, sync_tailscale=None, sync_profile=False, pairing_store=None):
         self.authority = authority
         self.interface = interface
         self.remote = remote
         self.relay_url = relay_url
         self.sync_session = sync_session
+        self.sync_profile = sync_profile
+        self.pairing_store = pairing_store
+        self.token_digest = None
+        self.tls_pem = None
+        self.tls_context = None
+        self.ports = ()
+        self.sync_enabled = bool(sync_session or sync_profile)
         self.interfaces = (interface, sync_tailscale) if sync_tailscale else (interface,)
         self.relay = None
         self.session_seconds = REMOTE_SESSION_SECONDS if remote or sync_tailscale else SESSION_SECONDS
@@ -121,17 +139,22 @@ class MobilePreview:
         self.runs = {}
         self.lock = asyncio.Lock()
 
-    async def start(self):
+    async def start(self, *, saved=None):
         addresses = tuple(str(interface.ip) for interface in self.interfaces)
-        tls, certificate = await asyncio.to_thread(
-            _tls, addresses[0], self.session_seconds, extra_addresses=addresses[1:],
+        tls, certificate, self.tls_pem = await asyncio.to_thread(
+            _tls, addresses[0], PROFILE_CERT_SECONDS if self.sync_profile and self.pairing_store else self.session_seconds,
+            extra_addresses=addresses[1:], saved_pem=saved["pem"].encode("ascii") if saved else None,
         )
         app = web.Application(
-            client_max_size=2 * 1024 * 1024 if self.sync_session else 48 * 1024,
+            client_max_size=2 * 1024 * 1024 if self.sync_enabled else 48 * 1024,
             middlewares=[self._guard],
         )
         app.router.add_post("/meu/pair", self._pair)
-        if self.sync_session:
+        if self.sync_profile:
+            app.router.add_get("/meu/sync/sessions", self._sync_catalog, allow_head=False)
+            app.router.add_get("/meu/sync/sessions/{session_id}", self._sync_export, allow_head=False)
+            app.router.add_put("/meu/sync/sessions/{session_id}", self._sync_apply)
+        elif self.sync_session:
             app.router.add_get("/meu/sync", self._sync_export, allow_head=False)
             app.router.add_put("/meu/sync", self._sync_apply)
         else:
@@ -146,20 +169,35 @@ class MobilePreview:
         runner = web.AppRunner(app, access_log=None, shutdown_timeout=2)
         await runner.setup()
         try:
-            for address in addresses:
-                await web.TCPSite(runner, address, 0, ssl_context=tls).start()
+            for index, address in enumerate(addresses):
+                port = saved["ports"][index] if saved else 0
+                try:
+                    await web.TCPSite(runner, address, port, ssl_context=tls).start()
+                except OSError:
+                    if not saved:
+                        raise
+            if not runner.addresses:
+                raise OSError("No saved sync address is available")
         except BaseException:
             await runner.cleanup()
             raise
         self.runner = runner
+        self.tls_context = tls
+        if saved:
+            self.ports = tuple(saved["ports"])
+            self.challenge = self.code = None
+            self.token_digest = saved["digest"]
+            self._keep_paired()
+            return
+        self.ports = tuple(next(port for ip, port in runner.addresses if ip == address) for address in addresses)
         origins = tuple(
             f"https://{address}:{next(port for ip, port in runner.addresses if ip == address)}"
             for address in addresses
         )
         origin = origins[0]
-        if self.sync_session:
+        if self.sync_enabled:
             # One challenge and credential cover the LAN-first list of pinned origins.
-            self.code = ".".join(("meusync1", _encode("\n".join(origins).encode()),
+            self.code = ".".join(("meusync2" if self.sync_profile else "meusync1", _encode("\n".join(origins).encode()),
                                   _encode(self.challenge.encode()), _encode(certificate)))
         elif self.relay_url:
             from agent.ssl_verify import _stdlib_ssl_context_class
@@ -179,24 +217,43 @@ class MobilePreview:
             self.code = ".".join(("meu2", _encode(origin.encode()), _encode(self.challenge.encode()), _encode(certificate)))
         self._expire_in(PAIR_SECONDS)
 
+    async def restore_missing_sites(self):
+        if not self.runner or not self.token_digest or not self.tls_context:
+            return
+        bound = {address for address, _ in self.runner.addresses}
+        for interface, port in zip(self.interfaces, self.ports, strict=True):
+            address = str(interface.ip)
+            if address not in bound:
+                try:
+                    await web.TCPSite(self.runner, address, port, ssl_context=self.tls_context).start()
+                except OSError:
+                    pass
+
     def _expire_in(self, seconds):
         if self.expiry:
             self.expiry.cancel()
         self.deadline = self.loop.time() + seconds
         self.expiry = self.loop.call_later(seconds, lambda: self.loop.create_task(self.close()))
 
+    def _keep_paired(self):
+        if self.expiry:
+            self.expiry.cancel()
+            self.expiry = None
+        self.deadline = float("inf")
+
     def state(self):
         if self.loop.time() >= self.deadline or not self.runner:
             return {"state": "off"}
-        return {"state": "paired" if self.token else "waiting", "code": self.code,
-                "seconds": max(0, round(self.deadline - self.loop.time())),
-                **({"sync": True} if self.sync_session else {})}
+        return {"state": "paired" if self.token or self.token_digest else "waiting", "code": self.code,
+                "seconds": None if self.token_digest else max(0, round(self.deadline - self.loop.time())),
+                **({"sync": True} if self.sync_enabled else {}),
+                **({"sync_profile": True} if self.sync_profile else {})}
 
     async def close(self):
         if self.expiry:
             self.expiry.cancel()
         self.deadline = 0
-        self.code = self.challenge = self.token = None
+        self.code = self.challenge = self.token = self.token_digest = None
         runner, self.runner = self.runner, None
         connection, self.connection = self.connection, None
         relay, self.relay = self.relay, None
@@ -227,7 +284,12 @@ class MobilePreview:
         if request.path != "/meu/pair":
             expected = f"Bearer {self.token}" if self.token else ""
             supplied = request.headers.get("Authorization", "")
-            if not expected or not secrets.compare_digest(expected.encode(), supplied.encode()):
+            if self.token_digest:
+                valid = supplied.startswith("Bearer ") and secrets.compare_digest(
+                    self.token_digest, sha256(supplied[7:].encode()).hexdigest())
+            else:
+                valid = bool(expected) and secrets.compare_digest(expected.encode(), supplied.encode())
+            if not valid:
                 raise web.HTTPUnauthorized()
         response = await handler(request)
         response.headers["Cache-Control"] = "no-store"
@@ -251,7 +313,26 @@ class MobilePreview:
         if not (self.challenge and isinstance(challenge, str)
                 and secrets.compare_digest(self.challenge.encode(), challenge.encode())):
             raise web.HTTPUnauthorized()
-        if self.sync_session:
+        if self.sync_profile and self.pairing_store:
+            async with self.lock:
+                if self.challenge != challenge or self.loop.time() >= self.deadline:
+                    raise web.HTTPUnauthorized()
+                key = secrets.token_urlsafe(32)
+                digest = sha256(key.encode()).hexdigest()
+                record = {"profile": self.authority.profile_id, "digest": digest,
+                          "pem": self.tls_pem.decode("ascii"), "ports": self.ports,
+                          "interfaces": [str(interface) for interface in self.interfaces]}
+                remaining = self.deadline - self.loop.time()
+                self._keep_paired()
+                try:
+                    await asyncio.to_thread(self.pairing_store.set_meta, PROFILE_PAIRING_KEY, json.dumps(record))
+                except Exception:
+                    self._expire_in(max(0, remaining))
+                    raise
+                self.challenge = self.code = None
+                self.token_digest = digest
+                return web.json_response({"key": key})
+        if self.sync_enabled:
             self.challenge = self.code = None
             self.token = secrets.token_urlsafe(32)
             self._expire_in(self.session_seconds)
@@ -270,9 +351,22 @@ class MobilePreview:
         self._expire_in(self.session_seconds)
         return web.json_response({"key": self.token})
 
-    async def _sync_export(self, _request):
+    async def _sync_catalog(self, request):
         try:
-            history = await asyncio.to_thread(self.authority.db.export_meu_sync_history, self.sync_session)
+            catalog = await asyncio.to_thread(
+                self.authority.db.list_meu_sync_sessions, after=request.query.get("after", ""),
+            )
+        except ValueError:
+            raise web.HTTPBadRequest() from None
+        return web.json_response(catalog)
+
+    async def _sync_export(self, request):
+        session_id = request.match_info["session_id"] if self.sync_profile else self.sync_session
+        scope = {"profile_sync": True} if self.sync_profile else {}
+        try:
+            history = await asyncio.to_thread(self.authority.db.export_meu_sync_history, session_id, **scope)
+        except LookupError:
+            raise web.HTTPNotFound() from None
         except ValueError:
             raise web.HTTPConflict() from None
         return web.json_response(history)
@@ -283,11 +377,15 @@ class MobilePreview:
         )
 
         history = await self._json(request)
-        if history.get("id") != self.sync_session:
+        session_id = request.match_info["session_id"] if self.sync_profile else self.sync_session
+        if history.get("id") != session_id:
             raise web.HTTPForbidden()
+        scope = {"profile_sync": True} if self.sync_profile else {}
         try:
             async with self.lock:
-                status = await asyncio.to_thread(self.authority.db.apply_meu_sync_history, history)
+                status = await asyncio.to_thread(self.authority.db.apply_meu_sync_history, history, **scope)
+        except LookupError:
+            raise web.HTTPNotFound() from None
         except ValueError:
             raise web.HTTPBadRequest() from None
         except (CompressionSessionClosedError, SessionCompressionInProgressError, SessionTurnLeaseLostError):

@@ -349,6 +349,40 @@ class SessionPortabilityMixin:
     _MEU_SYNC_MAX_MESSAGES = 1000
     _MEU_SYNC_MAX_TEXT = 256 * 1024
 
+    _MEU_SYNC_PROFILE_SCOPE = """hidden = 0 AND parent_session_id IS NULL
+        AND coalesce(end_reason, '') <> 'compression'
+        AND (source IN ('gui', 'desktop')
+          OR (source = 'local' AND created_source IN ('gui', 'desktop')))"""
+
+    def list_meu_sync_sessions(self, *, after: str = "", limit: int = 100):
+        """Page through shareable local chat IDs in this store without reading transcripts.
+
+        A cursor is a position in the ID ordering, independent of recent
+        activity, so receiving a message cannot move a row between pages.
+        The receiver must finish a scan before concluding a chat is absent.
+        """
+        if not isinstance(after, str) or (after and not self._MEU_SYNC_SESSION_ID.fullmatch(after)):
+            raise ValueError("Invalid sync cursor")
+        if type(limit) is not int or not 1 <= limit <= 200:
+            raise ValueError("Invalid sync page size")
+        selected = []
+        cursor = after
+        with self._read_ctx() as conn:
+            while len(selected) <= limit:
+                rows = conn.execute(
+                    f"""SELECT id FROM sessions WHERE id > ? AND ({self._MEU_SYNC_PROFILE_SCOPE})
+                        ORDER BY id LIMIT 200""",
+                    (cursor,),
+                ).fetchall()
+                if not rows:
+                    break
+                cursor = rows[-1]["id"]
+                selected.extend(row["id"] for row in rows
+                                if self._MEU_SYNC_SESSION_ID.fullmatch(row["id"]))
+                if len(rows) < 200:
+                    break
+        return {"ids": selected[:limit], "next": selected[limit - 1] if len(selected) > limit else None}
+
     def _meu_sync_text(self, conn, session_id):
         """Project visible text from a single, uncompressed session."""
         rows = conn.execute(
@@ -386,20 +420,24 @@ class SessionPortabilityMixin:
             if size > self._MEU_SYNC_MAX_TEXT:
                 raise ValueError("Sync transcript exceeds text limit")
 
-    def export_meu_sync_history(self, session_id):
+    def export_meu_sync_history(self, session_id, *, profile_sync=False):
         """Export user/assistant text only, for use after a local share decision."""
         if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
             raise ValueError("Unsupported sync session ID")
         with self._read_ctx() as conn:
-            row = conn.execute("SELECT parent_session_id, end_reason FROM sessions WHERE id = ?",
-                               (session_id,)).fetchone()
+            row = conn.execute(
+                f"""SELECT parent_session_id, end_reason, ({self._MEU_SYNC_PROFILE_SCOPE}) AS sync_allowed
+                    FROM sessions WHERE id = ?""", (session_id,),
+            ).fetchone()
+            if profile_sync and (row is None or not row["sync_allowed"]):
+                raise LookupError("Session unavailable for profile sync")
             if row is None or row["parent_session_id"] or row["end_reason"] == "compression":
                 raise ValueError("Sync requires an independent session")
             messages = self._meu_sync_text(conn, session_id)
         self._validate_meu_sync_text(messages)
         return {"id": session_id, "messages": messages}
 
-    def apply_meu_sync_history(self, history):
+    def apply_meu_sync_history(self, history, *, profile_sync=False):
         """Import text or append a strict extension. Never submit an agent turn.
 
         A divergent transcript is reported without writing either version.
@@ -417,8 +455,12 @@ class SessionPortabilityMixin:
         def _do(conn):
             if retired_in(conn, session_id):
                 return "deleted"
-            row = conn.execute("SELECT parent_session_id, end_reason FROM sessions WHERE id = ?",
-                               (session_id,)).fetchone()
+            row = conn.execute(
+                f"""SELECT parent_session_id, end_reason, ({self._MEU_SYNC_PROFILE_SCOPE}) AS sync_allowed
+                    FROM sessions WHERE id = ?""", (session_id,),
+            ).fetchone()
+            if profile_sync and row is not None and not row["sync_allowed"]:
+                raise LookupError("Session unavailable for profile sync")
             if row is None:
                 normalized = self._normalize_import_session(
                     {"source": "gui"}, session_id, messages)

@@ -156,6 +156,11 @@ class GatewayDashboardMount:
                 self.web = None
                 raise
             self.web, self._lifespan = web, lifespan
+            if web.app.state.session_authority is not None:
+                from hermes_cli.web_routers.mobile_preview import restore_mobile_profile_pairing
+                web.app.state.mobile_profile_restore = asyncio.create_task(
+                    restore_mobile_profile_pairing(web.app.state),
+                )
             return web
 
     async def close(self) -> None:
@@ -164,7 +169,13 @@ class GatewayDashboardMount:
         try:
             if self.web is not None:
                 from hermes_cli.web_routers.mobile_preview import close_mobile_preview
-                await close_mobile_preview(self.web.app.state)
+                state = self.web.app.state
+                restore = getattr(state, "mobile_profile_restore", None)
+                if restore is not None:
+                    restore.cancel()
+                    await asyncio.gather(restore, return_exceptions=True)
+                    delattr(state, "mobile_profile_restore")
+                await close_mobile_preview(state)
             if lifespan is not None:
                 await lifespan.__aexit__(None, None, None)
         finally:
