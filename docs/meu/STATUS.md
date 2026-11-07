@@ -21,6 +21,7 @@ test evidence and remaining physical-device/PDF acceptance. Coordinator progress
 
 | Work | Evidence |
 | --- | --- |
+| Android provider setup, installation and cleanup | Autonomous OpenRouter light/strong selection, real install progress and optional backend-only preparation are source-verified. Active model/proxy coverage survives removal of obsolete Portal tests. Android is backed up privately; its old engine pin still needs admission/regeneration before the consolidated APK. [Checks and limits](ANDROID_OPENROUTER_INSTALL_VALIDATION.md). |
 | Ordered Coordinator reviews (development only) | New consequential writing tasks use requirements then quality gates, while routine/read-only tasks stay light. 75 Coordinator tests plus 101 integration tests and seven skill checks passed locally on Windows. All six required GitHub jobs passed for follow-up `1d0f725dca18`, including the corrected native UI rehearsal. One existing cancellation suite passed only on retry and remains a stability follow-up. [Scope and validation](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
 | Coordinator on a real provider | Two native detached helpers used `deepseek-flash` and `deepseek-v4-pro` on synthetic payment data. A separate conversation answered while the project was running. Independent checks verified every normalized row and the exact reconciliation result. Both tasks reached verified on their first successful rehearsal attempt. This was a backend rehearsal, not a new Desktop release. |
 | Project notes after relocation | 27 focused tests cover real moves, reused paths, independent copies, primary-folder changes, concurrent claims, legacy notes, profile isolation and the notes RPC. Note contents stay in the profile. See [Project memory](PROJECT_MEMORY.md). |
@@ -45,12 +46,14 @@ No host restart or Windows feature change was performed.
 
 ## Current acceptance before the consolidated preview
 
-1. Required GitHub checks are complete for `1d0f725dca18`:
-   [run 42407732228](https://github.com/rodos4312/Meu-Agent/actions/runs/42407732228)
+1. Required GitHub checks are complete for `02f997db0e8e`:
+   [run 42414895061](https://github.com/rodos4312/Meu-Agent/actions/runs/42414895061)
    passed all six required jobs; three optional distribution jobs were skipped.
-   Investigate the existing cancellation-suite flake separately: three cases
-   failed on its first attempt, and all 13 passed on the automatic retry.
-   This green run is not evidence that the intermittent failure is fixed.
+   The final Windows privacy job reported no flaky file retry. Keep the earlier
+   cancellation-suite flake open: three cases failed in the original staged-review
+   run and all 13 passed on retry. A clean subsequent run is not a fix.
+   See [provider/installation validation](ANDROID_OPENROUTER_INSTALL_VALIDATION.md)
+   for the corrected Windows Bash test harness, cleanup and Android backup.
 2. Prepare matching Windows frontend/backend and Android application/runtime
    candidates from recorded revisions. Android's current seed preparation and
    guest installer still pin engine `cb43517b6dbd`; regenerate the embedded
