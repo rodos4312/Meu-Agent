@@ -1,7 +1,9 @@
 # Consolidated stability checks — 2026-11-07
 
-Source changes stay on `dev/meu-foundation`. No release, installer/APK, version
-bump, update-feed promotion or installed-app change belongs to this batch.
+Source changes stay on `dev/meu-foundation`. No release, installer/APK
+publication, version bump, update-feed promotion or installed-app change belongs
+to this batch. CI can build a validation-only installer artifact; that does not
+promote a release or change the installed application.
 The recovered Android source remains build 9673.
 
 ## Previous GitHub gate
@@ -66,6 +68,23 @@ changed to satisfy those text assertions.
   provider or the installed Meu.
 - Windows ESLint, TypeScript checks and production build passed. The local
   working-tree build is a test artifact, not a published release.
+
+## Stability source and CI receipts
+
+The executable Windows changes are commit `b23f2653fb8a`. Their exact pipeline
+is [run 42389686208](https://github.com/rodos4312/Meu-Agent/actions/runs/42389686208).
+The existing readiness tests and the added startup/installer-recovery CI step
+exercise the fix on Windows. The installer/CI-routing Linux job passed all
+**477 tests**, including all **102 workflow-dispatch replay cases**.
+
+The extra local Windows replay is inconclusive: the first run hit its 300-second
+file budget; after selecting Portable Git Bash, the diagnostic run made further
+progress but exceeded 600 seconds. It is not recorded as a pass. Its Linux CI
+result is separate; native local replay performance remains a tooling follow-up.
+
+Android's reviewed source archive is backed up privately in commit
+`a0808b697203`. All 2,696 archived files were compared against the working source
+and their manifest hashes. This is source backup, not an APK distribution.
 
 ## Remaining acceptance before grouped distribution
 
