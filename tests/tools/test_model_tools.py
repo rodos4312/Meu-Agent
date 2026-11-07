@@ -557,6 +557,7 @@ def test_browser_exec_points_at_vision_analyze_only_when_the_session_has_it(monk
             not native and "vision_analyze" in names)
 
 
+@pytest.mark.platforms("posix")
 def test_tool_defs_cache_key_sees_config_replacement_with_pinned_mtime(tmp_path):
     """#111105: a same-size config.yaml swapped in with the old mtime must change the memo key."""
     import os
@@ -575,4 +576,25 @@ def test_tool_defs_cache_key_sees_config_replacement_with_pinned_mtime(tmp_path)
         other.write_text("mcp_servers:\n  bb: {command: b}\n", encoding="utf-8")
         shutil.copy2(other, cfg)
         os.utime(cfg, ns=(st.st_atime_ns, st.st_mtime_ns))
+        assert _tool_defs_cache_key(None, None, False) != before
+
+
+@pytest.mark.platforms("windows")
+def test_tool_defs_cache_key_sees_atomic_config_replacement_with_pinned_mtime(tmp_path):
+    """Windows ctime is creation time; atomic replacement changes file identity."""
+    import os
+
+    from model_tools import _tool_defs_cache_key
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("mcp_servers:\n  aa: {command: a}\n", encoding="utf-8")
+    with patch("hermes_cli.config.get_config_path", return_value=cfg):
+        before = _tool_defs_cache_key(None, None, False)
+        original = cfg.stat()
+        replacement = tmp_path / "replacement.yaml"
+        replacement.write_text("mcp_servers:\n  bb: {command: b}\n", encoding="utf-8")
+        os.utime(replacement, ns=(original.st_atime_ns, original.st_mtime_ns))
+        os.replace(replacement, cfg)
+        current = cfg.stat()
+        assert (current.st_mtime_ns, current.st_size) == (original.st_mtime_ns, original.st_size)
         assert _tool_defs_cache_key(None, None, False) != before

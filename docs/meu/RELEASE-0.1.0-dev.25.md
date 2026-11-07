@@ -24,6 +24,8 @@ The full Windows installer, upgrade and recovery gates run for this version.
 
 Project-note configuration checks now use the shared config backend. Windows
 reserved-name matching uses the equivalent explicit regular-expression flag.
+The configuration replacement test now distinguishes POSIX change time from
+Windows creation time, with a native Windows atomic-replacement regression test.
 
 Install over the existing version. Keep the existing Meu data folder; there is
 no reason to uninstall first or remove chats, settings, memory or skills.
