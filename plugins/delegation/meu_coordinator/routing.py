@@ -69,9 +69,12 @@ def select_model(workload: str, parent_route: Mapping[str, Any], overrides: Any 
 
     current = str(parent_route.get("model") or "")
     provider = _session_provider(parent_route)
-    if workload in {"routine", "complex"} and isinstance(overrides, Mapping):
+    if workload in {"routine", "standard", "complex"} and isinstance(overrides, Mapping):
         configured = overrides.get(provider)
-        model = configured.get(workload) if isinstance(configured, Mapping) else None
+        # An explicit light/strong pair also owns ordinary implementation;
+        # changing the chat model must not introduce a third helper model.
+        selected_tier = "complex" if workload == "standard" else workload
+        model = configured.get(selected_tier) if isinstance(configured, Mapping) else None
         if isinstance(model, str) and model.strip():
             return model.strip()
     endpoint = str(parent_route.get("base_url") or "")
