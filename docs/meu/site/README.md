@@ -12,4 +12,12 @@ The page contains a canonical URL, Open Graph metadata, SoftwareApplication stru
 
 Before publishing changes, check the gallery tabs (including arrow keys), image enlargement and Escape, mobile menu, FAQs, image loading and download destinations. The initial implementation was checked in the browser at desktop and 390-pixel mobile widths.
 
-After publication, the owner can verify a URL-prefix property in Google Search Console using its supplied HTML meta tag, submit `/sitemap.xml`, and inspect the homepage. Google indexing and search placement are not guaranteed. No Search Console ownership verification or indexing submission has been completed by this website change.
+## Google Search Console
+
+Setup was performed on 7 November 2026 for the exact URL-prefix property `https://meu-agent.witty-mite-2271.chatgpt.site/`:
+
+- Ownership was successfully verified through the HTML meta tag in `index.html`. Preserve that tag in future deployments to retain verified ownership.
+- `/sitemap.xml` was submitted. Search Console confirmed successful processing and discovered one page.
+- URL Inspection reported that the homepage was not yet indexed. The separate manual indexing request was rejected because the daily quota was exceeded; Google instructed another attempt the following day. The request was not accepted or queued by that action.
+
+The sitemap submission remains in place independently of the manual request. Indexing and search placement are not guaranteed. Check the property in Search Console for subsequent crawl/index status; another manual request can be attempted once the quota resets. A new domain requires its own ownership verification and consistent canonical/sitemap updates.
