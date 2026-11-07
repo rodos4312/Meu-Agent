@@ -14,8 +14,10 @@ The 2026-11-07 experience batch completes the source implementation of the
 navigation/identity milestone and begins project-location access on both
 clients. Local Windows navigation and Android automated checks passed; see
 [experience validation](EXPERIENCE_VALIDATION.md). No installer, APK, update-feed
-promotion or installed-app change is issued for this batch. Continue with project
-deliverables/file previews before the consolidated release.
+promotion or installed-app change is issued for this batch. Unified deliverables
+and in-app file previews are now implemented and locally verified on both
+clients; see [deliverables validation](DELIVERABLES_VALIDATION.md) for scope,
+test evidence and remaining physical-device/PDF acceptance.
 
 | Work | Evidence |
 | --- | --- |

@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, expect, it, vi } from 'vitest'
 
+import { hermesApiAs } from '@/api/client'
 import { $connection } from '@/store/session'
 
 import { ArtifactsView } from './index'
@@ -19,6 +20,8 @@ const paths = vi.hoisted(() => [
 ])
 
 const getSessionMessages = vi.hoisted(() => vi.fn())
+vi.mock('@/api/client', async () => ({ ...(await vi.importActual('@/api/client')), hermesApiAs: vi.fn() }))
+vi.mock('@/app/chat/right-rail/preview-file', () => ({ SourceView: ({ text }: { text: string }) => <pre>{text}</pre> }))
 
 vi.mock('@/hermes', async () => ({
   ...(await vi.importActual('@/hermes')),
@@ -34,7 +37,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('keeps discovered file paths and originating session scope intact through remote opening', async () => {
+it('previews files in place and downloads only on request, preserving the originating owner and raw path', async () => {
+  vi.mocked(hermesApiAs).mockResolvedValue({ path: '/fixture', text: 'Preview body' })
   getSessionMessages.mockResolvedValue({
     messages: [
       {
@@ -78,6 +82,14 @@ it('keeps discovered file paths and originating session scope intact through rem
     'absolute.txt'
   ]) {
     fireEvent.click(await screen.findByRole('button', { name }))
+    const dialog = await screen.findByRole('dialog')
+    await within(dialog).findByText('Preview body')
+    expect(saveGatewayFile).toHaveBeenCalledTimes(paths.indexOf(paths.find(path => path.endsWith(name))!))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }))
+    await waitFor(() =>
+      expect(saveGatewayFile).toHaveBeenCalledTimes(paths.indexOf(paths.find(path => path.endsWith(name))!) + 1)
+    )
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
   }
 
   await waitFor(() => expect(saveGatewayFile).toHaveBeenCalledTimes(paths.length))
@@ -92,10 +104,14 @@ it('keeps discovered file paths and originating session scope intact through rem
   )
   expect(screen.getByRole('link').getAttribute('href')).toBe('https://example.com/report.txt')
   expect(openExternal).not.toHaveBeenCalled()
-  expect(getSessionMessages).toHaveBeenCalledWith('artifact-session', 'origin-profile', {
-    includeCompacted: true,
-    limit: expect.any(Number),
-    offset: 0,
-    order: 'oldest'
-  })
+  expect(getSessionMessages).toHaveBeenCalledWith(
+    'artifact-session',
+    { connectionId: 'remote-fixture', profile: 'origin-profile' },
+    {
+      includeCompacted: true,
+      limit: expect.any(Number),
+      offset: 0,
+      order: 'oldest'
+    }
+  )
 })

@@ -32,7 +32,7 @@ afterEach(() => {
 })
 it('shows the Meu product name on a new empty session', () => {
   const { container } = render(<Fixture />)
-  expect(container.querySelector('[data-slot="aui_intro"] [aria-label="MEU"]')).not.toBeNull()
+  expect(container.querySelector('[data-slot="aui_intro"] [aria-label="Meu"]')?.textContent).toBe('M')
   expect(container.textContent).not.toContain('HERMES AGENT')
 })
 it('translates every shipped stock body at the same personality and rotation position', async () => {

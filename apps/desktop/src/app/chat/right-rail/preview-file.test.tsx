@@ -12,6 +12,25 @@ import { MarkdownPreview } from './preview-file'
 // renderer produces. Guards the regression where the preview was a bare
 // Streamdown pass with no math plugin and no table/img/a components.
 describe('MarkdownPreview', () => {
+  it('renders catalog markdown without resolving links or images against another gateway', () => {
+    $previewTabs.set([])
+
+    const { container } = render(
+      <MarkdownPreview
+        readOnly
+        text={
+          '# Delivered report\n\n[next](../private.md)\n\n![External chart](https://unexpected.invalid/chart.png)\n\n```svg\n<svg></svg>\n```'
+        }
+      />
+    )
+
+    expect(screen.getByRole('heading', { name: 'Delivered report' })).toBeTruthy()
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('iframe')).toBeNull()
+    fireEvent.click(screen.getByText('next'))
+    expect($previewTabs.get()).toEqual([])
+  })
   afterEach(() => {
     cleanup()
   })

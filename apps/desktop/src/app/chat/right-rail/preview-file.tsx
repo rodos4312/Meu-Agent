@@ -487,7 +487,28 @@ const MARKDOWN_COMPONENTS = {
 const PREVIEW_REMARK_PLUGINS = [...Object.values(defaultRemarkPlugins), remarkPreviewFileLinks]
 const PREVIEW_REHYPE_PLUGINS = [...Object.values(defaultRehypePlugins), rehypePreviewHeadingIds]
 
-export function MarkdownPreview({ filePath, text }: { filePath?: string; text: string }) {
+// A cross-session catalog must not resolve links or images against the foreground
+// gateway. Its document view is inert; the owning chat remains the navigation door.
+const READ_ONLY_MARKDOWN_COMPONENTS = {
+  ...MARKDOWN_COMPONENTS,
+  a: ({ children, href }: ComponentProps<'a'>) => (
+    <span className="underline" title={href}>
+      {children}
+    </span>
+  ),
+  img: ({ alt }: ComponentProps<'img'>) => <span>{alt}</span>,
+  code: ({ children }: ComponentProps<'code'>) => <code>{children}</code>
+}
+
+export function MarkdownPreview({
+  filePath,
+  text,
+  readOnly = false
+}: {
+  filePath?: string
+  text: string
+  readOnly?: boolean
+}) {
   const mathText = useMemo(() => normalizeFilePreviewMath(text), [text])
 
   return (
@@ -498,7 +519,7 @@ export function MarkdownPreview({ filePath, text }: { filePath?: string; text: s
         data-selectable-text="true"
       >
         <Streamdown
-          components={MARKDOWN_COMPONENTS}
+          components={readOnly ? READ_ONLY_MARKDOWN_COMPONENTS : MARKDOWN_COMPONENTS}
           controls={false}
           mode="static"
           parseIncompleteMarkdown={false}

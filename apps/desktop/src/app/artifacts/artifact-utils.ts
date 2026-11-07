@@ -1,12 +1,17 @@
+import type { OwnerScope } from '@/api/client'
+import type { ArtifactDetection } from '@/lib/artifact-detect'
 import { mediaTagValues } from '@/lib/chat-messages/parts'
 import { isArtifactFilePath, mediaExternalUrl, mediaPathFromMarkdownHref, resolveMediaDisplaySrc } from '@/lib/media'
 import type { SessionInfo, SessionMessage, SessionMessagesResponse } from '@/types/hermes'
+
+import { generatedDeliverables, MAX_INDEX_INLINE_CHARS } from './generated-deliverables'
 
 export type ArtifactKind = 'image' | 'file' | 'link'
 export type ArtifactFilter = 'all' | ArtifactKind
 export const ARTIFACT_FILTERS: readonly ArtifactFilter[] = ['all', 'image', 'file', 'link']
 
 export interface ArtifactRecord {
+  inline?: ArtifactDetection & { name: string; hash: string; content?: string }
   id: string
   kind: ArtifactKind
   value: string
@@ -246,14 +251,14 @@ function artifactHref(value: string): string {
   return value
 }
 
-export async function artifactImageSrc(value: string): Promise<string> {
+export async function artifactImageSrc(value: string, owner?: OwnerScope): Promise<string> {
   // Delegate the whole local/remote ladder to the shared media resolver:
   // inline (http/data) stays as-is, remote gateway goes through the
   // authenticated fs bridge, local desktop through the Electron
   // readFileDataUrl, and bare non-path link values fall through untouched.
   // Reimplementing that ladder here would drift from resolveMediaDisplaySrc
   // and regress one of its legs (#83380).
-  return resolveMediaDisplaySrc(value)
+  return resolveMediaDisplaySrc(value, owner)
 }
 
 function artifactLabel(value: string): string {
@@ -503,6 +508,27 @@ export function collectArtifactsForSession(session: SessionInfo, messages: Sessi
       continue
     }
 
+    if (message.role === 'assistant') {
+      for (const inline of generatedDeliverables(messageText(message))) {
+        const id = `${session.id}:inline:${inline.hash}`
+
+        if (!found.has(id)) {
+          found.set(id, {
+            id,
+            kind: 'file',
+            value: inline.name,
+            href: '',
+            label: inline.name,
+            sessionId: session.id,
+            profile: session.profile,
+            sessionTitle: title,
+            timestamp: artifactTimestamp(message, session),
+            inline
+          })
+        }
+      }
+    }
+
     collectArtifactsFromMessage(message, (candidate, explicit = false) => {
       const value = normalizeValue(decodeMediaHrefValue(candidate))
 
@@ -543,6 +569,7 @@ export async function loadArtifactsForSessions(
 ): Promise<ArtifactLoadResult> {
   const artifacts: ArtifactRecord[] = []
   const failures: ArtifactLoadFailure[] = []
+  let retainedInlineChars = 0
   const maxPageJsonChars = options.maxPageJsonChars ?? MAX_ARTIFACT_MESSAGE_PAGE_JSON_CHARS
 
   // Keep only one transcript page resident at a time. Recent sessions can each
@@ -565,6 +592,16 @@ export async function loadArtifactsForSessions(
 
         for (const artifact of collectArtifactsForSession(session, page.messages)) {
           if (!sessionArtifacts.has(artifact.id)) {
+            if (artifact.inline?.content) {
+              const size = artifact.inline.content.length
+
+              if (retainedInlineChars + size > MAX_INDEX_INLINE_CHARS) {
+                artifact.inline = { ...artifact.inline, content: undefined }
+              } else {
+                retainedInlineChars += size
+              }
+            }
+
             sessionArtifacts.set(artifact.id, artifact)
           }
         }

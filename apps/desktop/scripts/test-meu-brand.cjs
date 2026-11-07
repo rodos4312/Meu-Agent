@@ -35,7 +35,8 @@ for (const relative of [
   const copy = fs.readFileSync(path.join(root, relative), 'utf8')
   assert.doesNotMatch(copy, /\bHermes\b/, `Visible upstream name remains in ${relative}`)
 }
-assert.match(fs.readFileSync(path.join(root, 'src/components/chat/intro.tsx'), 'utf8'), /WORDMARK = 'MEU'/)
+// The visible welcome mark is exercised by intro.test.tsx. Its implementation
+// is allowed to change without restoring a retired wordmark just for this check.
 
 const lightModule = { exports: {} }
 vm.runInNewContext(fs.readFileSync(identityPath, 'utf8'), {

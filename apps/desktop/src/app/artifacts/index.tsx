@@ -1,7 +1,9 @@
+import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { type ResolvedOwner, resolveOwnerNow } from '@/api/client'
 import { TitlebarIcon } from '@/app/shell/titlebar-icon'
 import { ZoomableImage } from '@/components/chat/zoomable-image'
 import { PageLoader } from '@/components/page-loader'
@@ -30,11 +32,12 @@ import {
   useLinkTitle
 } from '@/lib/external-link'
 import { FileImage, FileText, FolderOpen, Link2 } from '@/lib/icons'
-import { downloadGatewayMediaFile, isArtifactFilePath, isRemoteGateway } from '@/lib/media'
 import { normalize } from '@/lib/text'
 import { fmtDayTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
+import { $activeGatewayProfile } from '@/store/profile'
+import { $connection } from '@/store/session'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
@@ -49,6 +52,7 @@ import {
   type ArtifactRecord,
   loadArtifactsForSessions
 } from './artifact-utils'
+import { DeliverablePreview } from './deliverable-preview'
 
 function formatArtifactTime(timestamp: number): string {
   return fmtDayTime.format(new Date(timestamp))
@@ -112,11 +116,36 @@ interface ArtifactsViewProps extends React.ComponentProps<'section'> {
 }
 
 export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...props }: ArtifactsViewProps) {
+  const connection = useStore($connection)
+  const profile = useStore($activeGatewayProfile)
+  const scope = `${connection?.connectionId || ''}:${connection?.mode || ''}:${connection?.baseUrl || ''}:${profile}`
+
+  const owner = useMemo(
+    () => resolveOwnerNow({ connectionId: connection?.connectionId, profile }),
+    [connection?.connectionId, profile]
+  )
+
+  return <ScopedArtifactsView {...props} key={scope} owner={owner} />
+}
+
+function ScopedArtifactsView({ owner, ...props }: ArtifactsViewProps & { owner: ResolvedOwner }) {
   const { t } = useI18n()
   const a = t.artifacts
   const navigate = useNavigate()
   const [artifacts, setArtifacts] = useState<ArtifactRecord[] | null>(null)
   const [query, setQuery] = useState('')
+  const [sessionFilter, setSessionFilter] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [preview, setPreview] = useState<{ artifact: ArtifactRecord; owner: ResolvedOwner } | null>(null)
+  const live = useRef(true)
+  // eslint-disable-next-line no-restricted-syntax -- lifecycle fence for pending reads, not an atom mirror
+  useEffect(() => {
+    live.current = true
+
+    return () => {
+      live.current = false
+    }
+  }, [])
 
   const [kindFilter, setKindFilter] = useRouteEnumParam('tab', ARTIFACT_FILTERS, 'all')
 
@@ -134,17 +163,30 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
     refreshInFlightRef.current = true
     setRefreshing(true)
+    setLoadFailed(false)
 
     try {
       const sessions = (await listAllProfileSessions(30, 1)).sessions
 
+      if (!live.current) {
+        return
+      }
+
       const { artifacts: nextArtifacts, failures } = await loadArtifactsForSessions(sessions, (session, page) =>
-        getSessionMessages(session.id, session.profile, {
-          ...page,
-          includeCompacted: true,
-          order: 'oldest'
-        })
+        getSessionMessages(
+          session.id,
+          { connectionId: owner.connectionId, profile: session.profile || owner.profile },
+          {
+            ...page,
+            includeCompacted: true,
+            order: 'oldest'
+          }
+        )
       )
+
+      if (!live.current) {
+        return
+      }
 
       if (failures.length > 0) {
         const safeLimitFailures = failures.filter(({ error }) =>
@@ -172,13 +214,21 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
       setArtifacts(nextArtifacts.sort((left, right) => right.timestamp - left.timestamp))
     } catch (err) {
+      if (!live.current) {
+        return
+      }
+
       notifyError(err, a.failedLoad)
+      setLoadFailed(true)
       setArtifacts([])
     } finally {
       refreshInFlightRef.current = false
-      setRefreshing(false)
+
+      if (live.current) {
+        setRefreshing(false)
+      }
     }
-  }, [a])
+  }, [a, owner])
 
   useRefreshHotkey(refreshArtifacts)
 
@@ -189,7 +239,7 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   useEffect(() => {
     setImagePage(1)
     setFilePage(1)
-  }, [artifacts, kindFilter, query])
+  }, [artifacts, kindFilter, query, sessionFilter])
 
   const visibleArtifacts = useMemo(() => {
     if (!artifacts) {
@@ -199,6 +249,10 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     const q = normalize(query)
 
     return artifacts.filter(artifact => {
+      if (sessionFilter && artifact.sessionId !== sessionFilter) {
+        return false
+      }
+
       if (kindFilter !== 'all' && artifact.kind !== kindFilter) {
         return false
       }
@@ -208,12 +262,17 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       }
 
       return (
-        artifact.label.toLowerCase().includes(q) ||
-        artifact.value.toLowerCase().includes(q) ||
-        artifact.sessionTitle.toLowerCase().includes(q)
+        normalize(artifact.label).includes(q) ||
+        normalize(artifact.value).includes(q) ||
+        normalize(artifact.sessionTitle).includes(q)
       )
     })
-  }, [artifacts, kindFilter, query])
+  }, [artifacts, kindFilter, query, sessionFilter])
+
+  const sessions = useMemo(
+    () => [...new Map((artifacts || []).map(item => [item.sessionId, item.sessionTitle])).entries()],
+    [artifacts]
+  )
 
   const visibleImageArtifacts = useMemo(
     () => visibleArtifacts.filter(artifact => artifact.kind === 'image'),
@@ -273,32 +332,10 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   }, [artifacts])
 
   const openArtifact = useCallback(
-    async (artifact: ArtifactRecord) => {
-      const { href } = artifact
-
-      try {
-        // A gateway-local file resolves to file:// in remote mode (the file
-        // lives on the gateway, not this disk). Opening that locally fails —
-        // and an OAuth remote connection has no query token to build a download
-        // URL. Fetch the bytes over the authenticated fs bridge instead.
-        // Tilde/relative hrefs have no file URL form. Keep them gateway-owned:
-        // expanding them on the client would target the wrong home or cwd.
-        if (isRemoteGateway() && isArtifactFilePath(artifact.value)) {
-          await downloadGatewayMediaFile(artifact.value, { sessionId: artifact.sessionId, profile: artifact.profile })
-
-          return
-        }
-
-        if (window.hermesDesktop?.openExternal) {
-          await window.hermesDesktop.openExternal(href)
-        } else {
-          window.open(href, '_blank', 'noopener,noreferrer')
-        }
-      } catch (err) {
-        notifyError(err, a.openFailed)
-      }
+    (artifact: ArtifactRecord) => {
+      setPreview({ artifact, owner: { ...owner, profile: artifact.profile || owner.profile } })
     },
-    [a]
+    [owner]
   )
 
   const markImageFailed = useCallback((id: string) => {
@@ -319,95 +356,133 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const cellCtx: CellCtx = useMemo(() => ({ onOpen: openArtifact, onOpenChat: openChat }), [openArtifact, openChat])
 
   return (
-    <PageSearchShell
-      {...props}
-      activeTab={kindFilter}
-      onSearchChange={setQuery}
-      onTabChange={id => setKindFilter(id as typeof kindFilter)}
-      searchHidden={counts.all === 0}
-      searchHints={searchHints}
-      searchPlaceholder={a.search}
-      searchTrailingAction={
-        <Tip label={refreshing ? a.refreshing : a.refresh}>
-          <Button
-            aria-label={refreshing ? a.refreshing : a.refresh}
-            className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
-            disabled={refreshing}
-            onClick={() => void refreshArtifacts()}
-            size="icon-titlebar"
-            variant="ghost"
-          >
-            {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
-          </Button>
-        </Tip>
-      }
-      searchValue={query}
-      tabs={[
-        { id: 'all', label: a.tabAll, meta: artifacts ? counts.all : null },
-        { id: 'image', label: a.tabImages, meta: artifacts ? counts.image : null },
-        { id: 'file', label: a.tabFiles, meta: artifacts ? counts.file : null },
-        { id: 'link', label: a.tabLinks, meta: artifacts ? counts.link : null }
-      ]}
-    >
-      {!artifacts ? (
-        <PageLoader label={a.indexing} />
-      ) : visibleArtifacts.length === 0 ? (
-        <div className="grid h-full place-items-center px-6 text-center">
-          <div>
-            <div className="text-sm font-medium">{a.noArtifactsTitle}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{a.noArtifactsDesc}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="flex flex-col gap-3 px-3 pb-2">
-            {visibleImageArtifacts.length > 0 && (
-              <section className="flex flex-col">
-                <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
-                  <ArtifactsPagination
-                    className="ml-auto justify-end px-0"
-                    itemLabel={a.itemsImage}
-                    onPageChange={setImagePage}
-                    page={currentImagePage}
-                    pageSize={24}
-                    total={visibleImageArtifacts.length}
-                  />
-                </div>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-2 pt-1.5">
-                  {pagedImageArtifacts.map(artifact => (
-                    <ArtifactImageCard
-                      artifact={artifact}
-                      failedImage={failedImageIds.has(artifact.id)}
-                      key={artifact.id}
-                      onImageError={markImageFailed}
-                      onOpenChat={sessionId => openSessionFromPicker(sessionId, navigate)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {visibleFileArtifacts.length > 0 && (
-              <section className="flex flex-col">
-                <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
-                  <ArtifactsPagination
-                    className="ml-auto justify-end px-0"
-                    itemLabel={itemsLabel(kindFilter, a)}
-                    onPageChange={setFilePage}
-                    page={currentFilePage}
-                    pageSize={100}
-                    total={visibleFileArtifacts.length}
-                  />
-                </div>
-                <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
-                  <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
-                </div>
-              </section>
-            )}
-          </div>
-        </div>
+    <>
+      {preview && (
+        <DeliverablePreview
+          key={preview.artifact.id}
+          {...preview}
+          onClose={() => setPreview(null)}
+          onOpenChat={() => openChat(preview.artifact.sessionId)}
+        />
       )}
-    </PageSearchShell>
+      <PageSearchShell
+        {...props}
+        activeTab={kindFilter}
+        onSearchChange={setQuery}
+        onTabChange={id => setKindFilter(id as typeof kindFilter)}
+        searchHidden={counts.all === 0}
+        searchHints={searchHints}
+        searchPlaceholder={a.search}
+        searchTrailingAction={
+          <Tip label={refreshing ? a.refreshing : a.refresh}>
+            <Button
+              aria-label={refreshing ? a.refreshing : a.refresh}
+              className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+              disabled={refreshing}
+              onClick={() => void refreshArtifacts()}
+              size="icon-titlebar"
+              variant="ghost"
+            >
+              {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
+            </Button>
+          </Tip>
+        }
+        searchValue={query}
+        tabs={[
+          { id: 'all', label: a.tabAll, meta: artifacts ? counts.all : null },
+          { id: 'image', label: a.tabImages, meta: artifacts ? counts.image : null },
+          { id: 'file', label: a.tabFiles, meta: artifacts ? counts.file : null },
+          { id: 'link', label: a.tabLinks, meta: artifacts ? counts.link : null }
+        ]}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          {artifacts && sessions.length > 0 && (
+            <div className="px-3 py-2">
+              <select
+                aria-label={a.colSession}
+                className="max-w-full rounded-md border bg-background px-2 py-1 text-sm"
+                onChange={event => setSessionFilter(event.target.value)}
+                value={sessionFilter}
+              >
+                <option value="">{a.tabAll}</option>
+                {sessions.map(([id, title]) => (
+                  <option key={id} value={id}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="min-h-0 flex-1">
+            {loadFailed ? (
+              <div className="p-4" role="alert">
+                <p>{a.failedLoad}</p>
+                <Button onClick={() => void refreshArtifacts()}>{t.common.retry}</Button>
+              </div>
+            ) : !artifacts ? (
+              <PageLoader label={a.indexing} />
+            ) : visibleArtifacts.length === 0 ? (
+              <div className="grid h-full place-items-center px-6 text-center">
+                <div>
+                  <div className="text-sm font-medium">{a.noArtifactsTitle}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{a.noArtifactsDesc}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
+                <div className="flex flex-col gap-3 px-3 pb-2">
+                  {visibleImageArtifacts.length > 0 && (
+                    <section className="flex flex-col">
+                      <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
+                        <ArtifactsPagination
+                          className="ml-auto justify-end px-0"
+                          itemLabel={a.itemsImage}
+                          onPageChange={setImagePage}
+                          page={currentImagePage}
+                          pageSize={24}
+                          total={visibleImageArtifacts.length}
+                        />
+                      </div>
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-2 pt-1.5">
+                        {pagedImageArtifacts.map(artifact => (
+                          <ArtifactImageCard
+                            artifact={artifact}
+                            failedImage={failedImageIds.has(artifact.id)}
+                            key={artifact.id}
+                            onImageError={markImageFailed}
+                            onOpen={openArtifact}
+                            onOpenChat={sessionId => openSessionFromPicker(sessionId, navigate)}
+                            owner={owner}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {visibleFileArtifacts.length > 0 && (
+                    <section className="flex flex-col">
+                      <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
+                        <ArtifactsPagination
+                          className="ml-auto justify-end px-0"
+                          itemLabel={itemsLabel(kindFilter, a)}
+                          onPageChange={setFilePage}
+                          page={currentFilePage}
+                          pageSize={100}
+                          total={visibleFileArtifacts.length}
+                        />
+                      </div>
+                      <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
+                        <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
+                      </div>
+                    </section>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </PageSearchShell>
+    </>
   )
 }
 
@@ -465,13 +540,15 @@ function ArtifactsPagination({ className, itemLabel, onPageChange, page, pageSiz
 }
 
 interface ArtifactImageCardProps {
+  owner: ResolvedOwner
+  onOpen: (artifact: ArtifactRecord) => void
   artifact: ArtifactRecord
   failedImage: boolean
   onImageError: (id: string) => void
   onOpenChat: (sessionId: string) => void
 }
 
-function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: ArtifactImageCardProps) {
+function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat, owner, onOpen }: ArtifactImageCardProps) {
   const { t } = useI18n()
   const a = t.artifacts
   const kindLabel = artifact.kind === 'image' ? a.kindImage : artifact.kind === 'file' ? a.kindFile : a.kindLink
@@ -481,7 +558,7 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
     let active = true
 
     setSrc('')
-    void artifactImageSrc(artifact.value)
+    void artifactImageSrc(artifact.value, { ...owner, profile: artifact.profile || owner.profile })
       .then(nextSrc => {
         if (active) {
           setSrc(nextSrc)
@@ -496,7 +573,7 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
     return () => {
       active = false
     }
-  }, [artifact.href, artifact.id, artifact.value, onImageError])
+  }, [artifact.href, artifact.id, artifact.value, artifact.profile, owner, onImageError])
 
   return (
     <article
@@ -540,6 +617,9 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
         </div>
 
         <div className="flex flex-wrap gap-1.5">
+          <Button onClick={() => onOpen(artifact)} size="xs" type="button" variant="textStrong">
+            {t.preview.openPreview}
+          </Button>
           <Button onClick={() => onOpenChat(artifact.sessionId)} size="xs" type="button" variant="textStrong">
             <FolderOpen className="size-3" />
             {a.chat}
@@ -614,7 +694,7 @@ const PrimaryCell = memo(function PrimaryCell({ artifact, ctx }: { artifact: Art
 const LocationCell = memo(function LocationCell({ artifact }: { artifact: ArtifactRecord; ctx: CellCtx }) {
   const { t } = useI18n()
   const isLink = artifact.kind === 'link'
-  const value = isLink ? hostPathLabel(artifact.value) : artifact.value
+  const value = artifact.inline ? t.artifacts.chat : isLink ? hostPathLabel(artifact.value) : artifact.value
   const copyLabel = isLink ? t.artifacts.copyUrl : t.artifacts.copyPath
 
   return (
@@ -629,15 +709,17 @@ const LocationCell = memo(function LocationCell({ artifact }: { artifact: Artifa
           {value}
         </div>
       </Tip>
-      <CopyButton
-        appearance="icon"
-        buttonSize="icon-xs"
-        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
-        iconClassName="size-3.5"
-        label={copyLabel}
-        text={artifact.value}
-        title={copyLabel}
-      />
+      {!artifact.inline && (
+        <CopyButton
+          appearance="icon"
+          buttonSize="icon-xs"
+          className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
+          iconClassName="size-3.5"
+          label={copyLabel}
+          text={artifact.value}
+          title={copyLabel}
+        />
+      )}
     </div>
   )
 })

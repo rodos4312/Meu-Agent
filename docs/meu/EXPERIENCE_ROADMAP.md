@@ -55,3 +55,13 @@ including `f328d3f8e17f92a72fd71cc05f1e45665f2bc662`.
   release is issued for this first batch.
 
 See `EXPERIENCE_VALIDATION.md` for actual check results and limits.
+
+## Deliverables implementation batch
+
+The Windows recent-session catalog and Android current-session browser now
+combine generated documents and delivered files, with search, scoped previews,
+Save/Download and source navigation. Existing filesystem and viewer authorities
+are reused. Windows drive/UNC deliveries and profile/session download routing
+are covered by Android tests. See `DELIVERABLES_VALIDATION.md` for checks and
+unsupported-format limits. Continue with Coordinator progress/receipts before
+the consolidated stability and release checks; no distribution is issued here.
