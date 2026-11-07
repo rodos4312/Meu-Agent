@@ -62,10 +62,52 @@ awaits acceptance. It requires `2/3 verified`, both stage names and the review
 receipt before and after reload. Both real Electron scenarios passed locally
 (72 seconds), with an isolated backend and mock provider. E2E TypeScript and
 Prettier checks passed. No production behavior or runtime gates were weakened.
-The follow-up commit needs its own GitHub result before CI is called green.
+## Follow-up GitHub receipt
+
+[Run 42407732228](https://github.com/rodos4312/Meu-Agent/actions/runs/42407732228)
+completed successfully for exact source commit
+`1d0f725dca188ac72abb41f2ef9cdcd7bfb5c0af`, on `dev/meu-foundation`.
+All six required jobs passed; the three optional distribution jobs were
+skipped. No release or update-feed promotion was requested.
+
+- The native Electron navigation lane passed all **10 scenarios**, including
+  the corrected staged-review card/reload and Coordinator close/reopen cases.
+- Linux passed the staged suite (**14 cases**), the previously Windows-skipped
+  hosted-plugin case, and its broader integration batch (**206 passed, one
+  skipped**). These counts overlap; they are not added as distinct new tests.
+- The Windows privacy lane reported **1,648 passed, 17 skipped** in its main
+  batch, followed by **395 passed, 11 skipped**, **18 passed**, and **50 passed**
+  in its additional batches. The main batch retried one file: see below.
+- Windows identity/isolation, validation-only packaging, installer smoke test
+  and the full native CI replay passed. Replay reported **101 passed, one
+  existing POSIX-only skip** with normal file budgets.
+- The follow-up's local scoped health/Ruff checks passed, with zero blocking
+  or advisory findings. The two local Electron scenarios remain separate
+  evidence from the hosted lane.
+
+### Known intermittent cancellation-suite failure
+
+`tests/tools/test_delegate_capacity_interrupt.py` failed three first-attempt
+cases (soft stop with submission failure, partial submission failure and a
+stop during capacity admission). The output includes missed five-second event
+waits, a worker still alive during cleanup and a mismatched completion ID in
+a later case. All 13 cases passed in the fresh automatic retry. The cause is
+not established by this receipt; do not call it fixed or silently hide the
+first failure. Investigate synchronization and cleanup before claiming a
+flake-free stability result. No retries, assertions or timeouts were weakened.
+
 Final distribution and physical-device acceptance remain pending.
 
 ## Scope and limitations
+
+Both Windows and Android have source changes for navigation, deliverables,
+previews, Coordinator visibility and conversation continuity. Paired Android
+uses the PC backend's Coordinator. Autonomous Android uses its packaged engine;
+the current mobile seed/guest pin is still `cb43517b6dbd`. Regenerate that seed
+and the matching installer hashes from the admitted engine revision before
+building the consolidated APK. Source UI checks do not prove that an installed
+phone already runs the ordered review gates. Physical-device acceptance remains
+separate for paired and autonomous modes.
 
 This is runtime gating for `coordinate_project`, not an OS sandbox or proof
 that an LLM actually performed a claimed check. The parent still runs relevant

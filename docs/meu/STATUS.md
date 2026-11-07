@@ -21,12 +21,12 @@ test evidence and remaining physical-device/PDF acceptance. Coordinator progress
 
 | Work | Evidence |
 | --- | --- |
-| Ordered Coordinator reviews (development only) | New consequential writing tasks use requirements then quality gates, while routine/read-only tasks stay light. 75 Coordinator tests plus 101 integration tests and seven skill checks passed on Windows, including process-death recovery and read-only reviewer enforcement. One POSIX-only test awaits its Linux lane. [Scope and validation](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
+| Ordered Coordinator reviews (development only) | New consequential writing tasks use requirements then quality gates, while routine/read-only tasks stay light. 75 Coordinator tests plus 101 integration tests and seven skill checks passed locally on Windows. All six required GitHub jobs passed for follow-up `1d0f725dca18`, including the corrected native UI rehearsal. One existing cancellation suite passed only on retry and remains a stability follow-up. [Scope and validation](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
 | Coordinator on a real provider | Two native detached helpers used `deepseek-flash` and `deepseek-v4-pro` on synthetic payment data. A separate conversation answered while the project was running. Independent checks verified every normalized row and the exact reconciliation result. Both tasks reached verified on their first successful rehearsal attempt. This was a backend rehearsal, not a new Desktop release. |
 | Project notes after relocation | 27 focused tests cover real moves, reused paths, independent copies, primary-folder changes, concurrent claims, legacy notes, profile isolation and the notes RPC. Note contents stay in the profile. See [Project memory](PROJECT_MEMORY.md). |
 | Native Windows input | Five verified capture, click and Greek Unicode typing rounds against an isolated form. With the installed driver v0.21.0, Ctrl+A did not select all in background delivery; the explicitly targeted foreground retry did. No approval defaults were changed. See [Windows computer use](WINDOWS_COMPUTER_USE_AUDIT.md). |
 | Windows installation and recovery | The private rehearsal passed the real NSIS upgrade with data preservation and automatic rollback after a failed startup. Both jobs completed successfully. A retained recovery run across an actual Windows reboot is still unverified. [Private Windows rehearsal](https://github.com/rodos4312/Meu-Agent/actions/runs/42062422358) |
-| Consolidated release | Pending the post-reboot recovery check and validation of the final candidate. Only then build and publish the signed update manifest and Windows installer. |
+| Consolidated preview release | Pending matching candidate packages and their final acceptance below. Actual Windows OS-reboot recovery remains an explicitly deferred, unverified extended case; do not label it passed or claim full production qualification. Publish the signed update manifest and admitted packages together only after the candidate checks. |
 
 The public installer and update feed are the release authority. Ed25519 manifest
 verification already operates without a paid certificate; Windows publisher
@@ -43,7 +43,42 @@ needs an isolated Windows guest that stays available through a real restart,
 with evidence that the retained updater restored the app, backend and test data.
 No host restart or Windows feature change was performed.
 
-## Next trial steps
+## Current acceptance before the consolidated preview
+
+1. Required GitHub checks are complete for `1d0f725dca18`:
+   [run 42407732228](https://github.com/rodos4312/Meu-Agent/actions/runs/42407732228)
+   passed all six required jobs; three optional distribution jobs were skipped.
+   Investigate the existing cancellation-suite flake separately: three cases
+   failed on its first attempt, and all 13 passed on the automatic retry.
+   This green run is not evidence that the intermittent failure is fixed.
+2. Prepare matching Windows frontend/backend and Android application/runtime
+   candidates from recorded revisions. Android's current seed preparation and
+   guest installer still pin engine `cb43517b6dbd`; regenerate the embedded
+   seed/installer hashes for the admitted engine revision before building the
+   candidate APK. Source UI changes alone do not update the autonomous engine.
+3. On a physical phone, verify paired-PC and autonomous-phone modes separately:
+   the same conversation after close/reopen, actual tools, project creation,
+   previews/Save, screen-lock/background behavior and uncertain-send recovery.
+   History sync must not be presented as moving execution or project files.
+4. Rehearse the final Windows installer/update candidate, preserving chats,
+   credentials, project notes, skills and settings. Confirm both app and backend
+   revisions and ordinary close/reopen behavior. Keep extended OS reboot tests
+   explicitly separate; no installed application is changed by this audit.
+5. Run a representative real-model project through both review stages, then
+   prepare matching screenshots, release notes, download links and verified
+   update metadata. Deterministic fixtures prove orchestration, not LLM judgment.
+
+Unconfigured outside-home connectivity without a separate VPN, a production
+self-evolution optimizer, a new MemOS service stack, swarm cleanup and a Rust
+rewrite are not silently added to this preview. They remain separate design
+or acceptance work. See [shared-memory research](COMMUNITY_SHARED_MEMORY_REVIEW.md)
+for the proposed local project-knowledge handoff and community comparisons.
+
+## Historical mobile trial notes
+
+The notes below describe the earlier companion milestone. The current roadmap
+and acceptance list above take precedence; an autonomous Android source now
+exists and must be validated with its own engine package.
 
 1. Test the built-in Android QR pairing on a physical phone against the matching
    Windows preview. The Windows gateway rehearsal completed a Greek test
