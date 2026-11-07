@@ -30,6 +30,9 @@ after verification. The installed applications are not changed by source edits.
 Reference reviewed: [nesquena/hermes-webui](https://github.com/nesquena/hermes-webui),
 including `f328d3f8e17f92a72fd71cc05f1e45665f2bc662`.
 
+The newer public home/setup pages and linked client/extension projects were
+reviewed separately; see [site and setup ideas](WEBUI_SETUP_REVIEW.md).
+
 - Explain session ownership and execution location. Browsing a transcript does
   not grant control of another runtime. A connected transport is not proof of
   synchronized history or successful tool execution.

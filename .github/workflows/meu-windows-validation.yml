@@ -10,6 +10,7 @@ on:
     paths:
       - 'apps/desktop/**'
       - 'apps/shared/**'
+      - 'tests/ci/**'
       - 'optional-mcps/mt5-httpapi-read/**'
       - 'ui-tui/**'
       - 'web/**'
@@ -98,6 +99,10 @@ jobs:
           scripts/run_tests.sh -j 3 --file-timeout 600 --file-retries 0
           tests/ci/test_classify_changes.py
           tests/ci/test_update_ci_routing.py
+          tests/ci/test_update_ci_dispatch_non_python.py
+          tests/ci/test_update_ci_dispatch_python.py
+          tests/ci/test_update_ci_required_step_gates.py
+          tests/ci/test_update_ci_required_step_selection.py
           tests/ci/test_stable_release_graph.py
           tests/ci/test_meu_upgrade_dispatch.py
           tests/scripts/test_version_stamping.py
@@ -590,6 +595,22 @@ jobs:
         shell: pwsh
         working-directory: apps/desktop
         run: ./scripts/test-meu-installer.ps1
+      - name: Prepare locked native CI replay tools
+        uses: ./.github/actions/setup-pm
+        with:
+          toolchain: python
+          extras: '[]'
+          test-environment: 'true'
+      - name: Verify complete CI dispatch replay on Windows
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 2 --file-retries 0
+          tests/ci/test_update_ci_routing.py
+          tests/ci/test_update_ci_dispatch_non_python.py
+          tests/ci/test_update_ci_dispatch_python.py
+          tests/ci/test_update_ci_required_step_gates.py
+          tests/ci/test_update_ci_required_step_selection.py
+          -- --override-ini=addopts= -q
       - name: Prepare Meu release with free update signature
         if: env.MEU_RELEASE_REQUEST == 'true'
         working-directory: apps/desktop

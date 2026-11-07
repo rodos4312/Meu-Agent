@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import hermes_yaml as yaml
 from tests.ci import _gha_expr as gha
+from tests.ci import workflow_steps
 
 
 @pytest.mark.parametrize("verify,prepare", [(True, False), (False, True), (False, False)])
@@ -50,3 +51,21 @@ def test_recovery_rerun_scope_selects_only_the_requested_closed_set(scope, expec
     context = {"inputs": {"scope": scope}}
     scenarios = flow["jobs"]["automatic-rollback"]["strategy"]["matrix"]["scenario"]
     assert gha.render(scenarios, context) == expected
+
+
+@pytest.mark.parametrize("job_name,step_name", [
+    ("installer-consolidation", "Verify remaining build graph and rehearsal gates"),
+    ("windows-identity-and-safety", "Verify complete CI dispatch replay on Windows"),
+])
+def test_meu_ci_invokes_every_split_replay_group(job_name, step_name):
+    """Execute the real selection command, intercepting only the test launch."""
+    root = Path(__file__).resolve().parents[2]
+    flow = yaml.safe_load((root / ".github/workflows/meu-windows-validation.yml").read_text(encoding="utf-8"))
+    job = flow["jobs"][job_name]
+    step = next(s for s in job["steps"] if s.get("name") == step_name)
+    workflow_steps.required(job, {})
+    _, calls = workflow_steps._run(step, {}, root, receipt=True)
+    assert len(calls) == 1 and calls[0][0] == "pytest", calls
+    invoked = set(calls[0][1:])
+    expected = {p.relative_to(root).as_posix() for p in (root / "tests/ci").glob("test_update_ci_*.py")}
+    assert expected and expected <= invoked, f"{job_name}: missing replay groups {sorted(expected - invoked)}"

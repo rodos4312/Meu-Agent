@@ -79,14 +79,44 @@ The existing readiness tests and the added startup/installer-recovery CI step
 exercise the fix on Windows. The installer/CI-routing Linux job passed all
 **477 tests**, including all **102 workflow-dispatch replay cases**.
 
-The extra local Windows replay is inconclusive: the first run hit its 300-second
-file budget; after selecting Portable Git Bash, the diagnostic run made further
-progress but exceeded 600 seconds. It is not recorded as a pass. Its Linux CI
-result is separate; native local replay performance remains a tooling follow-up.
+The earlier local Windows attempts hit their 300/600-second file budgets and
+were not passes. The follow-up below closes that local replay issue.
 
 Android's reviewed source archive is backed up privately in commit
 `a0808b697203`. All 2,696 archived files were compared against the working source
 and their manifest hashes. This is source backup, not an APK distribution.
+
+## Local CI replay closure
+
+One file bundled 102 cases. Windows repeatedly enumerated native test files
+for dispatch combinations and repeated the same positive control before each
+workflow mutation. A 17-case diagnostic alone took 226.7 seconds.
+
+The same cases now run in five independent files under the existing per-file
+runner. Positive controls execute once per mutation group; every changed
+workflow still executes its own actual selection script. No mutated outcome is
+cached, and no case was deleted or converted into a skip to get a green run.
+
+The complete local run passed **101 cases with one existing POSIX-only skip**
+in **361.5 seconds**, with two workers and no retries. The longest file took
+**194.6 seconds**, below the normal 300-second file budget:
+
+| Group | Passed | Seconds |
+| --- | ---: | ---: |
+| Dispatch without the Python lane | 16 | 177.4 |
+| Dispatch with the Python lane | 16 | 194.6 |
+| Disabled/advisory required steps | 12 | 25.1 |
+| Missing commands/empty selections | 12 | 34.2 |
+| Ownership, fixtures and remaining routing contracts | 45 (+1 POSIX skip) | 158.5 |
+
+An additional **174 checks** passed: classifier behavior, separate release and
+rehearsal permissions, and actual command receipts proving that both Linux and
+Windows CI invoke every replay group. Ruff and workflow YAML validation passed.
+The Windows identity job now runs the complete replay with locked test tools;
+`tests/ci/**` changes also trigger the Meu workflow. Release gates are retained.
+
+The linked [site/setup review](WEBUI_SETUP_REVIEW.md) records presentation and
+connection-flow ideas; those are proposals for the existing roadmap.
 
 ## Remaining acceptance before grouped distribution
 

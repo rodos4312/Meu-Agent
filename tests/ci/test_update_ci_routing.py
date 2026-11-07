@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import ast
 import importlib.util
-import itertools
 import json
 import os
 import re
@@ -267,9 +266,7 @@ def test_replay_evaluator_follows_actions_semantics():
         gha.condition("hashFiles('x') != ''", ctx)  # unmodelled: fail, never guess
 
 
-@pytest.mark.parametrize("combo", list(itertools.product((False, True), repeat=len(_GATED))),
-                         ids=lambda c: "-".join(n for n, on in zip(_GATED, c) if on) or "none")
-def test_every_set_lane_reaches_its_consumer_whatever_the_other_lanes_say(combo):
+def assert_dispatch_combination(combo):
     """The R15 hole was a parent ``if:`` keyed on ``python`` alone: a TypeScript-only
     change to the hand-off's marker reader set ``desktop_updater`` and nothing ran it."""
     lanes = {k: False for k in cc.classify(["README.md"])}
@@ -456,12 +453,16 @@ def test_sibling_allowance_expires_once_its_consumer_is_in_the_tree(monkeypatch)
 def test_native_windows_lane_selects_the_replay_and_its_controls():
     selected = {p.resolve() for p in lister.find_marked_files("windows", _REPO / "tests")}
     assert Path(__file__).resolve() in selected, "tests-os[windows] never imports this file"
+    split = {Path(__file__).with_name(name).resolve() for name in (
+        "test_update_ci_dispatch_python.py", "test_update_ci_dispatch_non_python.py",
+        "test_update_ci_required_step_gates.py", "test_update_ci_required_step_selection.py")}
+    assert split <= selected, f"native replay groups not selected: {sorted(split - selected)}"
     admitted = {name for name, fn in globals().items() if name.startswith("test_") and any(
         m.name == "platforms" and any("windows" in lister.spec_hosts(str(a).lower()) for a in m.args)
         for m in getattr(fn, "pytestmark", []))}
     native = {"test_replay_starts_the_python_and_tools_hosted_steps_call",
               "test_update_owner_change_dispatches_its_suites_end_to_end",
-              "test_replay_rejects_ineffective_required_step", "test_replay_uses_executed_gate_output"}
+              "test_replay_uses_executed_gate_output"}
     assert native <= admitted, f"skipped on native Windows: {sorted(native - admitted)}"
 
 
@@ -486,12 +487,8 @@ def _mutated_yaml(monkeypatch, rel):
     return changed
 
 
-@_NATIVE_WINDOWS_TOO
-@pytest.mark.parametrize("lane,rel,job,name", _REQUIRED_STEP_CASES)
-@pytest.mark.parametrize("mutation", ["disabled", "advisory", "no-command", "empty-selection"])
-def test_replay_rejects_ineffective_required_step(monkeypatch, lane, rel, job, name, mutation):
+def assert_ineffective_required_step(monkeypatch, lane, rel, job, name, mutation):
     lanes = cc.classify([])
-    assert all(_consumers_reached(_ci_run(lanes), lane).values())
     workflow = _mutated_yaml(monkeypatch, rel)
     step = next(s for s in workflow["jobs"][job]["steps"] if s.get("name", "").startswith(name))
     if mutation == "disabled":
