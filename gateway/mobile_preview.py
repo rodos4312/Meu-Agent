@@ -355,14 +355,17 @@ class MobilePreview:
         try:
             catalog = await asyncio.to_thread(
                 self.authority.db.list_meu_sync_sessions, after=request.query.get("after", ""),
+                fingerprints=request.query.get("fingerprints") == "1",
             )
         except ValueError:
             raise web.HTTPBadRequest() from None
-        return web.json_response(catalog)
+        return web.json_response({**catalog, **({"timestamps": True} if request.query.get("timestamps") == "1" else {})})
 
     async def _sync_export(self, request):
         session_id = request.match_info["session_id"] if self.sync_profile else self.sync_session
-        scope = {"profile_sync": True} if self.sync_profile else {}
+        scope = ({"profile_sync": True, "timestamps": True}
+                 if self.sync_profile and request.query.get("timestamps") == "1"
+                 else {"profile_sync": True} if self.sync_profile else {})
         try:
             history = await asyncio.to_thread(self.authority.db.export_meu_sync_history, session_id, **scope)
         except LookupError:

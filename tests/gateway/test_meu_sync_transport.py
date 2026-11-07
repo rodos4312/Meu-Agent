@@ -111,8 +111,14 @@ async def _exercise_profile_pairing(tmp_path):
                 headers = {"Authorization": f"Bearer {key}"}
                 async with client.get(root, ssl=tls, headers=headers) as response:
                     assert await response.json() == {"ids": [local_id], "next": None}
+                async with client.get(root + "?timestamps=1", ssl=tls, headers=headers) as response:
+                    assert (await response.json())["timestamps"] is True
                 async with client.get(f"{root}/{local_id}", ssl=tls, headers=headers) as response:
-                    assert (await response.json())["messages"][0]["content"] == "Visible"
+                    message = (await response.json())["messages"][0]
+                    assert message["content"] == "Visible" and "timestamp" not in message
+                async with client.get(f"{root}/{local_id}?timestamps=1", ssl=tls, headers=headers) as response:
+                    assert await response.json() == db.export_meu_sync_history(
+                        local_id, profile_sync=True, timestamps=True)
                 async with client.get(f"{root}/{hidden_id}", ssl=tls, headers=headers) as response:
                     assert response.status == 404
                 history = {"id": hidden_id, "messages": []}

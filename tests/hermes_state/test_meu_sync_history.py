@@ -73,3 +73,40 @@ def test_sync_catalog_paginates_local_chats_without_exposing_hidden_or_external_
             "ids": [ids[2]], "next": None}
         with pytest.raises(ValueError, match="cursor"):
             db.list_meu_sync_sessions(after="bad cursor")
+
+
+def test_profile_sync_preserves_creation_and_message_timestamps(tmp_path):
+    sid = new_session_id()
+    started, first, second = 1700000000.25, 1700000040.5, 1700000060.75
+    history = {
+        "id": sid, "started_at": started,
+        "messages": [{"role": "user", "content": "Αρχή",
+                      "message_uid": "a" * 32, "timestamp": first}],
+    }
+    with SessionDB(tmp_path / "phone.db") as phone:
+        assert phone.apply_meu_sync_history(history, profile_sync=True) == "created"
+        assert phone.export_meu_sync_history(sid, profile_sync=True, timestamps=True) == history
+        extended = {**history, "messages": [*history["messages"], {
+            "role": "assistant", "content": "Συνέχεια", "message_uid": "b" * 32,
+            "timestamp": second,
+        }]}
+        assert phone.apply_meu_sync_history(extended, profile_sync=True) == "appended"
+        assert phone.apply_meu_sync_history(extended, profile_sync=True) == "unchanged"
+        assert phone.export_meu_sync_history(sid, profile_sync=True, timestamps=True) == extended
+        legacy = phone.export_meu_sync_history(sid, profile_sync=True)
+        assert "started_at" not in legacy and "timestamp" not in legacy["messages"][0]
+        with pytest.raises(ValueError, match="timestamp"):
+            phone.apply_meu_sync_history({**history, "started_at": float("nan")}, profile_sync=True)
+
+
+def test_profile_catalog_fingerprint_tracks_text_and_preserves_legacy_shape(tmp_path):
+    sid = new_session_id()
+    with SessionDB(tmp_path / "pc.db") as pc, SessionDB(tmp_path / "phone.db") as phone:
+        pc.create_session(sid, source="gui")
+        pc.append_message(sid, "user", "One")
+        assert phone.apply_meu_sync_history(pc.export_meu_sync_history(sid), profile_sync=True) == "created"
+        assert pc.list_meu_sync_sessions() == {"ids": [sid], "next": None}
+        same = pc.list_meu_sync_sessions(fingerprints=True)["fingerprints"]
+        assert same == phone.list_meu_sync_sessions(fingerprints=True)["fingerprints"]
+        pc.append_message(sid, "assistant", "Two")
+        assert same != pc.list_meu_sync_sessions(fingerprints=True)["fingerprints"]

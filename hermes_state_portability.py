@@ -5,6 +5,7 @@ Must never import hermes_state (cycle); shared constants live in hermes_state_co
 """
 
 import logging
+from hashlib import sha256
 import json
 import math
 import re
@@ -354,7 +355,7 @@ class SessionPortabilityMixin:
         AND (source IN ('gui', 'desktop')
           OR (source = 'local' AND created_source IN ('gui', 'desktop')))"""
 
-    def list_meu_sync_sessions(self, *, after: str = "", limit: int = 100):
+    def list_meu_sync_sessions(self, *, after: str = "", limit: int = 100, fingerprints=False):
         """Page through shareable local chat IDs in this store without reading transcripts.
 
         A cursor is a position in the ID ordering, independent of recent
@@ -381,12 +382,34 @@ class SessionPortabilityMixin:
                                 if self._MEU_SYNC_SESSION_ID.fullmatch(row["id"]))
                 if len(rows) < 200:
                     break
-        return {"ids": selected[:limit], "next": selected[limit - 1] if len(selected) > limit else None}
+            result = {"ids": selected[:limit], "next": selected[limit - 1] if len(selected) > limit else None}
+            if fingerprints:
+                signatures = {}
+                titles = {}
+                if result["ids"]:
+                    placeholders = ",".join("?" for _ in result["ids"])
+                    titles = {row["id"]: row["title"][:160] for row in conn.execute(
+                        f"""SELECT id, title FROM sessions WHERE id IN ({placeholders})
+                            AND title IS NOT NULL AND ({self._MEU_SYNC_PROFILE_SCOPE})""",
+                        result["ids"],
+                    )}
+                result["titles"] = titles
+                for session_id in result["ids"]:
+                    try:
+                        messages = self._meu_sync_text(conn, session_id)
+                        self._validate_meu_sync_text(messages)
+                    except ValueError:
+                        continue
+                    signatures[session_id] = sha256(json.dumps(
+                        messages, sort_keys=True, separators=(",", ":"),
+                    ).encode("ascii")).hexdigest()
+                result["fingerprints"] = signatures
+        return result
 
-    def _meu_sync_text(self, conn, session_id):
+    def _meu_sync_text(self, conn, session_id, *, timestamps=False):
         """Project visible text from a single, uncompressed session."""
         rows = conn.execute(
-            """SELECT role, content, message_uid FROM messages
+            """SELECT role, content, message_uid, timestamp FROM messages
                WHERE session_id = ? AND active = 1 AND _compressed_summary = 0
                  AND role IN ('user', 'assistant') AND coalesce(display_kind, '') = ''
                ORDER BY id LIMIT ?""",
@@ -399,43 +422,58 @@ class SessionPortabilityMixin:
             content = self._decode_content(row["content"])
             if isinstance(content, str) and content.strip():
                 messages.append({"role": row["role"], "content": content,
-                                 "message_uid": row["message_uid"]})
+                                 "message_uid": row["message_uid"],
+                                 **({"timestamp": row["timestamp"]} if timestamps else {})})
         return messages
 
-    def _validate_meu_sync_text(self, messages):
+    @staticmethod
+    def _meu_sync_timestamp(value):
+        if type(value) not in (int, float) or not 0 < value < 253402300800:
+            raise ValueError("Invalid sync timestamp")
+        return value
+
+    def _validate_meu_sync_text(self, messages, *, timestamps=False):
         if not isinstance(messages, list) or len(messages) > self._MEU_SYNC_MAX_MESSAGES:
             raise ValueError("Invalid sync message count")
         seen = set()
         size = 0
+        fields = {"role", "content", "message_uid"}
+        if timestamps:
+            fields.add("timestamp")
         for message in messages:
-            if not isinstance(message, dict) or set(message) != {"role", "content", "message_uid"}:
+            if not isinstance(message, dict) or set(message) != fields:
                 raise ValueError("Sync accepts visible text only")
             role, content, uid = (message[key] for key in ("role", "content", "message_uid"))
             if role not in ("user", "assistant") or not isinstance(content, str) or not content.strip():
                 raise ValueError("Invalid sync message")
             if not isinstance(uid, str) or not re.fullmatch(r"[0-9a-f]{32}", uid) or uid in seen:
                 raise ValueError("Missing or duplicate durable message identity")
+            if timestamps:
+                self._meu_sync_timestamp(message["timestamp"])
             seen.add(uid)
             size += len(content.encode("utf-8"))
             if size > self._MEU_SYNC_MAX_TEXT:
                 raise ValueError("Sync transcript exceeds text limit")
 
-    def export_meu_sync_history(self, session_id, *, profile_sync=False):
+    def export_meu_sync_history(self, session_id, *, profile_sync=False, timestamps=False):
         """Export user/assistant text only, for use after a local share decision."""
         if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
             raise ValueError("Unsupported sync session ID")
         with self._read_ctx() as conn:
             row = conn.execute(
-                f"""SELECT parent_session_id, end_reason, ({self._MEU_SYNC_PROFILE_SCOPE}) AS sync_allowed
+                f"""SELECT started_at, parent_session_id, end_reason, ({self._MEU_SYNC_PROFILE_SCOPE}) AS sync_allowed
                     FROM sessions WHERE id = ?""", (session_id,),
             ).fetchone()
             if profile_sync and (row is None or not row["sync_allowed"]):
                 raise LookupError("Session unavailable for profile sync")
             if row is None or row["parent_session_id"] or row["end_reason"] == "compression":
                 raise ValueError("Sync requires an independent session")
-            messages = self._meu_sync_text(conn, session_id)
-        self._validate_meu_sync_text(messages)
-        return {"id": session_id, "messages": messages}
+            messages = self._meu_sync_text(conn, session_id, timestamps=timestamps)
+        self._validate_meu_sync_text(messages, timestamps=timestamps)
+        history = {"id": session_id, "messages": messages}
+        if timestamps:
+            history["started_at"] = self._meu_sync_timestamp(row["started_at"])
+        return history
 
     def apply_meu_sync_history(self, history, *, profile_sync=False):
         """Import text or append a strict extension. Never submit an agent turn.
@@ -445,12 +483,17 @@ class SessionPortabilityMixin:
         """
         from hermes_state_mutation_retirement import retired_in
 
-        if not isinstance(history, dict) or set(history) != {"id", "messages"}:
+        if not isinstance(history, dict):
             raise ValueError("Invalid sync history")
+        timestamps = profile_sync and "started_at" in history
+        fields = {"id", "messages", "started_at"} if timestamps else {"id", "messages"}
+        if set(history) != fields:
+            raise ValueError("Invalid sync history")
+        started_at = self._meu_sync_timestamp(history["started_at"]) if timestamps else None
         session_id, messages = history["id"], history["messages"]
         if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
             raise ValueError("Unsupported sync session ID")
-        self._validate_meu_sync_text(messages)
+        self._validate_meu_sync_text(messages, timestamps=timestamps)
 
         def _do(conn):
             if retired_in(conn, session_id):
@@ -463,7 +506,7 @@ class SessionPortabilityMixin:
                 raise LookupError("Session unavailable for profile sync")
             if row is None:
                 normalized = self._normalize_import_session(
-                    {"source": "gui"}, session_id, messages)
+                    {"source": "gui", "started_at": started_at}, session_id, messages)
                 self._import_session_row(conn, normalized["session"], normalized["messages"], session_id)
                 return "created"
             if row["parent_session_id"] or row["end_reason"] == "compression":
@@ -471,7 +514,10 @@ class SessionPortabilityMixin:
             local = self._meu_sync_text(conn, session_id)
             self._validate_meu_sync_text(local)
             common_length = min(len(local), len(messages))
-            if local[:common_length] != messages[:common_length]:
+            # Legacy imports timestamped rows at receipt. Compare the durable
+            # message identity and text so an old copy still accepts new messages.
+            if any(current != {key: message[key] for key in current}
+                   for current, message in zip(local[:common_length], messages[:common_length])):
                 return "conflict"
             if len(messages) <= len(local):
                 return "unchanged"
