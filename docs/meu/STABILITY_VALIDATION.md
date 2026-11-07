@@ -73,6 +73,8 @@ changed to satisfy those text assertions.
 
 The executable Windows changes are commit `b23f2653fb8a`. Their exact pipeline
 is [run 42389686208](https://github.com/rodos4312/Meu-Agent/actions/runs/42389686208).
+All six required jobs completed successfully. Release publication and optional
+distribution rehearsals were not requested.
 The existing readiness tests and the added startup/installer-recovery CI step
 exercise the fix on Windows. The installer/CI-routing Linux job passed all
 **477 tests**, including all **102 workflow-dispatch replay cases**.
