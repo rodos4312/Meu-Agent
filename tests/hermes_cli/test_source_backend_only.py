@@ -63,7 +63,7 @@ def test_backend_flag_cannot_skip_a_requested_desktop_build(tmp_path):
 
 
 @pytest.mark.parametrize("desktop", [False, True])
-def test_installer_backend_only_is_explicit_and_does_not_leave_a_desktop_stale(tmp_path, desktop):
+def test_installer_backend_only_is_explicit_and_does_not_leave_a_desktop_stale(tmp_path, desktop, real_bash):
     root = Path(__file__).resolve().parents[2]
     checkout = tmp_path / "install"
     entry = checkout / "hermes_cli/source_completion.py"
@@ -78,7 +78,7 @@ run_logged() {{ shift; "$@"; }}
 wire_shell_path() {{ :; }}
 stage_products
 """
-    result = subprocess.run(["bash", "-c", script], env={**os.environ, "HERMES_INSTALL_DIR": checkout.as_posix()},
+    result = subprocess.run([real_bash, "-c", script], env={**os.environ, "HERMES_INSTALL_DIR": checkout.as_posix()},
                             text=True, capture_output=True, timeout=30, check=False)
     if desktop:
         assert result.returncode != 0
