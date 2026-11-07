@@ -43,3 +43,6 @@ Keep Meu's existing precise privacy wording: local storage is distinct from
 requests sent to the user's selected model or enabled tools. Marketing claims,
 comparison tables and feature counts need their own verification before reuse.
 The new distribution remains grouped at the end of the current roadmap.
+
+The separate [self-evolution source review](SELF_EVOLUTION_REVIEW.md) covers
+experimental skill optimization, its current limitations and a possible Meu trial.
