@@ -781,7 +781,7 @@ def _radiolist_with_headings(
 
 
 _ANSI_STYLE = {"yellow": Colors.YELLOW, "dim": Colors.DIM, "green": Colors.GREEN, "red": Colors.RED}
-# Exactly the ``render_bar`` shape (``model_picker_usage.BAR_WIDTH`` = 10 cells of ``|`` then spaces), so
+# A gauge has exactly 10 cells of ``|`` followed by spaces, so
 # an unrelated ``[]`` / ``[ ]`` in a description is never painted as a gauge.
 _GAUGE_BAR_RE = re.compile(r"\[(?=[| ]{10}\])\|* *\]")
 
@@ -809,14 +809,6 @@ def _gauge_bar_segments(text: str) -> list[tuple[str, str | None]]:
     if last < len(text):
         segs.append((text[last:], None))
     return segs or [(text, None)]
-
-
-def colorize_gauge_bars_ansi(text: str) -> str:
-    """Color ``[||||    ]`` runs in a header/legend line (numbered-fallback path)."""
-    return "".join(
-        color(chunk, _ANSI_STYLE[style]) if style in _ANSI_STYLE else chunk
-        for chunk, style in _gauge_bar_segments(text)
-    )
 
 
 def format_radio_item_ansi(item: RadioItem) -> str:

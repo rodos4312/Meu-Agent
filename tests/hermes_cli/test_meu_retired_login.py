@@ -44,9 +44,17 @@ def test_auth_add_nous_refuses_before_any_network_request():
         auth_add_command(SimpleNamespace(provider="nous", auth_type="oauth"))
 
 
+def test_proxy_cannot_select_the_retired_portal_adapter():
+    from hermes_cli.proxy.adapters import get_adapter
+    with pytest.raises(ValueError, match="Unknown proxy upstream"):
+        get_adapter("nous")
+
+
 @pytest.mark.parametrize("module", [
     "hermes_cli.anon_sign_in", "hermes_cli.anon_sign_in_cli", "gateway.slash_commands_login",
     "hermes_cli.dashboard_register",
+    "agent.nous_rate_guard", "hermes_cli.model_picker_usage", "hermes_cli.nous_account",
+    "hermes_cli.proxy.adapters.nous_portal",
 ])
 def test_removed_sign_in_implementation_cannot_be_imported(module):
     with pytest.raises(ModuleNotFoundError) as exc:

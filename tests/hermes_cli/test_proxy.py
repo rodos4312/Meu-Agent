@@ -4,158 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import json
-import threading
-from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from typing import Any
 
 import pytest
 
-from hermes_cli.proxy.adapters import ADAPTERS, get_adapter
 from hermes_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
-from hermes_cli.proxy.adapters.nous_portal import NousPortalAdapter
 from hermes_cli.proxy.adapters.xai import XAIGrokAdapter
-
-
-# ---------------------------------------------------------------------------
-# Adapter registry
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# NousPortalAdapter
-# ---------------------------------------------------------------------------
-
-
-def _write_auth_store(hermes_home: Path, nous_state: dict[str, Any]) -> Path:
-    """Write an auth.json with the given nous state into a hermetic HERMES_HOME."""
-    auth_path = hermes_home / "auth.json"
-    auth_path.write_text(json.dumps({
-        "version": 1,
-        "providers": {"nous": nous_state},
-    }))
-    return auth_path
-
-
-def test_nous_adapter_never_waits_on_a_free_tier_challenge_under_its_lock(tmp_path, monkeypatch):
-    """Every proxied request queues on the adapter lock, so the credential read inside it is a
-    background caller: a browser challenge is announced and raised, never waited on."""
-    from hermes_cli import anon_challenge
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    _write_auth_store(tmp_path, {"access_token": "a", "refresh_token": "r"})
-    seen = []
-
-    def resolve(**_kwargs):
-        seen.append(anon_challenge._background.get())
-        return {"api_key": "k", "expires_at": "2099-01-01T00:00:00Z",
-                "base_url": "https://inference-api.nousresearch.com/v1"}
-
-    with patch("hermes_cli.proxy.adapters.nous_portal.resolve_nous_runtime_credentials", side_effect=resolve):
-        NousPortalAdapter().get_credential()
-    assert seen == [True]
-
-
-def test_nous_adapter_concurrent_refresh_serialized(tmp_path, monkeypatch):
-    """Two parallel get_credential() calls must serialize through the lock."""
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    _write_auth_store(tmp_path, {
-        "access_token": "a", "refresh_token": "r",
-    })
-
-    call_log: list = []
-    in_flight = threading.Event()
-    overlap_detected = threading.Event()
-    counter = [0]
-    counter_lock = threading.Lock()
-
-    def serializing_refresh(**kwargs):
-        # If another thread is already inside refresh, the lock is broken.
-        if in_flight.is_set():
-            overlap_detected.set()
-        in_flight.set()
-        try:
-            call_log.append(threading.current_thread().ident)
-            # Simulate refresh latency so any race window is exposed.
-            import time
-            time.sleep(0.05)
-            with counter_lock:
-                counter[0] += 1
-                idx = counter[0]
-            return {
-                "api_key": f"key-{idx}",
-                "expires_at": "2099-01-01T00:00:00Z",
-                "base_url": "https://inference-api.nousresearch.com/v1",
-            }
-        finally:
-            in_flight.clear()
-
-    adapter = NousPortalAdapter()
-    results: list = []
-    errors: list = []
-
-    def worker():
-        try:
-            results.append(adapter.get_credential().bearer)
-        except Exception as exc:  # pragma: no cover - shouldn't happen
-            errors.append(exc)
-
-    with patch(
-        "hermes_cli.proxy.adapters.nous_portal.resolve_nous_runtime_credentials",
-        side_effect=serializing_refresh,
-    ):
-        threads = [threading.Thread(target=worker) for _ in range(3)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-    assert not errors, f"workers errored: {errors}"
-    assert len(results) == 3
-    assert len(call_log) == 3
-    assert not overlap_detected.is_set(), "refresh calls overlapped — lock is broken"
-    assert all(r.startswith("key-") for r in results)
 
 
 # ---------------------------------------------------------------------------
 # XAIGrokAdapter
 # ---------------------------------------------------------------------------
-
-
-def _write_xai_pool_entry(
-    hermes_home: Path,
-    *,
-    access_token: str = "xai-access-token",
-    refresh_token: str = "xai-refresh-token",
-    base_url: str = "https://api.x.ai/v1",
-    source: str = "manual:xai_pkce",
-) -> Path:
-    """Write an xai-oauth pool entry into a hermetic HERMES_HOME."""
-    auth_path = hermes_home / "auth.json"
-    auth_path.write_text(json.dumps({
-        "version": 1,
-        "providers": {},
-        "credential_pool": {
-            "xai-oauth": [
-                {
-                    "id": "xai123",
-                    "label": "xai-test",
-                    "auth_type": "oauth",
-                    "priority": 0,
-                    "source": source,
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "base_url": base_url,
-                }
-            ]
-        },
-    }))
-    return auth_path
 
 
 def test_xai_adapter_not_authenticated_when_no_pool_entry(tmp_path, monkeypatch):
@@ -173,10 +32,10 @@ def test_xai_adapter_retry_rotates_pool_entry_on_429(tmp_path, monkeypatch):
 
     Pre-fix (#28932) ``get_retry_credential`` only fired on 401, so a 429
     rate-limit response flowed back to the client unchanged AND the
-    rate-limited bearer stayed active for the next request — defeating
+    rate-limited bearer stayed active for the next request β€” defeating
     the whole point of pool rotation.
 
-    Post-fix: 429 lands on ``mark_exhausted_and_rotate`` (no refresh —
+    Post-fix: 429 lands on ``mark_exhausted_and_rotate`` (no refresh β€”
     that's irrelevant for rate limits), stamps the 1-hour cooldown
     via ``EXHAUSTED_TTL_429_SECONDS`` on the offending key, and
     returns the next available credential.
@@ -214,7 +73,7 @@ def test_xai_adapter_retry_rotates_pool_entry_on_429(tmp_path, monkeypatch):
         },
     }))
 
-    # Refresh must NOT be called on the 429 path — guard against
+    # Refresh must NOT be called on the 429 path β€” guard against
     # the fix accidentally trying to refresh-on-rate-limit.
     def _refresh_must_not_run(*args, **kwargs):
         raise AssertionError("refresh_xai_oauth_pure must not run on 429")
@@ -332,29 +191,6 @@ def _build_fake_upstream(captured: dict[str, Any]) -> web.Application:
     app.router.add_route("*", "/v1/embeddings", echo)
     app.router.add_route("*", "/v1/sse", sse)
     return app
-
-
-def _build_retrying_fake_upstream(captured: dict[str, Any]) -> web.Application:
-    async def maybe_unauthorized(request):
-        body = await request.read()
-        auth = request.headers.get("Authorization")
-        captured["requests"].append({
-            "method": request.method,
-            "path": request.path,
-            "auth": auth,
-            "body": body.decode("utf-8") if body else "",
-        })
-        if auth == "Bearer jwt-bearer":
-            return web.json_response({"error": "bad token"}, status=401)
-        return web.json_response({"ok": True})
-
-    app = web.Application()
-    app.router.add_route("*", "/v1/chat/completions", maybe_unauthorized)
-    return app
-
-
-
-
 
 
 def test_server_strips_client_auth_header():
@@ -560,14 +396,3 @@ def test_proxy_does_not_append_done_after_malformed_trailing_frame():
             await upstream_runner.cleanup()
 
     asyncio.run(run())
-
-
-# ---------------------------------------------------------------------------
-# CLI handlers
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
