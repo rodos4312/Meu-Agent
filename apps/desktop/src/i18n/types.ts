@@ -1127,6 +1127,11 @@ export interface Translations extends NoticeTranslations {
     gateway: GatewayHostTranslations & {
       mobileRemote: string
       mobileNetworkHint: string
+      mobileSyncUnavailable: string
+      mobileSyncReady: string
+      mobileLastContact: string
+      mobileNoContact: string
+      mobileSyncUnconfirmed: string
       mobileRemoteError: string
       loading: string
       title: string

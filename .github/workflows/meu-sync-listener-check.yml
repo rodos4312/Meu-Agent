@@ -1,0 +1,42 @@
+name: Meu sync listener on Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/meu-sync-listener-readiness]
+  pull_request:
+    branches: [dev/meu-foundation]
+    paths:
+      - gateway/mobile_preview.py
+      - tests/gateway/test_meu_sync_listener_startup.py
+      - tests/gateway/test_meu_sync_transport.py
+      - .github/workflows/meu-sync-listener-check.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meu-sync-listener-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync-listener:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare locked native Python test environment
+        uses: ./.github/actions/setup-pm
+        with:
+          extras: '["messaging", "web"]'
+          test-environment: 'true'
+          packages: git,ripgrep
+      - name: Verify partial adapter failure, TLS pairing and durable restart
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 2 --file-retries 0
+          tests/gateway/test_meu_sync_listener_startup.py
+          tests/gateway/test_meu_sync_transport.py
+          -q

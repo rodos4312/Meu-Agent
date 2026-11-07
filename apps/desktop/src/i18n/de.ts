@@ -1671,6 +1671,11 @@ export const deOverrides = {
     gateway: {
       mobileRemote: 'Von unterwegs verbinden',
       mobileNetworkHint: 'Kopple die Geräte im Heimnetz oder verwende die Internetverbindung von Meu.',
+      mobileSyncUnavailable: "Telefon gekoppelt · Synchronisierungsdienst nicht verfügbar",
+      mobileSyncReady: "Telefon gekoppelt · Synchronisierungsdienst bereit",
+      mobileLastContact: "Letzter Telefonkontakt:",
+      mobileNoContact: "Seit dem Start dieses Dienstes wurde kein Telefonkontakt erfasst.",
+      mobileSyncUnconfirmed: "Ein Telefonkontakt bestätigt nicht, dass alle Gespräche aktuell sind.",
       mobileRemoteError: 'Die Kopplung über das Internet ist fehlgeschlagen. Prüfe die Konfiguration und Erreichbarkeit des Meu-Relays.',
       loading: 'Gateway-Einstellungen werden geladen…',
       ...deGatewayHost,

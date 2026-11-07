@@ -640,6 +640,11 @@ export const arSettings = {
     gateway: {
       mobileRemote: 'الاتصال من خارج المنزل',
       mobileNetworkHint: 'أقرن الجهازين في المنزل أو استخدم اتصال Meu عبر الإنترنت.',
+      mobileSyncUnavailable: "الهاتف مقترن · خدمة المزامنة غير متاحة",
+      mobileSyncReady: "الهاتف مقترن · خدمة المزامنة جاهزة",
+      mobileLastContact: "آخر اتصال بالهاتف:",
+      mobileNoContact: "لم يُسجَّل اتصال بالهاتف منذ بدء هذه الخدمة.",
+      mobileSyncUnconfirmed: "الاتصال بالهاتف لا يؤكد أن جميع المحادثات محدّثة.",
       mobileRemoteError: 'تعذر بدء الاقتران عبر الإنترنت. تحقّق من إعداد مرحّل Meu وإمكانية الوصول إليه.',
       loading: 'جار تحميل إعدادات البوابة...',
       unavailableTitle: 'إعدادات البوابة غير متاحة',

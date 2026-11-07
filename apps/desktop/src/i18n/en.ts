@@ -1336,6 +1336,11 @@ export const en: Translations = {
     gateway: {
       mobileRemote: 'Connect from outside home',
       mobileNetworkHint: 'Pair over your home network or use Meu’s internet connection.',
+      mobileSyncUnavailable: "Phone paired · sync service unavailable",
+      mobileSyncReady: "Phone paired · sync service ready",
+      mobileLastContact: "Last phone contact:",
+      mobileNoContact: "No phone contact recorded since this service started.",
+      mobileSyncUnconfirmed: "Phone contact does not confirm that all conversations are up to date.",
       mobileRemoteError: 'Could not start internet pairing. Check that a Meu relay is configured and reachable.',
       loading: 'Loading gateway settings...',
       ...enGatewayHost,

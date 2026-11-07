@@ -891,6 +891,11 @@ export const zhHantSettings = {
     gateway: {
       mobileRemote: '在外連線',
       mobileNetworkHint: '在家中配對，或使用 Meu 的網際網路連線。',
+      mobileSyncUnavailable: "手機已配對 · 同步服務無法使用",
+      mobileSyncReady: "手機已配對 · 同步服務已就緒",
+      mobileLastContact: "上次手機通訊：",
+      mobileNoContact: "此服務啟動後尚未記錄到手機通訊。",
+      mobileSyncUnconfirmed: "與手機通訊並不代表所有對話均已更新。",
       mobileRemoteError: '無法透過網際網路配對。請檢查 Meu 中繼是否已設定且可存取。',
       loading: '正在載入閘道設定...',
       unavailableTitle: '閘道設定不可用',

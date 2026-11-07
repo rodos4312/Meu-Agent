@@ -1678,6 +1678,11 @@ export const frOverrides = {
     gateway: {
       mobileRemote: 'Se connecter à distance',
       mobileNetworkHint: 'Associez vos appareils chez vous ou utilisez la connexion Internet de Meu.',
+      mobileSyncUnavailable: "Téléphone associé · service de synchronisation indisponible",
+      mobileSyncReady: "Téléphone associé · service de synchronisation prêt",
+      mobileLastContact: "Dernier contact avec le téléphone :",
+      mobileNoContact: "Aucun contact avec le téléphone depuis le démarrage de ce service.",
+      mobileSyncUnconfirmed: "Un contact avec le téléphone ne confirme pas que toutes les conversations sont à jour.",
       mobileRemoteError: 'Vérifiez que le relais Meu est configuré et accessible pour permettre l’association à distance.',
       loading: 'Chargement des paramètres du gateway...',
       ...frGatewayHost,

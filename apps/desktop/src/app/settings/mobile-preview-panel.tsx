@@ -7,7 +7,16 @@ import { useI18n } from '@/i18n/context'
 import { writeClipboardText } from '@/lib/clipboard'
 import type { PaginatedSessions, SessionInfo } from '@/types/hermes'
 
-type Pairing = { state: 'off' | 'waiting' | 'paired' | 'other-profile'; code?: string | null; seconds?: number | null; sync?: boolean; sync_profile?: boolean; offline?: boolean }
+interface Pairing {
+  state: 'off' | 'waiting' | 'paired' | 'other-profile'
+  code?: string | null
+  seconds?: number | null
+  sync?: boolean
+  sync_profile?: boolean
+  offline?: boolean
+  listener_count?: number
+  last_contact?: string | null
+}
 const PAIRING_PATH = '/api/mobile-preview'
 
 export function MobilePreviewPanel() {
@@ -72,9 +81,11 @@ function PairingControls({ profile }: { profile?: string }) {
     setSessions(undefined)
     setSessionListFailed(false)
     const params = new URLSearchParams({ limit: '40', min_messages: '1', archived: 'exclude', order: 'recent' })
+
     if (profile) {
       params.set('profile', profile)
     }
+
     void hermesApi<PaginatedSessions>({
       connectionId: 'local', path: `/api/sessions?${params}`, profile, timeoutMs: 8000
     }).then(result => {
@@ -83,6 +94,7 @@ function PairingControls({ profile }: { profile?: string }) {
           !session.parent_session_id && session.continuation_kind !== 'compression' &&
           /^(?:[0-9]{8}_[0-9]{6}_[0-9a-f]{6,12}|local-[0-9a-f]{64})$/.test(session.id)
         )
+
         setSessions(eligible)
         setSessionId(id => eligible.some(session => session.id === id) ? id : '')
       }
@@ -97,6 +109,7 @@ function PairingControls({ profile }: { profile?: string }) {
 
   useEffect(() => {
     let current = true
+
     if (pairing?.code) {
       const code = pairing.code
 
@@ -121,6 +134,7 @@ function PairingControls({ profile }: { profile?: string }) {
     const syncStart = method === 'POST' && sync
     const profileStart = syncStart && wholeProfile
     const remoteStart = method === 'POST' && remote && !sync
+
     if (syncStart && !profileStart && !sessions?.some(session => session.id === sessionId)) {
       return
     }
@@ -217,9 +231,34 @@ function PairingControls({ profile }: { profile?: string }) {
           <p className="text-xs text-muted-foreground">This code can be used once and expires in about {minutes} min.</p>
         </div>
       )}
-      {pairing?.state === 'paired' && <p className="mt-3 text-xs text-primary" role="status">{pairing.sync_profile ? (pairing.offline ? 'Phone paired · waiting for network' : 'Phone paired for profile sync') : `Phone connected · about ${minutes} min remaining`}</p>}
+      <PairingStatus minutes={minutes} pairing={pairing} />
       {pairing?.state === 'other-profile' && <p className="mt-3 text-xs text-muted-foreground">Switch to the paired profile to manage its phone connection.</p>}
       {error && <p className="mt-3 text-xs text-destructive" role="alert">{error}</p>}
     </section>
   )
+}
+
+function PairingStatus({ pairing, minutes }: { pairing?: Pairing; minutes: number }) {
+  const { t } = useI18n()
+
+  if (!pairing) {return null}
+  const active = pairing.state === 'waiting' || pairing.state === 'paired'
+
+  const pairedLabel = pairing.sync_profile
+    ? pairing.offline ? t.settings.gateway.mobileSyncUnavailable
+      : pairing.listener_count === undefined ? 'Phone paired for profile sync'
+      : t.settings.gateway.mobileSyncReady
+    : `Phone connected · about ${minutes} min remaining`
+
+  return <>
+    {pairing.state === 'paired' && <p className="mt-3 text-xs text-primary" role="status">{pairedLabel}</p>}
+    {active && pairing.sync && pairing.listener_count !== undefined && (
+      <p className="mt-2 text-xs text-muted-foreground">
+        {pairing.last_contact
+          ? `${t.settings.gateway.mobileLastContact} ${new Date(pairing.last_contact).toLocaleString()}`
+          : t.settings.gateway.mobileNoContact}
+        {' '}{t.settings.gateway.mobileSyncUnconfirmed}
+      </p>
+    )}
+  </>
 }

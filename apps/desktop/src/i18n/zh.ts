@@ -1370,6 +1370,11 @@ export const zhOverrides = {
     gateway: {
       mobileRemote: '在外连接',
       mobileNetworkHint: '在家中配对，或使用 Meu 的互联网连接。',
+      mobileSyncUnavailable: "手机已配对 · 同步服务不可用",
+      mobileSyncReady: "手机已配对 · 同步服务已就绪",
+      mobileLastContact: "上次手机通信：",
+      mobileNoContact: "此服务启动后尚未记录到手机通信。",
+      mobileSyncUnconfirmed: "与手机通信并不代表所有对话均已更新。",
       mobileRemoteError: '无法通过互联网配对。请检查 Meu 中继是否已配置且可访问。',
       loading: '正在加载网关设置...',
       ...zhGatewayHost,

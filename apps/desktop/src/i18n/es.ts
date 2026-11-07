@@ -1671,6 +1671,11 @@ export const esOverrides = {
     gateway: {
       mobileRemote: 'Conectar desde fuera de casa',
       mobileNetworkHint: 'Vincula los dispositivos en casa o usa la conexión de Meu por Internet.',
+      mobileSyncUnavailable: "Teléfono vinculado · servicio de sincronización no disponible",
+      mobileSyncReady: "Teléfono vinculado · servicio de sincronización listo",
+      mobileLastContact: "Último contacto con el teléfono:",
+      mobileNoContact: "No se ha registrado contacto con el teléfono desde que se inició este servicio.",
+      mobileSyncUnconfirmed: "El contacto con el teléfono no confirma que todas las conversaciones estén actualizadas.",
       mobileRemoteError: 'No se pudo iniciar la vinculación por Internet. Comprueba que el relé de Meu esté configurado y accesible.',
       loading: 'Cargando ajustes del gateway...',
       ...esGatewayHost,

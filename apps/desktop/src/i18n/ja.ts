@@ -940,6 +940,11 @@ export const jaOverrides = {
     gateway: {
       mobileRemote: '外出先から接続',
       mobileNetworkHint: '自宅でペアリングするか、Meu のインターネット接続を使用します。',
+      mobileSyncUnavailable: "スマートフォンはペアリング済み・同期サービスは利用不可",
+      mobileSyncReady: "スマートフォンはペアリング済み・同期サービスは準備完了",
+      mobileLastContact: "スマートフォンとの最終通信:",
+      mobileNoContact: "サービス開始後、スマートフォンとの通信は記録されていません。",
+      mobileSyncUnconfirmed: "スマートフォンとの通信だけでは、すべての会話が最新であるとは確認できません。",
       mobileRemoteError: 'インターネット経由のペアリングを開始できませんでした。Meu リレーの設定と接続を確認してください。',
       loading: 'ゲートウェイ設定を読み込み中...',
       ...jaGatewayHost,

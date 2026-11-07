@@ -80,6 +80,7 @@ it('requests remote pairing only when selected and leaves the user a retry path'
 it('shares only the explicitly selected local conversation in sync mode', async () => {
   const sessionId = 'local-' + 'a'.repeat(64)
   let pairing: { state: string; code?: string; seconds?: number; sync?: boolean } = { state: 'off' }
+
   const api = vi.fn(async ({ method, path }: { method?: string; path: string }) => {
     if (path.startsWith('/api/sessions?')) {
       return { sessions: [{ id: sessionId, title: 'Trip plans' }] }
@@ -109,4 +110,35 @@ it('shares only the explicitly selected local conversation in sync mode', async 
     method: 'POST', path: '/api/mobile-preview/sync', connectionId: 'local',
     profile: 'work', body: { session_id: sessionId }
   }))
+})
+
+it('reports service readiness without claiming a completed history sync', async () => {
+  const api = vi.fn(async () => ({
+    state: 'paired', sync: true, sync_profile: true,
+    listener_count: 1, offline: false, last_contact: null
+  }))
+
+  vi.stubGlobal('hermesDesktop', { api })
+  render(<MobilePreviewPanel />)
+
+  expect((await screen.findByRole('status')).textContent).toContain('sync service ready')
+  expect(screen.getByText(/No phone contact recorded/).textContent).toContain(
+    'Phone contact does not confirm'
+  )
+})
+
+it('shows the last phone contact separately from service readiness', async () => {
+  const contact = '2026-11-07T09:30:00Z'
+
+  const api = vi.fn(async () => ({
+    state: 'paired', sync: true, sync_profile: true,
+    listener_count: 1, offline: false, last_contact: contact
+  }))
+
+  vi.stubGlobal('hermesDesktop', { api })
+  render(<MobilePreviewPanel />)
+
+  const status = await screen.findByText(/Last phone contact:/)
+  expect(status.textContent).toContain(new Date(contact).toLocaleString())
+  expect(screen.queryByText(/No phone contact recorded/)).toBeNull()
 })

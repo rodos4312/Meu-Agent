@@ -138,6 +138,7 @@ class MobilePreview:
         self.legacy_request = str(uuid.uuid4())
         self.runs = {}
         self.lock = asyncio.Lock()
+        self.last_contact = None
 
     async def start(self, *, saved=None):
         addresses = tuple(str(interface.ip) for interface in self.interfaces)
@@ -173,11 +174,12 @@ class MobilePreview:
                 port = saved["ports"][index] if saved else 0
                 try:
                     await web.TCPSite(runner, address, port, ssl_context=tls).start()
-                except OSError:
-                    if not saved:
+                except OSError as exc:
+                    if not saved and not self.sync_enabled:
                         raise
+                    logger.warning("Meu sync interface %d could not bind (errno=%s)", index, exc.errno)
             if not runner.addresses:
-                raise OSError("No saved sync address is available")
+                raise OSError("No sync address is available")
         except BaseException:
             await runner.cleanup()
             raise
@@ -189,6 +191,12 @@ class MobilePreview:
             self.token_digest = saved["digest"]
             self._keep_paired()
             return
+        # Advertise and persist only endpoints which actually started. A stale VPN
+        # adapter must not close a usable LAN listener (or the other way around).
+        bound = {ip for ip, _ in runner.addresses}
+        self.interfaces = tuple(interface for interface in self.interfaces if str(interface.ip) in bound)
+        self.interface = self.interfaces[0]
+        addresses = tuple(str(interface.ip) for interface in self.interfaces)
         self.ports = tuple(next(port for ip, port in runner.addresses if ip == address) for address in addresses)
         origins = tuple(
             f"https://{address}:{next(port for ip, port in runner.addresses if ip == address)}"
@@ -246,7 +254,9 @@ class MobilePreview:
             return {"state": "off"}
         return {"state": "paired" if self.token or self.token_digest else "waiting", "code": self.code,
                 "seconds": None if self.token_digest else max(0, round(self.deadline - self.loop.time())),
-                **({"sync": True} if self.sync_enabled else {}),
+                **({"sync": True, "listener_count": len(self.runner.addresses),
+                    "offline": not bool(self.runner.addresses),
+                    "last_contact": self.last_contact} if self.sync_enabled else {}),
                 **({"sync_profile": True} if self.sync_profile else {})}
 
     async def close(self):
@@ -291,7 +301,10 @@ class MobilePreview:
                 valid = bool(expected) and secrets.compare_digest(expected.encode(), supplied.encode())
             if not valid:
                 raise web.HTTPUnauthorized()
+            self.last_contact = datetime.now(UTC).isoformat()
         response = await handler(request)
+        if request.path == "/meu/pair" and response.status == 200:
+            self.last_contact = datetime.now(UTC).isoformat()
         response.headers["Cache-Control"] = "no-store"
         return response
 
