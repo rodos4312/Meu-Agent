@@ -134,6 +134,12 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
+          tests/hermes_cli/test_source_backend_only.py
+          tests/hermes_cli/test_source_build.py
+          tests/hermes_cli/test_serve_command.py
+          tests/hermes_cli/test_fast_serve_launch.py
+          tests/hermes_cli/test_dashboard_web_dist_validation.py
+          tests/hermes_cli/test_source_completion_stamp.py
           tests/plugins/delegation/test_meu_projects.py
           tests/plugins/delegation/test_meu_project_background.py
           tests/tools/test_async_delegation.py
@@ -288,6 +294,12 @@ jobs:
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
+          tests/hermes_cli/test_source_backend_only.py
+          tests/hermes_cli/test_source_build.py
+          tests/hermes_cli/test_serve_command.py
+          tests/hermes_cli/test_fast_serve_launch.py
+          tests/hermes_cli/test_dashboard_web_dist_validation.py
+          tests/hermes_cli/test_source_completion_stamp.py
           tests/plugins/delegation/test_meu_projects.py
           tests/plugins/delegation/test_meu_project_background.py
           tests/tools/test_async_delegation.py

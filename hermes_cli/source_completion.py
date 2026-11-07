@@ -38,6 +38,7 @@ def complete_source_checkout(
     announce: str | None = None,
     followups: list[tuple[str, str]] | None = None,
     before_build=None,
+    backend_only: bool = False,
 ) -> bool:
     """Publish commands, build the products, then run post-build maintenance.
 
@@ -50,6 +51,8 @@ def complete_source_checkout(
     """
     from hermes_cli.update_lock import UpdateLock, describe_holder
 
+    if backend_only and desktop:
+        raise ValueError("backend-only and desktop builds are mutually exclusive")
     root = Path(root)
     # This tail is the last mutating step of an install or update, and its product
     # builds run for minutes. A gateway restarted while it runs (launchd KeepAlive,
@@ -75,6 +78,7 @@ def complete_source_checkout(
             pre_update_version=pre_update_version,
             completion_message=completion_message, announce=announce, followups=followups,
             before_build=before_build,
+            backend_only=backend_only,
         )
     finally:
         lock.release()
@@ -92,6 +96,7 @@ def _complete_locked(
     announce: str | None,
     followups: list[tuple[str, str]] | None = None,
     before_build=None,
+    backend_only: bool = False,
 ) -> bool:
     """The completion body; callers hold the update lock already."""
     from hermes_cli.source_build import build_update_products
@@ -123,7 +128,10 @@ def _complete_locked(
     step("launchers", lambda: publish_launchers(root))
     if before_build is not None:
         before_build()  # never raises: a failed restart stays owed and is retried after the build
-    step("build", lambda: build_update_products(root, desktop=desktop))
+    products = {"desktop": desktop}
+    if backend_only:
+        products["build_frontends"] = False
+    step("build", lambda: build_update_products(root, **products))
     if announce:
         print(announce)
     verdict: list[bool] = []
@@ -165,8 +173,11 @@ def main(argv: list[str] | None = None) -> int:
     prepared = _PREPARED in argv
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
-    parser.add_argument("--desktop", action="store_true",
+    products = parser.add_mutually_exclusive_group()
+    products.add_argument("--desktop", action="store_true",
                         help="Also build the packaged desktop app.")
+    products.add_argument("--backend-only", action="store_true",
+                         help="Prepare a native-client backend without building UI renderers.")
     parser.add_argument("--interactive", action="store_true",
                         help="Allow prompts; installers pass no flag and stay unattended.")
     parser.add_argument("--finish-update", action="store_true",
@@ -184,6 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         from pm.environments import activate_dependencies
 
         activate_dependencies(root)
+        options = {"backend_only": True} if args.backend_only else {}
         if args.finish_update:
             # A source update that never reached its own completion -- a
             # pre-handoff release cannot flip during `hermes update`, so its
@@ -195,12 +207,14 @@ def main(argv: list[str] | None = None) -> int:
             complete_source_checkout(
                 root, desktop=args.desktop, assume_yes=True,
                 completion_message=None, announce="\n✓ Code updated!", followups=owed,
+                **options,
             )
             ok = not owed
         else:
             ok = complete_source_checkout(
                 root, desktop=args.desktop, assume_yes=not args.interactive,
                 completion_message="✓ Install complete!",
+                **options,
             )
         return 0 if ok else 1
 
@@ -210,7 +224,8 @@ def main(argv: list[str] | None = None) -> int:
     # every flag that decides WHICH tail runs has to survive into it. Losing
     # --finish-update here silently reports an update as an install.
     passthrough = (["--desktop"] if args.desktop else []) + \
-                  (["--finish-update"] if args.finish_update else [])
+                  (["--finish-update"] if args.finish_update else []) + \
+                  (["--backend-only"] if args.backend_only else [])
     command = _bootstrap_command(root, passthrough)
     from hermes_cli.update_lock import checkout_lock_fds
 

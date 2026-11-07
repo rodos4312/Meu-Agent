@@ -33,6 +33,7 @@ WANT_MANIFEST=false
 JSON=false
 NON_INTERACTIVE=false
 INCLUDE_DESKTOP=false
+BACKEND_ONLY=false
 VERBOSE=false
 SKIP_BROWSER=false
 SKIP_COMPUTER_USE=false
@@ -64,6 +65,7 @@ while [ $# -gt 0 ]; do
         --skip-browser|--no-playwright|-SkipBrowser) SKIP_BROWSER=true; shift ;;
         --skip-computer-use|-SkipComputerUse) SKIP_COMPUTER_USE=true; shift ;;
         --include-desktop|-IncludeDesktop) INCLUDE_DESKTOP=true; shift ;;
+        --backend-only) BACKEND_ONLY=true; shift ;;
         --verbose|-Verbose) VERBOSE=true; shift ;;
         -h|--help)
             echo "Usage: install.sh [--channel stable|main] [--branch NAME] [--commit SHA]"
@@ -71,6 +73,7 @@ while [ $# -gt 0 ]; do
             echo "                  [--manifest] [--stage NAME] [--json]"
             echo "                  [--non-interactive] [--include-desktop] [--verbose]"
             echo "                  [--skip-browser] [--skip-computer-use]"
+            echo "                  [--backend-only]"
             echo
             echo "  --channel       stable (default): the latest published release, then release"
             echo "                  to release. main: every commit. Also HERMES_INSTALL_CHANNEL;"
@@ -81,10 +84,17 @@ while [ $# -gt 0 ]; do
             echo "  --skip-computer-use"
             echo "                  Do not install the computer-use driver (cua-driver). Remembered"
             echo "                  the same way; undo with 'hermes pm install cua-driver'."
+            echo "  --backend-only  Prepare the backend for a native client without building"
+            echo "                  terminal, browser or desktop interfaces. Keeps tools and skills."
             exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
 done
+
+if [ "$BACKEND_ONLY" = true ] && [ "$INCLUDE_DESKTOP" = true ]; then
+    printf '%s\n' '--backend-only cannot be combined with --include-desktop.' >&2
+    exit 2
+fi
 
 case "$CHANNEL" in
     ""|stable|main) ;;
@@ -1059,12 +1069,18 @@ stage_products() {
     # the build asks for them; the bootstrap interpreter itself only re-enters
     # the tree on PM's selected Python.
     local boot_py
+    local product_label="Building the hermes command and apps"
     local args=(--source "$INSTALL_DIR")
     bootstrap_python
+    if [ "$BACKEND_ONLY" = true ]; then
+        desktop_product_present && fail "backend-only cannot leave an existing desktop app stale"
+        args+=(--backend-only)
+        product_label="Preparing the native-client backend"
+    fi
     if [ "$INCLUDE_DESKTOP" = true ] || desktop_product_present; then
         args+=(--desktop)
     fi
-    (cd "$INSTALL_DIR" && run_logged "Building the hermes command and apps" \
+    (cd "$INSTALL_DIR" && run_logged "$product_label" \
         "$boot_py" -I -B -X utf8 hermes_cli/source_completion.py "${args[@]}") \
         || fail "app products or command publication failed"
     wire_shell_path

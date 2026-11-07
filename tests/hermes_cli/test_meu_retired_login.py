@@ -23,6 +23,14 @@ def test_auth_upgrade_is_not_a_cli_command():
     assert exc.value.code == 2
 
 
+def test_dashboard_register_is_not_a_cli_command():
+    from hermes_cli.main import _build_cli_parser
+    parser, _ = _build_cli_parser()
+    with pytest.raises(SystemExit) as exc:
+        parser.parse_args(["dashboard", "register"])
+    assert exc.value.code == 2
+
+
 def test_login_is_not_a_chat_command():
     from hermes_cli.commands import resolve_command
     assert resolve_command("login") is None
@@ -38,6 +46,7 @@ def test_auth_add_nous_refuses_before_any_network_request():
 
 @pytest.mark.parametrize("module", [
     "hermes_cli.anon_sign_in", "hermes_cli.anon_sign_in_cli", "gateway.slash_commands_login",
+    "hermes_cli.dashboard_register",
 ])
 def test_removed_sign_in_implementation_cannot_be_imported(module):
     with pytest.raises(ModuleNotFoundError) as exc:

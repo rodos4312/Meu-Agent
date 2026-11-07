@@ -147,7 +147,7 @@ def _headless_linux() -> bool:
     return sys.platform.startswith("linux") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
-def build_update_products(project_root: Path, *, desktop: bool) -> None:
+def build_update_products(project_root: Path, *, desktop: bool, build_frontends: bool = True) -> None:
     """Prepare the selected union once, attempting every independent product.
 
     A failed product never skips the next one (a broken web build must not leave the TUI or the
@@ -158,8 +158,10 @@ def build_update_products(project_root: Path, *, desktop: bool) -> None:
     from hermes_cli.main_install_repair import _install_configured_features_missing_deps
     from hermes_cli.update_stage import publish_stage
 
+    if desktop and not build_frontends:
+        raise ValueError("A desktop install requires its frontend build.")
     failures: list[tuple[str, BaseException]] = []
-    publish_stage("Building the apps")
+    publish_stage("Building the apps" if build_frontends else "Preparing the backend")
 
     def attempt(name: str, step) -> bool:
         try:
@@ -171,7 +173,7 @@ def build_update_products(project_root: Path, *, desktop: bool) -> None:
             return False
 
     attempt("feature dependencies", lambda: _install_configured_features_missing_deps(project_root))
-    frontends = source_frontends(project_root)
+    frontends = source_frontends(project_root) if build_frontends else ()
     if frontends:
         desktop_built = False
         env: dict = {}
@@ -225,7 +227,7 @@ def build_update_products(project_root: Path, *, desktop: bool) -> None:
             # One whole line the Desktop hand-off scripts match: the follow-up text is truncated
             # and names whichever products failed first, so it cannot say if THIS app was rebuilt.
             print(f"  Desktop app build owed: {desktop_reason} failed")
-    if (project_root / "apps/desktop/scripts/build-webapp.mjs").is_file():
+    if build_frontends and (project_root / "apps/desktop/scripts/build-webapp.mjs").is_file():
         # Its dependencies live in a private workspace, so it never waits on the union above.
         attempt("Webapp build", lambda: _rebuild_served_webapp(project_root, publish_stage))
     # A configured memory provider that no longer ships in core is installed from the
