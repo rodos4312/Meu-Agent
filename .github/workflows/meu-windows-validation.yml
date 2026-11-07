@@ -506,7 +506,7 @@ jobs:
         run: |
           node scripts/i18n-keys.mjs --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
+          npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/app/chat/sidebar/projects/project-location.test.tsx src/app/chat/sidebar/sessions-section-new-session-drag.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck

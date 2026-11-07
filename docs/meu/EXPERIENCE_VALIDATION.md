@@ -3,6 +3,52 @@
 This records source-level validation for the first batch in
 [the experience roadmap](EXPERIENCE_ROADMAP.md). It is not a release receipt.
 
+## Completed navigation and first project-location slice
+
+The follow-up on the same date finished the navigation implementation and
+started milestone 2 without changing either application's published version.
+
+- **Windows:** 46 focused UI/integration tests cover navigation, capability
+  selection, the welcome screen, project locations and existing project/session
+  drag behavior. A real Electron navigation rehearsal against an isolated local
+  Python backend passed, including draft retention, Connectors/Tools selection,
+  1024/640/400-pixel widths, Settings at 400×320, light/dark appearance, a mock
+  provider conversation and return to the same transcript. No renderer Nous
+  requests, shared-metrics RPCs or metrics-storage keys were observed.
+  A separate Electron rehearsal created a real temporary project, displayed
+  its location, edited its note file, restarted the test app and verified the
+  persisted note. Both E2E scenarios passed; the user's installed app was not
+  used or restarted.
+- **Android:** **263 tests passed in one final combined run**: navigation,
+  onboarding, device switching, auth status, voice/template branding, themes,
+  chat back-navigation, projects/tablet detail, file browsing/writes and artifact
+  navigation. Two additional Flutter rendering scenarios passed and produced
+  Home/drawer screenshots in light and dark mode at 390×844.
+- The two Python branding transformation tests from the first batch remain
+  applicable. Changes passed targeted Flutter analysis, desktop TypeScript
+  checks and targeted ESLint. The Windows production bundle built successfully.
+- Product defaults now use Meu images in loading, onboarding and drawer/header
+  surfaces, plus Meu labels in avatars, About, themes, voice/browser notices and
+  save dialogs. Custom names and user arguments are preserved; license credits,
+  model IDs, commands and persisted route/theme keys are not renamed.
+- Android's local-start button had retained the QR icon and test/action key;
+  these now match its actual action. PC pairing remains optional. Saved PC
+  connections and connection management stay accessible in the Android-agent
+  variant. Previously handwritten onboarding/menu copy follows all nine UI
+  locales. Empty Greek voice notices were filled and registry parity verified.
+- Project folders are visible and directly copyable on both clients. Windows
+  offers Explorer only for a local execution route. Android copies the full
+  host path even on a read-only route, with no file write or path migration.
+
+The screenshots use synthetic data. Flutter-rendered Android screens are not
+evidence of a physical-phone installation, background endurance or mobile-data
+connectivity. A unified deliverables view and real-device project/export
+acceptance remain work for milestone 2. No new installer/APK is distributed.
+
+The private Android source snapshot contains 2,688 files. Every archived file
+was checked against its SHA-256 manifest; no input source file was removed.
+Archive SHA-256: `c1ca7979020c411e225b237d901084b1d62aa9c5fdcbf88d5be94ab3e1bd3d29`.
+
 | Check | Result |
 | --- | --- |
 | Windows pairing UI | **10 passed** using native Windows Node/Vitest. Covers explicit mode routing, scoped session selection, single-history pairing, legacy profile flags, zero listeners, missing expiry, last contact and recovery after a failed status read. |
@@ -55,6 +101,6 @@ the existing package cache; no model provider request was needed.
 
 No physical Android installation, lock-screen/background endurance run, mobile
 data transition, live-provider project or real Windows reboot was performed in
-this batch. No new APK or Windows installer was built or published. Full app
-visual review and the remaining handwritten Android strings/assets belong to
-the next part of milestone 1. The remaining milestones are not complete.
+this batch. No new APK or Windows installer was published. The follow-up above
+records the completed navigation slice; it does not certify every screen,
+external plugin or the remaining roadmap milestones.

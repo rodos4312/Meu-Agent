@@ -17,6 +17,7 @@ import { SidebarRowStack } from '../chrome'
 
 import { CoordinatorWorkspace } from './coordinator-workspace'
 import { PROJECT_SESSION_PAGE, useRevealedRows, useWorkspaceNodeOpen } from './model'
+import { ProjectLocation } from './project-location'
 import { ProjectMemory } from './project-memory'
 import { SidebarWorkspaceGroup } from './workspace-group'
 import {
@@ -54,7 +55,12 @@ export function EnteredProjectContent({
   removedSessionIds?: ReadonlySet<string>
 }) {
   if (!project.repos.length) {
-    return project.isNoProject ? null : <ProjectMemory project={project} />
+    return project.isNoProject ? null : (
+      <>
+        <ProjectLocation project={project} />
+        <ProjectMemory project={project} />
+      </>
+    )
   }
 
   // Home's rows aren't anchored to a folder, so there's no repo or worktree
@@ -67,6 +73,7 @@ export function EnteredProjectContent({
 
   return (
     <>
+      <ProjectLocation project={project} />
       <ProjectMemory project={project} />
       <CoordinatorWorkspace onRefresh={onRefreshProject} onResumeSession={onResumeSession} project={project} />
       {project.repos.map(repo => (

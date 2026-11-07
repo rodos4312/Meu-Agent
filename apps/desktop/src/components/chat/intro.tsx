@@ -4,7 +4,6 @@ import { useI18n } from '@/i18n'
 import { capitalize, normalize } from '@/lib/text'
 
 import introCopyJsonl from './intro-copy.jsonl?raw'
-import { Wordmark } from './wordmark'
 
 type IntroCopy = {
   headline: string
@@ -146,8 +145,6 @@ function pickCopy(copies: IntroCopy[], seed = 0): IntroCopy {
   return copies[Math.abs(seed) % copies.length] || FALLBACK_COPY[0]
 }
 
-const WORDMARK = 'MEU'
-
 function resolveCopy(personality?: string, seed?: number): IntroCopy {
   const personalityKey = normalizeKey(personality)
 
@@ -176,8 +173,12 @@ export function Intro({ personality, seed }: IntroProps) {
       data-slot="aui_intro"
     >
       <div className="w-full min-w-0">
-        <Wordmark className="mb-5" fitMin="1.25rem" text={WORDMARK} width="4.5rem" />
-        <h1 className="mb-3 text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">{t.meuShell.welcome}</h1>
+        <div aria-label="Meu" className="meu-welcome-brand">
+          M
+        </div>
+        <h1 className="mb-3 text-balance text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
+          {t.meuShell.welcome}
+        </h1>
 
         <p className="mx-auto my-0 max-w-lg text-pretty text-center text-sm leading-relaxed">{body}</p>
       </div>

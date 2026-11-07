@@ -45,6 +45,7 @@ vi.mock('@/i18n', () => ({
   useI18n: () => ({
     t: {
       common: { cancel: 'Cancel' },
+      projectMemory: { title: 'Project memory' },
       desktop: {},
       sidebar: {
         dateDivider: {

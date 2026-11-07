@@ -14,14 +14,17 @@ test.afterAll(async () => {
 })
 
 test('Meu navigation preserves the live composer and stays usable across pages and window sizes', async () => {
-  test.setTimeout(180_000)
+  test.setTimeout(240_000)
   const { app, page } = fixture
   const requests: string[] = []
   const externalNousRequests: string[] = []
   page.on('websocket', socket => {
     socket.on('framesent', frame => {
       const message = JSON.parse(String(frame.payload))
-      if (typeof message.method === 'string') requests.push(message.method)
+
+      if (typeof message.method === 'string') {
+        requests.push(message.method)
+      }
     })
   })
   page.on('request', request => {
@@ -37,12 +40,15 @@ test('Meu navigation preserves the live composer and stays usable across pages a
   await waitForAppReady(fixture, 90_000)
   await expect(page.locator('[data-slot="aui_intro"]')).toBeVisible()
   await expect(page.locator('[data-slot="session-row"]')).toHaveCount(0)
-  await expect(page.locator('[data-slot="composer-root"]')).toContainText('Mock Model')
+  // A cold model catalog can settle after the gateway itself becomes ready.
+  await expect(page.locator('[data-slot="composer-root"]')).toContainText('Mock Model', { timeout: 45_000 })
   const rail = page.getByRole('navigation', { name: 'Main navigation' })
+
   const composer = page
     .locator('[data-slot="composer-root"] [contenteditable="true"]')
     .filter({ visible: true })
     .first()
+
   await expect(rail).toBeVisible()
   await composer.fill('Keep this unsent message while I browse my skills.')
   const originalUrl = page.url()
@@ -52,12 +58,23 @@ test('Meu navigation preserves the live composer and stays usable across pages a
   await expect(page.getByRole('heading', { name: 'Plugins', exact: true })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Customize' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('meu-plugins.png') })
+
+  const customization = page.getByRole('navigation', { name: 'Customize' })
+
+  for (const section of ['Connectors', 'Tools']) {
+    await customization.getByRole('button', { name: section, exact: true }).click()
+    await expect(page.getByRole('heading', { name: section, exact: true })).toBeVisible()
+    await expect(rail.locator('[data-meu-nav="plugins"]')).toHaveAttribute('aria-current', 'page')
+    await expect(rail.locator('[data-meu-nav="skills"]')).not.toHaveAttribute('aria-current', 'page')
+  }
+
   await rail.locator('[data-meu-nav="skills"]').click()
   await expect(page.getByRole('heading', { name: 'Skills', exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('meu-skills.png') })
 
   await rail.locator('[data-meu-nav="settings"]').click()
   await expect(page.locator('[data-overlay-surface]')).toBeVisible()
+  await expect(page.getByText('Provider', { exact: true })).toBeVisible()
   await expect(rail).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('meu-settings.png') })
   await rail.locator('[data-meu-nav="scheduled"]').click()
@@ -80,14 +97,28 @@ test('Meu navigation preserves the live composer and stays usable across pages a
     await rail.locator('[data-meu-nav="home"]').click()
     await expect(composer).toHaveText('Keep this unsent message while I browse my skills.')
   }
+
+  await app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]!
+    window.setMinimumSize(320, 280)
+    window.setSize(400, 320)
+  })
+  await rail.locator('[data-meu-nav="settings"]').click()
+  await expect(page.locator('[data-overlay-surface]')).toBeVisible()
+  await expect(page.getByText('Provider', { exact: true })).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('meu-settings-short-window.png') })
+  await rail.locator('[data-meu-nav="home"]').click()
+  await expect(composer).toHaveText('Keep this unsent message while I browse my skills.')
   await app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]!.setSize(1220, 800)
   })
+
   const receipt = await runDesktopChatSmoke(page, {
     mockUrl: fixture.mockUrl,
     phase: 'new',
     outDir: test.info().outputPath('chat')
   })
+
   const conversationUrl = page.url()
   await rail.locator('[data-meu-nav="plugins"]').click()
   await expect(page.getByRole('heading', { name: 'Plugins', exact: true })).toBeVisible()

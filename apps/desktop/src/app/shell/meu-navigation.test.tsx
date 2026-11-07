@@ -42,7 +42,7 @@ it('returns Home to the existing chat with its draft after visiting pages and ov
   fireEvent.change(screen.getByLabelText('Draft'), { target: { value: 'Unsent message' } })
 
   for (const [name, path] of [
-    ['Plugins', '/capabilities?tab=plugins'],
+    ['Customize', '/capabilities?tab=plugins'],
     ['Scheduled jobs', '/cron'],
     ['Settings', '/settings']
   ] as const) {
@@ -56,6 +56,24 @@ it('returns Home to the existing chat with its draft after visiting pages and ov
   expect(screen.getByTestId('route').textContent).toBe('/existing-chat?view=full#message')
   expect((screen.getByLabelText('Draft') as HTMLInputElement).value).toBe('Unsent message')
 })
+
+it.each(['plugins', 'connectors', 'toolsets', 'skills', 'hub', 'unknown'])(
+  'matches the current page for tab=%s',
+  tab => {
+    fixture(`/capabilities?tab=${tab}`)
+    const rail = screen.getByRole('navigation', { name: 'Main navigation' })
+    const menu = screen.getByRole('navigation', { name: 'Customize' })
+    const resolved = ['plugins', 'connectors', 'toolsets'].includes(tab) ? tab : 'skills'
+
+    expect(rail.querySelectorAll('[aria-current="page"]')).toHaveLength(1)
+    expect(rail.querySelector('[aria-current="page"]')?.getAttribute('data-meu-nav')).toBe(
+      resolved === 'skills' ? 'skills' : 'plugins'
+    )
+    expect(menu.querySelector('[aria-current="page"]')?.textContent).toBe(
+      { plugins: 'Plugins', connectors: 'Connectors', toolsets: 'Tools', skills: 'Skills' }[resolved]
+    )
+  }
+)
 
 it('keeps the customization menu and direct rail routes in agreement', () => {
   fixture('/')

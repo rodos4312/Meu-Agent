@@ -13,9 +13,42 @@
   align-items: center;
   gap: 10px;
   padding-bottom: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--ui-stroke-tertiary);
   background: var(--ui-sidebar-surface-background);
   -webkit-app-region: no-drag;
+}
+
+.meu-navigation-rail > * {
+  flex-shrink: 0;
+}
+
+.meu-navigation-rail [data-meu-nav] {
+  position: relative;
+}
+
+.meu-navigation-rail [aria-current='page']::before {
+  position: absolute;
+  inset-inline-start: -7px;
+  width: 3px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--ui-text-primary);
+  content: '';
+}
+
+.meu-welcome-brand {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin: 0 auto 24px;
+  border-radius: 16px;
+  background: var(--ui-text-primary);
+  color: var(--dt-background);
+  font-size: 26px;
+  font-weight: 600;
 }
 
 .meu-navigation-brand {

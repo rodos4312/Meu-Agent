@@ -8,6 +8,7 @@ import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 
+import { capabilityModeFromSearch } from '../capabilities/modes'
 import {
   appViewForPath,
   CAPABILITIES_ROUTE,
@@ -28,7 +29,7 @@ export function MeuNavigationRail() {
   const view = appViewForPath(location.pathname)
   const lastChat = useRef(NEW_CHAT_ROUTE)
   const target = `${location.pathname}${location.search}${location.hash}`
-  const tab = new URLSearchParams(location.search).get('tab') ?? 'skills'
+  const tab = capabilityModeFromSearch(location.search)
 
   // eslint-disable-next-line no-restricted-syntax -- remembers a router destination, not a mirrored atom
   useEffect(() => {
@@ -43,15 +44,15 @@ export function MeuNavigationRail() {
     {
       id: 'plugins',
       icon: 'extensions',
-      label: t.skills.tabPlugins,
-      active: view === 'capabilities' && tab === 'plugins',
+      label: t.meuShell.customization,
+      active: view === 'capabilities' && tab !== 'skills',
       to: `${CAPABILITIES_ROUTE}?tab=plugins`
     },
     {
       id: 'skills',
       icon: 'book',
       label: t.skills.tabSkills,
-      active: view === 'capabilities' && tab !== 'plugins',
+      active: view === 'capabilities' && tab === 'skills',
       to: `${CAPABILITIES_ROUTE}?tab=skills`
     },
     {
@@ -95,8 +96,7 @@ export function MeuCapabilitySidebar() {
   const { t } = useI18n()
   const { search } = useLocation()
   const navigate = useNavigate()
-  const tab = new URLSearchParams(search).get('tab')
-  const selected = ['plugins', 'connectors', 'toolsets'].includes(tab ?? '') ? tab : 'skills'
+  const selected = capabilityModeFromSearch(search)
 
   const items = [
     { id: 'plugins', icon: 'extensions', label: t.skills.tabPlugins },

@@ -10,6 +10,13 @@ mobile next-trial notes below: Meu Mobile now also has an on-device runtime, and
 the recovered Android source is 9673. Historical rehearsal evidence below is
 retained with its original scope; it does not certify a newer release.
 
+The 2026-11-07 experience batch completes the source implementation of the
+navigation/identity milestone and begins project-location access on both
+clients. Local Windows navigation and Android automated checks passed; see
+[experience validation](EXPERIENCE_VALIDATION.md). No installer, APK, update-feed
+promotion or installed-app change is issued for this batch. Continue with project
+deliverables/file previews before the consolidated release.
+
 | Work | Evidence |
 | --- | --- |
 | Coordinator on a real provider | Two native detached helpers used `deepseek-flash` and `deepseek-v4-pro` on synthetic payment data. A separate conversation answered while the project was running. Independent checks verified every normalized row and the exact reconciliation result. Both tasks reached verified on their first successful rehearsal attempt. This was a backend rehearsal, not a new Desktop release. |
