@@ -1,3 +1,7 @@
+import { setTimeout as delay } from 'node:timers/promises'
+
+import { runBackendStartStep } from './backend-start-cancellation'
+
 // A cold backend boot (plugin discovery + route mounting at web_server import
 // time) can take 45-60s on slower hardware. A 45s deadline makes first-boot
 // readiness a coin flip: every lost race tears down a healthy-but-slow backend
@@ -138,20 +142,7 @@ export async function waitForHermesReady(baseUrl: string, options: HermesReadyOp
   const now = options.now ?? Date.now
   const signal = options.signal
 
-  const sleep =
-    options.sleep ??
-    (ms =>
-      new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(resolve, ms)
-        signal?.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timer)
-            reject(supersededError())
-          },
-          { once: true }
-        )
-      }))
+  const sleep = options.sleep ?? (ms => delay(ms, undefined, { signal }))
 
   const base = baseUrl.replace(/\/+$/, '')
   const deadline = now() + timeoutMs
@@ -167,13 +158,17 @@ export async function waitForHermesReady(baseUrl: string, options: HermesReadyOp
 
     try {
       if (useStatusFallback) {
-        await options.fetchJson(`${base}/api/status`, options.token)
+        await runBackendStartStep(signal, () => options.fetchJson(`${base}/api/status`, options.token))
       } else {
-        await probeHealth(`${base}/api/health`, { timeoutMs: healthProbeTimeoutMs })
+        await runBackendStartStep(signal, () => probeHealth(`${base}/api/health`, { timeoutMs: healthProbeTimeoutMs }))
       }
 
       return
     } catch (error) {
+      if (signal?.aborted) {
+        throw supersededError()
+      }
+
       lastError = error
 
       // A confirmed 401/403 from a CREDENTIALED probe means the session was
@@ -202,7 +197,15 @@ export async function waitForHermesReady(baseUrl: string, options: HermesReadyOp
         continue
       }
 
-      await sleep(pollMs)
+      try {
+        await runBackendStartStep(signal, () => sleep(pollMs))
+      } catch (error) {
+        if (signal?.aborted) {
+          throw supersededError()
+        }
+
+        throw error
+      }
     }
   }
 

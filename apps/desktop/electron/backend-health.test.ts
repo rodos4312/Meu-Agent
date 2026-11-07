@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { getEventListeners } from 'node:events'
 
 import { test } from 'vitest'
 
@@ -163,6 +164,65 @@ test('aborts as superseded when the bootstrap signal fires', async () => {
     }),
     (error: any) => error.kind === 'superseded'
   )
+})
+
+test.each(['health', 'status'] as const)(
+  'cancels an in-flight %s probe without accepting its late result',
+  async route => {
+    const controller = new AbortController()
+    let finish!: () => void
+    let entered!: () => void
+
+    const started = new Promise<void>(resolve => {
+      entered = resolve
+    })
+
+    const probe = () =>
+      new Promise<void>(resolve => {
+        finish = resolve
+        entered()
+      })
+
+    const ready = waitForHermesReady('https://gateway.example', {
+      signal: controller.signal,
+      fetchPublicJson:
+        route === 'health'
+          ? probe
+          : async () => {
+              throw new Error('404: missing')
+            },
+      fetchJson: probe
+    })
+
+    const rejected = assert.rejects(ready, (error: any) => error.kind === 'superseded')
+    await started
+    controller.abort()
+
+    // Abort owns the result even when the network request has not settled yet.
+    try {
+      await rejected
+    } finally {
+      finish()
+    }
+  }
+)
+
+test('completed health retry delays release their abort listeners', async () => {
+  const controller = new AbortController()
+  let attempts = 0
+  await waitForHermesReady('https://gateway.example', {
+    signal: controller.signal,
+    fetchPublicJson: async () => {
+      if (++attempts <= 12) {
+        throw new Error('503: retry')
+      }
+    },
+    fetchJson: async () => ({}),
+    pollMs: 1,
+    timeoutMs: 2000
+  })
+  assert.equal(attempts, 13)
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0)
 })
 
 test('recognizes missing-route shapes only', () => {

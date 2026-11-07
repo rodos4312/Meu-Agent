@@ -456,6 +456,17 @@ jobs:
           src/app/settings/gateway-settings.test.tsx
           src/app/settings/connections-registry.test.tsx
           src/lib/browser-desktop-bridge.test.ts
+      - name: Verify cancelled startup and installer recovery
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project electron --maxWorkers 2
+          electron/backend-start-failure.test.ts
+          electron/primary-backend-startup.test.ts
+          electron/primary-backend-cancellation.test.ts
+          electron/backend-recycle.test.ts
+          electron/backend-ownership.test.ts
+          electron/remote-reauth-latch.test.ts
+          electron/updater/app-installer-recovery.test.ts
       - name: Verify gateway OAuth without Portal sessions
         working-directory: apps/desktop
         run: >-

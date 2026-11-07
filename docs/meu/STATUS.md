@@ -17,7 +17,7 @@ clients. Local Windows navigation and Android automated checks passed; see
 promotion or installed-app change is issued for this batch. Unified deliverables
 and in-app file previews are now implemented and locally verified on both
 clients; see [deliverables validation](DELIVERABLES_VALIDATION.md) for scope,
-test evidence and remaining physical-device/PDF acceptance. Coordinator progress and review receipts are now source-verified on both clients; see [Coordinator visibility](COORDINATOR_VISIBILITY_VALIDATION.md). Selected-owner reconnect and Android cold-start continuity are now source-verified; see [continuity validation](CONTINUITY_VALIDATION.md). The next milestone is consolidated stability and final device/release acceptance.
+test evidence and remaining physical-device/PDF acceptance. Coordinator progress and review receipts are now source-verified on both clients; see [Coordinator visibility](COORDINATOR_VISIBILITY_VALIDATION.md). Selected-owner reconnect and Android cold-start continuity are now source-verified; see [continuity validation](CONTINUITY_VALIDATION.md). The consolidated stability batch corrects cancelled-startup and explicit-stop races; see [stability validation](STABILITY_VALIDATION.md). Automated source checks are recorded separately from pending real-device and final-release acceptance.
 
 | Work | Evidence |
 | --- | --- |
