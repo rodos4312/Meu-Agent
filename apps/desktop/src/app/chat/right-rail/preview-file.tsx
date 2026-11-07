@@ -21,6 +21,7 @@ import { FileDiffPanel } from '@/components/chat/diff-lines'
 import { chunkTextLines, useFixedRowWindow } from '@/components/chat/fixed-row-window'
 import { LazyShiki as ShikiHighlighter } from '@/components/chat/shiki-highlighter'
 import { PageLoader } from '@/components/page-loader'
+import { PdfDocumentFrame } from '@/components/ui/pdf-document-frame'
 import { Tip } from '@/components/ui/tooltip'
 import { translateNow, useI18n } from '@/i18n'
 import {
@@ -241,45 +242,6 @@ function looksBinaryBytes(bytes: Uint8Array) {
   }
 
   return suspicious / Math.min(bytes.length, 4096) > 0.12
-}
-
-function dataUrlToBlob(dataUrl: string) {
-  const comma = dataUrl.indexOf(',')
-
-  if (comma < 0 || !dataUrl.startsWith('data:')) {
-    throw new Error('Invalid PDF data URL')
-  }
-
-  const metadata = dataUrl
-    .slice(5, comma)
-    .split(';')
-    .map(part => part.trim().toLowerCase())
-
-  const payload = dataUrl.slice(comma + 1)
-
-  if (metadata[0] !== 'application/pdf' || !metadata.slice(1).includes('base64')) {
-    throw new Error('Invalid PDF data URL type')
-  }
-
-  let binary: string
-
-  try {
-    binary = atob(decodeURIComponent(payload))
-  } catch {
-    throw new Error('Invalid PDF data URL payload')
-  }
-
-  if (!binary.startsWith('%PDF-')) {
-    throw new Error('Invalid PDF file header')
-  }
-
-  const bytes = new Uint8Array(binary.length)
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-
-  return new Blob([bytes], { type: 'application/pdf' })
 }
 
 async function readTextPreview(filePath: string, sessionId?: string) {
@@ -781,8 +743,6 @@ export function LocalFilePreview({
   const { t } = useI18n()
   const [state, setState] = useState<LocalPreviewState>({ loading: true })
   const [forcePreview, setForcePreview] = useState(false)
-  const [pdfError, setPdfError] = useState<string>()
-  const [pdfUrl, setPdfUrl] = useState<string>()
   // User-picked view; null = auto (diff when changed, else rendered markdown,
   // else source). Reset when the previewed file changes.
   const [userMode, setUserMode] = useState<null | PreviewViewMode>(null)
@@ -931,36 +891,6 @@ export function LocalFilePreview({
     target.language,
     target.url
   ])
-
-  useEffect(() => {
-    setPdfUrl(undefined)
-    setPdfError(undefined)
-
-    if (!isPdf || !state.dataUrl) {
-      return
-    }
-
-    // Chromium's PDF viewer is blank for large data: URLs in an iframe. Use a
-    // blob URL instead, and revoke it when the target or loaded bytes change.
-    if (typeof URL.createObjectURL !== 'function') {
-      setPdfError('PDF preview requires object URL support')
-
-      return
-    }
-
-    let objectUrl: string
-
-    try {
-      objectUrl = URL.createObjectURL(dataUrlToBlob(state.dataUrl))
-      setPdfUrl(objectUrl)
-    } catch (error) {
-      setPdfError(error instanceof Error ? error.message : String(error))
-
-      return
-    }
-
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [isPdf, state.dataUrl])
 
   // Editing is only offered for whole, readable text — never images, binaries,
   // or files we only loaded the first 512 KB of (saving would drop the tail).
@@ -1177,10 +1107,6 @@ export function LocalFilePreview({
     return <PreviewEmptyState body={state.error} primaryAction={closeAction} title={t.preview.unavailable} />
   }
 
-  if (pdfError) {
-    return <PreviewEmptyState body={pdfError} primaryAction={closeAction} title={t.preview.unavailable} />
-  }
-
   if (
     !isImage &&
     !isPdf &&
@@ -1213,21 +1139,8 @@ export function LocalFilePreview({
     )
   }
 
-  if (isPdf && state.dataUrl && pdfUrl) {
-    return (
-      <div className="h-full w-full overflow-hidden bg-transparent">
-        <iframe
-          aria-label={target.label}
-          className="h-full w-full border-0 bg-white"
-          src={pdfUrl}
-          title={target.label}
-        />
-      </div>
-    )
-  }
-
   if (isPdf && state.dataUrl) {
-    return <PageLoader label={t.preview.loading} />
+    return <PdfDocumentFrame dataUrl={state.dataUrl} label={target.label} />
   }
 
   if (isText && state.text !== undefined) {

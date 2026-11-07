@@ -5,6 +5,7 @@ import { MarkdownPreview, SourceView } from '@/app/chat/right-rail/preview-file'
 import { ZoomableImage } from '@/components/chat/zoomable-image'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PdfDocumentFrame } from '@/components/ui/pdf-document-frame'
 import { PreviewDocumentFrame } from '@/components/ui/preview-document-frame'
 import { useI18n } from '@/i18n'
 import { downloadTextFile } from '@/lib/download-text'
@@ -156,7 +157,7 @@ export function DeliverablePreview({
               src={data.dataUrl || ''}
             />
           ) : data.kind === 'pdf' ? (
-            <iframe className="size-full border-0" sandbox="" src={data.dataUrl} title={artifact.label} />
+            <PdfDocumentFrame dataUrl={data.dataUrl || ''} label={artifact.label} />
           ) : markdown && !source ? (
             <div className="h-full overflow-auto">
               <MarkdownPreview readOnly text={data.text} />

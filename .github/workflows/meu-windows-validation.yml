@@ -509,7 +509,7 @@ jobs:
           npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/app/chat/sidebar/projects/project-location.test.tsx src/app/chat/sidebar/sessions-section-new-session-drag.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Verify unified deliverables and scoped file previews
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/app/artifacts/index.test.ts src/app/artifacts/remote-open.test.tsx src/app/artifacts/generated-deliverables.test.ts src/app/artifacts/preview-data.test.ts src/app/artifacts/deliverable-preview.test.tsx src/app/chat/right-rail/preview-file.test.tsx src/app/chat/right-rail/preview-file-save-scope.test.tsx src/components/chat/intro.test.tsx
+        run: npx vitest run --project ui --maxWorkers 2 src/app/artifacts/index.test.ts src/app/artifacts/remote-open.test.tsx src/app/artifacts/generated-deliverables.test.ts src/app/artifacts/preview-data.test.ts src/app/artifacts/deliverable-preview.test.tsx src/components/ui/pdf-document-frame.test.tsx src/app/chat/right-rail/preview-file.test.tsx src/app/chat/right-rail/preview-file-save-scope.test.tsx src/components/chat/intro.test.tsx
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck

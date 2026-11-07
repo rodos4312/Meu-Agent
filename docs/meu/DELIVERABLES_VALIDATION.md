@@ -40,9 +40,13 @@ is published by this batch, and the installed Meu is not changed.
 
 ## Verification
 
-- 59 Windows UI tests passed across the artifact index, generated documents,
+- 61 Windows UI tests passed across the artifact index, generated documents,
   scoped reads/downloads, stale-result handling, HTML/Markdown isolation,
   existing file-save ownership and the welcome mark.
+- The old file rail and the new catalog share one PDF frame. It retains the
+  existing native Chromium viewer, validates PDF MIME/base64/header, uses a
+  blob URL instead of a large data URL, and revokes it on change/close. HTML
+  continues to use its separate sandboxed frame; it cannot enter the PDF frame.
 - Desktop/Electron/e2e type checks passed; changed Windows sources passed ESLint.
   The local desktop build passed. The obsolete wordmark source assertion was
   replaced by the actual welcome-component identity test; the branding script
@@ -52,6 +56,9 @@ is published by this batch, and the installed Meu is not changed.
   delivered-file/generated-document previews (including frame sizing and no
   scripted external request), navigation/draft retention/responsive layout,
   and project notes surviving an application restart.
+- The enhanced deliverables rehearsal also opened a real one-page PDF through
+  the native Chromium viewer. Its loaded page was visually inspected; this
+  verifies more than assigning an iframe URL.
 - 252 focused Android tests passed across 27 suites: the new browser and
   authenticated preview/Save flow, generated-media paths and detection,
   HTML policy/viewers/export, artifact indexing/navigation, projects/files,
@@ -67,7 +74,8 @@ is published by this batch, and the installed Meu is not changed.
 No physical Android installation, actual Android WebView engine run, real-device
 Save dialog, mobile-data transition, long background run or real Windows reboot
 was performed. Existing HTML WebView policy tests use a fake platform. The
-Windows PDF browser renderer and external Android PDF apps are not certified by
+Windows PDF checks cover one ordinary page, not encrypted documents, complex
+forms or a large-file corpus; external Android PDF apps are not certified by
 this batch. Office/ZIP binary formats are download-only. These limits do not
 block source development, but remain part of the consolidated release check.
 
