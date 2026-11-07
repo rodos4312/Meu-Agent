@@ -16,7 +16,7 @@ _MAX_ENTRIES = 25_000
 _MAX_BYTES = 512 * 1024 * 1024
 _SKIP_DIRS = frozenset({".git", ".venv", "__pycache__", "node_modules"})
 _SECRET_SUFFIXES = (".key", ".p12", ".pfx", ".jks", ".keystore")
-_WINDOWS_RESERVED = re.compile(r"^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)", re.I)
+_WINDOWS_RESERVED = re.compile(r"^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def project_notes(home, root, *, memory_enabled=None):
-    from hermes_cli.config_backend import read_config_doc
+    from hermes_cli.config_backend import config_exists, read_config_doc
     from hermes_cli.managed_scope import apply_managed_overlay
     from tools.memory_tool import MemoryStore, get_builtin_memory_store_flags, _scan_memory_content
     from tools.project_memory import note_id, resolve_project_memory
@@ -15,7 +15,7 @@ def project_notes(home, root, *, memory_enabled=None):
     if memory_enabled is False:
         return []
     path = Path(home) / "config.yaml"
-    config = apply_managed_overlay(read_config_doc(path) or {}) if path.is_file() else apply_managed_overlay({})
+    config = apply_managed_overlay(read_config_doc(path) or {}) if config_exists(path) else apply_managed_overlay({})
     if not get_builtin_memory_store_flags(config)[0]:
         return []
     scope = resolve_project_memory(str(root), home=Path(home))
