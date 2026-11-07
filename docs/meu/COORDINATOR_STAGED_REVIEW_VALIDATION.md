@@ -50,7 +50,19 @@ survive repairs. Unrelated verified tasks remain accepted.
   code-health findings. Scoped Ruff and whitespace checks also passed.
 
 The new suite is included in both existing Linux and Windows validation lanes.
-GitHub results for this commit are recorded separately after submission.
+[Run 42404314243](https://github.com/rodos4312/Meu-Agent/actions/runs/42404314243)
+on implementation commit `0fa3437fc536` passed five required jobs, including the
+Linux Coordinator and Windows privacy/Coordinator suites. Its Windows UI lane
+failed because the old rehearsal expected `1/2 verified` after the new planner
+correctly added two reviewers and returned `1/4 verified`.
+
+The UI rehearsal now seeds the actual generated requirements/quality pair:
+implementation and requirements are accepted; quality reports a pass but still
+awaits acceptance. It requires `2/3 verified`, both stage names and the review
+receipt before and after reload. Both real Electron scenarios passed locally
+(72 seconds), with an isolated backend and mock provider. E2E TypeScript and
+Prettier checks passed. No production behavior or runtime gates were weakened.
+The follow-up commit needs its own GitHub result before CI is called green.
 Final distribution and physical-device acceptance remain pending.
 
 ## Scope and limitations

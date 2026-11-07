@@ -29,13 +29,19 @@ test('native Coordinator status shows acceptance and version-bound review after 
         [
           'import sys,json,hashlib',
           'from pathlib import Path',
+          'from types import SimpleNamespace',
           'from hermes_constants import get_hermes_home',
           'from plugins.delegation.meu_coordinator.projects import new_project',
+          'from plugins.delegation.meu_coordinator.reviews import configure_review',
           'root=Path(sys.argv[1]); (root/"answer.txt").write_text("three tasks",encoding="utf-8")',
           'def task(id,**kw): return dict(id=id,goal="Review imports" if id=="review" else "Build task list",workload="complex",acceptance="Import the same file twice; exactly three tasks remain.",parallel_safe=False,write_paths=["answer.txt"] if id=="build" else [],**kw)',
-          'r=new_project("progress-rehearsal",str(root),[task("build"),task("review",depends_on=["build"],review_of="build")])',
+          'r=new_project("progress-rehearsal",str(root),[task("build")])',
           'built=r["tasks"]["build"]; built.update(state="verified",attempt=1,evidence="Reload restored three tasks.",artifacts={"answer.txt":hashlib.sha256(b"three tasks").hexdigest()})',
-          'r["tasks"]["review"].update(state="needs_review",attempt=1,reviewed_attempt=1,reviewed_artifacts=built["artifacts"],result={"model":"fixture-review-model","schema_valid":True,"summary":json.dumps({"verdict":"pass","check":"Import twice","observed":"Exactly three tasks remained."})})',
+          'reviews={row["task"].get("review_stage"): row for row in r["tasks"].values() if "review_of" in row["task"]}',
+          'assert set(reviews)=={"requirements","quality"}',
+          'for stage in ("requirements","quality"):',
+          ' row=reviews[stage]; configure_review(SimpleNamespace(record=r),row,{"context":""})',
+          ' row.update(state="verified" if stage=="requirements" else "needs_review",attempt=1,result={"model":"fixture-review-model","schema_valid":True,"summary":json.dumps({"verdict":"pass","check":"Import twice","observed":"Exactly three tasks remained."})})',
           'd=get_hermes_home()/"coordinator"; d.mkdir(exist_ok=True); (d/"progress-rehearsal.json").write_text(json.dumps(r),encoding="utf-8")'
         ].join('\n'),
         root
@@ -52,19 +58,25 @@ test('native Coordinator status shows acceptance and version-bound review after 
     )
     await composer.press('Enter')
     const card = own.page.locator('[data-slot="project-progress"]')
-    await expect(card).toContainText('1/2 verified', { timeout: 60_000 })
+    // A completed quality report remains unaccepted: only implementation and
+    // requirements count as verified, before and after history restoration.
+    await expect(card).toContainText('2/3 verified', { timeout: 60_000 })
     await card.locator('summary').first().click()
     await expect(card).toContainText('Import the same file twice; exactly three tasks remain.')
     await expect(card).toContainText('Awaiting verification')
     await expect(card).toContainText('Review result · Pass reported')
     await expect(card).toContainText('fixture-review-model')
+    await expect(card).toContainText('Requirements review: Build task list')
+    await expect(card).toContainText('Quality review: Build task list')
     await card.screenshot({ path: test.info().outputPath('meu-coordinator-progress.png') })
     await own.page.reload()
     await waitForAppReady(own, 90_000)
-    await expect(card).toContainText('1/2 verified', { timeout: 45_000 })
+    await expect(card).toContainText('2/3 verified', { timeout: 45_000 })
     await card.locator('summary').first().click()
     await expect(card).toContainText('Exactly three tasks remained.')
     await expect(card).toContainText('Awaiting verification')
+    await expect(card).toContainText('Requirements review: Build task list')
+    await expect(card).toContainText('Quality review: Build task list')
     await card.screenshot({ path: test.info().outputPath('meu-coordinator-progress-restored.png') })
   } finally {
     await own.cleanup()
