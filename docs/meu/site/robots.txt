@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://meu-agent.witty-mite-2271.chatgpt.site/sitemap.xml
