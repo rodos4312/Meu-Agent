@@ -5,7 +5,7 @@ import hermes_yaml as yaml
 import pytest
 
 
-@pytest.mark.parametrize("workload", ["routine", "standard", "complex"])
+@pytest.mark.parametrize("workload", ["routine", "standard", "complex", "vision"])
 def test_selected_openrouter_pair_excludes_other_catalog_models(coordinator, monkeypatch, workload):
     from hermes_cli import models
     from tools.delegate_tool_config import _resolve_child_runtime
@@ -44,3 +44,21 @@ def test_selected_openrouter_pair_excludes_other_catalog_models(coordinator, mon
         parent.provider, parent.base_url, parent.api_key,
     )
     assert runtime["fallback_model"] is None
+
+
+@pytest.mark.parametrize("supports_vision", [True, False])
+def test_explicit_pair_keeps_vision_within_selected_models(monkeypatch, supports_vision):
+    from types import SimpleNamespace
+
+    from agent.delegation_provider import DelegationRouteError
+    from plugins.delegation.meu_coordinator.routing import select_model
+
+    monkeypatch.setattr("agent.models_dev.get_model_capabilities", lambda provider, model:
+                        SimpleNamespace(supports_vision=model == "vendor/strong" and supports_vision))
+    route = {"provider": "openrouter", "model": "other/vision-model"}
+    choices = {"openrouter": {"routine": "vendor/light", "complex": "vendor/strong"}}
+    if supports_vision:
+        assert select_model("vision", route, choices) == "vendor/strong"
+    else:
+        with pytest.raises(DelegationRouteError, match="selected.*vision"):
+            select_model("vision", route, choices)

@@ -64,19 +64,49 @@ def select_deepseek_model(workload: str, parent_route: Mapping[str, Any]) -> str
     return _DEEPSEEK_FLASH if workload in {"routine", "vision"} else _DEEPSEEK_PRO
 
 
+def _explicit_model(workload: str, provider: str, overrides: Any) -> str | None:
+    from agent.models_dev import get_model_capabilities
+    from agent.delegation_provider import DelegationRouteError
+
+    configured = overrides.get(provider) if isinstance(overrides, Mapping) else None
+    if not isinstance(configured, Mapping):
+        return None
+    # The strong choice also owns ordinary implementation, even after a manual
+    # chat-model change. A visual task must not escape an explicit pair either.
+    tier = "complex" if workload == "standard" else workload
+    chosen = configured.get(tier)
+    if isinstance(chosen, str) and chosen.strip():
+        return chosen.strip()
+    if workload != "vision":
+        return None
+    pair = [configured.get(name) for name in ("routine", "complex")]
+    if not all(isinstance(model, str) and model.strip() for model in pair):
+        return None
+    candidates = []
+    for model in pair:
+        model = model.strip()
+        capabilities = get_model_capabilities(provider, model)
+        vision = capabilities.supports_vision if capabilities is not None else None
+        if vision is True:
+            return model
+        candidates.append((model, vision))
+    # Unknown metadata is not proof of incompatibility. Prefer the selected
+    # strong model in that case; the actual provider still decides support.
+    for model, vision in reversed(candidates):
+        if vision is None:
+            return model
+    raise DelegationRouteError("Neither selected Coordinator model supports vision. "
+                               "Choose a vision-capable model within the active provider.")
+
+
 def select_model(workload: str, parent_route: Mapping[str, Any], overrides: Any = None) -> str:
     from agent.models_dev import get_model_capabilities
 
     current = str(parent_route.get("model") or "")
     provider = _session_provider(parent_route)
-    if workload in {"routine", "standard", "complex"} and isinstance(overrides, Mapping):
-        configured = overrides.get(provider)
-        # An explicit light/strong pair also owns ordinary implementation;
-        # changing the chat model must not introduce a third helper model.
-        selected_tier = "complex" if workload == "standard" else workload
-        model = configured.get(selected_tier) if isinstance(configured, Mapping) else None
-        if isinstance(model, str) and model.strip():
-            return model.strip()
+    explicit = _explicit_model(workload, provider, overrides)
+    if explicit:
+        return explicit
     endpoint = str(parent_route.get("base_url") or "")
     models = _candidates(provider, endpoint)
     if not models:
