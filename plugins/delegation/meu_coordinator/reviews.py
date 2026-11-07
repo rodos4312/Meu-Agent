@@ -40,7 +40,11 @@ def review_finding(state, reviewer):
     target_id = reviewer["task"].get("review_of")
     if target_id is None or reviewer["state"] != "needs_review":
         raise ValueError("Use the current completed independent review.")
-    target = state.record["tasks"][target_id]
+    return _current_finding(state.record, reviewer)
+
+
+def _current_finding(record, reviewer):
+    target = record["tasks"][reviewer["task"]["review_of"]]
     if (target["state"] != "verified" or reviewer.get("reviewed_attempt") != target["attempt"]
             or reviewer.get("reviewed_artifacts") != target.get("artifacts", {})):
         raise ValueError("The reviewed deliverable changed; retry the review after verifying the current attempt.")
@@ -56,6 +60,19 @@ def review_finding(state, reviewer):
     ):
         raise ValueError("The reviewer must report a concrete check and observation.")
     return target, finding
+
+
+def review_snapshot(record, reviewer):
+    """A display receipt is not permission to accept a task or replay a helper."""
+    if not reviewer["task"].get("review_of") or reviewer["state"] not in {"needs_review", "verified"}:
+        return None
+    try:
+        _, finding = _current_finding(record, reviewer)
+    except (ValueError, KeyError, TypeError):
+        return None
+    if finding.get("verdict") not in {"pass", "needs_fix", "inconclusive"}:
+        return None
+    return {**finding, "reviewed_attempt": reviewer["reviewed_attempt"]}
 
 
 def request_fix(state, reviewer, evidence):

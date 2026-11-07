@@ -267,10 +267,26 @@ class CoordinatorArtifact(Result):
     path: str
 
 
+class CoordinatorReview(Result):
+    verdict: str
+    check: str | None = None
+    observed: str | None = None
+    reviewed_attempt: int
+
+
 class CoordinatorTask(Result):
     id: str
     goal: str
     state: str
+    attempt: int = 0
+    acceptance: str | None = None
+    workload: str | None = None
+    depends_on: list[str] | None = None
+    review_of: str | None = None
+    evidence: str | None = None
+    repair_check: str | None = None
+    error: str | None = None
+    review: CoordinatorReview | None = None
     provider: str | None = None
     model: str | None = None
     artifacts: list[CoordinatorArtifact]

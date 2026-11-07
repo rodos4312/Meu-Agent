@@ -135,6 +135,7 @@ jobs:
           tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
+          tests/plugins/delegation/test_meu_progress.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_project_memory_identity.py
           tests/tools/test_local_agent_context.py
@@ -286,6 +287,7 @@ jobs:
           tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
+          tests/plugins/delegation/test_meu_progress.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_local_agent_context.py
           tests/tools/test_delegation_model_pin.py
@@ -506,7 +508,7 @@ jobs:
         run: |
           node scripts/i18n-keys.mjs --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npx vitest run --project ui --maxWorkers 2 src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/app/chat/sidebar/projects/project-location.test.tsx src/app/chat/sidebar/sessions-section-new-session-drag.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
+          npx vitest run --project ui --maxWorkers 2 src/lib/coordinator-progress.test.ts src/components/chat/coordinator-task-details.test.tsx src/app/chat/sidebar/projects/coordinator-workspace.test.tsx src/app/chat/sidebar/projects/project-memory.test.tsx src/app/chat/sidebar/projects/project-location.test.tsx src/app/chat/sidebar/sessions-section-new-session-drag.test.tsx src/store/projects.test.ts src/components/assistant-ui/thread/sealed-tool-parts.test.tsx src/i18n/catalog-completeness.test.ts src/i18n/overlay-completeness.test.ts
       - name: Verify unified deliverables and scoped file previews
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/artifacts/index.test.ts src/app/artifacts/remote-open.test.tsx src/app/artifacts/generated-deliverables.test.ts src/app/artifacts/preview-data.test.ts src/app/artifacts/deliverable-preview.test.tsx src/components/ui/pdf-document-frame.test.tsx src/app/chat/right-rail/preview-file.test.tsx src/app/chat/right-rail/preview-file-save-scope.test.tsx src/components/chat/intro.test.tsx

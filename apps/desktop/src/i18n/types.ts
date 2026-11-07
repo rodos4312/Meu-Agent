@@ -2741,6 +2741,14 @@ export interface Translations extends NoticeTranslations {
     runningBatch: string
     acceptance: string
     repair: string
+    unknown: string
+    snapshot: string
+    evidence: string
+    deliverables: string
+    dependencies: string
+    reviewOf: string
+    reviewResult: string
+    verdicts: Record<'pass' | 'needs_fix' | 'inconclusive', string>
     attempt: (number: number) => string
     states: Record<'pending' | 'running' | 'needs_review' | 'verified' | 'failed' | 'interrupted', string>
   }

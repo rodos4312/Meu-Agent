@@ -27,29 +27,40 @@ it('shows saved progress and reveals a verified file or opens the linked continu
     label: 'Workspace',
     path: '/work',
     sessionCount: 2,
-    repos: [{
-      id: 'repo',
-      label: 'Repo',
-      path: '/work',
-      sessionCount: 2,
-      groups: [{ id: 'lane', label: 'Main', path: '/work', sessions: [{ id: 'other' } as SessionInfo, session] }]
-    }],
-    coordinatorPlans: [{
-      id: 'plan',
-      root: '/work',
-      session_id: 'original',
-      tasks: [
-        { id: 'inspect', goal: 'Inspect', state: 'interrupted', artifacts: [] },
-        { id: 'write', goal: 'Write', state: 'verified', provider: 'openai-codex', model: 'gpt-6.1-sol',
-          artifacts: [{ name: 'answer.txt', path: '/work/answer.txt' }] }
-      ]
-    }]
+    repos: [
+      {
+        id: 'repo',
+        label: 'Repo',
+        path: '/work',
+        sessionCount: 2,
+        groups: [{ id: 'lane', label: 'Main', path: '/work', sessions: [{ id: 'other' } as SessionInfo, session] }]
+      }
+    ],
+    coordinatorPlans: [
+      {
+        id: 'plan',
+        root: '/work',
+        session_id: 'original',
+        tasks: [
+          { id: 'inspect', goal: 'Inspect', state: 'interrupted', artifacts: [] },
+          {
+            id: 'write',
+            goal: 'Write',
+            state: 'verified',
+            provider: 'openai-codex',
+            model: 'gpt-6.1-sol',
+            artifacts: [{ name: 'answer.txt', path: '/work/answer.txt' }]
+          }
+        ]
+      }
+    ]
   }
 
   render(<CoordinatorWorkspace onRefresh={refresh} onResumeSession={resume} project={project} />)
   fireEvent.click(screen.getByText('plan · 1/2 verified'))
   expect(screen.getByText('Interrupted')).toBeTruthy()
-  expect(screen.getByText('Verified · ChatGPT or Codex Subscription · gpt-6.1-sol')).toBeTruthy()
+  expect(screen.getByText('Verified')).toBeTruthy()
+  expect(screen.getByText('ChatGPT or Codex Subscription · gpt-6.1-sol')).toBeTruthy()
 
   fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(resume).toHaveBeenCalledWith('continued', session)

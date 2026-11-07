@@ -6,8 +6,8 @@ from pathlib import Path
 from pm.filesystem import lock_path
 
 from .projects import identifier
+from .progress import project_progress
 
-_STATES = {"pending", "running", "interrupted", "needs_review", "verified", "failed"}
 _MAX_CHECKPOINT_BYTES = 4 * 1024 * 1024
 
 
@@ -33,21 +33,6 @@ def _checkpoint(file):
             os.close(fd)
 
 
-def _files(root, names):
-    files = []
-    for name in names:
-        relative = Path(name)
-        if relative.is_absolute():
-            continue
-        file = root / relative
-        if file.is_symlink():
-            continue
-        path = file.resolve()
-        if path.is_relative_to(root) and path.is_file():
-            files.append({"name": name, "path": str(path)})
-    return files
-
-
 def _plan_summary(file, roots):
     snapshot = _checkpoint(file)
     if snapshot is None:
@@ -57,28 +42,11 @@ def _plan_summary(file, roots):
     if not root.is_absolute() or (root := root.resolve()) not in roots:
         return None
 
-    tasks = []
-    for key, row in record["tasks"].items():
-        status = row["state"]
-        if status not in _STATES:
-            continue
-        if status == "running" and idle:
-            status = "interrupted"
-        result = (row.get("result") or {}) if status in {"needs_review", "verified", "failed"} else {}
-        route = result.get("route") or {}
-        tasks.append({
-            "id": key,
-            "goal": row["task"]["goal"],
-            "state": status,
-            "provider": route.get("provider"),
-            "model": route.get("model") or result.get("model"),
-            "artifacts": _files(root, row.get("artifacts") or {}) if status == "verified" else [],
-        })
     return {
         "id": record["project"],
         "root": str(root),
         "session_id": record.get("session_id"),
-        "tasks": tasks,
+        "tasks": project_progress(record, idle=idle),
     }
 
 

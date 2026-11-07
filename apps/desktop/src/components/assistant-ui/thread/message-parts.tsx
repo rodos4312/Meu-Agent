@@ -30,6 +30,7 @@ import { GeneratedImage } from '@/components/chat/generated-image-result'
 import { SCAFFOLD_LABEL_CLASS, SCAFFOLD_META_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
 import { useI18n } from '@/i18n'
 import { mcpTargets, toolLabels } from '@/lib/connector-tools'
+import { coordinatorCall } from '@/lib/coordinator-progress'
 import { generatedImageFromResult } from '@/lib/generated-images'
 import { separateGluedReasoningBlocks } from '@/lib/reasoning-blocks'
 import { isTodoToolName } from '@/lib/todos'
@@ -183,6 +184,10 @@ const ChainToolFallback: FC<TimelineToolCallProps> = props => {
     const ToolCard = TOOL_CARDS[props.toolName]
 
     return <ToolCard {...props} />
+  }
+
+  if (coordinatorCall(props.toolName, props.args)) {
+    return <ProjectProgressToolPart {...props} />
   }
 
   // A reloaded transcript holds the model's own call: set_theme reached through the tool_call bridge.

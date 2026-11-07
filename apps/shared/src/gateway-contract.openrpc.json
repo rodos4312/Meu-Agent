@@ -12304,6 +12304,49 @@
         "title": "CoordinatorPlan",
         "type": "object"
       },
+      "CoordinatorReview": {
+        "additionalProperties": false,
+        "properties": {
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Check"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Observed"
+          },
+          "reviewed_attempt": {
+            "title": "Reviewed Attempt",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "verdict",
+          "reviewed_attempt"
+        ],
+        "title": "CoordinatorReview",
+        "type": "object"
+      },
       "CoordinatorTask": {
         "additionalProperties": false,
         "properties": {
@@ -12318,6 +12361,109 @@
           "state": {
             "title": "State",
             "type": "string"
+          },
+          "attempt": {
+            "default": 0,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Acceptance"
+          },
+          "workload": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Workload"
+          },
+          "depends_on": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Depends On"
+          },
+          "review_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Review Of"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evidence"
+          },
+          "repair_check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Repair Check"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoordinatorReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "provider": {
             "anyOf": [

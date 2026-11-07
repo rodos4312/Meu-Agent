@@ -137,7 +137,9 @@ class Project:
         return selected
 
     def summary(self):
+        from .progress import project_progress
         return {**self.record, "ready": self.ready(),
+                "progress": project_progress(self.record),
                 "project_folder_url": Path(self.record["root"]).as_uri(),
                 "complete": all(row["state"] == "verified" for row in self.record["tasks"].values()),
                 "verification": "parent-confirmed checks and file hashes; helper completion alone never verifies a task"}

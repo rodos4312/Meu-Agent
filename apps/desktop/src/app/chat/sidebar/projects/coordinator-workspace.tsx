@@ -1,10 +1,12 @@
 import { useStore } from '@nanostores/react'
 
+import { CoordinatorTaskDetails } from '@/components/chat/coordinator-task-details'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
+import { Progress } from '@/components/ui/progress'
 import type { SessionInfo } from '@/hermes'
 import { useI18n } from '@/i18n'
-import { helperModelLabel } from '@/lib/model-status-label'
+import { coordinatorTasks } from '@/lib/coordinator-progress'
 import { $activeConnectionId } from '@/store/connections'
 import { shouldOfferLocalReveal } from '@/store/file-actions'
 import { revealPath } from '@/store/projects'
@@ -30,7 +32,7 @@ export function CoordinatorWorkspace({
 
   const canReveal = shouldOfferLocalReveal(connectionId)
   const sessions = project.repos.flatMap(repo => repo.groups.flatMap(group => group.sessions))
-  const { states, verifiedCount } = t.projectProgress
+  const { verifiedCount } = t.projectProgress
 
   return (
     <section aria-label="Meu Coordinator" className="mx-2 mb-2 rounded-md border p-2 text-xs">
@@ -49,7 +51,8 @@ export function CoordinatorWorkspace({
           ? sessions.find(row => row.id === id || row._lineage_root_id === id || row._lineage_ids?.includes(id))
           : undefined
 
-        const verified = plan.tasks.filter(task => task.state === 'verified').length
+        const tasks = coordinatorTasks({ progress: plan.tasks })
+        const verified = tasks.filter(task => task.state === 'verified').length
 
         return (
           <details className="mt-1" key={plan.id}>
@@ -68,29 +71,31 @@ export function CoordinatorWorkspace({
                 </Button>
               )}
             </div>
-            <ul className="space-y-2">
-              {plan.tasks.map(task => (
-                <li className="break-words" key={task.id}>
-                  <div>{task.goal}</div>
-                  <div className="text-(--ui-text-secondary)">
-                    {Object.hasOwn(states, task.state) ? states[task.state as keyof typeof states] : task.state}
-                    {(task.provider || task.model) && ` · ${helperModelLabel(task.provider, task.model)}`}
-                  </div>
-                  {task.artifacts.map(file =>
-                    canReveal ? (
-                      <button
-                        className="block max-w-full truncate text-left underline"
-                        key={file.path}
-                        onClick={() => void revealPath(file.path)}
-                        title={file.path}
-                        type="button"
-                      >
-                        {file.name}
-                      </button>
-                    ) : (
-                      <div key={file.path}>{file.name}</div>
-                    )
-                  )}
+            {!!tasks.length && (
+              <Progress aria-label={verifiedCount(verified, tasks.length)} value={verified / tasks.length} />
+            )}
+            <p className="text-(--ui-text-secondary)">{t.projectProgress.snapshot}</p>
+            <ul className="space-y-3">
+              {tasks.map(task => (
+                <li key={task.id}>
+                  <CoordinatorTaskDetails
+                    renderArtifact={file =>
+                      canReveal ? (
+                        <Button
+                          className="max-w-full truncate"
+                          key={file.path}
+                          onClick={() => void revealPath(file.path)}
+                          size="inline"
+                          variant="link"
+                        >
+                          {file.name}
+                        </Button>
+                      ) : (
+                        <span>{file.name}</span>
+                      )
+                    }
+                    task={task}
+                  />
                 </li>
               ))}
             </ul>

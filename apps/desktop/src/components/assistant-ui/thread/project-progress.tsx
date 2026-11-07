@@ -1,14 +1,22 @@
 import { useAuiState } from '@assistant-ui/react'
+import { useStore } from '@nanostores/react'
 import { useMemo } from 'react'
 
+import { useSessionView } from '@/app/chat/session-view'
 import { parseMaybeObject, toolCallFailed } from '@/components/assistant-ui/tool/fallback-model'
+import { CoordinatorTaskDetails } from '@/components/chat/coordinator-task-details'
 import { PreviewAttachment } from '@/components/chat/preview-attachment'
+import { Progress } from '@/components/ui/progress'
 import { useI18n } from '@/i18n'
-import { helperModelLabel } from '@/lib/model-status-label'
+import { coordinatorCall, coordinatorLiveModel, coordinatorTasks } from '@/lib/coordinator-progress'
+import { useSessionSlice } from '@/lib/use-session-slice'
+import { $subagentsBySession } from '@/store/subagents'
 
 export function ProjectProgress({ result, toolCallId }: { result: unknown; toolCallId: string }) {
   const { t } = useI18n()
   const labels = t.projectProgress
+  const sessionId = useStore(useSessionView().$runtimeId)
+  const live = useSessionSlice($subagentsBySession, sessionId)
   const parts = useAuiState(s => s.message.content)
   const messageRunning = useAuiState(s => s.message.status?.type === 'running')
   const project = parseMaybeObject(result).project
@@ -20,16 +28,16 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
 
     // Keep one card in place as this reply receives later snapshots of the same project.
     for (const part of parts) {
-      if (part.type !== 'tool-call' || part.toolName !== 'coordinate_project') {
+      if (part.type !== 'tool-call') {
         continue
       }
 
+      const args = coordinatorCall(part.toolName, part.args)
+
+      if (!args) {continue}
+
       if (part.result === undefined) {
-        if (
-          part.args.project === project &&
-          part.args.action === 'run' &&
-          !('completedAt' in part && part.completedAt)
-        ) {
+        if (args.project === project && args.action === 'run' && !('completedAt' in part && part.completedAt)) {
           pendingRun = true
         }
 
@@ -47,6 +55,8 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
     return { firstId, snapshot, pendingRun }
   }, [parts, project])
 
+  const tasks = useMemo(() => coordinatorTasks(snapshot), [snapshot])
+
   if (typeof project !== 'string' || firstId !== toolCallId) {
     return null
   }
@@ -59,11 +69,7 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
 
   const path = typeof root === 'string' && <div className="text-muted-foreground break-all text-xs">{root}</div>
 
-  const tasks = Object.entries(parseMaybeObject(snapshot.tasks)).map(
-    ([id, row]) => [id, parseMaybeObject(row)] as const
-  )
-
-  const verified = tasks.filter(([, row]) => row.state === 'verified').length
+  const verified = tasks.filter(task => task.state === 'verified').length
 
   return (
     <div className="my-1 min-w-0 max-w-[640px]" data-slot="project-progress">
@@ -78,49 +84,20 @@ export function ProjectProgress({ result, toolCallId }: { result: unknown; toolC
               </span>
             )}
           </summary>
-          <ul className="divide-border/70 mt-2 divide-y">
-            {tasks.map(([id, row]) => {
-              const task = parseMaybeObject(row.task)
-              const repair = parseMaybeObject(row.repair)
-              const receipt = parseMaybeObject(row.result)
-              const route = parseMaybeObject(receipt.route)
-              const helper = helperModelLabel(route.provider, route.model ?? receipt.model)
-              const { state, attempt } = row
-
-              const label =
-                typeof state === 'string' && Object.hasOwn(labels.states, state)
-                  ? labels.states[state as keyof typeof labels.states]
-                  : null
-
-              return (
-                <li className="space-y-1 py-2 text-xs" key={id}>
-                  <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="break-all font-medium">{id}</span>
-                    {label && <span className="text-muted-foreground">{label}</span>}
-                    {typeof attempt === 'number' && attempt > 0 && (
-                      <span className="text-muted-foreground">{labels.attempt(attempt)}</span>
-                    )}
-                    {helper &&
-                      state !== 'pending' &&
-                      state !== 'running' &&
-                      state !== 'interrupted' && <span className="text-muted-foreground break-all">{helper}</span>}
-                  </div>
-                  {typeof task.goal === 'string' && <p className="break-words">{task.goal}</p>}
-                  {typeof task.acceptance === 'string' && (
-                    <div className="text-muted-foreground break-words">
-                      <span className="font-medium">{labels.acceptance}</span>
-                      <p>{task.acceptance}</p>
-                    </div>
-                  )}
-                  {typeof repair.check === 'string' && (
-                    <div className="text-muted-foreground break-words">
-                      <span className="font-medium">{labels.repair}</span>
-                      <p>{repair.check}</p>
-                    </div>
-                  )}
-                </li>
-              )
-            })}
+          <div className="mt-2 space-y-1">
+            <p className="text-xs text-muted-foreground">{labels.snapshot}</p>
+            <Progress aria-label={labels.verifiedCount(verified, tasks.length)} value={verified / tasks.length} />
+          </div>
+          <ul className="mt-2 space-y-3">
+            {tasks.map(task => (
+              <li key={task.id}>
+                <CoordinatorTaskDetails
+                  liveModel={coordinatorLiveModel(task, snapshot, live)}
+                  renderArtifact={file => <PreviewAttachment target={file.path} />}
+                  task={task}
+                />
+              </li>
+            ))}
           </ul>
           {path}
         </details>

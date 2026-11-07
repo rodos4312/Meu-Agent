@@ -736,7 +736,12 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
     assert coder_drill["project"]["id"] == coder_project["id"]
     coder_lane = coder_drill["project"]["repos"][0]["groups"][0]
     assert [s["id"] for s in coder_lane["sessions"]] == ["drill-coder-session"]
-    assert coder_drill["project"]["coordinatorPlans"] == [{
+    plans = coder_drill["project"]["coordinatorPlans"]
+    # Check the stable public fields; new display receipts are additive.
+    stable = [{**plan, "tasks": [{key: row[key] for key in (
+        "id", "goal", "state", "provider", "model", "artifacts"
+    )} for row in plan["tasks"]]} for plan in plans]
+    assert stable == [{
         "id": "demo",
         "root": str(coder_repo.resolve()),
         "session_id": "drill-coder-session",
@@ -746,6 +751,8 @@ def test_project_sessions_is_scoped_to_the_requested_profile(monkeypatch, tmp_pa
              "artifacts": [{"name": "done.txt", "path": str((coder_repo / "done.txt").resolve())}]},
         ],
     }]
+    assert plans[0]["tasks"][0]["attempt"] == 0
+    assert plans[0]["tasks"][0]["acceptance"] is None
     assert checkpoint.read_bytes() == saved
 
     assert launch_drill["project"]["id"] == launch_project["id"]

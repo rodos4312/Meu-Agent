@@ -2040,9 +2040,24 @@ export interface CoordinatorTask {
   id: string
   goal: string
   state: string
+  attempt?: number
+  acceptance?: string | null
+  workload?: string | null
+  depends_on?: string[] | null
+  review_of?: string | null
+  evidence?: string | null
+  repair_check?: string | null
+  error?: string | null
+  review?: CoordinatorReview | null
   provider?: string | null
   model?: string | null
   artifacts: CoordinatorArtifact[]
+}
+export interface CoordinatorReview {
+  verdict: string
+  check?: string | null
+  observed?: string | null
+  reviewed_attempt: number
 }
 export interface CoordinatorArtifact {
   name: string

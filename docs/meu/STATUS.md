@@ -17,7 +17,7 @@ clients. Local Windows navigation and Android automated checks passed; see
 promotion or installed-app change is issued for this batch. Unified deliverables
 and in-app file previews are now implemented and locally verified on both
 clients; see [deliverables validation](DELIVERABLES_VALIDATION.md) for scope,
-test evidence and remaining physical-device/PDF acceptance.
+test evidence and remaining physical-device/PDF acceptance. Coordinator progress and review receipts are now source-verified on both clients; see [Coordinator visibility](COORDINATOR_VISIBILITY_VALIDATION.md). The next milestone is continuity, followed by consolidated stability and release acceptance.
 
 | Work | Evidence |
 | --- | --- |
