@@ -412,8 +412,13 @@ def _run_single_child(
         # The async pool can fall back to inline execution when saturated. A
         # shared semaphore gates actual Meu child model runs across both paths.
         from tools.meu_limits import meu_child_slot
-        with meu_child_slot():
-            result, failure_entry, _child_close_deferred = run.await_child()
+        with meu_child_slot(child) as admitted:
+            if admitted:
+                result, failure_entry, _child_close_deferred = run.await_child()
+            else:
+                result = {"completed": False, "interrupted": True, "api_calls": 0, "messages": [],
+                          "final_response": "Cancelled while waiting for a Meu execution slot."}
+                failure_entry = None
         if failure_entry is not None:
             return failure_entry
 

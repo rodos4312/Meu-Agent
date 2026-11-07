@@ -88,7 +88,7 @@ class _ControlledChild(_Parent):
         return {"api_call_count": 0}
 
     def close(self):
-        self.closed_while_running |= not self.finished.is_set()
+        self.closed_while_running |= self.started.is_set() and not self.finished.is_set()
         self.close_count += 1
         self.closed.set()
 
@@ -163,7 +163,7 @@ def test_rejected_background_child_stops_with_parent(
             max_async_children=1,
         )
         assert accepted["status"] == "dispatched"
-        assert occupied.wait(5)
+        assert occupied.wait(30)
     elif rejection == "schedule_failure":
         class RejectingExecutor:
             def submit(self, *_args, **_kwargs):
@@ -195,7 +195,7 @@ def test_rejected_background_child_stops_with_parent(
         rejected_admission = 2 if background_child is not None else 1
         if admissions == rejected_admission:
             admission_started.set()
-            assert continue_admission.wait(5)
+            assert continue_admission.wait(30)
         result = dispatch(**kwargs)
         if result.get("status") == "dispatched":
             accepted_ids.append(result["delegation_id"])
@@ -212,15 +212,17 @@ def test_rejected_background_child_stops_with_parent(
     worker = threading.Thread(target=run_dispatch, daemon=True)
     worker.start()
     try:
-        assert admission_started.wait(5)
+        # Admission and cold workspace imports precede the cancellation race.
+        # The five-second stop assertions below start only once work is ready.
+        assert admission_started.wait(30)
         if background_child is not None:
-            assert background_child.started.wait(5)
+            assert background_child.started.wait(30)
         request_stop = parent.hard_interrupt if stop_kind == "hard" else parent.interrupt
         stop_message = "user correction or stop request"
         if stop_timing == "during_admission":
             request_stop(stop_message)
         continue_admission.set()
-        assert child.started.wait(5)
+        assert child.started.wait(30)
         if stop_timing == "running":
             request_stop(stop_message)
 
@@ -234,7 +236,7 @@ def test_rejected_background_child_stops_with_parent(
         assert not outcome.done(), "dispatch returned while its child still owned resources"
         assert child.close_count == 0
         child.allow_finish.set()
-        result = outcome.result(timeout=5)
+        result = outcome.result(timeout=30)
         if background_child is None:
             assert "SYNCHRONOUSLY" in result["note"]
             assert result["results"][0]["status"] == "interrupted"
@@ -242,7 +244,7 @@ def test_rejected_background_child_stops_with_parent(
             assert result["status"] == "dispatched"
             assert result["inline_results"][0]["status"] == "interrupted"
             assert not background_child.stop_received.is_set()
-            assert pending_child.unwinding.wait(5)
+            assert pending_child.unwinding.wait(30)
             assert pending_child.observed_interrupt == (stop_message, stop_kind == "hard")
         assert child.finished.is_set()
         assert child.close_count == 1
@@ -253,21 +255,23 @@ def test_rejected_background_child_stops_with_parent(
         if not child.finished.is_set():
             child.hard_interrupt("test teardown")
         child.allow_finish.set()
-        worker.join(timeout=5)
         release_occupier.set()
         if background_child is not None:
             async_delegation.interrupt_for_session(parent_session_id=parent.session_id)
             for extra in (background_child, pending_child):
                 extra.allow_finish.set()
-                assert extra.closed.wait(5)
+                assert extra.closed.wait(30)
                 assert extra.finished.is_set()
                 assert extra.close_count == 1
                 assert not extra.closed_while_running
-            completed_ids = {registry_state.get(timeout=5)["delegation_id"] for _ in accepted_ids}
+            completed_ids = {registry_state.get(timeout=30)["delegation_id"] for _ in accepted_ids}
             assert completed_ids == set(accepted_ids)
         if rejection == "capacity":
-            completion = registry_state.get(timeout=5)
+            completion = registry_state.get(timeout=30)
             assert completion["delegation_id"] == accepted["delegation_id"]
+        # Join after releasing every test-owned gate, before the queue/profile
+        # can belong to another case. A late worker must never cross fixtures.
+        worker.join(timeout=30)
         assert not worker.is_alive()
 
 
@@ -303,3 +307,65 @@ def test_accepted_background_child_keeps_registry_cancellation_ownership(registr
             child.hard_interrupt("test teardown")
         child.allow_finish.set()
         assert child.closed.wait(5)
+
+
+@pytest.mark.parametrize("stop_kind", ["soft", "hard"])
+def test_cancelled_child_waiting_for_a_meu_slot_exits_without_starting(
+    registry_state, monkeypatch, stop_kind,
+):
+    from tools import meu_limits
+    from tools.delegate_tool import _run_single_child
+
+    monkeypatch.setenv("MEU_AGENT_MODE", "1")
+    gate = threading.BoundedSemaphore(2)
+    assert gate.acquire(blocking=False)
+    assert gate.acquire(blocking=False)
+    waiting = threading.Event()
+
+    class ObservedGate:
+        def acquire(self, *args, **kwargs):
+            waiting.set()
+            return gate.acquire(*args, **kwargs)
+
+        def release(self):
+            gate.release()
+
+        def __enter__(self):
+            self.acquire()
+            return self
+
+        def __exit__(self, *_args):
+            self.release()
+
+    monkeypatch.setattr(meu_limits, "_MEU_CHILD_SLOTS", ObservedGate())
+    parent, child = _Parent(), _ControlledChild()
+    parent._active_children.append(child)
+    outcome = Future()
+
+    def run():
+        try:
+            outcome.set_result(_run_single_child(0, "queued work", child, parent))
+        except BaseException as error:
+            outcome.set_exception(error)
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    try:
+        assert waiting.wait(30), "child did not reach execution admission"
+        request_stop = parent.hard_interrupt if stop_kind == "hard" else parent.interrupt
+        request_stop("cancel queued work")
+        result = outcome.result(timeout=10)
+        assert result["status"] == "interrupted"
+        assert result["api_calls"] == 0
+        assert not child.started.is_set()
+        assert child.close_count == 1
+        assert not child.closed_while_running
+        assert parent._active_children == []
+        assert not gate.acquire(blocking=False), "other workers' permits changed"
+    finally:
+        child.hard_interrupt("test teardown")
+        child.allow_finish.set()
+        gate.release()
+        gate.release()
+        worker.join(timeout=30)
+        assert not worker.is_alive()
