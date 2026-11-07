@@ -120,6 +120,7 @@ jobs:
         uses: ./.github/actions/setup-pm
         with:
           toolchain: all
+          # The routing tests import the mobile preview routes via the dashboard.
           extras: '["acp", "messaging"]'
           test-environment: 'true'
       - name: Verify coordinator, hosted plugins and routing scope
