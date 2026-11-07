@@ -56,7 +56,7 @@ def test_jobs_only_read_declared_dependencies():
     assert not violations, "workflow job graph:\n" + "\n".join(violations)
 
 
-def test_no_workflow_runs_from_a_tag_push():
+def test_tag_pushes_are_limited_to_explicit_release_workflows():
     violations = []
     for filename, workflow in _loaded().items():
         triggers = (workflow or {}).get("on") or {}
@@ -65,6 +65,13 @@ def test_no_workflow_runs_from_a_tag_push():
         push = triggers["push"]
         # This nightly canary also gates releases with dedicated spend-capped keys.
         if filename == "live-providers.yml" and push == {"tags": ["v*"]}:
+            continue
+        # Meu's established release-request tags have separate source/signing
+        # admission gates. Allow only their exact namespace and development branch.
+        if filename == "meu-windows-validation.yml" and isinstance(push, dict) and (
+                push.get("tags") == ["meu-release-request-*"] and
+                push.get("branches") == ["dev/meu-foundation"] and
+                not {"branches-ignore", "tags-ignore"} & set(push)):
             continue
         if not isinstance(push, dict) or not ({"branches", "branches-ignore"} & set(push)) or {"tags", "tags-ignore"} & set(push):
             violations.append(filename)

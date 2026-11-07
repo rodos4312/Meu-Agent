@@ -114,6 +114,7 @@ jobs:
           tests/ci/test_update_ci_required_step_selection.py
           tests/ci/test_stable_release_graph.py
           tests/ci/test_meu_upgrade_dispatch.py
+          tests/ci/test_workflow_job_graph.py
           tests/scripts/test_version_stamping.py
           tests/scripts/test_stable_release.py
           tests/scripts/test_release_entrypoint.py
