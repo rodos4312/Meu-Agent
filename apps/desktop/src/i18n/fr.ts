@@ -1676,14 +1676,27 @@ export const frOverrides = {
       scopeNotRestored: (profile: string, error: string) => `Profil « ${profile} » non restauré : ${error}`
     },
     gateway: {
+      mobileConnectTitle: 'Connecter un téléphone',
+      mobilePurpose: 'Comment utiliser Meu Mobile ?',
+      mobileControlTitle: 'Piloter l’agent du PC',
+      mobileControlHint:
+        'Le PC exécute l’agent, les outils et les fichiers du projet. Il doit rester allumé et accessible.',
+      mobileHistoryTitle: 'Synchroniser les conversations',
+      mobileHistoryHint:
+        'Chaque appareil exécute son propre agent. Les outils, fichiers et tâches en cours ne sont pas transférés.',
+      mobilePairedHistory: 'Téléphone associé pour les conversations',
+      mobilePairedControl: 'Téléphone associé pour accéder au PC',
+      mobileStatusUnavailable: 'La connexion n’a pas pu être vérifiée. La dernière association connue est conservée.',
+      mobileRetryStatus: 'Vérifier la connexion',
       mobileRemote: 'Se connecter à distance',
       mobileNetworkHint: 'Associez vos appareils chez vous ou utilisez la connexion Internet de Meu.',
-      mobileSyncUnavailable: "Téléphone associé · service de synchronisation indisponible",
-      mobileSyncReady: "Téléphone associé · service de synchronisation prêt",
-      mobileLastContact: "Dernier contact avec le téléphone :",
-      mobileNoContact: "Aucun contact avec le téléphone depuis le démarrage de ce service.",
-      mobileSyncUnconfirmed: "Un contact avec le téléphone ne confirme pas que toutes les conversations sont à jour.",
-      mobileRemoteError: 'Vérifiez que le relais Meu est configuré et accessible pour permettre l’association à distance.',
+      mobileSyncUnavailable: 'Téléphone associé · service de synchronisation indisponible',
+      mobileSyncReady: 'Téléphone associé · service de synchronisation prêt',
+      mobileLastContact: 'Dernier contact avec le téléphone :',
+      mobileNoContact: 'Aucun contact avec le téléphone depuis le démarrage de ce service.',
+      mobileSyncUnconfirmed: 'Un contact avec le téléphone ne confirme pas que toutes les conversations sont à jour.',
+      mobileRemoteError:
+        'Vérifiez que le relais Meu est configuré et accessible pour permettre l’association à distance.',
       loading: 'Chargement des paramètres du gateway...',
       ...frGatewayHost,
       title: 'Connexion au gateway',

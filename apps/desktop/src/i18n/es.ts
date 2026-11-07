@@ -1669,14 +1669,27 @@ export const esOverrides = {
       scopeNotRestored: (profile: string, error: string) => `No se restauró el perfil “${profile}”: ${error}`
     },
     gateway: {
+      mobileConnectTitle: 'Conectar un teléfono',
+      mobilePurpose: '¿Cómo usarás Meu Mobile?',
+      mobileControlTitle: 'Controlar el agente del PC',
+      mobileControlHint:
+        'El agente, las herramientas y los archivos se ejecutan en el PC. Debe estar encendido y accesible.',
+      mobileHistoryTitle: 'Sincronizar el historial',
+      mobileHistoryHint:
+        'Cada dispositivo ejecuta su propio agente. La sincronización no transfiere herramientas, archivos ni tareas en curso.',
+      mobilePairedHistory: 'Teléfono vinculado para el historial',
+      mobilePairedControl: 'Teléfono vinculado para acceder al PC',
+      mobileStatusUnavailable: 'No se pudo actualizar la conexión. Se conserva la última vinculación conocida.',
+      mobileRetryStatus: 'Comprobar conexión',
       mobileRemote: 'Conectar desde fuera de casa',
       mobileNetworkHint: 'Vincula los dispositivos en casa o usa la conexión de Meu por Internet.',
-      mobileSyncUnavailable: "Teléfono vinculado · servicio de sincronización no disponible",
-      mobileSyncReady: "Teléfono vinculado · servicio de sincronización listo",
-      mobileLastContact: "Último contacto con el teléfono:",
-      mobileNoContact: "No se ha registrado contacto con el teléfono desde que se inició este servicio.",
-      mobileSyncUnconfirmed: "El contacto con el teléfono no confirma que todas las conversaciones estén actualizadas.",
-      mobileRemoteError: 'No se pudo iniciar la vinculación por Internet. Comprueba que el relé de Meu esté configurado y accesible.',
+      mobileSyncUnavailable: 'Teléfono vinculado · servicio de sincronización no disponible',
+      mobileSyncReady: 'Teléfono vinculado · servicio de sincronización listo',
+      mobileLastContact: 'Último contacto con el teléfono:',
+      mobileNoContact: 'No se ha registrado contacto con el teléfono desde que se inició este servicio.',
+      mobileSyncUnconfirmed: 'El contacto con el teléfono no confirma que todas las conversaciones estén actualizadas.',
+      mobileRemoteError:
+        'No se pudo iniciar la vinculación por Internet. Comprueba que el relé de Meu esté configurado y accesible.',
       loading: 'Cargando ajustes del gateway...',
       ...esGatewayHost,
       title: 'Conexión del gateway',

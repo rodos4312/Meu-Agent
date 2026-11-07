@@ -1125,6 +1125,16 @@ export interface Translations extends NoticeTranslations {
       scopeNotRestored: (profile: string, error: string) => string
     }
     gateway: GatewayHostTranslations & {
+      mobileConnectTitle: string
+      mobilePurpose: string
+      mobileControlTitle: string
+      mobileControlHint: string
+      mobileHistoryTitle: string
+      mobileHistoryHint: string
+      mobilePairedHistory: string
+      mobilePairedControl: string
+      mobileStatusUnavailable: string
+      mobileRetryStatus: string
       mobileRemote: string
       mobileNetworkHint: string
       mobileSyncUnavailable: string

@@ -38,6 +38,8 @@ function PairingControls({ profile }: { profile?: string }) {
   const [wholeProfile, setWholeProfile] = useState(false)
   const [sessions, setSessions] = useState<SessionInfo[]>()
   const [sessionListFailed, setSessionListFailed] = useState(false)
+  const [statusUnavailable, setStatusUnavailable] = useState(false)
+  const [statusRetry, setStatusRetry] = useState(0)
 
   const active = pairing?.state === 'waiting' || pairing?.state === 'paired'
   useEffect(() => {
@@ -47,14 +49,22 @@ function PairingControls({ profile }: { profile?: string }) {
     const read = async () => {
       try {
         const result = await hermesApi<Pairing>({
-          connectionId: 'local', path: PAIRING_PATH, profile, passive: true, timeoutMs: 4000
+          connectionId: 'local',
+          path: PAIRING_PATH,
+          profile,
+          passive: true,
+          timeoutMs: 4000
         })
 
         if (current) {
           setPairing(result)
+          setStatusUnavailable(false)
         }
       } catch {
         // Keep the pairing visible during a transient poll failure.
+        if (current) {
+          setStatusUnavailable(true)
+        }
       } finally {
         if (current && active) {
           timer = window.setTimeout(() => void read(), 1500)
@@ -70,7 +80,7 @@ function PairingControls({ profile }: { profile?: string }) {
       current = false
       window.clearTimeout(timer)
     }
-  }, [active, busy, profile])
+  }, [active, busy, profile, statusRetry])
 
   useEffect(() => {
     if (!sync || wholeProfile || active) {
@@ -87,24 +97,33 @@ function PairingControls({ profile }: { profile?: string }) {
     }
 
     void hermesApi<PaginatedSessions>({
-      connectionId: 'local', path: `/api/sessions?${params}`, profile, timeoutMs: 8000
-    }).then(result => {
-      if (current) {
-        const eligible = result.sessions.filter(session =>
-          !session.parent_session_id && session.continuation_kind !== 'compression' &&
-          /^(?:[0-9]{8}_[0-9]{6}_[0-9a-f]{6,12}|local-[0-9a-f]{64})$/.test(session.id)
-        )
-
-        setSessions(eligible)
-        setSessionId(id => eligible.some(session => session.id === id) ? id : '')
-      }
-    }).catch(() => {
-      if (current) {
-        setSessionListFailed(true)
-      }
+      connectionId: 'local',
+      path: `/api/sessions?${params}`,
+      profile,
+      timeoutMs: 8000
     })
+      .then(result => {
+        if (current) {
+          const eligible = result.sessions.filter(
+            session =>
+              !session.parent_session_id &&
+              session.continuation_kind !== 'compression' &&
+              /^(?:[0-9]{8}_[0-9]{6}_[0-9a-f]{6,12}|local-[0-9a-f]{64})$/.test(session.id)
+          )
 
-    return () => { current = false }
+          setSessions(eligible)
+          setSessionId(id => (eligible.some(session => session.id === id) ? id : ''))
+        }
+      })
+      .catch(() => {
+        if (current) {
+          setSessionListFailed(true)
+        }
+      })
+
+    return () => {
+      current = false
+    }
   }, [active, profile, sync, wholeProfile])
 
   useEffect(() => {
@@ -127,7 +146,9 @@ function PairingControls({ profile }: { profile?: string }) {
         })
     }
 
-    return () => { current = false }
+    return () => {
+      current = false
+    }
   }, [pairing?.code])
 
   async function change(method: 'POST' | 'DELETE') {
@@ -143,17 +164,36 @@ function PairingControls({ profile }: { profile?: string }) {
     setError('')
 
     try {
-      const path = profileStart ? `${PAIRING_PATH}/sync/profile` : syncStart ? `${PAIRING_PATH}/sync` : remoteStart ? `${PAIRING_PATH}/internet` : PAIRING_PATH
-      setPairing(await hermesApi<Pairing>({
-        connectionId: 'local', path, profile, method,
-        ...(syncStart && !profileStart ? { body: { session_id: sessionId } } : {})
-      }))
+      const path = profileStart
+        ? `${PAIRING_PATH}/sync/profile`
+        : syncStart
+          ? `${PAIRING_PATH}/sync`
+          : remoteStart
+            ? `${PAIRING_PATH}/internet`
+            : PAIRING_PATH
+
+      setPairing(
+        await hermesApi<Pairing>({
+          connectionId: 'local',
+          path,
+          profile,
+          method,
+          ...(syncStart && !profileStart ? { body: { session_id: sessionId } } : {})
+        })
+      )
+      setStatusUnavailable(false)
     } catch {
-      setError(profileStart ? 'Profile sync pairing could not start. Check the PC network.'
-        : syncStart ? 'Sync pairing could not start. Select a supported conversation and check the PC network.'
-        : remoteStart ? t.settings.gateway.mobileRemoteError : method === 'POST'
-        ? 'Pairing could not start. Check that the local Meu backend is running and this computer is on a private network.'
-        : 'Meu could not disconnect the phone. Try again.')
+      setError(
+        profileStart
+          ? 'Profile sync pairing could not start. Check the PC network.'
+          : syncStart
+            ? 'Sync pairing could not start. Select a supported conversation and check the PC network.'
+            : remoteStart
+              ? t.settings.gateway.mobileRemoteError
+              : method === 'POST'
+                ? 'Pairing could not start. Check that the local Meu backend is running and this computer is on a private network.'
+                : 'Meu could not disconnect the phone. Try again.'
+      )
     } finally {
       setBusy(false)
     }
@@ -174,17 +214,49 @@ function PairingControls({ profile }: { profile?: string }) {
     <section aria-labelledby="mobile-pairing-title" className="mt-6 rounded-xl border border-border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
-          <h3 className="text-sm font-semibold" id="mobile-pairing-title">Connect a phone</h3>
+          <h3 className="text-sm font-semibold" id="mobile-pairing-title">
+            {t.settings.gateway.mobileConnectTitle}
+          </h3>
           <p className="text-xs text-muted-foreground">{t.settings.gateway.mobileNetworkHint}</p>
           {!active && pairing?.state !== 'other-profile' && (
             <>
-              <label className="flex items-center gap-2 text-xs">
-                <input checked={sync} disabled={busy} onChange={event => setSync(event.target.checked)} type="checkbox" />
-                Sync conversation history via Wi-Fi or Tailscale
-              </label>
+              <fieldset className="mt-3 grid gap-3 sm:grid-cols-2" disabled={busy}>
+                <legend className="mb-2 text-xs font-medium">{t.settings.gateway.mobilePurpose}</legend>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    checked={!sync}
+                    className="mt-0.5"
+                    name="mobile-purpose"
+                    onChange={() => setSync(false)}
+                    type="radio"
+                  />
+                  <span className="grid gap-1">
+                    <span className="font-medium">{t.settings.gateway.mobileControlTitle}</span>
+                    <span className="text-muted-foreground">{t.settings.gateway.mobileControlHint}</span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
+                  <input
+                    checked={sync}
+                    className="mt-0.5"
+                    name="mobile-purpose"
+                    onChange={() => setSync(true)}
+                    type="radio"
+                  />
+                  <span className="grid gap-1">
+                    <span className="font-medium">{t.settings.gateway.mobileHistoryTitle}</span>
+                    <span className="text-muted-foreground">{t.settings.gateway.mobileHistoryHint}</span>
+                  </span>
+                </label>
+              </fieldset>
               {sync && (
                 <label className="flex items-center gap-2 text-xs">
-                  <input checked={wholeProfile} disabled={busy} onChange={event => setWholeProfile(event.target.checked)} type="checkbox" />
+                  <input
+                    checked={wholeProfile}
+                    disabled={busy}
+                    onChange={event => setWholeProfile(event.target.checked)}
+                    type="checkbox"
+                  />
                   Sync all supported conversations in this profile
                 </label>
               )}
@@ -197,43 +269,100 @@ function PairingControls({ profile }: { profile?: string }) {
                     onChange={event => setSessionId(event.target.value)}
                     value={sessionId}
                   >
-                    <option value="">{sessionListFailed ? 'Could not load conversations' : sessions === undefined
-                      ? 'Loading conversations…' : sessions.length === 0 ? 'No eligible conversations' : 'Select a conversation'}</option>
-                    {sessions?.map(session => <option key={session.id} value={session.id}>
-                      {session.title || session.preview || session.id}
-                    </option>)}
+                    <option value="">
+                      {sessionListFailed
+                        ? 'Could not load conversations'
+                        : sessions === undefined
+                          ? 'Loading conversations…'
+                          : sessions.length === 0
+                            ? 'No eligible conversations'
+                            : 'Select a conversation'}
+                    </option>
+                    {sessions?.map(session => (
+                      <option key={session.id} value={session.id}>
+                        {session.title || session.preview || session.id}
+                      </option>
+                    ))}
                   </select>
                 </label>
               ) : !sync ? (
                 <label className="flex items-center gap-2 text-xs">
-                  <input checked={remote} disabled={busy} onChange={event => setRemote(event.target.checked)} type="checkbox" />
+                  <input
+                    checked={remote}
+                    disabled={busy}
+                    onChange={event => setRemote(event.target.checked)}
+                    type="checkbox"
+                  />
                   {t.settings.gateway.mobileRemote}
                 </label>
               ) : null}
             </>
           )}
         </div>
-        <Button disabled={busy || pairing?.state === 'other-profile' || (!active && sync && !wholeProfile && !sessions?.some(session => session.id === sessionId))} onClick={() => void change(active ? 'DELETE' : 'POST')} size="sm">
+        <Button
+          disabled={
+            busy ||
+            pairing?.state === 'other-profile' ||
+            (!active && sync && !wholeProfile && !sessions?.some(session => session.id === sessionId))
+          }
+          onClick={() => void change(active ? 'DELETE' : 'POST')}
+          size="sm"
+        >
           {active ? 'Disconnect phone' : 'Show pairing code'}
         </Button>
       </div>
+      {active && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {pairing.sync || pairing.sync_profile
+            ? t.settings.gateway.mobileHistoryHint
+            : t.settings.gateway.mobileControlHint}
+        </p>
+      )}
       {pairing?.state === 'waiting' && (
         <div className="mt-4 grid justify-items-start gap-2">
-          {pairing.sync
-            ? <p className="text-xs">Open Sync with PC in Meu Mobile and scan this QR code or paste the pairing code.</p>
-            : <p className="text-xs">Open Meu on your phone, choose <strong>Scan pairing code</strong> and point the camera here.</p>}
-          {pairing.sync && pairing.code && (
+          {pairing.sync || pairing.sync_profile ? (
+            <p className="text-xs">Open Sync with PC in Meu Mobile and scan this QR code or paste the pairing code.</p>
+          ) : (
+            <p className="text-xs">
+              Open Meu on your phone, choose <strong>Scan pairing code</strong> and point the camera here.
+            </p>
+          )}
+          {(pairing.sync || pairing.sync_profile) && pairing.code && (
             <Button onClick={() => void copyPairingCode(pairing.code!)} size="sm" variant="outline">
               {copiedCode === pairing.code ? 'Code copied' : 'Copy pairing code'}
             </Button>
           )}
-          {qr && qr.code === pairing.code && <img alt="Meu pairing QR code" className="aspect-square w-72 max-w-full rounded-lg bg-white" src={qr.image} />}
-          <p className="text-xs text-muted-foreground">This code can be used once and expires in about {minutes} min.</p>
+          {qr && qr.code === pairing.code && (
+            <img
+              alt="Meu pairing QR code"
+              className="aspect-square w-72 max-w-full rounded-lg bg-white"
+              src={qr.image}
+            />
+          )}
+          <p className="text-xs text-muted-foreground">
+            This code can be used once and expires in about {minutes} min.
+          </p>
         </div>
       )}
-      <PairingStatus minutes={minutes} pairing={pairing} />
-      {pairing?.state === 'other-profile' && <p className="mt-3 text-xs text-muted-foreground">Switch to the paired profile to manage its phone connection.</p>}
-      {error && <p className="mt-3 text-xs text-destructive" role="alert">{error}</p>}
+      {!statusUnavailable && <PairingStatus minutes={minutes} pairing={pairing} />}
+      {statusUnavailable && (
+        <div className="mt-3 flex flex-wrap items-center gap-2" role="status">
+          <p className="text-xs text-muted-foreground">{t.settings.gateway.mobileStatusUnavailable}</p>
+          <Button disabled={busy} onClick={() => setStatusRetry(value => value + 1)} size="sm" variant="outline">
+            {t.settings.gateway.mobileRetryStatus}
+          </Button>
+        </div>
+      )}
+      {pairing?.state === 'other-profile' && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Switch to the paired profile to manage its phone connection.
+        </p>
+      )}
+      {error && (
+        <p className="mt-3 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   )
 }
@@ -241,24 +370,37 @@ function PairingControls({ profile }: { profile?: string }) {
 function PairingStatus({ pairing, minutes }: { pairing?: Pairing; minutes: number }) {
   const { t } = useI18n()
 
-  if (!pairing) {return null}
+  if (!pairing) {
+    return null
+  }
+
   const active = pairing.state === 'waiting' || pairing.state === 'paired'
 
-  const pairedLabel = pairing.sync_profile
-    ? pairing.offline ? t.settings.gateway.mobileSyncUnavailable
-      : pairing.listener_count === undefined ? 'Phone paired for profile sync'
-      : t.settings.gateway.mobileSyncReady
-    : `Phone connected · about ${minutes} min remaining`
+  const syncing = pairing.sync || pairing.sync_profile
 
-  return <>
-    {pairing.state === 'paired' && <p className="mt-3 text-xs text-primary" role="status">{pairedLabel}</p>}
-    {active && pairing.sync && pairing.listener_count !== undefined && (
-      <p className="mt-2 text-xs text-muted-foreground">
-        {pairing.last_contact
-          ? `${t.settings.gateway.mobileLastContact} ${new Date(pairing.last_contact).toLocaleString()}`
-          : t.settings.gateway.mobileNoContact}
-        {' '}{t.settings.gateway.mobileSyncUnconfirmed}
-      </p>
-    )}
-  </>
+  const pairedLabel = syncing
+    ? pairing.offline || pairing.listener_count === 0
+      ? t.settings.gateway.mobileSyncUnavailable
+      : pairing.listener_count === undefined
+        ? t.settings.gateway.mobilePairedHistory
+        : t.settings.gateway.mobileSyncReady
+    : `${t.settings.gateway.mobilePairedControl}${pairing.seconds && pairing.seconds > 0 ? ` · about ${minutes} min remaining` : ''}`
+
+  return (
+    <>
+      {pairing.state === 'paired' && (
+        <p className="mt-3 text-xs text-primary" role="status">
+          {pairedLabel}
+        </p>
+      )}
+      {active && syncing && pairing.listener_count !== undefined && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {pairing.last_contact
+            ? `${t.settings.gateway.mobileLastContact} ${new Date(pairing.last_contact).toLocaleString()}`
+            : t.settings.gateway.mobileNoContact}{' '}
+          {t.settings.gateway.mobileSyncUnconfirmed}
+        </p>
+      )}
+    </>
+  )
 }

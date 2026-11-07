@@ -1669,14 +1669,28 @@ export const deOverrides = {
       scopeNotRestored: (profile: string, error: string) => `Profil „${profile}“ nicht wiederhergestellt: ${error}`
     },
     gateway: {
+      mobileConnectTitle: 'Telefon verbinden',
+      mobilePurpose: 'Wie möchtest du Meu Mobile nutzen?',
+      mobileControlTitle: 'Den PC-Agenten steuern',
+      mobileControlHint:
+        'Agent, Werkzeuge und Projektdateien laufen auf dem PC. Er muss eingeschaltet und erreichbar bleiben.',
+      mobileHistoryTitle: 'Gesprächsverlauf synchronisieren',
+      mobileHistoryHint:
+        'Jedes Gerät führt seinen eigenen Agenten aus. Werkzeuge, Projektdateien und laufende Aufgaben werden nicht übertragen.',
+      mobilePairedHistory: 'Telefon für den Verlauf gekoppelt',
+      mobilePairedControl: 'Telefon für PC-Zugriff gekoppelt',
+      mobileStatusUnavailable:
+        'Der Verbindungsstatus konnte nicht aktualisiert werden. Die letzte Kopplung bleibt erhalten.',
+      mobileRetryStatus: 'Verbindung prüfen',
       mobileRemote: 'Von unterwegs verbinden',
       mobileNetworkHint: 'Kopple die Geräte im Heimnetz oder verwende die Internetverbindung von Meu.',
-      mobileSyncUnavailable: "Telefon gekoppelt · Synchronisierungsdienst nicht verfügbar",
-      mobileSyncReady: "Telefon gekoppelt · Synchronisierungsdienst bereit",
-      mobileLastContact: "Letzter Telefonkontakt:",
-      mobileNoContact: "Seit dem Start dieses Dienstes wurde kein Telefonkontakt erfasst.",
-      mobileSyncUnconfirmed: "Ein Telefonkontakt bestätigt nicht, dass alle Gespräche aktuell sind.",
-      mobileRemoteError: 'Die Kopplung über das Internet ist fehlgeschlagen. Prüfe die Konfiguration und Erreichbarkeit des Meu-Relays.',
+      mobileSyncUnavailable: 'Telefon gekoppelt · Synchronisierungsdienst nicht verfügbar',
+      mobileSyncReady: 'Telefon gekoppelt · Synchronisierungsdienst bereit',
+      mobileLastContact: 'Letzter Telefonkontakt:',
+      mobileNoContact: 'Seit dem Start dieses Dienstes wurde kein Telefonkontakt erfasst.',
+      mobileSyncUnconfirmed: 'Ein Telefonkontakt bestätigt nicht, dass alle Gespräche aktuell sind.',
+      mobileRemoteError:
+        'Die Kopplung über das Internet ist fehlgeschlagen. Prüfe die Konfiguration und Erreichbarkeit des Meu-Relays.',
       loading: 'Gateway-Einstellungen werden geladen…',
       ...deGatewayHost,
       title: 'Gateway-Verbindung',

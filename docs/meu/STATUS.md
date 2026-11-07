@@ -1,8 +1,14 @@
 # Meu development and release status
 
-Current public Windows version: [0.1.0-dev.22](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.22).
+Current public Windows version: [0.1.0-dev.25](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.25).
 Development and validation take place on `dev/meu-foundation`. The following
 changes are candidates for one consolidated release after the remaining checks.
+
+The current Windows/Android work order is maintained in the
+[experience roadmap](EXPERIENCE_ROADMAP.md). It takes precedence over the older
+mobile next-trial notes below: Meu Mobile now also has an on-device runtime, and
+the recovered Android source is 9673. Historical rehearsal evidence below is
+retained with its original scope; it does not certify a newer release.
 
 | Work | Evidence |
 | --- | --- |
