@@ -140,6 +140,7 @@ jobs:
           tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
+          tests/plugins/delegation/test_meu_staged_reviews.py
           tests/plugins/delegation/test_meu_progress.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_project_memory_identity.py
@@ -292,6 +293,7 @@ jobs:
           tests/tools/test_delegate_apiserver_background.py
           tests/plugins/delegation/test_meu_project_memory.py
           tests/plugins/delegation/test_meu_project_reviews.py
+          tests/plugins/delegation/test_meu_staged_reviews.py
           tests/plugins/delegation/test_meu_progress.py
           tests/plugins/delegation/test_meu_project_rehearsal.py
           tests/tools/test_local_agent_context.py

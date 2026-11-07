@@ -18,8 +18,10 @@ def test_helpers_only_receive_selected_project_notes(coordinator, tmp_path):
         "image": [notes["Images use PNG at A5 size."]], "report": [notes["Reports use EUR amounts."]],
     })
     assert result["tasks"]["image"]["state"] == "needs_review", result
-    assert "Images use PNG" in built[0]["context"] and "EUR" not in built[0]["context"]
-    assert "Reports use EUR" in built[1]["context"] and "A5" not in built[1]["context"]
+    image = next(child for child in built if child["model"] == "deepseek-flash")
+    report = next(child for child in built if child["model"] == "deepseek-v4-pro")
+    assert "Images use PNG" in image["context"] and "EUR" not in image["context"]
+    assert "Reports use EUR" in report["context"] and "A5" not in report["context"]
     assert result["tasks"]["image"]["memory_used"] == [initial["memory_notes"][0]]
 
 

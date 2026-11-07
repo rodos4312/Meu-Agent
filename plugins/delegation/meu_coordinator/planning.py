@@ -44,7 +44,12 @@ def validate_plan(tasks: list[dict]) -> None:
         if "review_of" in task:
             target = task["review_of"]
             dependencies = task.get("depends_on")
-            if not isinstance(target, str) or dependencies != [target] or paths:
+            stage = task.get("review_stage")
+            valid_dependencies = dependencies == [target]
+            if stage == "quality":
+                valid_dependencies = (isinstance(dependencies, list) and len(dependencies) == 2
+                                      and dependencies[0] == target)
+            if not isinstance(target, str) or not valid_dependencies or paths:
                 raise DelegationRouteError(f"Task {index}: a review must depend on its one deliverable and be read-only.")
         if task.get("images") and task.get("workload") != "vision":
             raise DelegationRouteError(f"Task {index}: use workload=vision for attached images.")

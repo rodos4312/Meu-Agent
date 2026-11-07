@@ -63,7 +63,10 @@ class MeuCoordinator(DelegationProvider):
             "the project unless worktree isolation is configured; avoid conflicting edits. Inspect results and run "
             "the requested checks before calling the project complete. If a routine result fails its checks, "
             "reassign that specific task as complex with the failure evidence, rather than repeating blindly. "
-            "Use an independent complex reviewer for consequential changes when useful; the parent integrates "
+            "For consequential implementation use coordinate_project: standard/complex writing tasks receive "
+            "ordered requirements and quality reviewers automatically. Verify both before dependent work. "
+            "Routine mechanical or read-only tasks remain light; do not label real implementation routine to skip checks. "
+            "The parent integrates "
             "and reports verified results and remaining uncertainty. Model selection is fixed for each child; "
             "there is no additional planner API call. Existing stop, progress and concurrency limits still apply."
         )

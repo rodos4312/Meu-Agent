@@ -1,8 +1,9 @@
 # Meu Coordinator
 
-Development branch, not yet distributed: checkpointed project runs now use
-native background execution in interactive sessions. The published dev.22
-installer does not contain this addition.
+Development branch, not yet distributed: checkpointed project runs use
+native background execution in interactive sessions. The current development
+batch adds ordered requirements and quality reviews; the installed/public
+version is not changed by this source batch.
 
 Project note handoff and Desktop editing are described in [Project memory](PROJECT_MEMORY.md).
 Use `memory_notes` from project create/status to select relevant `task_memory` ids
@@ -107,6 +108,44 @@ SHA-256 fingerprints bind acceptance
 to those files: modifications invalidate that task and downstream acceptance.
 This records the parent's verification; it is not independent proof that an LLM
 actually ran a claimed test. Existing tool policies still own check execution.
+
+## Ordered requirements and quality reviews (new plans)
+
+Both Meu Coordinator variants share the same persistent review pipeline. Under
+the default `review_policy: auto`, a new `standard` or `complex` task with
+nonempty `write_paths` generates two read-only complex reviewers. The parent
+first checks and verifies the implementation. A requirements reviewer then
+compares the original task/acceptance criteria with the actual deliverable.
+Only a validated pass accepted by the parent unlocks the quality reviewer,
+which checks correctness, edge cases, maintainability, security and tests.
+Dependent deliverables wait for both reviews to be verified. Review completion
+alone, an inconclusive report or a failed check cannot unlock the next stage.
+
+Small direct requests still belong to the parent. Routine mechanical tasks
+and read-only research do not acquire extra reviewers by default. Workload is
+chosen semantically by the planner; no keyword classifier or extra planner
+request was introduced. For a deliberate SDD experiment, set
+`review_policy: two_stage` on a task, including a routine or read-only task.
+Read generated review IDs from the returned plan rather than inventing them.
+This reuses the existing coordinator instead of introducing another backend.
+The optional SDD skill includes a Meu-specific adapter reference.
+
+Reviewers inherit the session's provider through its existing coordinator
+route. General uses that provider's configured complex model; DeepSeek uses
+its Pro route. A reviewer cannot edit the deliverable, and executable checks
+remain with the parent. A report is tied to the implementation attempt/file
+hashes; quality is additionally tied to the accepted requirements attempt.
+After an evidenced repair, both reviews are queued again for the new version.
+Unrelated accepted work is retained. The three-attempt limits remain in force
+and are not reset by repair or artifact changes. Old saved checkpoint graphs
+are reopened unchanged rather than silently gaining extra calls.
+
+This enforcement belongs to `coordinate_project` plans. The ordinary
+`delegate_task` tool remains available for independent bounded tasks; its
+provider instructions direct substantial implementation into the project
+pipeline. This is not a guarantee that every LLM will classify difficulty
+correctly or choose the correct tool. See [review validation](COORDINATOR_STAGED_REVIEW_VALIDATION.md)
+for tested behavior and remaining limits.
 
 An optional independent review names one deliverable in `review_of` and
 `depends_on`, with empty `write_paths`. It runs on Pro with read-only access

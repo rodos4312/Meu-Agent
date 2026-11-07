@@ -17,6 +17,7 @@ from tools.delegate_workspace import local_project_root
 
 from .planning import validate_plan
 from .routing import WORKLOADS
+from .staged_reviews import expand_reviews
 
 _ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 
@@ -31,11 +32,11 @@ def new_project(project, root, tasks):
     root = local_project_root(root)
     if not isinstance(tasks, list) or not 1 <= len(tasks) <= 100:
         raise ValueError("Supply 1 to 100 concrete project tasks.")
-    rows = {}
+    if any(not isinstance(task, dict) for task in tasks):
+        raise ValueError("Every project task must be an object.")
+    # Validate caller ids before deriving stable internal review ids.
     for task in tasks:
-        key = identifier(task.get("id"))
-        if key in rows:
-            raise ValueError("Project task ids must be unique.")
+        identifier(task.get("id"))
         if not isinstance(task.get("goal"), str) or not task["goal"].strip():
             raise ValueError("Every project task needs a concrete goal.")
         if task.get("workload") not in WORKLOADS:
@@ -44,6 +45,13 @@ def new_project(project, root, tasks):
         dependencies = task.get("depends_on", [])
         if not isinstance(dependencies, list) or any(not isinstance(dep, str) for dep in dependencies):
             raise ValueError("depends_on must list prerequisite task ids.")
+    tasks = expand_reviews(tasks)
+    rows = {}
+    for task in tasks:
+        key = identifier(task.get("id"))
+        if key in rows:
+            raise ValueError("Project task ids must be unique.")
+        validate_plan([task])
         stored = dict(task)
         if "review_of" in task:
             stored.update(workload="complex", tool_access="files_only")
@@ -125,7 +133,8 @@ class Project:
         selected = []
         for key in sorted(rows, key=lambda task: -unblocks[task]):
             row = rows[key]
-            if row["state"] != "pending" or not self.dependencies_ready(row):
+            if (row["state"] != "pending" or not self.dependencies_ready(row)
+                    or (row["task"].get("review_stage") and row["attempt"] >= 3)):
                 continue
             try:
                 validate_plan([self.record["tasks"][name]["task"] for name in [*selected, key]])

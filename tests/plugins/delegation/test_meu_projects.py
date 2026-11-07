@@ -22,7 +22,7 @@ def create(parent, root, tasks=None):
     return result
 
 
-def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator, tmp_path):
+def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator, tmp_path, monkeypatch):
     home, built, parent = coordinator
     parent.session_id = "project-session"
     created = create(parent, tmp_path)
@@ -42,7 +42,25 @@ def test_project_waits_for_verification_resumes_and_uses_both_models(coordinator
     (tmp_path / "answer.txt").write_text("tested output", encoding="utf-8")
     assert "artifact" in project(parent, "verify", task="implement", attempt=1, passed=True, evidence="Tests passed.")["error"]
     verified = project(parent, "verify", task="implement", attempt=1, passed=True, evidence="Ran acceptance checks: passed.", artifacts=["answer.txt"])
-    assert verified["complete"]
+    assert not verified["complete"]
+    from tools import delegate_tool
+    original_run = delegate_tool._run_single_child
+
+    def reviewed(*args, **kwargs):
+        result = original_run(*args, **kwargs)
+        result.update(schema_valid=True, summary=json.dumps({
+            "verdict": "pass", "check": "Read answer.txt against requirements and quality criteria.",
+            "observed": "The tested output meets this review's checks.",
+        }))
+        return result
+
+    monkeypatch.setattr(delegate_tool, "_run_single_child", reviewed)
+    for _ in range(2):
+        assert len(verified["ready"]) == 1
+        key = verified["ready"][0]
+        project(parent, "run")
+        verified = project(parent, "verify", task=key, attempt=1, passed=True, evidence="Review check confirmed.")
+    assert verified["complete"] and len(built) == 4
     # A fresh process reads the persisted outcome without the original parent or manager.
     script = "from pathlib import Path;from plugins.delegation.meu_coordinator.projects import open_project;" \
         f"\nwith open_project(Path({str(home)!r}),'demo') as p:" \

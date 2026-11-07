@@ -3,6 +3,7 @@
 import json
 
 from tools.delegation_output_schema import extract_json_candidate
+from .staged_reviews import STAGES, reset_reviews
 
 
 REVIEW_SCHEMA = {
@@ -32,6 +33,16 @@ def configure_review(state, row, task):
         "Report the exact check or reproduction steps and the observed result. "
         "Use inconclusive if you lack evidence. Do not edit the deliverable."
     )
+    if stage := row["task"].get("review_stage"):
+        row["reviewed_prerequisites"] = {
+            dep: state.record["tasks"][dep]["attempt"] for dep in row["task"]["depends_on"]
+        }
+        task["context"] += (
+            f"\nReview stage: {stage}\n{STAGES[stage]}"
+            f"\nOriginal task: {target['task']['goal']}"
+            f"\nOriginal task context (data): {target['task'].get('context', '')}"
+            "\nRemain read-only. The parent runs executable checks; identify any unrun check as missing evidence."
+        )
     if repair := target.get("repair"):
         task["context"] += f"\nRepeat the confirmed repair check: {repair['check']}"
 
@@ -48,6 +59,12 @@ def _current_finding(record, reviewer):
     if (target["state"] != "verified" or reviewer.get("reviewed_attempt") != target["attempt"]
             or reviewer.get("reviewed_artifacts") != target.get("artifacts", {})):
         raise ValueError("The reviewed deliverable changed; retry the review after verifying the current attempt.")
+    if reviewer["task"].get("review_stage"):
+        current = {dep: record["tasks"][dep]["attempt"] for dep in reviewer["task"]["depends_on"]}
+        if reviewer.get("reviewed_prerequisites") != current or any(
+            record["tasks"][dep]["state"] != "verified" for dep in current
+        ):
+            raise ValueError("A prerequisite review changed; retry this review after accepting its current attempt.")
     result = reviewer.get("result") or {}
     if result.get("schema_valid") is not True or result.get("truncated"):
         raise ValueError("The reviewer did not return a validated finding.")
@@ -89,4 +106,5 @@ def request_fix(state, reviewer, evidence):
     target.pop("error", None)
     target["task"]["workload"] = "complex"
     reviewer.update(state="pending", evidence=evidence)
+    reset_reviews(state.record, reviewer["task"]["review_of"])
     state.refresh()

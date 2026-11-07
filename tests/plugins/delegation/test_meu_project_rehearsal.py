@@ -102,7 +102,16 @@ def _resume(root, parent, requests):
     unrelated = _verify(parent, "reconcile", 2, "payments.csv", "Checked the original input.")
     assert "artifact" in unrelated.get("error", ""), unrelated
     verified = _verify(parent, "reconcile", 2, "report.json", "1000 cents minus 300; duplicate excluded.")
+    assert not verified["complete"]
+    for expected_stage in ("requirements", "quality"):
+        assert len(verified["ready"]) == 1
+        key = verified["ready"][0]
+        assert verified["tasks"][key]["task"]["review_stage"] == expected_stage
+        project(parent, "run")
+        verified = project(parent, "verify", task=key, attempt=1, passed=True,
+                           evidence="Confirmed the reviewer read the current report and its reproduced totals.")
     assert verified["complete"], verified
+    assert requests == ["deepseek-v4-pro"] * 7
 
 
 def _assert_blocked_terminal(result):
@@ -134,6 +143,10 @@ def _response(request, root, stage, requests):
     assert {entry["function"]["name"] for entry in body["tools"]} == {"read_file", "write_file", "patch", "search_files"}
     model = body["model"]
     context = json.dumps(body["messages"])
+    if "Review stage: " in context:
+        requests.append(model)
+        assert model == "deepseek-v4-pro" and stage == "resume"
+        return _review_response(body, root)
     if model == "deepseek-flash":
         assert "Normalization retains duplicate" in context and "Reports subtract" not in context
     else:
@@ -201,7 +214,32 @@ def _response(request, root, stage, requests):
                 call["index"] = index
         message = {"content": None, "tool_calls": calls}
         finish = "tool_calls"
-    response = {"id": "rehearsal", "created": 0, "model": model}
+    return _provider_response(body, message, finish)
+
+
+def _review_response(body, root):
+    tool_results = {message.get("tool_call_id"): message for message in body["messages"] if message["role"] == "tool"}
+    if "review_read" not in tool_results:
+        calls = [
+            {"id": "review_read", "type": "function", "function": {
+                "name": "read_file", "arguments": json.dumps({"path": "report.json"})}},
+            {"id": "review_write", "type": "function", "function": {
+                "name": "write_file", "arguments": json.dumps({"path": "report.json", "content": "forbidden"})}},
+        ]
+        if body.get("stream"):
+            for index, call in enumerate(calls):
+                call["index"] = index
+        return _provider_response(body, {"content": None, "tool_calls": calls}, "tool_calls")
+    assert "700" in tool_results["review_read"]["content"]
+    assert "project file scope" in tool_results["review_write"]["content"]
+    assert _read(root, "report.json") == {"net_cents": 700, "unique_payments": 2}
+    finding = {"verdict": "pass", "check": "Read report.json and compare duplicate/refund totals.",
+               "observed": "The report retains two unique payments and net 700 cents; review writes were refused."}
+    return _provider_response(body, {"content": json.dumps(finding)}, "stop")
+
+
+def _provider_response(body, message, finish):
+    response = {"id": "rehearsal", "created": 0, "model": body["model"]}
     choice = {"index": 0, "finish_reason": finish}
     if body.get("stream"):
         response.update(object="chat.completion.chunk", choices=[{**choice, "delta": message}])
