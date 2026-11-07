@@ -16,37 +16,55 @@ export interface GatewayReconnectOptions {
 
 type GatewayReconnectHandler = (options?: GatewayReconnectOptions) => Promise<void> | void
 
-let activeHandler: GatewayReconnectHandler | null = null
-let inFlight: Promise<void> | null = null
+interface ReconnectOwner {
+  handler: GatewayReconnectHandler
+  currentEpoch: () => number
+}
 
-export function registerGatewayReconnect(handler: GatewayReconnectHandler): () => void {
-  activeHandler = handler
+let activeOwner: ReconnectOwner | null = null
+let inFlight: { owner: ReconnectOwner; epoch: number; promise: Promise<void> } | null = null
+
+export function registerGatewayReconnect(handler: GatewayReconnectHandler, currentEpoch = () => 0): () => void {
+  const owner = { handler, currentEpoch }
+  activeOwner = owner
 
   return () => {
-    if (activeHandler === handler) {
-      activeHandler = null
+    if (activeOwner === owner) {
+      activeOwner = null
     }
   }
 }
 
 export function reconnectGateway(options?: GatewayReconnectOptions): Promise<void> {
-  if (inFlight) {
-    return inFlight
-  }
+  const owner = activeOwner
 
-  const handler = activeHandler
-
-  if (!handler) {
+  if (!owner) {
     return Promise.reject(new Error('Gateway reconnect is unavailable'))
   }
 
-  inFlight = Promise.resolve()
-    .then(() => handler(options))
+  const epoch = owner.currentEpoch()
+
+  if (inFlight?.owner === owner && inFlight.epoch === epoch) {
+    return inFlight.promise
+  }
+
+  const promise = Promise.resolve()
+    .then(() => {
+      // A route selection may move before this microtask starts. Never let
+      // the old click reconnect the newly selected conversation's owner.
+      if (activeOwner !== owner || owner.currentEpoch() !== epoch) {
+        throw new Error('Gateway selection changed before reconnect started')
+      }
+
+      return owner.handler(options)
+    })
     .finally(() => {
-      inFlight = null
+      if (inFlight?.promise === promise) {inFlight = null}
     })
 
-  return inFlight
+  inFlight = { owner, epoch, promise }
+
+  return promise
 }
 
 /** Toast button that re-dials the active connection — attached wherever a

@@ -184,7 +184,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           $env:HERMES_DESKTOP_PYTHON = $env:HERMES_PYTHON
-          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-project-memory.spec.ts e2e/meu-deliverables.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts e2e/meu-provider-cleanup.spec.ts --reporter=list --workers=1
+          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-continuity.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-project-memory.spec.ts e2e/meu-deliverables.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts e2e/meu-provider-cleanup.spec.ts --reporter=list --workers=1
       - name: Preserve navigation screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -512,6 +512,20 @@ jobs:
       - name: Verify unified deliverables and scoped file previews
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/artifacts/index.test.ts src/app/artifacts/remote-open.test.tsx src/app/artifacts/generated-deliverables.test.ts src/app/artifacts/preview-data.test.ts src/app/artifacts/deliverable-preview.test.tsx src/components/ui/pdf-document-frame.test.tsx src/app/chat/right-rail/preview-file.test.tsx src/app/chat/right-rail/preview-file-save-scope.test.tsx src/components/chat/intro.test.tsx
+      - name: Verify conversation continuity and draft recovery
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project ui --maxWorkers 2
+          src/store/gateway-reconnect.test.ts
+          src/store/gateway-background-reconnect.test.ts
+          src/store/system-actions.test.ts
+          src/app/session/hooks/reconnect-resume-barrier.test.tsx
+          src/app/session/hooks/use-resume-reattach.test.tsx
+          src/app/chat/composer/hooks/use-composer-draft.persist-window.test.tsx
+          src/app/session/hooks/reload-resume-stream-target.test.tsx
+          src/app/session/hooks/resume-route-commit.test.tsx
+          src/app/session/hooks/warm-resume-replay-barrier.test.tsx
+          src/app/chat/composer/hooks/use-composer-draft.test.tsx
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
         run: npm run typecheck
