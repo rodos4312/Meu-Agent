@@ -120,7 +120,7 @@ jobs:
         uses: ./.github/actions/setup-pm
         with:
           toolchain: all
-          extras: '["acp"]'
+          extras: '["acp", "messaging"]'
           test-environment: 'true'
       - name: Verify coordinator, hosted plugins and routing scope
         shell: bash
@@ -170,7 +170,7 @@ jobs:
         uses: ./.github/actions/setup-pm
         with:
           toolchain: all
-          extras: '[]'
+          extras: '["messaging", "web"]'
           packages: git,ripgrep
       - name: Install locked desktop dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -204,7 +204,7 @@ jobs:
       - name: Prepare locked Python test environment
         uses: ./.github/actions/setup-pm
         with:
-          extras: '[]'
+          extras: '["messaging", "web"]'
           test-environment: 'true'
           packages: git,ripgrep
       - name: Verify telemetry stays disabled and DeepSeek tool calls work

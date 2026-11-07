@@ -22,7 +22,7 @@ from gateway.mobile_relay import make_relay_app
 
 def test_relay_reconnects_without_repairing_and_refuses_replays(monkeypatch):
     async def exercise():
-        listener_tls, cert = _tls("127.0.0.1", 3600)
+        listener_tls, cert, _ = _tls("127.0.0.1", 3600)
         trust = _stdlib_ssl_context_class()(ssl.PROTOCOL_TLS_CLIENT)
         trust.load_verify_locations(cadata=ssl.DER_cert_to_PEM_cert(cert))
         seen = []
@@ -87,7 +87,7 @@ def test_relay_reconnects_without_repairing_and_refuses_replays(monkeypatch):
 
 def test_mobile_preview_pairs_through_relay_and_revokes_device(monkeypatch):
     async def exercise():
-        listener_tls, cert = _tls("127.0.0.1", 3600)
+        listener_tls, cert, _ = _tls("127.0.0.1", 3600)
         trust = _stdlib_ssl_context_class()(ssl.PROTOCOL_TLS_CLIENT)
         trust.load_verify_locations(cadata=ssl.DER_cert_to_PEM_cert(cert))
         relay = TestServer(make_relay_app())
