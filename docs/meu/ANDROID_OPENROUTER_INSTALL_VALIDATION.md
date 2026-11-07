@@ -107,6 +107,10 @@ preceding Android snapshot; it is not claimed as a rerun on these bytes.
 
 ## Remaining acceptance
 
+The 2026-11-08 [lean runtime and cancellation follow-up](ANDROID_RUNTIME_SLIMMING_VALIDATION.md)
+supersedes the old-pin and cancellation follow-ups below. The preceding receipts
+remain historical evidence for this earlier snapshot.
+
 The Android preparation script, native owner and guest still pin engine
 `cb43517b6dbd9e9c5c762150c907c2d56c2a1590`. Before the consolidated APK, admit
 the updated core and regenerate the matching embedded seed/installer hashes.

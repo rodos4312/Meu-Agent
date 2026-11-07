@@ -21,8 +21,8 @@ test evidence and remaining physical-device/PDF acceptance. Coordinator progress
 
 | Work | Evidence |
 | --- | --- |
-| Android provider setup, installation and cleanup | Autonomous OpenRouter light/strong selection, real install progress and optional backend-only preparation are source-verified. Active model/proxy coverage survives removal of obsolete Portal tests. Android is backed up privately; its old engine pin still needs admission/regeneration before the consolidated APK. [Checks and limits](ANDROID_OPENROUTER_INSTALL_VALIDATION.md). |
-| Ordered Coordinator reviews (development only) | New consequential writing tasks use requirements then quality gates, while routine/read-only tasks stay light. 75 Coordinator tests plus 101 integration tests and seven skill checks passed locally on Windows. All six required GitHub jobs passed for follow-up `1d0f725dca18`, including the corrected native UI rehearsal. One existing cancellation suite passed only on retry and remains a stability follow-up. [Scope and validation](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
+| Android provider setup, installation and cleanup | OpenRouter light/strong selection and real install progress remain source-verified. The new seed uses core `17c2fa366872` and physically excludes 16,638 frontend/development files while retaining tools/skills. Native compile, four Python checks and eighteen focused Flutter tests passed; source is backed up privately at `9b3ba72`. [Current runtime checks and limits](ANDROID_RUNTIME_SLIMMING_VALIDATION.md); [earlier provider batch](ANDROID_OPENROUTER_INSTALL_VALIDATION.md). |
+| Ordered Coordinator reviews (development only) | Consequential writing tasks use requirements then quality gates; routine/read-only tasks stay light. The later cancellation follow-up fixes queued-helper admission and isolates the intermittent test harness's startup/cleanup. Fifteen capacity cases passed in five fresh runs without retries; actual running-stop checks retain their five-second deadlines. [Current validation](ANDROID_RUNTIME_SLIMMING_VALIDATION.md); [original review scope](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
 | Coordinator on a real provider | Two native detached helpers used `deepseek-flash` and `deepseek-v4-pro` on synthetic payment data. A separate conversation answered while the project was running. Independent checks verified every normalized row and the exact reconciliation result. Both tasks reached verified on their first successful rehearsal attempt. This was a backend rehearsal, not a new Desktop release. |
 | Project notes after relocation | 27 focused tests cover real moves, reused paths, independent copies, primary-folder changes, concurrent claims, legacy notes, profile isolation and the notes RPC. Note contents stay in the profile. See [Project memory](PROJECT_MEMORY.md). |
 | Native Windows input | Five verified capture, click and Greek Unicode typing rounds against an isolated form. With the installed driver v0.21.0, Ctrl+A did not select all in background delivery; the explicitly targeted foreground retry did. No approval defaults were changed. See [Windows computer use](WINDOWS_COMPUTER_USE_AUDIT.md). |
@@ -46,19 +46,20 @@ No host restart or Windows feature change was performed.
 
 ## Current acceptance before the consolidated preview
 
-1. Required GitHub checks are complete for `02f997db0e8e`:
-   [run 42414895061](https://github.com/rodos4312/Meu-Agent/actions/runs/42414895061)
-   passed all six required jobs; three optional distribution jobs were skipped.
-   The final Windows privacy job reported no flaky file retry. Keep the earlier
-   cancellation-suite flake open: three cases failed in the original staged-review
-   run and all 13 passed on retry. A clean subsequent run is not a fix.
-   See [provider/installation validation](ANDROID_OPENROUTER_INSTALL_VALIDATION.md)
-   for the corrected Windows Bash test harness, cleanup and Android backup.
+1. Exact-source GitHub verification for core `17c2fa366872` completed in
+   [run 42424466823](https://github.com/rodos4312/Meu-Agent/actions/runs/42424466823).
+   All six required jobs succeeded; three optional distribution jobs were
+   skipped. Cancellation's 15 cases passed on the first attempt on both hosts.
+   A different Windows bootstrap test exceeded its 30-second PowerShell deadline
+   and passed on retry. Investigate `test_generated_windows_pins_match_the_shared_authority`
+   before calling CI free from intermittent failures; this batch does not fix it.
+   See [runtime validation](ANDROID_RUNTIME_SLIMMING_VALIDATION.md) for the
+   cancellation regressions, unchanged actual-stop checks and Android backup.
 2. Prepare matching Windows frontend/backend and Android application/runtime
-   candidates from recorded revisions. Android's current seed preparation and
-   guest installer still pin engine `cb43517b6dbd`; regenerate the embedded
-   seed/installer hashes for the admitted engine revision before building the
-   candidate APK. Source UI changes alone do not update the autonomous engine.
+   candidates from recorded revisions. Android's lean seed and installer now
+   match admitted engine `17c2fa366872`; asset hashes and native compilation
+   passed. Generated assets are not in the source archive: regenerate them
+   from the recorded commit before building the consolidated candidate APK.
 3. On a physical phone, verify paired-PC and autonomous-phone modes separately:
    the same conversation after close/reopen, actual tools, project creation,
    previews/Save, screen-lock/background behavior and uncertain-send recovery.
