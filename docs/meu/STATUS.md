@@ -2,7 +2,10 @@
 
 Current public Windows version: [0.1.0-dev.25](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.25).
 Development and validation take place on `dev/meu-foundation`. The following
-changes are candidates for one consolidated release after the remaining checks.
+changes are candidates for one consolidated release after physical acceptance.
+Windows dev.26 is an unpublished draft; its nine-job build, upgrade and rollback
+run passed. Android private preview 9674 was assembled and inspected. See the
+[frozen candidate receipt and trial steps](CONSOLIDATED_PREVIEW_26.md).
 
 The current Windows/Android work order is maintained in the
 [experience roadmap](EXPERIENCE_ROADMAP.md). It takes precedence over the older
@@ -21,13 +24,13 @@ test evidence and remaining physical-device/PDF acceptance. Coordinator progress
 
 | Work | Evidence |
 | --- | --- |
-| Android provider setup, installation and cleanup | OpenRouter light/strong selection and real install progress remain source-verified. The new seed uses core `17c2fa366872` and physically excludes 16,638 frontend/development files while retaining tools/skills. Native compile, four Python checks and eighteen focused Flutter tests passed; source is backed up privately at `9b3ba72`. [Current runtime checks and limits](ANDROID_RUNTIME_SLIMMING_VALIDATION.md); [earlier provider batch](ANDROID_OPENROUTER_INSTALL_VALIDATION.md). |
+| Android provider setup, installation and cleanup | OpenRouter light/strong selection and real install progress remain source-verified. Candidate 9674 uses core `245a2db849bf`, with 16,643 frontend/development files physically excluded and tools/skills retained. Native APK build, four Python checks, 32 final Flutter cases and embedded asset inspection passed. Full source backup: `ef857e7`; package receipt: `41b3941`. [Candidate receipt](CONSOLIDATED_PREVIEW_26.md); [historical runtime checks and limits](ANDROID_RUNTIME_SLIMMING_VALIDATION.md). |
 | Ordered Coordinator reviews (development only) | Consequential writing tasks use requirements then quality gates; routine/read-only tasks stay light. The later cancellation follow-up fixes queued-helper admission and isolates the intermittent test harness's startup/cleanup. Fifteen capacity cases passed in five fresh runs without retries; actual running-stop checks retain their five-second deadlines. [Current validation](ANDROID_RUNTIME_SLIMMING_VALIDATION.md); [original review scope](COORDINATOR_STAGED_REVIEW_VALIDATION.md). |
 | Coordinator on a real provider | Two native detached helpers used `deepseek-flash` and `deepseek-v4-pro` on synthetic payment data. A separate conversation answered while the project was running. Independent checks verified every normalized row and the exact reconciliation result. Both tasks reached verified on their first successful rehearsal attempt. This was a backend rehearsal, not a new Desktop release. |
 | Project notes after relocation | 27 focused tests cover real moves, reused paths, independent copies, primary-folder changes, concurrent claims, legacy notes, profile isolation and the notes RPC. Note contents stay in the profile. See [Project memory](PROJECT_MEMORY.md). |
 | Native Windows input | Five verified capture, click and Greek Unicode typing rounds against an isolated form. With the installed driver v0.21.0, Ctrl+A did not select all in background delivery; the explicitly targeted foreground retry did. No approval defaults were changed. See [Windows computer use](WINDOWS_COMPUTER_USE_AUDIT.md). |
 | Windows installation and recovery | The private rehearsal passed the real NSIS upgrade with data preservation and automatic rollback after a failed startup. Both jobs completed successfully. A retained recovery run across an actual Windows reboot is still unverified. [Private Windows rehearsal](https://github.com/rodos4312/Meu-Agent/actions/runs/42062422358) |
-| Consolidated preview release | Pending matching candidate packages and their final acceptance below. Actual Windows OS-reboot recovery remains an explicitly deferred, unverified extended case; do not label it passed or claim full production qualification. Publish the signed update manifest and admitted packages together only after the candidate checks. |
+| Consolidated preview release | Windows dev.26 draft and local Android 9674 candidate prepared; all nine Windows CI jobs passed, including native upgrade and automatic rollback. Physical-phone and owner acceptance remain below. Actual Windows OS-reboot recovery remains deferred and unverified; no full production qualification or automatic publication is claimed. |
 
 The public installer and update feed are the release authority. Ed25519 manifest
 verification already operates without a paid certificate; Windows publisher
@@ -46,28 +49,33 @@ No host restart or Windows feature change was performed.
 
 ## Current acceptance before the consolidated preview
 
-1. Exact-source GitHub verification for core `17c2fa366872` completed in
-   [run 42424466823](https://github.com/rodos4312/Meu-Agent/actions/runs/42424466823).
-   All six required jobs succeeded; three optional distribution jobs were
-   skipped. Cancellation's 15 cases passed on the first attempt on both hosts.
-   A different Windows bootstrap test exceeded its 30-second PowerShell deadline
-   and passed on retry. Investigate `test_generated_windows_pins_match_the_shared_authority`
-   before calling CI free from intermittent failures; this batch does not fix it.
-   See [runtime validation](ANDROID_RUNTIME_SLIMMING_VALIDATION.md) for the
-   cancellation regressions, unchanged actual-stop checks and Android backup.
-2. Prepare matching Windows frontend/backend and Android application/runtime
-   candidates from recorded revisions. Android's lean seed and installer now
-   match admitted engine `17c2fa366872`; asset hashes and native compilation
-   passed. Generated assets are not in the source archive: regenerate them
-   from the recorded commit before building the consolidated candidate APK.
+1. The frozen Windows `0.1.0-dev.26` candidate is core `48cd8daf689b` in
+   [run 42429977825](https://github.com/rodos4312/Meu-Agent/actions/runs/42429977825).
+   All six required jobs passed. The bootstrap test's cold PowerShell budget
+   now matches its sibling checks at 60 seconds; all seven native cases passed
+   with zero file retries. Windows transfers passed 15 cases (one host skip),
+   Linux passed all 16, and real Windows pairing passed four. The earlier
+   connection-form mock failure was corrected and the exact failed group
+   passed 82 cases locally before this final CI. See the
+   [candidate report and owner trial](CONSOLIDATED_PREVIEW_26.md).
+2. Windows installer packaging, package scans, launch, update signature and
+   native upgrade from public dev.25 passed. Automatic rollback and draft
+   admission also passed in that same run. Android private preview 9674 was
+   assembled; its embedded lean seed and installer match engine `245a2db849bf`.
+   Subsequent Windows revisions change only tests, CI and documentation, with
+   identical production transfer code. Android passed 32 final Flutter cases,
+   whole-production analysis, native compilation and asset checksum inspection.
+   The full source is backed up privately at `Meu-Mobile-private@ef857e7`.
+   Its APK remains local/private and the installed phone signer match is
+   unverified; do not uninstall the existing preview or discard its data.
 3. On a physical phone, verify paired-PC and autonomous-phone modes separately:
    the same conversation after close/reopen, actual tools, project creation,
    previews/Save, screen-lock/background behavior and uncertain-send recovery.
    History sync must not be presented as moving execution or project files.
-4. Rehearse the final Windows installer/update candidate, preserving chats,
-   credentials, project notes, skills and settings. Confirm both app and backend
-   revisions and ordinary close/reopen behavior. Keep extended OS reboot tests
-   explicitly separate; no installed application is changed by this audit.
+4. Preserve the final Windows installer/update and recovery receipts, then
+   confirm app/backend revisions and ordinary close/reopen behavior during the
+   owner trial. Keep extended OS reboot tests explicitly separate; no installed
+   owner application is changed by candidate preparation.
 5. Run a representative real-model project through both review stages, then
    prepare matching screenshots, release notes, download links and verified
    update metadata. Deterministic fixtures prove orchestration, not LLM judgment.

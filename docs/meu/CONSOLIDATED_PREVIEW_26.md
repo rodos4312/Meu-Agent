@@ -5,6 +5,25 @@ source advances from 9673 to candidate 9674. Development branch only. No further
 feature additions belong in this candidate. A draft/candidate is not a public
 release or an update-feed promotion.
 
+## Final preparation receipt
+
+All **nine jobs** passed in [candidate CI 42429977825](https://github.com/rodos4312/Meu-Agent/actions/runs/42429977825)
+for Windows source `48cd8daf689bcffe80d22005a3a699b30f29ced2`.
+This includes real NSIS upgrade from public dev.25 with data preservation,
+and an induced startup failure that automatically restored the verified
+dev.26 desktop, real gateway and pre-update SQLite data. The rollback log
+explicitly confirmed the restored version and conversation. An actual Windows
+OS reboot was not part of this rehearsal.
+
+The [Windows dev.26 release draft](https://github.com/rodos4312/Meu-Agent/releases/tag/untagged-6efb5d3f61ef9fb7b026)
+contains the installer, free update signature and scan/checksum evidence.
+Installer: `Meu-0.1.0-dev.26-win-x64.exe`, 147,882,415 bytes, SHA-256
+`a65e7b720f4dd3facac669b37b68f7b1f6b5804990b5ad13a1414e7959953b4d`.
+The draft is owner-visible and unpublished. Public dev.25 and the update feed
+remain unchanged. Android 9674 is a verified local/private candidate, with
+its metadata backed up at `Meu-Mobile-private@41b3941`; it is not a public APK
+release. Physical-phone acceptance and signer compatibility remain pending.
+
 This consolidates the previously recorded navigation, deliverables, Coordinator,
 continuity, provider and runtime work. The final additions are only:
 
@@ -99,3 +118,27 @@ Windows update/data-preservation and rollback rehearsals must pass for its exact
 package. Extended recovery through an actual Windows OS reboot remains deferred.
 Publish nothing and promote no update feed merely because compilation or the
 required source checks succeeded.
+
+## Owner trial after candidate admission
+
+Use expendable test files. Do not uninstall the existing Android preview or
+discard its private agent data to work around a signing mismatch.
+
+1. Confirm the Windows app and backend versions and reopen an existing chat.
+   In Gateway settings select an empty test folder for PC–phone transfers.
+   Reopen settings and confirm that the same folder remains selected.
+2. Use the existing Android pairing. Open PC file transfers and check the
+   displayed PC/folder. Put a Greek text file in that PC folder, download it
+   on Android, select a destination in the system picker and open the saved
+   file to confirm its contents.
+3. Upload a phone photo or document. Open the resulting PC file and compare
+   its content. Sending the same filename again must leave the original
+   untouched; rename the phone file before deliberately sending another copy.
+4. Start a larger disposable transfer, cancel it and refresh the list. Check
+   the actual folder before retrying an uncertain result. Cancel Android's
+   Save dialog separately: the original PC file must remain intact.
+5. Stop sharing on Windows. Refresh from Android and confirm access is refused.
+   Select the folder again to grant access afresh; the old grant is not reused.
+6. Close/reopen Android, use the same existing conversation and exercise an
+   actual tool. Test autonomous-phone operation separately with the PC off;
+   PC file transfers require an online PC and do not move project execution.
