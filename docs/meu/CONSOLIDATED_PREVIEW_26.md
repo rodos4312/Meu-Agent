@@ -44,6 +44,29 @@ an automatic transfer of project execution between computers.
 
 ## Source validation
 
+Candidate preparation follow-up: core source `245a2db849bf` passed the Windows
+privacy lane with zero file retries: 1,801 cases in its first batch (31 skips),
+395 in the recovery/catalog batch (11 skips), then 18 usage and 50 attribution/
+connector cases. All seven native PowerShell bootstrap cases passed on their
+first attempt. Windows navigation, pinned backend upgrade, Linux coordinator
+and real Windows phone-pairing jobs also passed. The Windows identity job
+exposed an incomplete connection-form test bridge after mounting the transfer
+panel; its focused module is now isolated there, while its own native-bridge
+tests remain mandatory. The exact failed four-file group subsequently passed
+all 82 cases locally; the combined transfer/pairing/connection group passed 48.
+Final candidate CI must still pass; the earlier run is not an all-green receipt.
+
+Android's five final transfer/navigation/streaming suites passed 32 cases.
+The private Meu debug APK was assembled and verified: package
+`io.github.rodos4312.meumobile.preview`, code 9674, 183,252,766 bytes, SHA-256
+`9b6eae5fa5dacc51fe21d775ed999998819416962d0f68282435116c790de033`.
+Its embedded engine and installer match the hashes for core `245a2db849bf`.
+Only the arm64 Flutter engine is present; plugin libraries also contain other
+ABIs, so it is not advertised as universal. The source ZIP and handoff are
+backed up privately at `Meu-Mobile-private@ef857e7`. The signing certificate
+has not been matched to the phone's installed preview. No APK is published,
+no installed application is changed and physical-phone acceptance is pending.
+
 - Core Windows regression batch: 28 passed, six host-specific skips across
   transfer, real pairing, PowerShell bootstrap and workflow graph tests.
 - The subsequent final transfer/bootstrap batch passed 22 with six skips,
@@ -55,7 +78,7 @@ an automatic transfer of project execution between computers.
   explicitly POSIX-only and must be exercised by Linux CI.
 - Twelve Desktop UI cases passed, including folder selection/revocation,
   stale previous-profile responses and the pre-existing pairing panel.
-- Android: 23 focused tests passed, whole-production/new-test analysis passed,
+- Android: 32 final focused tests passed, whole-production/new-test analysis passed,
   and `:app:compileMeuDebugKotlin` completed offline. New save behavior is source
   compiled, not yet certified on a physical phone.
 - Required core source quality: 14 checks passed with zero blocking/advisory
