@@ -35,6 +35,26 @@ continuity, provider and runtime work. The final additions are only:
 - Add PC–phone file transfers over the existing authenticated connection or
   saved certificate-pinned pairing. No additional account, key or listener.
 
+## Android packaging correction — 9675 private trial
+
+The physical trial found that the 9674 APK omitted all four generated PRoot
+native files. Its engine-seed checks passed but did not cover these executables;
+the private 9674 download is marked withdrawn for Android. Windows dev.26 is
+unchanged. The 9675 correction prepares the original checksum-pinned Termux
+files and makes native merging depend on completeness and ELF64-machine checks.
+Real Gradle tests refused a missing `libproot.so` and a wrong-machine ELF.
+Packaging excludes plugin-only ABIs rather than advertising unsupported devices.
+
+The clean 9675 APK is 143,861,162 bytes, SHA-256
+`a461c40e39d294caabbf1ab2598a359a0a6857ef81b870be9293b0fd7624e388`.
+ZIP/signature/manifest checks confirmed ARM64 only, all four PRoot files,
+native extraction enabled, code 9675 and the same signing certificate as 9674.
+The embedded engine/installer are unchanged. Full source is backed up privately
+at `51e0d7042cea`. There are no runtime feature additions or new Windows package.
+On-phone engine startup remains pending, and compatibility with the older
+9673 signing certificate is still unverified. Keep an installed 9674 and its
+data when testing this update; a new uninstall is not part of this correction.
+
 ## File transfer behavior
 
 In Windows, choose a folder in Settings → Gateways → This window → PC–phone

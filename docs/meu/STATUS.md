@@ -4,7 +4,8 @@ Current public Windows version: [0.1.0-dev.25](https://github.com/rodos4312/Meu-
 Development and validation take place on `dev/meu-foundation`. The following
 changes are candidates for one consolidated release after physical acceptance.
 Windows dev.26 is an unpublished draft; its nine-job build, upgrade and rollback
-run passed. Android private preview 9674 was assembled and inspected. See the
+run passed. Android 9674's physical trial exposed omitted PRoot native files;
+private correction 9675 now packages all four and rejects incomplete builds. See the
 [frozen candidate receipt and trial steps](CONSOLIDATED_PREVIEW_26.md).
 
 The current Windows/Android work order is maintained in the
