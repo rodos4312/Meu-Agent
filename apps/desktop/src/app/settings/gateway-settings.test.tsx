@@ -44,6 +44,9 @@ const saveConnectionConfig = vi.fn()
 // (store/managed-updates.test.ts); keep its store subscriptions out of this
 // single-purpose test.
 vi.mock('./managed-updates-section', () => ({ ManagedUpdatesSection: () => null }))
+// File grants have their own native-bridge coverage. These connection-form
+// tests deliberately provide only the machine configuration bridge.
+vi.mock('./transfer-folder-settings', () => ({ TransferFolderSettings: () => null }))
 
 const localConnection = {
   cloudOrg: '',
