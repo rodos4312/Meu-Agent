@@ -106,6 +106,15 @@ class TransferDirectory:
             return os.open(self.path / name, flags, 0o600)
         return os.open(name, flags, 0o600, dir_fd=self.fd)
 
+    def mkdir(self, name):
+        """Create one child exclusively while its selected parent stays pinned."""
+        self.validate()
+        if os.name == 'nt':
+            os.mkdir(self.path / name, mode=0o700)
+        else:
+            os.mkdir(name, mode=0o700, dir_fd=self.fd)
+        self.validate()
+
     def publish(self, temporary, name):
         if os.name == 'nt':
             os.link(self.path / temporary, self.path / name)

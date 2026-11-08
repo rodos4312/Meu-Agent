@@ -24,6 +24,9 @@ on:
       - 'tests/hermes_cli/test_meu_transfers.py'
       - 'tests/hermes_cli/test_meu_transfer_browsing.py'
       - 'tests/gateway/test_mobile_preview.py'
+      - 'tests/gateway/test_mobile_personal_spaces.py'
+      - 'tests/hermes_state/test_meu_sync_history.py'
+      - 'hermes_state_portability.py'
       - 'hermes_cli/meu_transfers.py'
       - 'hermes_cli/web_routers/meu_transfers.py'
       - 'gateway/mobile_transfers.py'
@@ -151,6 +154,7 @@ jobs:
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
           tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_meu_transfer_browsing.py
+          tests/gateway/test_mobile_personal_spaces.py tests/hermes_state/test_meu_sync_history.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
           tests/hermes_cli/test_serve_command.py
@@ -313,6 +317,7 @@ jobs:
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
           tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_meu_transfer_browsing.py
+          tests/gateway/test_mobile_personal_spaces.py tests/hermes_state/test_meu_sync_history.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
           tests/hermes_cli/test_serve_command.py

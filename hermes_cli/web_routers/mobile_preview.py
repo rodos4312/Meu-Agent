@@ -16,6 +16,7 @@ from hermes_cli.web_routers.chat_ws import _authority_for_ticket_home
 from hermes_cli.web_routers.webapp_access import owner_on_this_machine
 
 from gateway.mobile_preview import PROFILE_PAIRING_KEY
+from hermes_cli.web_routers.mobile_devices import router as _devices_router
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,10 @@ async def _saved_pairing(state):
     if not raw:
         return None
     saved = json.loads(raw)
+    return _validate_pairing(saved)
+
+
+def _validate_pairing(saved):
     if (not isinstance(saved, dict) or not isinstance(saved.get("profile"), str)
             or not re.fullmatch(r"[0-9a-f]{64}", str(saved.get("digest", "")))
             or not isinstance(saved.get("pem"), str)):
@@ -72,6 +77,8 @@ async def restore_mobile_profile_pairing(state):
 
     while True:
         async with _lock(state):
+            from hermes_cli.web_routers.mobile_devices import restore_personal_devices
+            await restore_personal_devices(state)
             active = getattr(state, "mobile_preview", None)
             if active and (getattr(active.authority, "retiring", False)
                            or getattr(active.authority, "retired", False)):
@@ -237,7 +244,12 @@ async def _revoke_saved_pairing(state, authority):
 
 async def close_mobile_preview(state):
     async with _lock(state):
+        from hermes_cli.web_routers.mobile_devices import close_personal_devices
+        await close_personal_devices(state)
         preview = getattr(state, "mobile_preview", None)
         state.mobile_preview = None
         if preview:
             await preview.close()
+
+
+router.include_router(_devices_router)

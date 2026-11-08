@@ -110,7 +110,8 @@ class _MobileTransport:
 
 class MobilePreview:
     def __init__(self, authority, interface, *, remote=False, relay_url=None,
-                 sync_session=None, sync_tailscale=None, sync_profile=False, pairing_store=None):
+                 sync_session=None, sync_tailscale=None, sync_profile=False, pairing_store=None,
+                 personal_devices=None, device_id=None):
         self.authority = authority
         self.interface = interface
         self.remote = remote
@@ -118,6 +119,10 @@ class MobilePreview:
         self.sync_session = sync_session
         self.sync_profile = sync_profile
         self.pairing_store = pairing_store
+        self.personal_devices = personal_devices
+        self.device_id = device_id
+        self.personal_space = (personal_devices.scope(authority.profile_id, device_id)[1]['id']
+                               if personal_devices else None)
         self.token_digest = None
         self.tls_pem = None
         self.tls_context = None
@@ -286,6 +291,12 @@ class MobilePreview:
 
     @web.middleware
     async def _guard(self, request, handler):
+        if self.personal_devices:
+            from fastapi import HTTPException
+            try:
+                await asyncio.to_thread(self.personal_devices.scope, self.authority.profile_id, self.device_id)
+            except HTTPException:
+                raise web.HTTPGone() from None
         local = request.transport.get_extra_info("sockname") if request.transport else None
         interface = next((item for item in self.interfaces if local and str(item.ip) == local[0]), None)
         if ("Origin" in request.headers or not request.remote or interface is None
@@ -304,6 +315,9 @@ class MobilePreview:
             if not valid:
                 raise web.HTTPUnauthorized()
             self.last_contact = datetime.now(UTC).isoformat()
+            if self.personal_devices:
+                await asyncio.to_thread(self.personal_devices.contact, self.authority.profile_id,
+                                        self.device_id, self.last_contact)
         response = await handler(request)
         if request.path == "/meu/pair" and response.status == 200:
             self.last_contact = datetime.now(UTC).isoformat()
@@ -340,13 +354,21 @@ class MobilePreview:
                 remaining = self.deadline - self.loop.time()
                 self._keep_paired()
                 try:
-                    await asyncio.to_thread(self.pairing_store.set_meta, PROFILE_PAIRING_KEY, json.dumps(record))
+                    if self.personal_devices:
+                        await asyncio.to_thread(self.personal_devices.paired, self.authority.profile_id,
+                                                self.device_id, record)
+                    else:
+                        await asyncio.to_thread(self.pairing_store.set_meta, PROFILE_PAIRING_KEY, json.dumps(record))
                 except Exception:
                     self._expire_in(max(0, remaining))
                     raise
                 self.challenge = self.code = None
                 self.token_digest = digest
-                return web.json_response({"key": key})
+                metadata = {}
+                if self.personal_devices:
+                    device, space = self.personal_devices.scope(self.authority.profile_id, self.device_id)
+                    metadata = {'space_id': space['id'], 'space_name': space['name'], 'device_id': device['id']}
+                return web.json_response({"key": key, **metadata})
         if self.sync_enabled:
             self.challenge = self.code = None
             self.token = secrets.token_urlsafe(32)
@@ -371,6 +393,7 @@ class MobilePreview:
             catalog = await asyncio.to_thread(
                 self.authority.db.list_meu_sync_sessions, after=request.query.get("after", ""),
                 fingerprints=request.query.get("fingerprints") == "1",
+                **({'personal_space': self.personal_space} if self.personal_space else {}),
             )
         except ValueError:
             raise web.HTTPBadRequest() from None
@@ -382,6 +405,8 @@ class MobilePreview:
                  if self.sync_profile and request.query.get("timestamps") == "1"
                  else {"profile_sync": True} if self.sync_profile else {})
         try:
+            if self.personal_space:
+                scope['personal_space'] = self.personal_space
             history = await asyncio.to_thread(self.authority.db.export_meu_sync_history, session_id, **scope)
         except LookupError:
             raise web.HTTPNotFound() from None
@@ -399,6 +424,8 @@ class MobilePreview:
         if history.get("id") != session_id:
             raise web.HTTPForbidden()
         scope = {"profile_sync": True} if self.sync_profile else {}
+        if self.personal_space:
+            scope['personal_space'] = self.personal_space
         try:
             async with self.lock:
                 status = await asyncio.to_thread(self.authority.db.apply_meu_sync_history, history, **scope)

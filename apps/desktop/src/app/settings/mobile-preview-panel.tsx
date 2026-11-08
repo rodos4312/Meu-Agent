@@ -7,6 +7,7 @@ import { useI18n } from '@/i18n/context'
 import { writeClipboardText } from '@/lib/clipboard'
 import type { PaginatedSessions, SessionInfo } from '@/types/hermes'
 import { TransferFolderSettings } from './transfer-folder-settings'
+import { PersonalDevicesSettings } from './personal-devices-settings'
 
 interface Pairing {
   state: 'off' | 'waiting' | 'paired' | 'other-profile'
@@ -27,6 +28,7 @@ export function MobilePreviewPanel() {
     <div key={profile ?? 'default'}>
       <PairingControls profile={profile ?? undefined} />
       <TransferFolderSettings profile={profile ?? undefined} />
+      <PersonalDevicesSettings profile={profile ?? undefined} />
     </div>
   )
 }

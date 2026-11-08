@@ -355,7 +355,7 @@ class SessionPortabilityMixin:
         AND (source IN ('gui', 'desktop')
           OR (source = 'local' AND created_source IN ('gui', 'desktop')))"""
 
-    def list_meu_sync_sessions(self, *, after: str = "", limit: int = 100, fingerprints=False):
+    def list_meu_sync_sessions(self, *, after: str = "", limit: int = 100, fingerprints=False, personal_space=None):
         """Page through shareable local chat IDs in this store without reading transcripts.
 
         A cursor is a position in the ID ordering, independent of recent
@@ -366,14 +366,21 @@ class SessionPortabilityMixin:
             raise ValueError("Invalid sync cursor")
         if type(limit) is not int or not 1 <= limit <= 200:
             raise ValueError("Invalid sync page size")
+        space_clause = ''
+        parameters = ()
+        if personal_space is not None:
+            if not isinstance(personal_space, str) or not re.fullmatch(r'[0-9a-f]{32}', personal_space):
+                raise ValueError('Invalid personal space')
+            space_clause = " AND EXISTS (SELECT 1 FROM state_meta p WHERE p.key = 'meu.space.session:' || sessions.id AND p.value = ?)"
+            parameters = (personal_space,)
         selected = []
         cursor = after
         with self._read_ctx() as conn:
             while len(selected) <= limit:
                 rows = conn.execute(
-                    f"""SELECT id FROM sessions WHERE id > ? AND ({self._MEU_SYNC_PROFILE_SCOPE})
+                    f"""SELECT id FROM sessions WHERE id > ? AND ({self._MEU_SYNC_PROFILE_SCOPE}){space_clause}
                         ORDER BY id LIMIT 200""",
-                    (cursor,),
+                    (cursor, *parameters),
                 ).fetchall()
                 if not rows:
                     break
@@ -455,11 +462,13 @@ class SessionPortabilityMixin:
             if size > self._MEU_SYNC_MAX_TEXT:
                 raise ValueError("Sync transcript exceeds text limit")
 
-    def export_meu_sync_history(self, session_id, *, profile_sync=False, timestamps=False):
+    def export_meu_sync_history(self, session_id, *, profile_sync=False, timestamps=False, personal_space=None):
         """Export user/assistant text only, for use after a local share decision."""
         if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
             raise ValueError("Unsupported sync session ID")
         with self._read_ctx() as conn:
+            if personal_space is not None:
+                self._meu_require_space(conn, session_id, personal_space)
             row = conn.execute(
                 f"""SELECT started_at, parent_session_id, end_reason, ({self._MEU_SYNC_PROFILE_SCOPE}) AS sync_allowed
                     FROM sessions WHERE id = ?""", (session_id,),
@@ -475,7 +484,15 @@ class SessionPortabilityMixin:
             history["started_at"] = self._meu_sync_timestamp(row["started_at"])
         return history
 
-    def apply_meu_sync_history(self, history, *, profile_sync=False):
+    @staticmethod
+    def _meu_require_space(conn, session_id, personal_space):
+        if not isinstance(personal_space, str) or not re.fullmatch(r'[0-9a-f]{32}', personal_space):
+            raise ValueError('Invalid personal space')
+        marker = conn.execute('SELECT value FROM state_meta WHERE key = ?', ('meu.space.session:' + session_id,)).fetchone()
+        if marker is None or marker[0] != personal_space:
+            raise LookupError('Session unavailable in this personal space')
+
+    def apply_meu_sync_history(self, history, *, profile_sync=False, personal_space=None):
         """Import text or append a strict extension. Never submit an agent turn.
 
         A divergent transcript is reported without writing either version.
@@ -496,6 +513,14 @@ class SessionPortabilityMixin:
         self._validate_meu_sync_text(messages, timestamps=timestamps)
 
         def _do(conn):
+            if personal_space is not None:
+                if not isinstance(personal_space, str) or not re.fullmatch(r'[0-9a-f]{32}', personal_space):
+                    raise ValueError('Invalid personal space')
+                # Ownership is committed with the import, never claimed by a separate HTTP write.
+                exists = conn.execute('SELECT 1 FROM sessions WHERE id = ?', (session_id,)).fetchone()
+                marker = conn.execute('SELECT value FROM state_meta WHERE key = ?', ('meu.space.session:' + session_id,)).fetchone()
+                if exists or marker:
+                    self._meu_require_space(conn, session_id, personal_space)
             if retired_in(conn, session_id):
                 return "deleted"
             row = conn.execute(
@@ -508,6 +533,9 @@ class SessionPortabilityMixin:
                 normalized = self._normalize_import_session(
                     {"source": "gui", "started_at": started_at}, session_id, messages)
                 self._import_session_row(conn, normalized["session"], normalized["messages"], session_id)
+                if personal_space is not None:
+                    conn.execute('INSERT INTO state_meta (key, value) VALUES (?, ?)',
+                                 ('meu.space.session:' + session_id, personal_space))
                 return "created"
             if row["parent_session_id"] or row["end_reason"] == "compression":
                 return "conflict"
