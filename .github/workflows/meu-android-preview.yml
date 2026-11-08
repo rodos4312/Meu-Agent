@@ -1,4 +1,4 @@
-name: Meu Android preview
+name: Meu Android compatibility
 
 on:
   push:
@@ -40,6 +40,7 @@ jobs:
         run: scripts/run_tests.sh -j 1 tests/gateway/test_mobile_preview.py tests/gateway/test_mobile_relay.py -- --override-ini=addopts= -q
 
   apk:
+    name: Legacy Android companion compilation (no distribution)
     if: github.repository == 'rodos4312/Meu-Agent' && github.ref == 'refs/heads/dev/meu-foundation'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -49,11 +50,6 @@ jobs:
           persist-credentials: false
       - name: Build and verify the Android preview APK
         run: bash apps/android/build-preview.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: Meu-Android-preview
-          path: |
-            apps/android/out/Meu-Android-preview.apk
-            apps/android/out/SHA256SUMS.txt
-          if-no-files-found: error
-          retention-days: 14
+      # This is the legacy Java companion, not the current private Flutter app.
+      # Compile for compatibility only; a normal source push must not distribute
+      # another APK or be mistaken for Meu Mobile acceptance/release evidence.

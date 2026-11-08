@@ -63,6 +63,9 @@ folder as open unless the backend confirms it.
   remain pending for the next grouped distribution.
 
 No installed applications or user-selected folders are changed by source tests.
+The legacy Java companion's CI build is compilation-only and no longer uploads
+an APK on a normal source push. Its successful build is not validation of the
+current private Flutter app. No new download or distribution is issued here.
 
 ## Explicitly deferred continuity work
 
