@@ -1337,6 +1337,11 @@ def _render_skills_index(
         )
     return (
         "## Skills\n"
+        "Choose skills yourself from the installed, available catalog by the user's goal, regardless of "
+        "the language they use. The user does not need to know or name a skill. Do not ask them to select "
+        "a skill whose purpose already matches the request. Check the relevant skill's prerequisites; "
+        "a listed skill is not proof that its optional dependencies or external account are configured. "
+        "Ask only when the requested result is genuinely ambiguous or a required choice is missing.\n"
         "Before replying, scan the skills below. If a skill matches or is even partially relevant to your "
         "task, you MUST load it with skill_view(name) and follow its instructions. Err on the side of "
         "loading — it is always better to have context you don't need than to miss critical steps, pitfalls, "

@@ -48,12 +48,20 @@ async def prepare_model(authority, live, payload, prepared):
     from hermes_cli.model_switch import apply_model_selection, switch_model
     from hermes_cli.config import get_compatible_custom_providers
     old = restore_policy(prepared['snapshot']['receipt']['policy'])
-    from gateway.session_model_mode import AUTO_MODEL, BASE_MODEL, apply_selection
+    from gateway.session_model_mode import AUTO_MODEL, BASE_MODEL, GENERAL_AUTO_MODEL, apply_selection, profile_auto_policy
     selected_model = payload['model']
+    selected_policy = None
     if selected_model == AUTO_MODEL:
         if payload.get('provider') != 'deepseek':
             raise RuntimeStoreError('invalid_params')
         payload = {**payload, 'model': BASE_MODEL}
+    elif selected_model == GENERAL_AUTO_MODEL:
+        from agent.model_routing_policy import selected_pair
+        selected_policy = await asyncio.to_thread(profile_auto_policy, authority)
+        pair = selected_pair(selected_policy, payload.get('provider'))
+        if pair is None:
+            raise RuntimeStoreError('invalid_params')
+        payload = {**payload, 'model': pair[1]}
     config, current = _current_route(authority, live, old)
     reset = is_model_reset(payload)
     if reset:
@@ -108,6 +116,8 @@ async def prepare_model(authority, live, payload, prepared):
         from gateway.session_model_mode import profile_auto_policy
         frozen['smart_model_routing'] = profile_auto_policy(authority)
     else:
+        if selected_policy is not None:
+            frozen['smart_model_routing'] = selected_policy
         apply_selection(selected_model, result.target_provider, frozen)
     if 'reasoning' in payload:
         # The level picked with the model lands in the same commit (as prepare_reasoning writes it).
@@ -199,9 +209,13 @@ def _reset_payload(authority, old, current):
     model, provider = ('', '') if old.ignore_user_config else configured_default(authority)
     if not model:
         raise RuntimeStoreError('invalid_params', field='payload.model', detail=t('cli.model.reset_no_default'))
-    mode = (old.config(authority, secrets=False).get('smart_model_routing') or {}).get('enabled') is True
-    default_mode = profile_auto_policy(authority).get('enabled') is True
-    if model == current.model and provider in ('', current.provider) and mode == default_mode:
+    mode = old.config(authority, secrets=False).get('smart_model_routing') or {}
+    default_mode = profile_auto_policy(authority)
+    same_mode = (mode.get('enabled') is True) == (default_mode.get('enabled') is True)
+    if mode.get('enabled') is True:
+        same_mode = same_mode and all(mode.get(key) == default_mode.get(key)
+                                      for key in ('provider', 'routine', 'complex'))
+    if model == current.model and provider in ('', current.provider) and same_mode:
         return {'status': 'noop', 'model': model, 'note': t('cli.model.reset_none', model=model)}
     return {'model': model, **({'provider': provider} if provider else {})}
 

@@ -69,6 +69,8 @@ on:
       - 'tests/tui_gateway/test_meu_removed_payments.py'
       - 'tests/tui_gateway/test_meu_retired_free_tier.py'
       - 'tests/agent/test_meu_deepseek_privacy.py'
+      - 'tests/agent/test_meu_explicit_auto.py'
+      - 'tests/gateway/test_meu_general_auto.py'
       - 'tests/scripts/install/test_meu_installer_privacy.py'
       - 'tests/scripts/install/test_meu_pinned_upgrade.py'
       - 'scripts/install.sh'
@@ -180,6 +182,8 @@ jobs:
           tests/hermes_cli/test_plugin_host_delegation.py
           tests/hermes_cli/test_web_delegation_routing.py
           tests/gateway/test_meu_session_auto.py
+          tests/gateway/test_meu_general_auto.py
+          tests/agent/test_meu_explicit_auto.py
           tests/gateway/test_session_mutation_model.py
           -- --override-ini=addopts= -q
       - name: Install locked terminal dependencies
@@ -308,7 +312,9 @@ jobs:
           tests/scripts/install/test_meu_installer_privacy.py
           tests/agent/test_meu_deepseek_privacy.py
           tests/agent/test_meu_auto_routing.py
+          tests/agent/test_meu_explicit_auto.py
           tests/gateway/test_meu_session_auto.py
+          tests/gateway/test_meu_general_auto.py
           tests/gateway/test_session_mutation_model.py
           tests/gateway/test_session_mutation_model_busy.py
           tests/gateway/test_session_resume_config_refresh.py

@@ -9,8 +9,11 @@ logger = logging.getLogger(__name__)
 def prepare_routed_request(agent, profile, messages):
     model = agent.model
     policy = getattr(agent, "_model_routing_config", {})
-    if profile is not None and isinstance(policy, dict) and policy.get("enabled") is True:
-        model = profile.resolve_request_model(model, messages=messages, policy=policy)
+    if (profile is not None and isinstance(policy, dict) and policy.get("enabled") is True
+            and (not policy.get("provider") or policy["provider"] == agent.provider)):
+        from agent.model_routing_policy import choose_from_pair
+        selected = choose_from_pair(policy, agent.provider, messages) if agent.provider != "deepseek" else None
+        model = selected if selected is not None else profile.resolve_request_model(model, messages=messages, policy=policy)
         turn = getattr(agent, "_current_turn_id", None) if getattr(agent, "_inflight_turn_id", None) else None
         key = (turn, agent.provider, agent.model)
         previous = getattr(agent, "_turn_model_route", None)

@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-from hermes_cli.web_deps import LateState, late
+from hermes_cli.web_deps import late
 from hermes_cli.web_server_config import (
     _AUX_TASK_SLOTS, _UNSET, _apply_model_assignment_sync, _dashboard_code_skew_guard,
     _plugin_aux_tasks, _prepare_main_assignment,
@@ -121,13 +121,13 @@ def get_model_info(profile: Optional[str] = None):
         except Exception:
             pass
 
+        from gateway.session_model_mode import display_model
         return {
             "model": model_name, "provider": provider, "auto_context_length": auto_ctx,
             "config_context_length": config_ctx_int,
             "effective_context_length": config_ctx_int or auto_ctx,  # what the agent actually uses
             "capabilities": caps,
-            "automatic_routing": provider == "deepseek" and (
-                profile_config.get("smart_model_routing") or {}).get("enabled") is True,
+            "automatic_routing": display_model(model_name, provider, profile_config) != model_name,
         }
     except HTTPException:
         # Unknown/invalid profile must surface as 404, not degrade into a
