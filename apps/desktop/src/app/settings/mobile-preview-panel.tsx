@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n/context'
 import { writeClipboardText } from '@/lib/clipboard'
 import type { PaginatedSessions, SessionInfo } from '@/types/hermes'
+import { TransferFolderSettings } from './transfer-folder-settings'
 
 interface Pairing {
   state: 'off' | 'waiting' | 'paired' | 'other-profile'
@@ -22,7 +23,12 @@ const PAIRING_PATH = '/api/mobile-preview'
 export function MobilePreviewPanel() {
   const { profile } = useStore($apiRequestScope)
 
-  return <PairingControls key={profile ?? 'default'} profile={profile ?? undefined} />
+  return (
+    <div key={profile ?? 'default'}>
+      <PairingControls profile={profile ?? undefined} />
+      <TransferFolderSettings profile={profile ?? undefined} />
+    </div>
+  )
 }
 
 function PairingControls({ profile }: { profile?: string }) {

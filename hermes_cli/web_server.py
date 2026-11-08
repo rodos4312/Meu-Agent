@@ -840,6 +840,8 @@ app.include_router(_delegation_routes.router)
 app.include_router(_webapp_access_routes.router, dependencies=[_Depends(_route_on("web_access"))])
 app.include_router(_ui_preferences_routes.router, dependencies=[_Depends(_route_on("ui_preferences"))])
 app.include_router(_mobile_preview_routes.router)
+from hermes_cli.web_routers.meu_transfers import router as _meu_transfers_router
+app.include_router(_meu_transfers_router)
 
 # Plugin API routes and the dashboard auth routes (/login, /auth/*, /api/auth/*)
 # mount before the SPA catch-all so /{full_path:path} doesn't swallow them. Auth

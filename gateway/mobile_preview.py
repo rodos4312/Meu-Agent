@@ -151,6 +151,8 @@ class MobilePreview:
             middlewares=[self._guard],
         )
         app.router.add_post("/meu/pair", self._pair)
+        from gateway.mobile_transfers import mount as mount_transfers
+        mount_transfers(app, self)
         if self.sync_profile:
             app.router.add_get("/meu/sync/sessions", self._sync_catalog, allow_head=False)
             app.router.add_get("/meu/sync/sessions/{session_id}", self._sync_export, allow_head=False)

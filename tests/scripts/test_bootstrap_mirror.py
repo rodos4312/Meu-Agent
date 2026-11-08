@@ -138,7 +138,10 @@ def test_generated_windows_pins_match_the_shared_authority(tmp_path):
         "@{uv=$script:UvPinFiles; git=$script:GitPinFiles} | ConvertTo-Json -Depth 5 -Compress\n",
         encoding="utf-8",
     )
-    result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, timeout=30, check=False)
+    # This checks emitted pin authority, not launch performance. Include cold
+    # Windows PowerShell/AMSI startup under concurrent CI load, as the other
+    # native bootstrap checks do; keep the process bounded and all assertions.
+    result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, timeout=60, check=False)
     assert result.returncode == 0, result.stderr
     emitted = json.loads(result.stdout)
     lock = json.loads((ROOT / "pm/lock.json").read_text(encoding="utf-8"))["packages"]

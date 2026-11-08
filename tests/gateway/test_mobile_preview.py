@@ -149,6 +149,26 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
                 other_path = path if remote else f"{path}/tailscale"
                 assert desktop.post(other_path, headers=owner()).status_code == 409
                 phone.headers["Authorization"] = "Bearer " + paired.json()["key"]
+                shared = home / "phone-files"
+                shared.mkdir()
+                selected = desktop.post("/api/meu-transfers/folder", headers=owner(), json={"directory": str(shared)})
+                assert selected.status_code == 200, selected.text
+                listing = phone.get("/api/meu-transfers")
+                assert listing.status_code == 200, listing.text
+                generation = listing.json()["root_id"]
+                parameters = {"name": "phone-document.bin", "root_id": generation}
+                phone_bytes = bytes(range(256)) * 8193  # beyond the old 2 MiB JSON ceiling
+                sent = phone.post("/api/meu-transfers/upload", params=parameters, content=phone_bytes)
+                assert sent.status_code == 200, sent.text
+                assert (shared / parameters["name"]).read_bytes() == phone_bytes
+                assert phone.post("/api/meu-transfers/upload", params=parameters, content=b"replacement").status_code == 409
+                assert (shared / parameters["name"]).read_bytes() == phone_bytes
+                assert phone.get("/api/meu-transfers/download", params=parameters).content == phone_bytes
+                (shared / "from-pc.txt").write_bytes("Από το PC στο κινητό".encode())
+                assert phone.get("/api/meu-transfers/download", params={"name": "from-pc.txt", "root_id": generation}).content == (shared / "from-pc.txt").read_bytes()
+                assert phone.get("/api/meu-transfers/download", params={"name": "../config.yaml", "root_id": generation}).status_code == 400
+                assert desktop.post("/api/meu-transfers/folder", headers=owner(), json={"directory": ""}).status_code == 200
+                assert phone.get("/api/meu-transfers/download", params=parameters).status_code == 409
                 assert phone.get("/v1/capabilities").status_code == 200
                 assert phone.get("/api/sessions").status_code == 404
                 assert phone.get("/meu/sessions").json() == {"sessions": []}

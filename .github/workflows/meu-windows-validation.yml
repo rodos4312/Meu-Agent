@@ -21,6 +21,11 @@ on:
       - 'tests/tools/test_mcp_cimd.py'
       - 'tests/hermes_cli/test_meu_independent_identity.py'
       - 'tests/scripts/test_bootstrap_mirror.py'
+      - 'tests/hermes_cli/test_meu_transfers.py'
+      - 'tests/gateway/test_mobile_preview.py'
+      - 'hermes_cli/meu_transfers.py'
+      - 'hermes_cli/web_routers/meu_transfers.py'
+      - 'gateway/mobile_transfers.py'
       - 'scripts/install.ps1'
       - 'agent/**'
       - 'model_tools.py'
@@ -144,7 +149,7 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
-          tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
+          tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
           tests/hermes_cli/test_serve_command.py
           tests/hermes_cli/test_fast_serve_launch.py
@@ -235,7 +240,7 @@ jobs:
       - name: Verify telemetry stays disabled and DeepSeek tool calls work
         shell: bash
         run: >-
-          scripts/run_tests.sh -j 2
+          scripts/run_tests.sh -j 2 --file-retries 0
           tests/hermes_cli/test_meu_privacy.py
           tests/hermes_cli/test_webapp_access.py
           tests/hermes_cli/test_webapp_access_ports.py
@@ -243,6 +248,7 @@ jobs:
           tests/tools/test_mcp_cimd.py
           tests/pm/test_artifact_mirror.py
           tests/scripts/test_bootstrap_mirror.py
+          tests/gateway/test_mobile_preview.py
           tests/tools/test_meu_direct_modal.py
           tests/tools/test_meu_direct_browser.py
           tests/tools/test_meu_independent_connections.py
@@ -304,7 +310,7 @@ jobs:
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
-          tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
+          tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
           tests/hermes_cli/test_serve_command.py
           tests/hermes_cli/test_fast_serve_launch.py
