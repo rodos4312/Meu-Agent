@@ -359,7 +359,17 @@ ensure_uv() {
         _tmp="$(mktemp -d 2>/dev/null || echo "/tmp/hermes-uv-bootstrap.$$")"
         mkdir -p "$_tmp"
         local _fetched_from="$UV_PIN_URL"
-        if ! curl -LsSf "$UV_PIN_URL" -o "$_tmp/uv.tar.gz"; then
+        if [ -n "${HERMES_UV_ARCHIVE:-}" ]; then
+            # Android can carry the exact pinned archive in its APK. It must
+            # pass the same checksum below before any extraction or execution.
+            _fetched_from="bundled uv archive"
+            log "Using bundled uv $UV_PIN_VERSION ($_target)"
+            if ! cp -- "$HERMES_UV_ARCHIVE" "$_tmp/uv.tar.gz"; then
+                rm -rf "$_tmp"
+                fail "failed to stage bundled uv archive"
+            fi
+        elif ! curl -LsSf --retry 4 --retry-connrefused --retry-max-time 180 \
+                --connect-timeout 15 --max-time 90 "$UV_PIN_URL" -o "$_tmp/uv.tar.gz"; then
             rm -rf "$_tmp"
             fail "failed to download pinned uv from $UV_PIN_URL"
         fi
