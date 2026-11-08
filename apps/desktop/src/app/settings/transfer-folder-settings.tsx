@@ -68,8 +68,8 @@ export function TransferFolderSettings({ profile }: { profile?: string }) {
       <h3 className="text-sm font-medium">{greek ? 'Μεταφορά αρχείων PC–κινητού' : 'PC–phone file transfers'}</h3>
       <p className="text-xs text-muted-foreground">
         {greek
-          ? 'Η συνδεδεμένη εφαρμογή μπορεί να στέλνει και να λαμβάνει αρχεία μόνο από αυτόν τον φάκελο. Τα υπάρχοντα αρχεία δεν αντικαθίστανται.'
-          : 'Your connected phone can send and receive files in this folder only. Existing files are never overwritten.'}
+          ? 'Η συνδεδεμένη εφαρμογή μπορεί να περιηγείται σε αυτόν τον φάκελο και τους υποφακέλους του και να μεταφέρει αρχεία. Τα υπάρχοντα αρχεία δεν αντικαθίστανται.'
+          : 'Your connected phone can browse this folder and its subfolders and transfer files. Existing files are never overwritten.'}
       </p>
       <p className="break-all text-xs">
         {folder?.enabled ? folder.directory : greek ? 'Δεν έχει επιλεγεί φάκελος.' : 'No folder selected.'}

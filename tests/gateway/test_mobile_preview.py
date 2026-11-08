@@ -167,6 +167,15 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
                 (shared / "from-pc.txt").write_bytes("Από το PC στο κινητό".encode())
                 assert phone.get("/api/meu-transfers/download", params={"name": "from-pc.txt", "root_id": generation}).content == (shared / "from-pc.txt").read_bytes()
                 assert phone.get("/api/meu-transfers/download", params={"name": "../config.yaml", "root_id": generation}).status_code == 400
+                (shared / "Έργο κινητού").mkdir()
+                subfolder = {"path": "Έργο κινητού", "root_id": generation}
+                nested = phone.get("/api/meu-transfers", params=subfolder)
+                assert nested.status_code == 200, nested.text
+                nested_parameters = {**subfolder, "directory_id": nested.json()["directory_id"], "name": "phone-document.bin"}
+                assert phone.post("/api/meu-transfers/upload", params=nested_parameters, content=b"separate project").status_code == 200
+                assert phone.get("/api/meu-transfers/download", params=nested_parameters).content == b"separate project"
+                assert (shared / "Έργο κινητού" / "phone-document.bin").read_bytes() == b"separate project"
+                assert (shared / "phone-document.bin").read_bytes() == phone_bytes
                 assert desktop.post("/api/meu-transfers/folder", headers=owner(), json={"directory": ""}).status_code == 200
                 assert phone.get("/api/meu-transfers/download", params=parameters).status_code == 409
                 assert phone.get("/v1/capabilities").status_code == 200

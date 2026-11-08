@@ -14,7 +14,8 @@ def mount(app, preview):
 
     async def listing(request):
         try:
-            return web.json_response(await asyncio.to_thread(folder().listing))
+            return web.json_response(await asyncio.to_thread(
+                folder().listing, request.query.get("path", ""), request.query.get("root_id")))
         except HTTPException as error:
             return web.json_response({"detail": error.detail}, status=error.status_code)
 
@@ -23,7 +24,8 @@ def mount(app, preview):
         try:
             if request.content_length is not None and request.content_length > MAX_BYTES:
                 raise HTTPException(413, "File exceeds the transfer limit.")
-            writer = folder().upload(request.query.get("name", ""), request.query.get("root_id", ""))
+            writer = folder().upload(request.query.get("name", ""), request.query.get("root_id", ""),
+                                     request.query.get("path", ""), request.query.get("directory_id"))
             async for chunk in request.content.iter_chunked(CHUNK_BYTES):
                 await transfer_io(writer.write, chunk)
             return web.json_response(await transfer_io(writer.finish))
@@ -39,7 +41,8 @@ def mount(app, preview):
         name = request.query.get("name", "")
         source = folder()
         try:
-            stream, size = source.open_download(name, generation)
+            stream, size = source.open_download(name, generation, request.query.get("path", ""),
+                                                request.query.get("directory_id"))
             response = web.StreamResponse(headers={
                 "Content-Type": "application/octet-stream", "Content-Length": str(size),
                 "Content-Disposition": "attachment; filename*=UTF-8''" + quote(name), "Cache-Control": "no-store",

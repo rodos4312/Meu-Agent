@@ -47,17 +47,18 @@ async def select_folder(request: Request, selection: Selection, profile: str | N
 
 
 @router.get("")
-async def list_files(request: Request, profile: str | None = None):
+async def list_files(request: Request, profile: str | None = None, path: str = "", root_id: str | None = None):
     folder = await folder_for(request, profile)
-    return await asyncio.to_thread(folder.listing)
+    return await asyncio.to_thread(folder.listing, path, root_id)
 
 
 @router.post("/upload")
-async def upload(request: Request, name: str, root_id: str, profile: str | None = None):
+async def upload(request: Request, name: str, root_id: str, profile: str | None = None,
+                 path: str = "", directory_id: str | None = None):
     if request.headers.get("content-length", "0").isdigit() and int(request.headers.get("content-length", "0")) > MAX_BYTES:
         raise HTTPException(413, "File exceeds the transfer limit.")
     folder = await folder_for(request, profile)
-    writer = folder.upload(name, root_id)
+    writer = folder.upload(name, root_id, path, directory_id)
     try:
         async for chunk in request.stream():
             await transfer_io(writer.write, chunk)
@@ -67,9 +68,10 @@ async def upload(request: Request, name: str, root_id: str, profile: str | None 
 
 
 @router.get("/download")
-async def download(request: Request, name: str, root_id: str, profile: str | None = None):
+async def download(request: Request, name: str, root_id: str, profile: str | None = None,
+                   path: str = "", directory_id: str | None = None):
     folder = await folder_for(request, profile)
-    stream, size = folder.open_download(name, root_id)
+    stream, size = folder.open_download(name, root_id, path, directory_id)
 
     async def chunks():
         try:

@@ -39,7 +39,7 @@ uv_bootstrap_pin() {{ UV_PIN_VERSION=fixture; UV_PIN_URL={q(url)}; UV_PIN_SHA256
 ensure_uv
 '''
     return subprocess.run(["bash", "-c", script], env=environment, text=True,
-                          capture_output=True, timeout=30)
+                          capture_output=True, timeout=30, check=False)
 
 
 def test_bundled_archive_works_without_network(tmp_path):
