@@ -27,11 +27,12 @@ def apply_selection(model, provider, config):
         return pair[1]
     if provider == 'deepseek' and model:
         config['smart_model_routing'] = {**(config.get('smart_model_routing') or {}),
-                                         'enabled': model == AUTO_MODEL,
-                                         'provider': 'deepseek',
-                                         'routine': 'deepseek-flash', 'complex': BASE_MODEL}
+                                         'enabled': model == AUTO_MODEL}
+        if model == AUTO_MODEL:
+            config['smart_model_routing'].update(provider='deepseek',
+                                                routine='deepseek-flash', complex=BASE_MODEL)
         config.setdefault('model', {})['default'] = BASE_MODEL if model == AUTO_MODEL else model
-    elif model:
+    elif model and config.get('smart_model_routing'):
         config['smart_model_routing'] = {**(config.get('smart_model_routing') or {}), 'enabled': False}
     return BASE_MODEL if model == AUTO_MODEL else model
 
