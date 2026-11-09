@@ -76,6 +76,19 @@ class LiveScope:
         db._validate_meu_sync_text(messages)
         return {'id': session_id, 'messages': messages}
 
+    def read_observation(self, session_id):
+        from hermes_state_meu_observation import read_view
+
+        self.check()
+        if not self.owns(session_id):
+            raise LookupError('Session outside pairing scope')
+        view = read_view(self.preview.authority.db, session_id)
+        live = self.preview.authority.sessions.get(session_id)
+        if live is not None and view['busy']:
+            with live.event_stream.lock:
+                view['draft'] = live.event_stream.display_draft
+        return view
+
     def create_params(self, params):
         if set(params) - _CREATE_FIELDS or params.get('source', 'gui') != 'gui':
             raise PermissionError('Unsupported mobile launch')
@@ -341,3 +354,30 @@ async def readiness(preview, request):
     except ValueError:
         raise web.HTTPBadRequest() from None
     return web.json_response({'live_view': history})
+
+
+async def observation(preview, request):
+    """Display transport only; no resume, prompt, approval or transcript mutation."""
+    from hashlib import sha256
+    from hermes_state_meu_observation import observe
+
+    scope = LiveScope(preview)
+    sid = request.match_info['session_id']
+    try:
+        if request.method == 'GET':
+            return web.json_response({'view': await asyncio.to_thread(scope.read_observation, sid)})
+        scope.check()
+        exists = await asyncio.to_thread(preview.authority.db.get_session, sid)
+        if exists is not None and not await asyncio.to_thread(scope.owns, sid):
+            raise LookupError('Session outside pairing scope')
+        view = await preview._json(request)
+        if view.get('id') != sid:
+            raise web.HTTPForbidden()
+        source = sha256(str(preview.device_id or preview.token_digest or 'phone').encode()).hexdigest()
+        async with preview.lock:
+            await asyncio.to_thread(observe, preview.authority.db, source, view, personal_space=preview.personal_space)
+        return web.json_response({'status': 'observed'})
+    except LookupError:
+        raise web.HTTPNotFound() from None
+    except ValueError:
+        raise web.HTTPBadRequest() from None

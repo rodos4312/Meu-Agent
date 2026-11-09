@@ -787,6 +787,21 @@ async def get_session_messages(
             "returned": len(projected_messages)}}
 
 
+@manage_router.get('/api/sessions/{session_id}/meu-observation')
+async def get_meu_observation(session_id: str, profile: Optional[str] = None):
+    from hermes_state_meu_observation import display_observation
+
+    def read(db):
+        sid = _resolve_session_id(db, session_id)
+        if not sid:
+            return None
+        try:
+            return display_observation(db, db.resolve_resume_session_id(sid))
+        except (LookupError, ValueError):
+            return None
+    return {'observation': await asyncio.to_thread(_with_db, profile, read, read_only=True)}
+
+
 def _timeline_session_id(db, session_id: str, owner: str) -> str:
     # Durable jump addresses are exact ids, never title/prefix guesses. A NULL
     # legacy owner belongs to this profile's store, just like /messages pages.

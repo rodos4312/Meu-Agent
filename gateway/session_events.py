@@ -19,6 +19,7 @@ class SessionEvents:
         self.sequence = 0
         self._public_id = None
         self.execution = {}
+        self.display_draft = ''
         # Synchronous same-thread recipients (API run projections): unlike fanout peers they
         # cannot lose a frame to a detach that races the writer thread.
         self.observers = set()
@@ -39,6 +40,10 @@ class SessionEvents:
         # ``execution`` stamps this frame alone; the shared stamp is read without the lock elsewhere.
         with self.lock:
             self.watermark()
+            if event_type in {'message.start', 'message.complete', 'message.error'}:
+                self.display_draft = ''
+            elif event_type == 'message.delta' and isinstance(payload, dict) and isinstance(payload.get('text'), str):
+                self.display_draft = (self.display_draft + payload['text']).encode('utf-8')[:256 * 1024].decode('utf-8', 'ignore')
             frame = {'jsonrpc': '2.0', 'method': 'event', 'params': {
                 **(self.execution if execution is None else execution), 'type': event_type, 'session_id': self._key,
                 'payload': deepcopy(payload), 'replay_epoch': self.epoch}}

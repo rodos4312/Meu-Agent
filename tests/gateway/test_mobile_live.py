@@ -100,6 +100,8 @@ async def _exercise(home, desc, model):
             opened = await phone.call('session.resume', session_id=sid, source='desktop')
             assert 'result' in opened, opened
             assert opened['result']['session_id'] == sid
+            from tests.gateway.fixtures.mobile_observation import verify_observed_submission
+            await verify_observed_submission(pc, desktop, lambda: headers(ticket(home, desc)), origin, tls, grant, sid, model)
             ack = await pc.call('prompt.submit', session_id=sid, input_id='pc-one', text='BLOCK_STARTED')
             assert 'result' in ack, ack
             started = await asyncio.to_thread(model.blocked.wait, 35)

@@ -162,8 +162,11 @@ class MobilePreview:
         if self.sync_profile:
             from gateway.mobile_live import serve as serve_live
             from gateway.mobile_live import readiness as live_readiness
+            from gateway.mobile_live import observation
             app.router.add_get('/meu/live', lambda request: serve_live(self, request), allow_head=False)
             app.router.add_get('/meu/live/sessions/{session_id}', lambda request: live_readiness(self, request), allow_head=False)
+            app.router.add_get('/meu/observe/{session_id}', lambda request: observation(self, request), allow_head=False)
+            app.router.add_put('/meu/observe/{session_id}', lambda request: observation(self, request))
             app.router.add_get("/meu/sync/sessions", self._sync_catalog, allow_head=False)
             app.router.add_get("/meu/sync/sessions/{session_id}", self._sync_export, allow_head=False)
             app.router.add_put("/meu/sync/sessions/{session_id}", self._sync_apply)
@@ -407,6 +410,7 @@ class MobilePreview:
         except ValueError:
             raise web.HTTPBadRequest() from None
         return web.json_response({**catalog,
+            **({"observations": 1} if request.query.get("live") == "1" else {}),
             **({"live_chat": 1} if request.query.get("live") == "1" else {}),
             **({"timestamps": True} if request.query.get("timestamps") == "1" else {}),
             **({"sync_recovery": 1} if request.query.get("recovery") == "1" else {})})

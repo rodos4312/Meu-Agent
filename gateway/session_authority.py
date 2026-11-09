@@ -721,12 +721,17 @@ class SessionAuthority:
             payload['local_operator_v1'] = {
                 'profile_id': self.profile_id, 'session_id': request.ref.session_id,
                 'principal_id': actor.subject}
+        write_gate = self._admission_gate(_authorize_write, queue_only=queue_only)
+        def authorize(conn):
+            from hermes_state_meu_observation import require_local_execution
+            write_gate(conn)
+            require_local_execution(self.db, request.ref.session_id, conn=conn)
         def admit():
             try:
                 return admit_session_input(self.db, epoch=self.epoch, principal_id=actor.subject,
                                            session_id=request.ref.session_id, request_id=request.request_id,
                                            payload=payload, intent=request.intent, _replay_guard=_replay_guard,
-                                           _authorize_write=self._admission_gate(_authorize_write, queue_only=queue_only))
+                                           _authorize_write=authorize)
             except Exception:
                 self._release_refused_capture(request, payload)
                 raise

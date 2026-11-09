@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { createContext, memo, useCallback, useContext, useMemo, useRef, useState } from 'react'
 
+import { MeuThreadObservation } from '@/app/chat/meu-thread-observation'
 import { ChatEmptySlot } from '@/components/assistant-ui/chat-empty-slot'
 import { AssistantMessage } from '@/components/assistant-ui/thread/assistant-message'
 import { ThreadMessageList } from '@/components/assistant-ui/thread/list'
@@ -181,7 +182,9 @@ export const Thread = memo(function Thread({
   // element every render defeats the bail-out and drags the whole transcript
   // into the switch's render pass. It takes no props, so one element is
   // always correct.
-  const loadingIndicator = useMemo(() => <BackgroundResumeNotice />, [])
+  const loadingIndicator = useMemo(() => (
+    <><MeuThreadObservation profile={scrollProfile} /><BackgroundResumeNotice /></>
+  ), [scrollProfile])
 
   return (
     <ThreadEditContext.Provider value={editContext}>
