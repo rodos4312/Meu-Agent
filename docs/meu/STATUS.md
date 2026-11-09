@@ -1,7 +1,37 @@
 # Meu development and release status
 
-Current published Windows version at preparation: [0.1.0-dev.27](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.27).
+Current published Windows version: [0.1.0-dev.28](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.28).
 Development remains on `dev/meu-foundation`; `main` is not changed.
+
+## Consolidated trial delivered — 2026-11-09
+
+Windows **dev.28** and owner-private Android **9684** are published for the
+consolidated device trial. Both embedded/source pins are
+`2006576aadc3654981baa9d0ac0af829d1d89863`; this status receipt does not rebuild
+or replace the delivered packages.
+
+All nine [Windows release gates](https://github.com/rodos4312/Meu-Agent/actions/runs/42662508876)
+passed. The native rehearsal upgraded dev.27 to dev.28 and retained fixture
+conversation, configuration, API key, memory, skill and desktop zoom. The
+separate real-backend upgrade passed. An unpublished dev.29 failure fixture
+was rejected and automatically restored the verified dev.28 desktop, real
+gateway and pre-update database, retaining the failed state for diagnosis.
+It was never a public dev.29 release. A real Windows OS reboot remains deferred.
+
+The installer and unpacked application scans were clean. The downloaded
+installer, all release assets, existing Ed25519 signature and actual public
+update feed were verified against the measured candidate. There is no paid
+Authenticode certificate. Installer SHA-256:
+`a6794ac9d6414750eabc67e1ce84c2b502751a723e59e5d8ce9f503474b700a9`.
+
+Android passed 148 Flutter tests (one Unix-only host test skipped), complete
+analysis without issues, six metadata/seed/process-bridge checks and real
+Flutter-to-PC gateway integration. APK package/version, ARM64 libraries,
+original preview signer, unchanged permissions and all embedded runtime hashes
+were verified. Sources and measured receipts are preserved in the existing
+private Android repository. Install over the existing app; do not uninstall or
+clear data. Physical-phone acceptance remains pending, including existing
+history/projects, actual tools, multiple devices and Wi-Fi/mobile-data changes.
 
 ## Consolidated trial preparation — 2026-11-09
 
