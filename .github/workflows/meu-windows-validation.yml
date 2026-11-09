@@ -53,6 +53,8 @@ on:
       - 'tests/plugins/delegation/**'
       - 'tests/agent/test_delegation*.py'
       - 'tests/tools/test_delegation*.py'
+      - 'tests/tools/test_delegate*.py'
+      - 'tests/agent/test_*cache*.py'
       - 'hermes_cli/**'
       - 'tui_gateway/**'
       - 'gateway/**'
@@ -172,6 +174,9 @@ jobs:
           tests/gateway/test_meu_sync_transport.py tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_mobile_live.py
           tests/gateway/test_mobile_device_migration.py tests/gateway/test_mobile_device_migration_live.py
+          tests/tools/test_delegate_prompt_cache.py tests/tools/test_delegate_depth_prompt.py
+          tests/agent/test_prompt_cache_prefix_contract.py
+          tests/agent/test_anthropic_prompt_cache_policy.py tests/agent/test_prompt_cache_scope.py
           tests/gateway/test_meu_sync_warm_history.py tests/tui_gateway/test_out_of_band_history_adoption.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
@@ -385,6 +390,9 @@ jobs:
           tests/gateway/test_meu_sync_transport.py tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_mobile_live.py
           tests/gateway/test_mobile_device_migration.py tests/gateway/test_mobile_device_migration_live.py
+          tests/tools/test_delegate_prompt_cache.py tests/tools/test_delegate_depth_prompt.py
+          tests/agent/test_prompt_cache_prefix_contract.py
+          tests/agent/test_anthropic_prompt_cache_policy.py tests/agent/test_prompt_cache_scope.py
           tests/gateway/test_meu_sync_warm_history.py tests/tui_gateway/test_out_of_band_history_adoption.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py

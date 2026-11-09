@@ -212,3 +212,19 @@ now available through `PluginContext.register_tool`; project batches request a
 one-hour transport budget while retaining native child iteration/stop limits.
 This closes the difference between direct registry tests and a real model tool
 call. Tests cover both normal executor dispatch and transport exclusion.
+
+## Reusable helper prompt prefix
+
+New helpers place shared workspace instructions, project context files and
+depth/capability guidance before their task-specific context. Siblings with the
+same workspace, model and tool policy can therefore retain a longer common
+request prefix. Each helper still receives its own goal, acceptance checks,
+write scope and prerequisite evidence. Existing conversations are not rewritten.
+
+Tests compare actual helper requests to an isolated recording HTTP provider and
+check that project rules stay in the common prefix while task contracts stay
+separate. This measures reusable request bytes, not live provider cache hits or
+currency savings. The selected provider decides cache eligibility and billing;
+its usage counters are needed to establish real savings on representative work.
+The shared runtime change applies to Android when its embedded engine is rebuilt
+from the matching source revision; an already installed APK is not updated here.

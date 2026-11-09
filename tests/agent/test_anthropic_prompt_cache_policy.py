@@ -639,26 +639,21 @@ class TestQwenAlibabaFamily:
 
 
 
-    def test_qwen_on_nous_portal_caches_with_envelope_layout(self):
-        # Nous Portal Qwen takes the same envelope-layout cache_control
-        # path as Portal Claude. Without this, Portal-routed qwen3.6-plus
-        # falls through to the alibaba-family check (which only matches
-        # provider=opencode/alibaba) and serves 0% cache hits.
+    def test_qwen_on_unknown_gateway_requires_explicit_cache_support(self):
+        # Model family alone does not grant cache-marker support to a relay.
         agent = _make_agent(
-            provider="nous",
-            base_url="https://inference-api.nousresearch.com/v1",
+            provider="custom",
+            base_url="https://gateway.example.invalid/v1",
             api_mode="chat_completions",
             model="qwen3.6-plus",
         )
-        assert agent._anthropic_prompt_cache_policy() == (True, False)
+        assert agent._anthropic_prompt_cache_policy() == (False, False)
 
 
-    def test_non_qwen_non_claude_on_nous_portal_does_not_cache(self):
-        # Portal scope is narrow: Claude OR Qwen only. Other models
-        # routed through Portal keep their existing fall-through behavior.
+    def test_non_qwen_non_claude_on_unknown_gateway_does_not_cache(self):
         agent = _make_agent(
-            provider="nous",
-            base_url="https://inference-api.nousresearch.com/v1",
+            provider="custom",
+            base_url="https://gateway.example.invalid/v1",
             api_mode="chat_completions",
             model="openai/gpt-5.4",
         )
@@ -974,26 +969,25 @@ class TestLiteLLMOpenAIWire:
         assert inner, "the OpenAI-wire grant must still place real breakpoints"
 
 
-class TestNousPortalAnthropicWire:
-    def test_portal_claude_on_the_messages_wire_uses_the_native_layout(self):
+class TestAnthropicGatewayWire:
+    def test_claude_on_the_messages_wire_uses_the_native_layout(self):
         agent = _make_agent(
-            provider="nous",
-            base_url="https://inference-api.nousresearch.com/v1",
+            provider="custom",
+            base_url="https://gateway.example.invalid/v1",
             api_mode="anthropic_messages",
             model="anthropic/claude-opus-4.8",
         )
         assert agent._anthropic_prompt_cache_policy() == (True, True)
 
-    def test_portal_claude_on_chat_completions_keeps_the_envelope_layout(self):
-        """The wire, not the provider, picks the layout — Portal models still on
-        /chat/completions must not be flipped to inner-block markers."""
+    def test_claude_on_an_unknown_chat_gateway_requires_explicit_cache_support(self):
+        """A Chat Completions relay must declare support before receiving markers."""
         agent = _make_agent(
-            provider="nous",
-            base_url="https://inference-api.nousresearch.com/v1",
+            provider="custom",
+            base_url="https://gateway.example.invalid/v1",
             api_mode="chat_completions",
             model="anthropic/claude-opus-4.8",
         )
-        assert agent._anthropic_prompt_cache_policy() == (True, False)
+        assert agent._anthropic_prompt_cache_policy() == (False, False)
 
 
 class TestExplicitOverrides:

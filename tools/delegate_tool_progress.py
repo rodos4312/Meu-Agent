@@ -188,8 +188,6 @@ def _build_child_system_prompt(
     # Keeping it out of the system prompt avoids sending OAuth Anthropic the
     # same task in both roles, while preserving the normal user-turn contract.
     parts = ["You are a focused subagent working on a specific delegated task."]
-    if context and context.strip():
-        parts.append(f"\nCONTEXT:\n{context}")
     if workspace_path and str(workspace_path).strip():
         parts.append(
             "\nWORKSPACE PATH:\n"
@@ -216,6 +214,10 @@ def _build_child_system_prompt(
             + f"NOTE: You are at depth {child_depth}. The delegation tree is capped at max_spawn_depth={max_spawn_depth}. "
             + child_note
         )
+    # Siblings share workspace rules and capability guidance. Keep the unique
+    # assignment last so a changed task does not invalidate that common prefix.
+    if context and context.strip():
+        parts.append(f"\nCONTEXT:\n{context}")
     return "\n".join(parts)
 
 def _resolve_workspace_hint(parent_agent) -> Optional[str]:
