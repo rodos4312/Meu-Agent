@@ -182,10 +182,16 @@ def adopt_recovered_history(db, session, session_id, ceiling):
                            ("meu.sync.revision:" + session_id,)).fetchone()
         if row is None or row[0] == observed:
             return False
-        history = db.get_messages_as_conversation(
-            session_id, repair_alternation=True, include_row_ids=True)
+        # Cut physical rows before alternation repair: otherwise the next
+        # prompt can merge into an unanswered recovered user row below it.
+        rows = db._fetch_conversation_rows([session_id], " AND active = 1", with_session_id=False)
         if ceiling is not None:
-            history = [message for message in history if message.get("_row_id", ceiling) < ceiling]
+            rows = [message for message in rows if message["id"] < ceiling]
+        history = db._rows_to_conversation(
+            rows, session_id=session_id, include_ancestors=False, repair_alternation=True,
+            include_row_ids=True, include_summary_markers=True)
+        from agent.replay_cleanup import canonicalize_replay_history
+        history = canonicalize_replay_history(history)
     with session["history_lock"]:
         if int(session.get("history_version", 0)) != version:
             raise RuntimeError("Conversation changed while loading sync recovery; retry the turn")

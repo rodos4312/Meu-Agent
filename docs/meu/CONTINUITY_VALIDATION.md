@@ -33,7 +33,7 @@ the same reviewed engine revision; a helper-only update is insufficient.
 The shared helper is pinned by its source commit and hash. The full-runtime default
 and existing package, signer, data paths and saved pairing remain unchanged.
 
-Validation: 61 backend cases passed across sync, recovery, quiescence, private
+Validation: 63 backend cases passed across sync, recovery, quiescence, private
 TLS transport, named spaces and listener restart. All 18 Android recovery/sync and
 full-flavor navigation tests passed, with targeted analysis clear. Two real
 Python bridge checks passed against both the current core and the precise
@@ -41,6 +41,10 @@ Android engine revision `6fd190781a67d20130c4febcc3c03715b5e9eefe` on Windows.
 The additional warm-history checks cover stamped/unstamped live transcripts,
 shorter/equal/longer recovery and gateway re-baselining. A Windows-only test
 harness defect was corrected so subprocess pipe readers retain real threads.
+Two further regressions were reproduced when a chosen history ended with an
+unanswered user row. Recovery now cuts at the next prompt's physical row before
+alternation repair, preventing that prompt from merging into or duplicating
+the recovered history. Both stamped and unstamped warm sessions are covered.
 These host checks are not physical Android/PRoot acceptance. Candidate builds,
 GitHub checks and the owner's already-conflicted conversation still require
 their own verification; no installed app or live transcript was changed here.

@@ -26,7 +26,7 @@ def _recover(pc, phone, extra):
     return sid, {**copies, "prefer": "phone", "expected": fingerprint(copies["pc"])}
 
 
-@pytest.mark.parametrize("extra", [0, 2, 4])
+@pytest.mark.parametrize("extra", [0, 1, 2, 4])
 @pytest.mark.parametrize("stamped", [True, False])
 def test_warm_desktop_turn_replaces_displaced_history(tmp_path, monkeypatch, extra, stamped):
     from tui_gateway import server

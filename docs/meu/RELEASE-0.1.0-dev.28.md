@@ -29,7 +29,7 @@ offline edits still require a continuation choice; no version is silently
 discarded or semantically merged. If one device changes during two-device
 recovery, its newer messages remain intact and comparison must be refreshed.
 
-Local checks cover 61 backend cases and the Android dialogs, stale-version
+Local checks cover 63 backend cases and the Android dialogs, stale-version
 refusals, private transport and named-space authorization. The real Python bridge
 was also exercised against the older pinned Android engine on the host;
 the candidate updates that engine to include warm-history reconciliation.
