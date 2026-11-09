@@ -8,6 +8,9 @@ on:
     branches: [dev/meu-foundation]
     paths:
       - gateway/mobile_preview.py
+      - gateway/mobile_live.py
+      - gateway/mobile_live_protocol.py
+      - tests/gateway/test_mobile_live.py
       - tests/gateway/test_meu_sync_listener_startup.py
       - tests/gateway/test_meu_sync_transport.py
       - .github/workflows/meu-sync-listener-check.yml
@@ -39,4 +42,5 @@ jobs:
           scripts/run_tests.sh -j 2 --file-retries 0
           tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_meu_sync_transport.py
+          tests/gateway/test_mobile_live.py
           -q

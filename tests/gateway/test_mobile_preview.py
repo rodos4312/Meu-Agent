@@ -124,7 +124,7 @@ def test_mobile_preview_pairs_and_executes_one_owned_turn(tmp_path, remote):
     start_path = f"{path}/tailscale" if remote else path
     try:
         with daemon(root, home, env, barrier=True, fixture="mobile_preview_daemon.py") as (_, desc), \
-                httpx.Client(base_url=desc["api_origin"], trust_env=False) as desktop:
+                httpx.Client(base_url=desc["api_origin"], trust_env=False, timeout=30) as desktop:
             def owner():
                 return headers(ticket(home, desc))
 
