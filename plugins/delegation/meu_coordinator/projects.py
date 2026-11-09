@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 
 from hermes_dir_acl import make_user_dir
-from pm.filesystem import durable_write_bytes, lock_path
+from pm.filesystem import durable_write_bytes, lock_path, retry_held
 from tools.delegate_workspace import local_project_root
 
 from .planning import validate_plan
@@ -81,7 +81,10 @@ class Project:
         self.file, self.record = file, record
 
     def save(self):
-        durable_write_bytes(self.file, json.dumps(self.record, ensure_ascii=True).encode("utf-8"))
+        # Windows transcript/progress readers can briefly deny the atomic rename.
+        # Retain the completed checkpoint through the existing bounded hold retry.
+        data = json.dumps(self.record, ensure_ascii=True).encode("utf-8")
+        retry_held(lambda: durable_write_bytes(self.file, data))
 
     def refresh(self):
         """An acquired project lock proves no previous coordinator run still owns it."""

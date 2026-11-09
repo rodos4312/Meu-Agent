@@ -180,6 +180,7 @@ jobs:
           tests/hermes_cli/test_source_completion_stamp.py
           tests/plugins/delegation/test_meu_projects.py
           tests/plugins/delegation/test_meu_project_background.py
+          tests/plugins/delegation/test_meu_project_checkpoint_windows.py
           tests/tools/test_async_delegation.py
           tests/tools/test_delegate_capacity_interrupt.py
           tests/tools/test_delegate_apiserver_background.py
@@ -391,6 +392,7 @@ jobs:
           tests/hermes_cli/test_source_completion_stamp.py
           tests/plugins/delegation/test_meu_projects.py
           tests/plugins/delegation/test_meu_project_background.py
+          tests/plugins/delegation/test_meu_project_checkpoint_windows.py
           tests/tools/test_async_delegation.py
           tests/tools/test_delegate_capacity_interrupt.py
           tests/tools/test_delegate_apiserver_background.py
