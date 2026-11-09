@@ -1,6 +1,7 @@
 # Personal spaces and individually paired devices
 
-Unreleased source change; no APK, installer, version tag or release is produced.
+Included in the Windows dev.27 candidate, for testing with Meu Mobile 9680.
+Physical multi-phone acceptance remains separate from source and CI checks.
 
 ## The simple flow
 
