@@ -9,7 +9,7 @@ interface FolderState {
   directory?: string
 }
 
-export function TransferFolderSettings({ profile }: { profile?: string }) {
+export function TransferFolderSettings({ profile, embedded = false }: { profile?: string; embedded?: boolean }) {
   const { locale } = useI18n()
   const greek = locale === 'el'
   const [folder, setFolder] = useState<FolderState>()
@@ -64,7 +64,7 @@ export function TransferFolderSettings({ profile }: { profile?: string }) {
   }
 
   return (
-    <section className="mt-4 space-y-3 rounded-md border p-4">
+    <section className={embedded ? 'space-y-3' : 'mt-4 space-y-3 rounded-md border p-4'}>
       <h3 className="text-sm font-medium">{greek ? 'Μεταφορά αρχείων PC–κινητού' : 'PC–phone file transfers'}</h3>
       <p className="text-xs text-muted-foreground">
         {greek

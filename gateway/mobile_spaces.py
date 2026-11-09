@@ -35,15 +35,49 @@ class PersonalDevices:
         self.store = store
         self.lock = threading.RLock()
 
-    def _read(self):
-        raw = self.store.get_meta(KEY)
+    def _read(self, conn=None):
+        if conn is None:
+            raw = self.store.get_meta(KEY)
+        else:
+            row = conn.execute('SELECT value FROM state_meta WHERE key = ?', (KEY,)).fetchone()
+            raw = row[0] if row else None
         data = json.loads(raw) if raw else {'spaces': {}, 'devices': {}}
         if not isinstance(data, dict) or not isinstance(data.get('spaces'), dict) or not isinstance(data.get('devices'), dict):
             raise HTTPException(503, 'The device list could not be read. Existing data was kept.')
         return data
 
-    def _save(self, data):
-        self.store.set_meta(KEY, json.dumps(data, ensure_ascii=True))
+    def _save(self, data, conn=None):
+        self.store.set_meta(KEY, json.dumps(data, ensure_ascii=True), cursor=conn)
+
+    def owner_space(self, data, authority, name=None):
+        existing = next((s for s in data['spaces'].values()
+                         if s['profile'] == authority.profile_id and s.get('owner') is True), None)
+        if existing:
+            return existing
+        name = space_name(name or 'PC owner')
+        if any(s['profile'] == authority.profile_id and s['name'].casefold() == name.casefold()
+               for s in data['spaces'].values()):
+            raise HTTPException(409, 'Choose a different owner name. Existing personal spaces keep their access.')
+        space = {'id': uuid.uuid4().hex, 'profile': authority.profile_id, 'name': name, 'owner': True}
+        data['spaces'][space['id']] = space
+        return space
+
+    def new_device(self, data, authority, space, label=None):
+        if len(data['devices']) >= MAX_DEVICES:
+            raise HTTPException(409, 'Remove an unused device before adding another.')
+        device = {'id': uuid.uuid4().hex, 'space_id': space['id'], 'profile': authority.profile_id,
+                  'label': space_name(label) if label else space['name'],
+                  'created_at': datetime.now(UTC).isoformat(), 'last_contact': None}
+        data['devices'][device['id']] = device
+        return device
+
+    def add_owner(self, authority, *, name=None, label=None):
+        with self.lock:
+            data = self._read()
+            space = self.owner_space(data, authority, name)
+            device = self.new_device(data, authority, space, label)
+            self._save(data)
+            return dict(device), dict(space)
 
     def add(self, authority, *, name=None, space_id=None, label=None):
         label = space_name(label) if label else None
@@ -55,7 +89,8 @@ class PersonalDevices:
                 space = data['spaces'].get(space_id)
                 if not space or space['profile'] != authority.profile_id:
                     raise HTTPException(404, 'Personal space not found.')
-                space_root(authority, space)
+                if not space.get('owner'):
+                    space_root(authority, space)
             else:
                 name = space_name(name)
                 if any(s['profile'] == authority.profile_id and s['name'].casefold() == name.casefold()
@@ -115,7 +150,8 @@ class PersonalDevices:
         with self.lock:
             data = self._read()
             return {
-                'spaces': [{'id': s['id'], 'name': s['name']} for s in data['spaces'].values() if s['profile'] == profile],
+                'spaces': [{'id': s['id'], 'name': s['name'], 'owner': s.get('owner') is True}
+                           for s in data['spaces'].values() if s['profile'] == profile],
                 'devices': [{key: d[key] for key in ('id', 'space_id', 'label', 'created_at', 'last_contact')}
                             | {'paired': bool(d.get('pairing'))}
                             for d in data['devices'].values() if d['profile'] == profile],

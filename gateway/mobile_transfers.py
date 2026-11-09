@@ -5,15 +5,13 @@ from urllib.parse import quote
 from aiohttp import web
 from fastapi import HTTPException
 
-from hermes_cli.meu_transfers import CHUNK_BYTES, MAX_BYTES, TransferFolder, transfer_io
+from hermes_cli.meu_transfers import CHUNK_BYTES, MAX_BYTES, transfer_io
 
 
 def mount(app, preview):
     def folder():
-        if getattr(preview, 'personal_devices', None):
-            from hermes_cli.meu_transfer_spaces import SpaceTransferFolder
-            return SpaceTransferFolder(preview.authority, preview.personal_devices, preview.device_id)
-        return TransferFolder(preview.authority)
+        from hermes_cli.meu_transfer_spaces import MobileTransferFolder
+        return MobileTransferFolder(preview)
 
     async def listing(request):
         try:

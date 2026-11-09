@@ -171,6 +171,7 @@ jobs:
           tests/hermes_state/test_meu_sync_quiescence.py tests/hermes_state/test_meu_sync_recovery.py
           tests/gateway/test_meu_sync_transport.py tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_mobile_live.py
+          tests/gateway/test_mobile_device_migration.py tests/gateway/test_mobile_device_migration_live.py
           tests/gateway/test_meu_sync_warm_history.py tests/tui_gateway/test_out_of_band_history_adoption.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py
@@ -255,7 +256,7 @@ jobs:
         working-directory: apps/desktop
         run: |
           $env:HERMES_DESKTOP_PYTHON = $env:HERMES_PYTHON
-          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-continuity.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-project-memory.spec.ts e2e/meu-deliverables.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts e2e/meu-provider-cleanup.spec.ts --reporter=list --workers=1
+          npx playwright test e2e/meu-navigation.spec.ts e2e/meu-devices.spec.ts e2e/meu-continuity.spec.ts e2e/meu-coordinator.spec.ts e2e/meu-project-memory.spec.ts e2e/meu-deliverables.spec.ts e2e/meu-auto.spec.ts e2e/meu-updates.spec.ts e2e/meu-provider-cleanup.spec.ts --reporter=list --workers=1
       - name: Preserve navigation screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -383,6 +384,7 @@ jobs:
           tests/hermes_state/test_meu_sync_quiescence.py tests/hermes_state/test_meu_sync_recovery.py
           tests/gateway/test_meu_sync_transport.py tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_mobile_live.py
+          tests/gateway/test_mobile_device_migration.py tests/gateway/test_mobile_device_migration_live.py
           tests/gateway/test_meu_sync_warm_history.py tests/tui_gateway/test_out_of_band_history_adoption.py
           tests/hermes_cli/test_source_backend_only.py tests/hermes_cli/test_models.py tests/hermes_cli/test_proxy.py tests/hermes_cli/test_curses_gauge_bars.py
           tests/hermes_cli/test_source_build.py

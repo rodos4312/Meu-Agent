@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { hermesApi } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { writeClipboardText } from '@/lib/clipboard'
+import { LegacyDeviceMigration } from './legacy-device-migration'
+import { TransferFolderSettings } from './transfer-folder-settings'
 
 interface PersonalDevice {
   id: string
@@ -13,11 +15,14 @@ interface PersonalDevice {
   last_contact: string | null
 }
 interface DeviceList {
-  spaces: { id: string; name: string }[]
+  management_version?: number
+  spaces: { id: string; name: string; owner?: boolean }[]
   devices: PersonalDevice[]
+  legacy?: { state: string; kind?: string; can_migrate: boolean } | null
 }
 interface Enrolment {
   device_id: string
+  space_id?: string
   space_name: string
   code: string
 }
@@ -32,6 +37,7 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
   const [selected, setSelected] = useState('')
   const [name, setName] = useState('')
   const [label, setLabel] = useState('')
+  const [ownerDevice, setOwnerDevice] = useState(false)
   const [enrolment, setEnrolment] = useState<Enrolment>()
   const [qr, setQr] = useState<{ code: string; image: string }>()
   const [busy, setBusy] = useState(false)
@@ -60,7 +66,7 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
           }
         }
       } catch {
-        // Keep the last device list during a transient outage. Mutations report their own refusal.
+        if (current) setError('Could not read devices. Existing connections are kept. Retry below.')
       } finally {
         if (current) {
           timer = setTimeout(() => void read(), 4000)
@@ -112,12 +118,13 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
         path: PATH,
         profile,
         body: {
-          ...(selected ? { space_id: selected } : { name: name.trim() }),
+          ...(selected ? { space_id: selected } : { name: name.trim(), owner: ownerDevice }),
           ...(label.trim() ? { label: label.trim() } : {})
         }
       })
 
       setEnrolment(result)
+      if (result.space_id) setSelected(result.space_id)
       setName('')
       setLabel('')
       setRevision(r => r + 1)
@@ -150,67 +157,104 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
     }
   }
 
-  // Older gateways retain their existing pairing controls; no fallback widens a personal grant.
-  if (!data) {
-    return null
-  }
-
   return (
-    <section aria-labelledby="personal-devices-title" className="mt-6 rounded-xl border border-border p-4">
+    <section aria-labelledby="personal-devices-title" className="mt-6 space-y-4">
       <h3 className="text-sm font-semibold" id="personal-devices-title">
-        Users and devices
+        Devices and sharing
       </h3>
       <p className="mt-2 text-xs text-muted-foreground">
-        Each name or nickname creates its own folder inside your selected shared folder. Devices of the same user share
-        that space. This pairing syncs that user’s conversation history and files. The PC owner can see all spaces.
+        Each device pairs once with its own QR. Select the same user for their additional devices. Owner devices keep
+        the existing PC workspace. Separate users have a named subfolder inside your shared folder.
       </p>
-      <div className="my-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs">
-          Personal space
-          <select
-            className="mt-1 block w-full rounded border bg-background p-2"
-            disabled={busy}
-            onChange={e => setSelected(e.target.value)}
-            value={selected}
-          >
-            <option value="">New user</option>
-            {data.spaces.map(space => (
-              <option key={space.id} value={space.id}>
-                {space.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {!selected && (
-          <label className="text-xs">
-            Name / nickname
-            <input
-              className="mt-1 block w-full rounded border bg-background p-2"
-              disabled={busy}
-              maxLength={80}
-              onChange={e => setName(e.target.value)}
-              value={name}
-            />
-          </label>
-        )}
-        <label className="text-xs">
-          Device name (optional)
-          <input
-            className="mt-1 block w-full rounded border bg-background p-2"
-            disabled={busy}
-            maxLength={80}
-            onChange={e => setLabel(e.target.value)}
-            placeholder="My phone"
-            value={label}
-          />
-        </label>
-      </div>
-      <Button disabled={busy || (!selected && !name.trim()) || !!enrolment} onClick={() => void add()} size="sm">
-        Add device · show QR
-      </Button>
+      {data?.legacy && (
+        <LegacyDeviceMigration
+          profile={profile}
+          legacy={data.legacy}
+          owner={data.spaces.find(space => space.owner)?.name}
+          onChanged={spaceId => {
+            if (spaceId) setSelected(spaceId)
+            setRevision(value => value + 1)
+          }}
+        />
+      )}
+      {data?.management_version === 2 ? (
+        <>
+          <div className="my-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-xs">
+              Personal space
+              <select
+                className="mt-1 block w-full rounded border bg-background p-2"
+                disabled={busy}
+                onChange={e => setSelected(e.target.value)}
+                value={selected}
+              >
+                <option value="">New user</option>
+                {data.spaces.map(space => (
+                  <option key={space.id} value={space.id}>
+                    {space.name}
+                    {space.owner ? ' · Owner' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!selected && (
+              <label className="text-xs">
+                Name / nickname
+                <input
+                  className="mt-1 block w-full rounded border bg-background p-2"
+                  disabled={busy}
+                  maxLength={80}
+                  onChange={e => setName(e.target.value)}
+                  value={name}
+                />
+              </label>
+            )}
+            {!selected && (
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  checked={ownerDevice}
+                  disabled={busy}
+                  onChange={event => setOwnerDevice(event.target.checked)}
+                  type="checkbox"
+                />
+                This is my device · PC owner
+              </label>
+            )}
+            <label className="text-xs">
+              Device name (optional)
+              <input
+                className="mt-1 block w-full rounded border bg-background p-2"
+                disabled={busy}
+                maxLength={80}
+                onChange={e => setLabel(e.target.value)}
+                placeholder="My phone"
+                value={label}
+              />
+            </label>
+          </div>
+          <Button disabled={busy || (!selected && !name.trim()) || !!enrolment} onClick={() => void add()} size="sm">
+            Add device · show QR
+          </Button>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {data ? 'Update Meu on the PC to use unified device management.' : 'Loading device connections…'}
+        </p>
+      )}
       {error && (
         <p className="mt-2 text-xs text-destructive" role="alert">
-          {error}
+          {error}{' '}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              setError('')
+              setRevision(value => value + 1)
+            }}
+          >
+            Retry
+          </Button>
         </p>
       )}
       {enrolment && (
@@ -232,7 +276,7 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
         </div>
       )}
       <ul className="mt-4 space-y-3">
-        {data.devices.map(device => (
+        {data?.devices.map(device => (
           <li className="flex items-center justify-between gap-3 rounded border p-3 text-xs" key={device.id}>
             <div>
               <strong>{device.label}</strong> · {data.spaces.find(s => s.id === device.space_id)?.name}
@@ -250,6 +294,7 @@ function PersonalDevicesControls({ profile }: { profile?: string }) {
       <p className="mt-3 text-xs text-muted-foreground">
         Disconnecting a device keeps its user’s folder and history. Select that user when pairing a replacement.
       </p>
+      <TransferFolderSettings profile={profile} embedded />
     </section>
   )
 }

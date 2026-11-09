@@ -36,7 +36,7 @@ it('creates a named space then pairs another device to that same space and revok
         devices.splice(index, 1)
       }
 
-      return { spaces: [space], devices: devices.map(d => ({ ...d })) }
+      return { management_version: 2, spaces: [space], devices: devices.map(d => ({ ...d })) }
     }
   )
 
@@ -51,7 +51,7 @@ it('creates a named space then pairs another device to that same space and revok
       method: 'POST',
       profile: 'work',
       connectionId: 'local',
-      body: { name: 'Λάζαρος', label: 'Κινητό 1' }
+      body: { name: 'Λάζαρος', label: 'Κινητό 1', owner: false }
     })
   )
   // An application reopen reads the durable list; it never mints a second QR automatically.
@@ -81,7 +81,7 @@ it('retains the user form after a refusal and never falls back to unrestricted p
       throw new Error('folder exists')
     }
 
-    return { spaces: [], devices: [] }
+    return { management_version: 2, spaces: [], devices: [] }
   })
 
   vi.stubGlobal('hermesDesktop', { api })
@@ -90,7 +90,32 @@ it('retains the user form after a refusal and never falls back to unrestricted p
   fireEvent.click(screen.getByRole('button', { name: 'Add device · show QR' }))
   expect((await screen.findByRole('alert')).textContent).toContain('select an existing user')
   expect((screen.getByLabelText('Name / nickname') as HTMLInputElement).value).toBe('Existing')
-  expect(api.mock.calls.every(([args]) => (args as { path?: string }).path === '/api/mobile-preview/devices')).toBe(
-    true
+  expect(
+    api.mock.calls
+      .filter(([args]) => args.method === 'POST')
+      .every(([args]) => (args as { path?: string }).path === '/api/mobile-preview/devices')
+  ).toBe(true)
+})
+
+it('requires an explicit owner choice before pairing a device to the PC workspace', async () => {
+  const api = vi.fn(async ({ method }: { method?: string }) => {
+    if (method === 'POST') return { device_id: 'owner-phone', space_name: 'Owner', code: 'meusync2.fixture' }
+    return { management_version: 2, spaces: [], devices: [] }
+  })
+  vi.stubGlobal('hermesDesktop', { api })
+  render(<PersonalDevicesSettings />)
+  const owner = await screen.findByRole('checkbox', { name: 'This is my device · PC owner' })
+  expect((owner as HTMLInputElement).checked).toBe(false)
+  fireEvent.change(screen.getByLabelText('Name / nickname'), { target: { value: 'Owner' } })
+  fireEvent.click(owner)
+  fireEvent.click(screen.getByRole('button', { name: 'Add device · show QR' }))
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'POST',
+        path: '/api/mobile-preview/devices',
+        body: { name: 'Owner', owner: true }
+      })
+    )
   )
 })

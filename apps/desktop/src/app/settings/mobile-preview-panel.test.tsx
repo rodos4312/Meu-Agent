@@ -1,227 +1,91 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-
 import { $apiRequestScope } from '@/api/client'
-
 import { MobilePreviewPanel } from './mobile-preview-panel'
 
 vi.mock('qrcode', () => ({ toDataURL: async () => 'data:image/png;base64,QR' }))
-
 afterEach(() => {
   cleanup()
   $apiRequestScope.set({ connectionId: null, profile: null })
   vi.unstubAllGlobals()
 })
 
-it('shows the local profile QR after an explicit start and clears it on disconnect', async () => {
-  let state: { state: string; code?: string; seconds?: number } = { state: 'off' }
-
-  const api = vi.fn(async ({ method }: { method?: string }) => {
-    if (method === 'POST') {
-      state = { state: 'waiting', code: 'meu2.test', seconds: 300 }
-    }
-
-    if (method === 'DELETE') {
-      state = { state: 'off' }
-    }
-
-    return state
-  })
-
-  $apiRequestScope.set({ connectionId: null, profile: 'work' })
-  vi.stubGlobal('hermesDesktop', { api })
-  render(<MobilePreviewPanel />)
-
-  expect(screen.queryByRole('img')).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Show pairing code' }))
-  expect(await screen.findByRole('img', { name: 'Meu pairing QR code' })).toBeTruthy()
-  expect(api).toHaveBeenCalledWith(
-    expect.objectContaining({
-      method: 'POST',
-      path: '/api/mobile-preview',
-      connectionId: 'local',
-      profile: 'work'
-    })
-  )
-
-  fireEvent.click(screen.getByRole('button', { name: 'Disconnect phone' }))
-  await screen.findByRole('button', { name: 'Show pairing code' })
-  expect(screen.queryByRole('img')).toBeNull()
-  expect(api).toHaveBeenCalledWith(
-    expect.objectContaining({ method: 'DELETE', connectionId: 'local', profile: 'work' })
-  )
-})
-
-it('requests remote pairing only when selected and leaves the user a retry path', async () => {
-  let state: { state: string; code?: string; seconds?: number } = { state: 'off' }
-
+function setup(failMigration = false) {
+  let migrated = false
+  const owner = { id: 'a'.repeat(32), name: 'Owner', owner: true }
   const api = vi.fn(async ({ path, method }: { path: string; method?: string }) => {
-    if (method === 'POST') {
-      if (path.endsWith('/internet')) {
-        throw new Error('Meu relay unavailable')
-      }
-
-      state = { state: 'waiting', code: 'meu2.test', seconds: 300 }
+    if (path === '/api/meu-transfers') return { enabled: true, directory: 'C:/fixture/shared' }
+    if (path.endsWith('/migrate') && method === 'POST') {
+      if (failMigration) throw new Error('controlled refusal')
+      migrated = true
+      return { migrated: true, device_id: 'old-phone', space_id: owner.id, space_name: owner.name }
     }
-
-    return state
+    return {
+      management_version: 2,
+      spaces: migrated ? [owner] : [],
+      devices: migrated
+        ? [
+            {
+              id: 'old-phone',
+              space_id: owner.id,
+              label: 'Existing phone',
+              paired: true,
+              state: 'paired',
+              last_contact: null
+            }
+          ]
+        : [],
+      legacy: migrated ? null : { state: 'paired', kind: 'profile', can_migrate: true }
+    }
   })
-
   vi.stubGlobal('hermesDesktop', { api })
-  render(<MobilePreviewPanel />)
-
-  const remote = screen.getByRole('checkbox', { name: 'Connect from outside home' })
-  fireEvent.click(remote)
-  fireEvent.click(screen.getByRole('button', { name: 'Show pairing code' }))
-  expect((await screen.findByRole('alert')).textContent).toContain('Could not start internet pairing')
-  expect(api).toHaveBeenCalledWith(
-    expect.objectContaining({
-      method: 'POST',
-      path: '/api/mobile-preview/internet',
-      connectionId: 'local'
-    })
-  )
-  expect(screen.queryByRole('img')).toBeNull()
-
-  fireEvent.click(remote)
-  fireEvent.click(screen.getByRole('button', { name: 'Show pairing code' }))
-  expect(await screen.findByRole('img', { name: 'Meu pairing QR code' })).toBeTruthy()
-})
-
-it('shares only the explicitly selected local conversation in sync mode', async () => {
-  const sessionId = 'local-' + 'a'.repeat(64)
-  let pairing: { state: string; code?: string; seconds?: number; sync?: boolean } = { state: 'off' }
-
-  const api = vi.fn(async ({ method, path }: { method?: string; path: string }) => {
-    if (path.startsWith('/api/sessions?')) {
-      return { sessions: [{ id: sessionId, title: 'Trip plans' }] }
-    }
-
-    if (method === 'POST') {
-      pairing = { state: 'waiting', code: 'meusync1.test', seconds: 300, sync: true }
-    }
-
-    return pairing
-  })
-
   $apiRequestScope.set({ connectionId: null, profile: 'work' })
-  vi.stubGlobal('hermesDesktop', { api })
-  render(<MobilePreviewPanel />)
+  return api
+}
 
-  fireEvent.click(screen.getByRole('radio', { name: /^Sync conversation history/ }))
-  const button = screen.getByRole('button', { name: 'Show pairing code' })
-  expect((button as HTMLButtonElement).disabled).toBe(true)
-  await screen.findByRole('option', { name: 'Trip plans' })
-  fireEvent.change(screen.getByRole('combobox', { name: 'Conversation to share' }), {
-    target: { value: sessionId }
-  })
-  fireEvent.click(button)
-  expect(await screen.findByRole('img', { name: 'Meu pairing QR code' })).toBeTruthy()
+it('offers one management surface and migrates the existing grant without re-pairing or deleting it', async () => {
+  const api = setup()
+  render(<MobilePreviewPanel />)
+  await screen.findByRole('button', { name: 'Keep existing connection' })
+  expect(screen.queryByRole('button', { name: 'Show pairing code' })).toBeNull()
+  expect(screen.getAllByRole('heading', { name: 'Devices and sharing' })).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Keep existing connection' }))
+  fireEvent.change(screen.getByLabelText('Your name / nickname'), { target: { value: 'Owner' } })
+  fireEvent.change(screen.getByLabelText('Existing device name (optional)'), { target: { value: 'Existing phone' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Finish migration' }))
+  await screen.findByRole('button', { name: 'Disconnect Existing phone' })
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Keep existing connection' })).toBeNull())
   expect(api).toHaveBeenCalledWith(
     expect.objectContaining({
       method: 'POST',
-      path: '/api/mobile-preview/sync',
-      connectionId: 'local',
       profile: 'work',
-      body: { session_id: sessionId }
+      path: '/api/mobile-preview/devices/migrate',
+      body: { name: 'Owner', label: 'Existing phone' }
     })
   )
+  expect(api.mock.calls.some(([args]) => args.method === 'DELETE')).toBe(false)
+  expect(screen.queryByRole('img')).toBeNull()
+  expect(screen.getByText('C:/fixture/shared')).toBeTruthy()
+  expect((screen.getByLabelText('Personal space') as HTMLSelectElement).value).toBe('a'.repeat(32))
 })
 
-it('reports service readiness without claiming a completed history sync', async () => {
-  const api = vi.fn(async () => ({
-    state: 'paired',
-    sync: true,
-    sync_profile: true,
-    listener_count: 1,
-    offline: false,
-    last_contact: null
-  }))
+it('keeps the old connection and entered details visible after a refused migration', async () => {
+  const api = setup(true)
+  render(<MobilePreviewPanel />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Keep existing connection' }))
+  fireEvent.change(screen.getByLabelText('Your name / nickname'), { target: { value: 'Owner' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Finish migration' }))
+  expect((await screen.findByRole('alert')).textContent).toContain('conversations and files were kept')
+  expect((screen.getByLabelText('Your name / nickname') as HTMLInputElement).value).toBe('Owner')
+  expect(screen.getByRole('button', { name: 'Disconnect existing connection' })).toBeTruthy()
+  expect(api.mock.calls.some(([args]) => args.method === 'DELETE')).toBe(false)
+})
 
+it('does not create or widen a grant when the backend lacks unified management', async () => {
+  const api = vi.fn(async () => ({ spaces: [], devices: [] }))
   vi.stubGlobal('hermesDesktop', { api })
   render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toContain('sync service ready')
-  expect(screen.getByText(/No phone contact recorded/).textContent).toContain('Phone contact does not confirm')
-})
-
-it('shows the last phone contact separately from service readiness', async () => {
-  const contact = '2026-11-07T09:30:00Z'
-
-  const api = vi.fn(async () => ({
-    state: 'paired',
-    sync: true,
-    sync_profile: true,
-    listener_count: 1,
-    offline: false,
-    last_contact: contact
-  }))
-
-  vi.stubGlobal('hermesDesktop', { api })
-  render(<MobilePreviewPanel />)
-
-  const status = await screen.findByText(/Last phone contact:/)
-  expect(status.textContent).toContain(new Date(contact).toLocaleString())
-  expect(screen.queryByText(/No phone contact recorded/)).toBeNull()
-})
-
-it('identifies a single-history pairing without claiming PC agent access', async () => {
-  vi.stubGlobal('hermesDesktop', {
-    api: vi.fn(async () => ({
-      state: 'paired',
-      sync: true,
-      seconds: 300
-    }))
-  })
-  render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toBe('Phone paired for history sync')
-  expect(screen.getByText(/History sync does not transfer tools/)).toBeTruthy()
-  expect(screen.queryByText(/Phone paired for PC access/)).toBeNull()
-})
-
-it('does not invent an expiry when a paired backend omits its remaining time', async () => {
-  vi.stubGlobal('hermesDesktop', { api: vi.fn(async () => ({ state: 'paired' })) })
-  render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toBe('Phone paired for PC access')
-  expect(screen.getByText(/The PC runs the agent/)).toBeTruthy()
-})
-
-it('allows status recovery after an initial read failure without creating a pairing', async () => {
-  const api = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ state: 'off' })
-  vi.stubGlobal('hermesDesktop', { api })
-  render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toContain('could not be refreshed')
-  fireEvent.click(screen.getByRole('button', { name: 'Check connection' }))
-  await waitFor(() => expect(screen.queryByText(/could not be refreshed/)).toBeNull())
-  expect(api.mock.calls.every(([request]) => !request.method || request.method === 'GET')).toBe(true)
-})
-
-it('never presents a paired sync with zero listeners as ready', async () => {
-  vi.stubGlobal('hermesDesktop', {
-    api: vi.fn(async () => ({
-      state: 'paired',
-      sync: true,
-      listener_count: 0,
-      offline: false
-    }))
-  })
-  render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toContain('sync service unavailable')
-  expect(screen.queryByText(/sync service ready/)).toBeNull()
-})
-
-it('recognizes the profile sync flag on older backend status responses', async () => {
-  vi.stubGlobal('hermesDesktop', {
-    api: vi.fn(async () => ({
-      state: 'paired',
-      sync_profile: true
-    }))
-  })
-  render(<MobilePreviewPanel />)
-
-  expect((await screen.findByRole('status')).textContent).toBe('Phone paired for history sync')
+  await screen.findByText('Update Meu on the PC to use unified device management.')
+  expect(screen.queryByRole('button', { name: 'Add device · show QR' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Show pairing code' })).toBeNull()
 })

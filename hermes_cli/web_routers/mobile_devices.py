@@ -30,33 +30,70 @@ async def devices(request: Request):
         device['state'] = status['state']
         device['last_contact'] = status.get('last_contact') or device['last_contact']
         device['offline'] = status.get('offline', True)
+    value['management_version'] = 2
+    value['legacy'] = await legacy_status(state, authority)
     return _state(value)
+
+
+async def legacy_status(state, authority):
+    from hermes_cli.web_routers.mobile_preview import _saved_pairing
+    preview = getattr(state, 'mobile_preview', None)
+    if preview and preview.state()['state'] != 'off':
+        if preview.authority is not authority:
+            return {'state': 'other-profile', 'can_migrate': False}
+        return {'state': preview.state()['state'],
+                'can_migrate': bool(preview.sync_profile and preview.token_digest),
+                'kind': 'profile' if preview.sync_profile else 'temporary'}
+    saved = await _saved_pairing(state)
+    if saved:
+        own = saved[0]['profile'] == authority.profile_id
+        return {'state': 'paired' if own else 'other-profile', 'can_migrate': own, 'kind': 'profile'}
+    return None
 
 
 class Enrolment(BaseModel):
     name: str | None = Field(default=None, max_length=80)
     space_id: str | None = Field(default=None, pattern=r'^[0-9a-f]{32}$')
     label: str | None = Field(default=None, max_length=80)
+    owner: bool = False
+
+
+def device_networks():
+    """Retain private VPN reachability without requiring a second pairing form."""
+    from gateway.mobile_preview import local_network, tailscale_network
+    interfaces = []
+    for discover in (local_network, tailscale_network):
+        try:
+            interface = discover()
+            if interface not in interfaces:
+                interfaces.append(interface)
+        except (ValueError, OSError):
+            pass
+    if not interfaces:
+        raise HTTPException(503, 'Connect the PC to Wi-Fi or Tailscale first.')
+    return interfaces
 
 
 @router.post('')
 async def add_device(request: Request, selection: Enrolment):
-    from gateway.mobile_preview import MobilePreview, local_network
+    from gateway.mobile_preview import MobilePreview
     from hermes_cli.web_routers.mobile_preview import _lock, _scope, _state
 
     state, authority = _scope(request)
-    if bool(selection.name) == bool(selection.space_id):
+    if bool(selection.name) == bool(selection.space_id) or (selection.owner and selection.space_id):
         raise HTTPException(422, 'Enter a new name or select an existing personal space.')
     async with _lock(state):
         service = registry(state)
         # Probe connectivity before creating a folder or an enrolment record.
-        try:
-            interface = await asyncio.to_thread(local_network)
-        except (ValueError, OSError) as exc:
-            raise HTTPException(503, 'Connect the PC to the local network first.') from exc
-        device, space = await asyncio.to_thread(service.add, authority, name=selection.name,
-                                               space_id=selection.space_id, label=selection.label)
-        preview = MobilePreview(authority, interface, sync_profile=True, pairing_store=service.store,
+        interfaces = await asyncio.to_thread(device_networks)
+        if selection.owner:
+            device, space = await asyncio.to_thread(service.add_owner, authority,
+                                                    name=selection.name, label=selection.label)
+        else:
+            device, space = await asyncio.to_thread(service.add, authority, name=selection.name,
+                                                   space_id=selection.space_id, label=selection.label)
+        preview = MobilePreview(authority, interfaces[0], sync_profile=True,
+                                sync_tailscale=interfaces[1] if len(interfaces) > 1 else None, pairing_store=service.store,
                                 personal_devices=service, device_id=device['id'])
         try:
             await preview.start()
@@ -65,7 +102,44 @@ async def add_device(request: Request, selection: Enrolment):
             await preview.close()
             raise
         state.personal_device_listeners[device['id']] = preview
-        return _state({'device_id': device['id'], 'space_name': space['name'], **preview.state()})
+        return _state({'device_id': device['id'], 'space_id': space['id'], 'space_name': space['name'], **preview.state()})
+
+
+class Migration(BaseModel):
+    name: str | None = Field(default=None, max_length=80)
+    label: str | None = Field(default=None, max_length=80)
+
+
+@router.post('/migrate')
+async def migrate_device(request: Request, selection: Migration):
+    from hermes_cli.web_routers.mobile_preview import _lock, _saved_pairing, _scope, _state
+    state, authority = _scope(request)
+
+    async def finish():
+        from gateway.mobile_device_migration import migrate_owner
+        saved = await _saved_pairing(state)
+        if saved and saved[0]['profile'] != authority.profile_id:
+            raise HTTPException(409, 'Switch to the profile that owns the existing connection.')
+        service = registry(state)
+        device, space = await asyncio.to_thread(migrate_owner, service, authority,
+            saved[0] if saved else None, name=selection.name, label=selection.label)
+        preview = getattr(state, 'mobile_preview', None)
+        if preview and preview.authority is authority and preview.sync_profile:
+            preview.personal_devices, preview.device_id = service, device['id']
+            preview.personal_space = None  # The pre-existing PC-owner grant stays identical.
+            state.personal_device_listeners[device['id']] = preview
+            state.mobile_preview = None
+        return _state({'migrated': True, 'device_id': device['id'], 'space_id': space['id'], 'space_name': space['name']})
+
+    async with _lock(state):
+        # Once committed, complete the in-memory handoff even if the HTTP viewer
+        # disconnects. A process crash restores the same saved ports/pin/key.
+        task = asyncio.create_task(finish())
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await task
+            raise
 
 
 @router.delete('/{device_id}')

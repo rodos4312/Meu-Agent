@@ -38,6 +38,8 @@ class SpaceTransferFolder(TransferFolder):
 
     def grant(self, expected=None):
         _device, space = self.registry.scope(self.authority.profile_id, self.device_id)
+        if space.get('owner') is True:
+            return super().grant(expected)
         root, generation = space_root(self.authority, space)
         # A different person's generation is never a valid capability here.
         scoped_generation = f"{generation}:{space['id']}"
@@ -47,3 +49,16 @@ class SpaceTransferFolder(TransferFolder):
             if list(child.identity) != space['identity']:
                 raise HTTPException(409, 'The personal folder changed. Check it on the PC.')
         return Path(root) / space['name'], scoped_generation
+
+
+class MobileTransferFolder(TransferFolder):
+    """Keep admitted legacy transfers revocable after an in-place owner enrolment."""
+    def __init__(self, preview):
+        super().__init__(preview.authority)
+        self.preview = preview
+
+    def grant(self, expected=None):
+        preview = self.preview
+        if preview.personal_devices:
+            return SpaceTransferFolder(self.authority, preview.personal_devices, preview.device_id).grant(expected)
+        return super().grant(expected)

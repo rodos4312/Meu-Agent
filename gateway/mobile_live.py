@@ -80,7 +80,7 @@ class LiveScope:
         if set(params) - _CREATE_FIELDS or params.get('source', 'gui') != 'gui':
             raise PermissionError('Unsupported mobile launch')
         params = dict(params, source='gui')
-        if self.preview.personal_devices:
+        if self.preview.personal_space:
             from hermes_cli.meu_transfer_spaces import SpaceTransferFolder
             folder, _generation = SpaceTransferFolder(
                 self.preview.authority, self.preview.personal_devices, self.preview.device_id).grant()

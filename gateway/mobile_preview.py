@@ -121,8 +121,8 @@ class MobilePreview:
         self.pairing_store = pairing_store
         self.personal_devices = personal_devices
         self.device_id = device_id
-        self.personal_space = (personal_devices.scope(authority.profile_id, device_id)[1]['id']
-                               if personal_devices else None)
+        space = personal_devices.scope(authority.profile_id, device_id)[1] if personal_devices else None
+        self.personal_space = space['id'] if space and not space.get('owner') else None
         self.token_digest = None
         self.tls_pem = None
         self.tls_context = None
