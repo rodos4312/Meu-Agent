@@ -1932,7 +1932,7 @@ class RelayAdapter(RelayDiscordInteractionMixin, BasePlatformAdapter):
         options = [{"id": choice, "label": label, **({"style": style} if style else {})}
                    for label, choice, style in prompt.actions]
         result = await self._mint_and_send_prompt(
-            "exec_approval", {"session_key": prompt.session_key}, prompt.chat_id, prompt_kind="approval",
+            "exec_approval", {"session_key": prompt.session_key, "request_id": prompt.request_id}, prompt.chat_id, prompt_kind="approval",
             text=prompt.text, options=options, metadata=prompt.metadata,
         )
         return result if result is not None else self._PROMPT_UNAVAILABLE
@@ -2022,6 +2022,10 @@ class RelayAdapter(RelayDiscordInteractionMixin, BasePlatformAdapter):
                 "relay prompt_response %s (option=%s) already resolved — ignoring repeat", prompt_id, option_id
             )
             return True
+        from gateway.relay.adapter_approval import actor_for_reply
+        actor = actor_for_reply(self, event, self._pending_prompts.get(prompt_id) or {})
+        if actor is None:
+            return True
         state = self._pop_prompt(prompt_id)
         if state is None:
             logger.info("relay prompt_response for unknown/expired prompt %s (option=%s)", prompt_id, option_id)
@@ -2038,22 +2042,14 @@ class RelayAdapter(RelayDiscordInteractionMixin, BasePlatformAdapter):
             else:
                 # Acks are fire-and-forget: we are ON the read loop here (see
                 # _send_lifecycle_ack) and awaiting a send would self-deadlock.
-                await handler(self, state, option_id, chat_id, self._prompt_reply_metadata(event))
+                await handler(self, {**state, "actor": actor}, option_id, chat_id, self._prompt_reply_metadata(event))
         except Exception:
             logger.warning("relay prompt_response resolution failed", exc_info=True)
         return True
 
     async def _resolve_exec_approval(self, state, option_id, chat_id, ack_meta) -> None:
-        from tools.approval import resolve_gateway_approval
-
-        choice = option_id if option_id in _EXEC_APPROVAL_LABELS else "deny"
-        count = resolve_gateway_approval(str(state.get("session_key") or ""), choice)
-        label = _EXEC_APPROVAL_LABELS[choice] if count else "⌛ Approval expired — no command was waiting."
-        # In-channel ack preserves the audit trail the native edit gives (the
-        # connector's prompt message can't be edited cross-platform yet).
-        self._send_lifecycle_ack(chat_id, label, ack_meta)
-        if count:
-            self.resume_typing_for_chat(chat_id)
+        from gateway.relay.adapter_approval import resolve_exec_approval
+        await resolve_exec_approval(self, state, option_id, chat_id, ack_meta, _EXEC_APPROVAL_LABELS)
 
     async def _resolve_slash_confirm(self, state, option_id, chat_id, ack_meta) -> None:
         from tools import slash_confirm as slash_confirm_mod

@@ -17,7 +17,7 @@ import importlib
 import logging
 import os
 import threading
-from typing import Optional
+from typing import Any, Iterable, Optional
 
 from utils import env_var_enabled, is_truthy_value
 from agent.i18n import t
@@ -142,7 +142,8 @@ def unregister_gateway_notify(session_key: str) -> None:
 def resolve_gateway_approval(session_key: str, choice: str,
                              resolve_all: bool = False,
                              reason: Optional[str] = None,
-                             request_id: Optional[str] = None) -> int:
+                             request_id: Optional[str] = None, *,
+                             actor_id: Any = None, admin_ids: Iterable[str] = (), extra: Any = None) -> int:
     """Unblock waiting agent thread(s) from the gateway's /approve or /deny handler.
 
     *resolve_all* resolves every pending approval (``/approve all``); otherwise the oldest
@@ -157,12 +158,15 @@ def resolve_gateway_approval(session_key: str, choice: str,
             targets = [entry for entry in queue if entry.data.get("request_id") == request_id]
             if not targets:
                 return 0
-            queue[:] = [entry for entry in queue if entry not in targets]
         elif resolve_all:
             targets = list(queue)
-            queue.clear()
         else:
-            targets = [queue.pop(0)]
+            targets = queue[:1]
+        if actor_id is not None:
+            from gateway.approval_actor import may_answer
+            if any(not may_answer(entry.authority, actor_id, admin_ids, extra) for entry in targets):
+                return 0
+        queue[:] = [entry for entry in queue if entry not in targets]
         if not queue:
             _gateway_queues.pop(session_key, None)
         # Popping the entry and committing its outcome are ONE critical section: the waiter's
@@ -174,6 +178,19 @@ def resolve_gateway_approval(session_key: str, choice: str,
                 entry.reason = reason
             entry.event.set()
     return len(targets)
+
+
+def resolve_gateway_approval_card(session_key: str, choice: str, request_id: Optional[str], *,
+                                  actor_id: Any = None, admin_ids: Iterable[str] = (), extra: Any = None) -> int:
+    """A native card answers only its own request; legacy cards require typed /approve.
+
+    Actor authorization and settlement happen together under the queue lock. Host-owned
+    Desktop/API callers retain the existing resolver without a messaging actor.
+    """
+    if not request_id:
+        return 0
+    return resolve_gateway_approval(session_key, choice, request_id=request_id,
+                                    actor_id="" if actor_id is None else actor_id, admin_ids=admin_ids, extra=extra)
 
 
 def withdraw_gateway_approval(session_key: str, request_id: str, cause: str) -> bool:
@@ -197,6 +214,12 @@ def list_gateway_approvals(session_key: str) -> list[dict]:
     """Return replay-safe snapshots of unresolved approvals for one session."""
     with _lock:
         return [dict(entry.data) for entry in _gateway_queues.get(session_key, [])]
+
+
+def list_gateway_approval_authority(session_key: str) -> list[dict]:
+    """Snapshot each pending request's immutable requester and approver scope."""
+    with _lock:
+        return [{"request_id": e.data.get("request_id"), **e.authority} for e in _gateway_queues.get(session_key, [])]
 
 
 def register_gateway_settle(session_key: str, request_id: str, settle) -> bool:

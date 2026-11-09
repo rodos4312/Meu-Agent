@@ -17,7 +17,13 @@ on:
       - 'locales/**'
       - 'tools/**'
       - 'pm/**'
+      - 'plugins/platforms/**'
       - 'tests/pm/test_artifact_mirror.py'
+      - 'tests/pm/test_build_operations.py'
+      - 'tests/gateway/*approval*.py'
+      - 'tests/gateway/relay/*approval*.py'
+      - 'tests/gateway/test_qqbot.py'
+      - 'tests/gateway/test_whatsapp_cloud.py'
       - 'tests/tools/test_mcp_cimd.py'
       - 'tests/hermes_cli/test_meu_independent_identity.py'
       - 'tests/scripts/test_bootstrap_mirror.py'
@@ -131,6 +137,7 @@ jobs:
           tests/scripts/test_release_entrypoint.py
           tests/scripts/test_icon_generation_exit.py
           tests/scripts/test_icon_flavors.py
+          tests/pm/test_build_operations.py
           -- --override-ini=addopts= -q
 
   coordinator-compatibility:
@@ -185,6 +192,23 @@ jobs:
           tests/gateway/test_meu_general_auto.py
           tests/agent/test_meu_explicit_auto.py
           tests/gateway/test_session_mutation_model.py
+          -- --override-ini=addopts= -q
+      - name: Verify requester-bound messaging approvals on Linux
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-retries 0
+          tests/gateway/test_approval_requester_binding.py
+          tests/gateway/test_approval_requester_binding_adapters.py
+          tests/gateway/test_approval_requester_binding_admins.py
+          tests/gateway/test_approval_requester_binding_policy.py
+          tests/gateway/test_approval_requester_binding_extra_adapters.py
+          tests/gateway/relay/test_relay_approval_owner_admins.py
+          tests/gateway/test_telegram_approval_buttons.py
+          tests/gateway/test_slack_approval_buttons.py
+          tests/gateway/test_matrix_exec_approval.py
+          tests/gateway/test_feishu_approval_buttons.py
+          tests/gateway/test_qqbot.py
+          tests/gateway/test_whatsapp_cloud.py
           -- --override-ini=addopts= -q
       - name: Install locked terminal dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
@@ -247,6 +271,29 @@ jobs:
           extras: '["messaging", "web"]'
           test-environment: 'true'
           packages: git,ripgrep
+      - name: Verify locked metadata without refetching optional wheels
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 1 --file-retries 0
+          tests/pm/test_build_operations.py
+          -- --override-ini=addopts= -q -k check_lock
+      - name: Verify requester-bound messaging approvals on Windows
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-retries 0
+          tests/gateway/test_approval_requester_binding.py
+          tests/gateway/test_approval_requester_binding_adapters.py
+          tests/gateway/test_approval_requester_binding_admins.py
+          tests/gateway/test_approval_requester_binding_policy.py
+          tests/gateway/test_approval_requester_binding_extra_adapters.py
+          tests/gateway/relay/test_relay_approval_owner_admins.py
+          tests/gateway/test_telegram_approval_buttons.py
+          tests/gateway/test_slack_approval_buttons.py
+          tests/gateway/test_matrix_exec_approval.py
+          tests/gateway/test_feishu_approval_buttons.py
+          tests/gateway/test_qqbot.py
+          tests/gateway/test_whatsapp_cloud.py
+          -- --override-ini=addopts= -q
       - name: Verify telemetry stays disabled and DeepSeek tool calls work
         shell: bash
         run: >-

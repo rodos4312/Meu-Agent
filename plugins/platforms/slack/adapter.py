@@ -4980,7 +4980,7 @@ class SlackAdapter(BasePlatformAdapter):
 
         def _build() -> tuple[str, list]:
             actions = [
-                self._button(label, self._EA_ACTION_IDS[choice], prompt.session_key, style=style)
+                self._button(label, self._EA_ACTION_IDS[choice], f"{prompt.session_key}|{prompt.request_id or ''}", style=style)
                 for label, choice, style in prompt.actions]
             blocks = [
                 {"type": "section", "text": {"type": "mrkdwn", "text": prompt.text}},
@@ -5630,8 +5630,16 @@ class SlackAdapter(BasePlatformAdapter):
         started = await self._begin_interaction(ack, body, action, "approval")
         if started is None:
             return
-        team_id, action_id, session_key, message, msg_ts, channel_id, user_name, _user_id = started
+        team_id, action_id, session_key, message, msg_ts, channel_id, user_name, user_id = started
+        session_key, separator, request_id = session_key.rpartition("|")
+        if not separator:
+            return
         choice = self._APPROVAL_CHOICES.get(action_id, "deny")
+        from gateway.approval_actor import approval_refusal, refusal_text
+        if requester := approval_refusal(session_key, user_id, extra=self.config.extra, request_id=request_id):
+            await self._get_client(channel_id, team_id=team_id or None).chat_postEphemeral(
+                channel=channel_id, user=user_id, text=refusal_text(requester), thread_ts=message.get("thread_ts"))
+            return
         # Double-click guard (atomic pop). Also accept the bare ts: the approval may
         # have been stored without a team id while the click carries one.
         approval_key = self._workspace_message_marker(team_id, msg_ts)
@@ -5642,8 +5650,8 @@ class SlackAdapter(BasePlatformAdapter):
         # Resolve FIRST (unblocks the agent); render after so a click past the
         # timeout (count == 0) shows "expired", not "approved".
         try:
-            from tools.approval import resolve_gateway_approval
-            count = resolve_gateway_approval(session_key, choice)
+            from tools.approval import resolve_gateway_approval_card
+            count = resolve_gateway_approval_card(session_key, choice, request_id, actor_id=user_id, extra=self.config.extra)
             logger.info(
                 "Slack button resolved %d approval(s) for session %s (choice=%s, user=%s)", count,
                 session_key, choice, user_name)

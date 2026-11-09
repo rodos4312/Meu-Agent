@@ -24,12 +24,19 @@ logger = logging.getLogger("tools.approval")
 
 class _ApprovalEntry:
     """One pending dangerous-command approval inside a gateway session."""
-    __slots__ = ("acknowledged", "cancelled", "data", "event", "expired", "observers", "reason", "result", "settle")
+    __slots__ = ("acknowledged", "authority", "cancelled", "data", "event", "expired", "observers", "reason", "result", "settle")
 
     def __init__(self, data: dict):
         self.event = threading.Event()
         self.data = dict(data)
         self.data.setdefault("request_id", uuid.uuid4().hex)
+        # Capture in the requesting turn's profile, not in a later off-turn button callback.
+        from gateway.slash_access import _coerce_id_list
+        approvers = _ctx._get_approval_config().get("approvers")
+        self.authority = {"requester_id": _ctx._session_env("HERMES_SESSION_USER_ID"),
+                          "requester_name": _ctx._session_env("HERMES_SESSION_USER_NAME"),
+                          "chat_type": _ctx._session_env("HERMES_SESSION_CHAT_TYPE"),
+                          "approvers": _coerce_id_list(["*"] if approvers is None else approvers)}
         self.acknowledged = False
         # Surface hook run once when the wait ends by ANY path (answer, timeout, interrupt, /approve from
         # another client): the tui_gateway withdraws its open server→client request through it.
@@ -43,6 +50,13 @@ class _ApprovalEntry:
         self.cancelled: str | None = None
         # The prompt timed out unanswered; followers woken by its event adopt that timeout.
         self.expired = False
+
+
+def _same_answerers(leader: dict, follower: dict) -> bool:
+    """Never coalesce approvals belonging to different restricted requesters."""
+    if "*" in (follower.get("approvers") or []) and "*" in (leader.get("approvers") or []):
+        return True
+    return leader.get("requester_id") == follower.get("requester_id") and leader.get("approvers") == follower.get("approvers")
 
 
 def _poll_event(event: threading.Event, session_key: str, *, interrupt_log: str,
@@ -183,7 +197,8 @@ def _await_gateway_decision(session_key: str, notify_cb, approval_data: dict, *,
             if not preparing_terminal_approval():
                 leader = next((e for e in _approval._gateway_queues.get(session_key, [])
                                if e.data.get("command") == approval_data.get("command")
-                               and list(e.data.get("pattern_keys") or []) == keys), None)
+                               and list(e.data.get("pattern_keys") or []) == keys
+                               and _same_answerers(e.authority, entry.authority)), None)
             if leader is None:
                 _enqueue()
                 break

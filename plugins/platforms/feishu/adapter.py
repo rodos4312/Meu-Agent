@@ -73,7 +73,7 @@ _LARK_SDK_IMPORTS = (
     ("lark_oapi.core", ("AccessTokenType", "HttpMethod")),
     ("lark_oapi.core.const", ("FEISHU_DOMAIN", "LARK_DOMAIN")),
     ("lark_oapi.core.model", ("BaseRequest",)),
-    ("lark_oapi.event.callback.model.p2_card_action_trigger", ("CallBackCard", "P2CardActionTriggerResponse")),
+    ("lark_oapi.event.callback.model.p2_card_action_trigger", ("CallBackCard", "CallBackToast", "P2CardActionTriggerResponse")),
     ("lark_oapi.event.dispatcher_handler", ("EventDispatcherHandler",)),
 )
 lark = FeishuWSClient = None  # type: ignore[assignment]
@@ -1788,7 +1788,7 @@ class FeishuAdapter(BasePlatformAdapter):
             return await self._send_interactive_card(
                 prompt.chat_id, card, prompt.metadata, "send_exec_approval failed",
                 state_map=self._approval_state, state_id=approval_id, session_key=prompt.session_key,
-                extra_state={"body": prompt.text.replace(self._ea_deadline_line(), "")},  # deadline is moot once resolved
+                extra_state={"body": prompt.text.replace(self._ea_deadline_line(), ""), "request_id": prompt.request_id},
             )
         except Exception as exc:
             logger.warning("[Feishu] send_exec_approval failed: %s", exc)
@@ -2271,13 +2271,17 @@ class FeishuAdapter(BasePlatformAdapter):
             response.card = card
         return response
 
+    def _card_toast(self, text: str) -> Any:
+        """Card-callback response that leaves the card as is and shows *text* to the clicker only."""
+        if (response := self._card_response()) is not None and (toast := CallBackToast) is not None:  # health: allow F821 -- bound with the other SDK names by _load_lark_oapi
+            response.toast, response.toast.type, response.toast.content = toast(), "warning", text
+        return response
+
     def _validate_card_action(
         self, *, event: Any, state: dict[str, str], label: str, ident: Any,
     ) -> Optional[tuple[str, str, str, str, str]]:
-        """Shared operator/chat checks for approval + update-prompt clicks.
-
-        Returns ``(open_id, callback_chat_id, user_name, user_id, union_id)`` or None (already logged).
-        """
+        """Shared operator/chat checks for approval + update-prompt clicks: ``(open_id, callback_chat_id,
+        user_name, user_id, union_id)`` or None (already logged)."""
         operator = getattr(event, "operator", None)
         open_id = str(getattr(operator, "open_id", "") or "")
         user_id = str(getattr(operator, "user_id", "") or "")
@@ -2285,15 +2289,12 @@ class FeishuAdapter(BasePlatformAdapter):
         callback_chat_id = str(getattr(getattr(event, "context", None), "open_chat_id", "") or "")
         expected_chat_id = str(state.get("chat_id", "") or "")
         if not self._is_interactive_operator_authorized(
-            open_id, user_id=user_id, union_id=union_id, chat_id=expected_chat_id or callback_chat_id,
-        ):
+                open_id, user_id=user_id, union_id=union_id, chat_id=expected_chat_id or callback_chat_id):
             logger.warning("[Feishu] Unauthorized %s click by %s", label, open_id or "<unknown>")
             return None
         if callback_chat_id and expected_chat_id and callback_chat_id != expected_chat_id:
-            logger.warning(
-                "[Feishu] %s callback chat mismatch for %s (expected=%s, got=%s)",
-                label.capitalize(), ident, expected_chat_id, callback_chat_id,
-            )
+            logger.warning("[Feishu] %s callback chat mismatch for %s (expected=%s, got=%s)",
+                           label.capitalize(), ident, expected_chat_id, callback_chat_id)
             return None
         return open_id, callback_chat_id, self._get_cached_sender_name(open_id) or open_id, user_id, union_id
 
@@ -2312,6 +2313,10 @@ class FeishuAdapter(BasePlatformAdapter):
         if checked is None:
             return self._card_response()
         open_id, chat_id, user_name, user_id, union_id = checked
+        from gateway.approval_actor import approval_refusal, refusal_text
+        if requester := approval_refusal(state["session_key"], user_id or open_id, extra=self.config.extra,
+                                         request_id=state.get("request_id")):
+            return self._card_toast(refusal_text(requester))
         coro = self._resolve_approval(
             approval_id=approval_id, choice=choice, user_name=user_name, open_id=open_id, chat_id=chat_id,
             user_id=user_id, union_id=union_id,
@@ -2373,6 +2378,12 @@ class FeishuAdapter(BasePlatformAdapter):
         user_id: str = "", union_id: str = "",
     ) -> None:
         """Pop approval state and unblock the waiting agent thread."""
+        pending = self._approval_state.get(approval_id)
+        from gateway.approval_actor import approval_refusal
+        if pending and approval_refusal(pending["session_key"], user_id or open_id,
+                                        extra=self.config.extra, request_id=pending.get("request_id")):
+            logger.info("[Feishu] Approval answer refused for %s", user_id or open_id)
+            return
         state = self._pop_validated_prompt_state(
             states=self._approval_state, ident=approval_id, label="Approval", open_id=open_id, chat_id=chat_id,
             unauthorized_fmt="[Feishu] Unauthorized approval click by %s for approval %s",
@@ -2381,8 +2392,9 @@ class FeishuAdapter(BasePlatformAdapter):
         if not state:
             return
         try:
-            from tools.approval import resolve_gateway_approval
-            count = resolve_gateway_approval(state["session_key"], choice)
+            from tools.approval import resolve_gateway_approval_card
+            count = resolve_gateway_approval_card(state["session_key"], choice, state.get("request_id"),
+                                                  actor_id=user_id or open_id, extra=self.config.extra)
             logger.info(
                 "Feishu button resolved %d approval(s) for session %s (choice=%s, user=%s)",
                 count, state["session_key"], choice, user_name,

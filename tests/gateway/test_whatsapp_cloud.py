@@ -1206,8 +1206,8 @@ class TestDispatchInteractiveReplyApproval:
 
         calls = []
         monkeypatch.setattr(
-            "tools.approval.resolve_gateway_approval",
-            lambda session_key, choice: calls.append((session_key, choice)) or 1,
+            "tools.approval.resolve_gateway_approval_card",
+            lambda session_key, choice, request_id, **actor: calls.append((session_key, choice, request_id)) or 1,
         )
 
         raw = {
@@ -1221,7 +1221,7 @@ class TestDispatchInteractiveReplyApproval:
         handled = await adapter._dispatch_interactive_reply(raw, {})
 
         assert handled is True
-        assert calls == [("sess-app-1", "approve")]
+        assert calls == [("sess-app-1", "once", "app1")]
         assert "app1" not in adapter._exec_approval_state
         confirm_payload = adapter._http_client.post.call_args.kwargs["json"]
         assert confirm_payload["type"] == "text"
@@ -1289,8 +1289,8 @@ class TestDispatchInteractiveReplyAuthorization:
         )
         calls = []
         monkeypatch.setattr(
-            "tools.approval.resolve_gateway_approval",
-            lambda session_key, choice: calls.append((session_key, choice)) or 1,
+            "tools.approval.resolve_gateway_approval_card",
+            lambda session_key, choice, request_id, **actor: calls.append((session_key, choice, request_id)) or 1,
         )
 
         raw = {
@@ -1304,7 +1304,7 @@ class TestDispatchInteractiveReplyAuthorization:
         handled = await adapter._dispatch_interactive_reply(raw, {})
 
         assert handled is True
-        assert calls == [("sess-app-1", "approve")]
+        assert calls == [("sess-app-1", "once", "app1")]
 
 
 @pytest.mark.usefixtures("authorized_interactive_env")
