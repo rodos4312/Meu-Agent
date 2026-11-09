@@ -521,6 +521,13 @@ def _adopt_out_of_band_turns(session: dict) -> None:
     yet (seeded branch before its first turn) means nothing to adopt; a cold resume arrives stamped — but a
     record whose list was rebuilt from provider-format messages carries no stamp at all, so the row-id
     boundary cannot key on anything and the store-ahead fallback takes over (#81951)."""
+    from hermes_state_meu_sync import adopt_recovered_history
+
+    with _session_db(session) as db:
+        if db is not None and adopt_recovered_history(
+                db, session, _submit_row_target_key(session),
+                _message_row_id(session.get("_submit_user_row") or {})):
+            return
     with session["history_lock"]:
         history, version = list(session.get("history") or ()), int(session.get("history_version", 0))
     seen = max((rid for m in history if isinstance(m, dict) and (rid := _message_row_id(m)) is not None),

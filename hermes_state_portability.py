@@ -464,9 +464,11 @@ class SessionPortabilityMixin:
 
     def export_meu_sync_history(self, session_id, *, profile_sync=False, timestamps=False, personal_space=None):
         """Export user/assistant text only, for use after a local share decision."""
+        from hermes_state_meu_sync import require_quiet, sync_snapshot
+
         if not isinstance(session_id, str) or not self._MEU_SYNC_SESSION_ID.fullmatch(session_id):
             raise ValueError("Unsupported sync session ID")
-        with self._read_ctx() as conn:
+        with sync_snapshot(self) as conn:
             if personal_space is not None:
                 self._meu_require_space(conn, session_id, personal_space)
             row = conn.execute(
@@ -477,6 +479,7 @@ class SessionPortabilityMixin:
                 raise LookupError("Session unavailable for profile sync")
             if row is None or row["parent_session_id"] or row["end_reason"] == "compression":
                 raise ValueError("Sync requires an independent session")
+            require_quiet(self, conn, session_id)
             messages = self._meu_sync_text(conn, session_id, timestamps=timestamps)
         self._validate_meu_sync_text(messages, timestamps=timestamps)
         history = {"id": session_id, "messages": messages}
@@ -539,6 +542,9 @@ class SessionPortabilityMixin:
                 return "created"
             if row["parent_session_id"] or row["end_reason"] == "compression":
                 return "conflict"
+            self._check_transcript_write_guards(
+                conn, session_id, None,
+                reject_active_turn_lease=True, reject_active_compression_lock=True)
             local = self._meu_sync_text(conn, session_id)
             self._validate_meu_sync_text(local)
             common_length = min(len(local), len(messages))
@@ -560,14 +566,21 @@ class SessionPortabilityMixin:
             }
             if any(message["message_uid"] in archived_ids for message in tail):
                 return "conflict"
-            self._check_transcript_write_guards(
-                conn, session_id, None,
-                reject_active_turn_lease=True, reject_active_compression_lock=True)
             inserted, tools = self._insert_message_rows(conn, session_id, tail)
             self._bump_session_counters(conn, session_id, inserted, tools, unit=False)
             return "appended"
 
         return self._execute_write(_do)
+
+    def resolve_meu_sync_history(self, request, *, personal_space=None):
+        from hermes_state_meu_sync import resolve_history
+
+        return resolve_history(self, request, personal_space=personal_space)
+
+    def list_meu_sync_backups(self, *, session_id=None, receipt=None, personal_space=None):
+        from hermes_state_meu_sync import recovery_backups
+
+        return recovery_backups(self, session_id=session_id, receipt=receipt, personal_space=personal_space)
 
     def export_session(self, session_id: str, include_compacted: bool = False,
                        include_inactive: bool = False) -> Optional[dict[str, Any]]:

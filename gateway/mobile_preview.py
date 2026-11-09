@@ -162,6 +162,9 @@ class MobilePreview:
             app.router.add_get("/meu/sync/sessions", self._sync_catalog, allow_head=False)
             app.router.add_get("/meu/sync/sessions/{session_id}", self._sync_export, allow_head=False)
             app.router.add_put("/meu/sync/sessions/{session_id}", self._sync_apply)
+            app.router.add_post("/meu/sync/sessions/{session_id}/resolve", self._sync_resolve)
+            app.router.add_get("/meu/sync/backups", self._sync_backups, allow_head=False)
+            app.router.add_get("/meu/sync/sessions/{session_id}/backups/{receipt}", self._sync_backups, allow_head=False)
         elif self.sync_session:
             app.router.add_get("/meu/sync", self._sync_export, allow_head=False)
             app.router.add_put("/meu/sync", self._sync_apply)
@@ -397,9 +400,53 @@ class MobilePreview:
             )
         except ValueError:
             raise web.HTTPBadRequest() from None
-        return web.json_response({**catalog, **({"timestamps": True} if request.query.get("timestamps") == "1" else {})})
+        return web.json_response({**catalog,
+            **({"timestamps": True} if request.query.get("timestamps") == "1" else {}),
+            **({"sync_recovery": 1} if request.query.get("recovery") == "1" else {})})
+
+    async def _sync_resolve(self, request):
+        from hermes_state_errors import (
+            SessionActiveWriteGuardError, SessionCompressionInProgressError, SessionTurnLeaseLostError,
+        )
+
+        resolution = await self._json(request)
+        sid = request.match_info["session_id"]
+        if not isinstance(resolution.get("pc"), dict) or resolution["pc"].get("id") != sid:
+            raise web.HTTPForbidden()
+        try:
+            async with self.lock:
+                result = await asyncio.to_thread(self.authority.db.resolve_meu_sync_history,
+                    resolution, personal_space=self.personal_space)
+        except LookupError:
+            raise web.HTTPNotFound() from None
+        except ValueError:
+            raise web.HTTPBadRequest() from None
+        except (SessionActiveWriteGuardError, SessionCompressionInProgressError, SessionTurnLeaseLostError):
+            return web.json_response({"status": "busy"}, status=409)
+        return web.json_response(result)
+
+    async def _sync_backups(self, request):
+        try:
+            result = await asyncio.to_thread(self.authority.db.list_meu_sync_backups,
+                session_id=request.match_info.get("session_id"), receipt=request.match_info.get("receipt"),
+                personal_space=self.personal_space)
+            if request.query.get("side") is not None:
+                side = request.query["side"]
+                if side not in {"pc", "phone"} or request.match_info.get("receipt") is None:
+                    raise ValueError("Invalid backup side")
+                result = {"history": result[side]}
+            elif "local_before" in result:
+                result = {key: value for key, value in result.items() if key != "local_before"}
+        except LookupError:
+            raise web.HTTPNotFound() from None
+        except ValueError:
+            raise web.HTTPBadRequest() from None
+        return web.json_response(result)
 
     async def _sync_export(self, request):
+        from hermes_state_errors import SessionActiveWriteGuardError
+        from hermes_state_meu_sync import fingerprint
+
         session_id = request.match_info["session_id"] if self.sync_profile else self.sync_session
         scope = ({"profile_sync": True, "timestamps": True}
                  if self.sync_profile and request.query.get("timestamps") == "1"
@@ -410,9 +457,12 @@ class MobilePreview:
             history = await asyncio.to_thread(self.authority.db.export_meu_sync_history, session_id, **scope)
         except LookupError:
             raise web.HTTPNotFound() from None
+        except SessionActiveWriteGuardError:
+            return web.json_response({"status": "busy"}, status=409)
         except ValueError:
             raise web.HTTPConflict() from None
-        return web.json_response(history)
+        return web.json_response({"history": history, "fingerprint": fingerprint(history)}
+                                 if request.query.get("recovery") == "1" else history)
 
     async def _sync_apply(self, request):
         from hermes_state_errors import (

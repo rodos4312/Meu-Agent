@@ -104,12 +104,21 @@ def _gateway_appends(db, turns: int = 10) -> None:
 
 
 def _immediate_thread(monkeypatch) -> None:
-    class _ImmediateThread:
-        def __init__(self, target=None, daemon=None, **_kwargs):
-            self._target = target
+    real_thread = threading.Thread
 
+    class _ImmediateThread(real_thread):
         def start(self):
-            self._target()
+            # Windows subprocess readers need concurrent pipes; agent workers
+            # remain synchronous. Retain Thread's constructor/subclass contract.
+            self._inline = getattr(self._target, "__name__", "") != "_readerthread"
+            if self._inline:
+                self.run()
+            else:
+                super().start()
+
+        def join(self, timeout=None):
+            if not getattr(self, "_inline", False):
+                super().join(timeout)
 
     monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
 
@@ -117,6 +126,7 @@ def _immediate_thread(monkeypatch) -> None:
 def _desktop_prompt(db, session, monkeypatch, text: str = "continue on desktop") -> list:
     """Drive ``prompt.submit`` on ``session``; returns the ``conversation_history`` the model was given."""
     seen = {}
+    events = []
 
     class _Agent:
         def run_conversation(self, prompt, conversation_history=None, stream_callback=None, **_kwargs):
@@ -131,13 +141,14 @@ def _desktop_prompt(db, session, monkeypatch, text: str = "continue on desktop")
     _immediate_thread(monkeypatch)
     monkeypatch.setattr(server, "_get_usage", lambda _a: {})
     monkeypatch.setattr(server, "render_message", lambda _t, _c: "")
-    monkeypatch.setattr(server, "_emit", lambda *a: None)
+    monkeypatch.setattr(server, "_emit", lambda *a: events.append(a))
     try:
         resp = server.handle_request({"id": "1", "method": "prompt.submit",
                                       "params": {"session_id": "sid-81951", "text": text}})
         assert resp.get("result"), resp
     finally:
         server._sessions.pop("sid-81951", None)
+    assert "history" in seen, events
     return seen["history"]
 
 

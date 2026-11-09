@@ -16,12 +16,17 @@ def test_sync_pairing_uses_both_interfaces():
 
 
 async def _exercise_pairing():
+    from hermes_state_errors import SessionActiveWriteGuardError
+
     session_id = "local-" + "a" * 64
     history = {"id": session_id, "messages": []}
     applied = []
+    exporting_busy = False
 
     def export(requested_id):
         assert requested_id == session_id
+        if exporting_busy:
+            raise SessionActiveWriteGuardError("Active writer")
         return history
 
     def apply(snapshot):
@@ -58,6 +63,11 @@ async def _exercise_pairing():
                 assert response.status == 401
 
             headers = {"Authorization": f"Bearer {key}"}
+            exporting_busy = True
+            async with client.get(vpn + "/meu/sync", ssl=tls, headers=headers) as response:
+                assert response.status == 409
+                assert await response.json() == {"status": "busy"}
+            exporting_busy = False
             async with client.get(vpn + "/meu/sync", ssl=tls, headers=headers) as response:
                 assert response.status == 200
                 assert await response.json() == history
@@ -131,6 +141,29 @@ async def _exercise_profile_pairing(tmp_path):
                                       json=history) as response:
                     assert await response.json() == {"status": "created"}
                 assert db.export_meu_sync_history(new_id, profile_sync=True) == history
+                from hermes_state_meu_sync import fingerprint
+                async with client.get(root + "?recovery=1", ssl=tls, headers=headers) as response:
+                    assert (await response.json())["sync_recovery"] == 1
+                async with client.get(f"{root}/{local_id}?recovery=1", ssl=tls, headers=headers) as response:
+                    common = (await response.json())["history"]
+                phone_history = {**common, "messages": [*common["messages"], {
+                    "role": "user", "content": "Phone continuation while PC updates", "message_uid": "b" * 32}]}
+                db.append_message(local_id, "assistant", "PC continuation")
+                pc_history = db.export_meu_sync_history(local_id, profile_sync=True)
+                resolution = {"pc": pc_history, "phone": phone_history,
+                              "prefer": "phone", "expected": fingerprint(pc_history)}
+                async with client.post(f"{root}/{local_id}/resolve", ssl=tls, headers=headers, json=resolution) as response:
+                    assert response.status == 200
+                    recovery = await response.json()
+                    assert recovery["status"] == "resolved"
+                async with client.get(f"{root}/{local_id}/backups/{recovery['receipt']}", ssl=tls, headers=headers) as response:
+                    assert response.status == 200
+                    saved = await response.json()
+                    assert saved["pc"] == pc_history and saved["phone"] == phone_history
+                async with client.get(origin.decode() + "/meu/sync/backups", ssl=tls, headers=headers) as response:
+                    assert len((await response.json())["backups"]) == 1
+                async with client.get(f"{root}/{hidden_id}/backups/{recovery['receipt']}", ssl=tls, headers=headers) as response:
+                    assert response.status == 404
                 async with client.post(origin.decode() + "/v1/runs", ssl=tls,
                                        headers=headers, json={}) as response:
                     assert response.status == 404

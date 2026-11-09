@@ -82,7 +82,8 @@ class GatewaySessionAgentMixin:
             # run_sync is off-loop (executor); sync DB is fine.
             row = self._runner._session_db._db.get_session(ctx.session_id)
             if row:
-                count = row.get("message_count", 0)
+                from hermes_state_meu_sync import history_stamp
+                count = history_stamp(self._runner._session_db._db, ctx.session_id, row.get("message_count", 0))
         return count
 
     def _pop_cached_agent_for_eviction(self):

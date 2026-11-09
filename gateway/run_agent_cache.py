@@ -4,6 +4,7 @@ for GatewayRunner (MRO mixin). ``gateway.run`` internals are imported lazily ins
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import logging
 import threading
@@ -615,6 +616,9 @@ class GatewayAgentCacheMixin:
         try:
             _sess_row = await self._session_db.get_session(session_id)
             _live = _sess_row.get("message_count", 0) if _sess_row else None
+            if _live is not None:
+                from hermes_state_meu_sync import history_stamp
+                _live = await asyncio.to_thread(history_stamp, self._session_db._db, session_id, _live)
         except Exception:
             return
         if _live is None:
@@ -628,6 +632,12 @@ class GatewayAgentCacheMixin:
                 return
             _snapshot_sid = cached[3] if len(cached) > 3 else None
             if (_snapshot_sid is not None and _snapshot_sid != session_id) or cached[2] == _live:
+                return
+            # Re-baselining a turn's own appends must never acknowledge a
+            # recovery the cached agent has not loaded yet.
+            previous_revision = cached[2][1] if isinstance(cached[2], tuple) else None
+            live_revision = _live[1] if isinstance(_live, tuple) else None
+            if previous_revision != live_revision:
                 return
             # Legacy 3-tuple keeps its 3-element shape for callers indexing ``cached[2]``.
             _cache[session_key] = (cached[0], cached[1], _live) + (() if _snapshot_sid is None else (_snapshot_sid,))

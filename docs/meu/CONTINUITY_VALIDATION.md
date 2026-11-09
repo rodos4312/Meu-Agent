@@ -1,5 +1,50 @@
 # Conversation continuity — 2026-11-07
 
+## Offline profile sync repair — 2026-11-09
+
+The owner reported divergent histories while the Windows app was updating and
+the autonomous Android agent continued working. The exact phone transcript has
+not been inspected or altered. Two independently reproduced defects allowed a
+live partial answer to be exported and classified a running destination as a
+conflict before checking its write guard. Export now uses one read-only SQLite
+snapshot and defers live, queued or uncertain work; import checks the running
+writer before comparing history. Android distinguishes an explicit busy receipt
+from a real divergent transcript and retries through its existing sync loop.
+
+A real divergence now has an explicit recovery protocol. Both compared copies
+are saved in the owning database before the standard soft-archive rewind keeps
+the selected continuation under the same session ID. Per-device expected
+fingerprints refuse newer messages; a durable shared receipt handles retries
+after a lost response without overwriting later work. A phone-side refusal after
+the PC commit leaves its newer history intact and both compared versions in the
+PC backup. There is no distributed all-or-nothing claim. No agent turn, tool
+call, model/provider configuration or project-file operation is admitted by this
+endpoint. Personal-space authorization applies to recovery and backup reads.
+
+Android shows only the differing suffixes after the common prefix and offers
+continuation from phone or PC. Neither is automatically selected for a genuine
+conflict. Saved text copies remain readable from the phone's database with the
+PC off; full displaced local message/tool rows are soft-archived, not deleted.
+Recovery stamps a durable revision: warm agents reload the selected history
+before answering, including equal-length or shorter continuations. Both the
+desktop/TUI path and messaging cache honor this revision. Ordinary appends
+retain the existing prompt cache behavior. The Android candidate must include
+the same reviewed engine revision; a helper-only update is insufficient.
+The shared helper is pinned by its source commit and hash. The full-runtime default
+and existing package, signer, data paths and saved pairing remain unchanged.
+
+Validation: 61 backend cases passed across sync, recovery, quiescence, private
+TLS transport, named spaces and listener restart. All 18 Android recovery/sync and
+full-flavor navigation tests passed, with targeted analysis clear. Two real
+Python bridge checks passed against both the current core and the precise
+Android engine revision `6fd190781a67d20130c4febcc3c03715b5e9eefe` on Windows.
+The additional warm-history checks cover stamped/unstamped live transcripts,
+shorter/equal/longer recovery and gateway re-baselining. A Windows-only test
+harness defect was corrected so subprocess pipe readers retain real threads.
+These host checks are not physical Android/PRoot acceptance. Candidate builds,
+GitHub checks and the owner's already-conflicted conversation still require
+their own verification; no installed app or live transcript was changed here.
+
 Source work stays on `dev/meu-foundation`. This batch does not publish an
 installer, APK, release tag or update-feed change, and does not modify the
 installed applications.
