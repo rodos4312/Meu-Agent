@@ -1,12 +1,48 @@
 # Meu development and release status
 
-Current public Windows version: [0.1.0-dev.25](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.25).
-Development and validation take place on `dev/meu-foundation`. The following
-changes are candidates for one consolidated release after physical acceptance.
-Windows dev.26 is an unpublished draft; its nine-job build, upgrade and rollback
-run passed. Android 9674's physical trial exposed omitted PRoot native files;
-private correction 9675 now packages all four and rejects incomplete builds. See the
-[frozen candidate receipt and trial steps](CONSOLIDATED_PREVIEW_26.md).
+Current published Windows version at preparation: [0.1.0-dev.27](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.27).
+Development remains on `dev/meu-foundation`; `main` is not changed.
+
+## Consolidated trial preparation — 2026-11-09
+
+The owner requested an installable **Windows dev.28 / private Android 9684**
+trial. Build both from the final reviewed source, retaining the Android preview
+package and existing signing certificate. Android 9683 was a frozen local
+candidate; its old APK does not contain the later live-conversation changes.
+
+This batch includes shared live PC/phone conversations, reconnect and offline
+continuation recovery, unified device management, migration of existing owner
+pairings, the Windows Coordinator checkpoint correction, and reusable helper
+prompt prefixes. See [release notes](RELEASE-0.1.0-dev.28.md),
+[live conversations](../meu-live-conversation.md),
+[device migration](../meu-device-management.md) and [Coordinator](COORDINATOR.md).
+
+Core `48d3bbb64859b1cd6e12da13675d0a40c9dfbaf8` passed all six normal
+[GitHub validation jobs](https://github.com/rodos4312/Meu-Agent/actions/runs/42658791341).
+The source checks do not certify the final installer or APK. The release build
+must independently pass package inspection, signature and update metadata
+verification, native Windows upgrade and automatic rollback rehearsals.
+
+The phone trial checks in-place update, existing projects and history, full
+navigation and Auto, actual tools, multiple devices, file transfer, close/reopen,
+screen lock and Wi-Fi/mobile-data reconnect. Genuine divergent offline suffixes
+remain an explicit backed-up continuation choice. Project files are not moved
+by history synchronization. Personal spaces are not an OS-level tool sandbox.
+An actual Windows OS-reboot recovery remains explicitly deferred.
+
+Cache tests demonstrate a longer reusable request prefix without increasing the
+prompt text. Real provider cache-hit and cost savings still require measurement;
+neither a fixed saving nor a 100% cache-hit rate is promised.
+
+Android is delivered only through the existing owner-private preview lane.
+Keep the recorded package/signing identity and install over the existing app;
+do not uninstall or clear data. Physical acceptance follows delivery of the
+measured test packages and is separate from source/CI verification.
+
+## Historical evidence before the current batch
+
+The sections below retain their original revisions and trial scope. Their older
+version numbers and milestones do not supersede the current preparation above.
 
 The current Windows/Android work order is maintained in the
 [experience roadmap](EXPERIENCE_ROADMAP.md). It takes precedence over the older

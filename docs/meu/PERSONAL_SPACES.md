@@ -1,11 +1,13 @@
 # Personal spaces and individually paired devices
 
-Included in the Windows dev.27 candidate, for testing with Meu Mobile 9680.
+First introduced in Windows dev.27. The dev.28 / Android 9684 batch unifies
+device enrolment, legacy-owner migration and shared live conversation access.
+See [device management](../meu-device-management.md) for migration details.
 Physical multi-phone acceptance remains separate from source and CI checks.
 
 ## The simple flow
 
-Choose the shared parent folder on the PC once. In **Users and devices**, enter
+Choose the shared parent folder on the PC once. In **Devices and sharing**, enter
 one **Name / nickname**, optionally label the device, and show its QR. For example,
 choosing `Downloads/kinito` and entering `Λάζαρος` creates `Downloads/kinito/Λάζαρος`
 automatically. Name and nickname are the same field. The folder uses that name,
@@ -24,9 +26,10 @@ preserved and retain their previous explicit scope.
 
 ## Scope and limits
 
-- This new pairing is for **history sync and file transfers**. It does not give
-  a guest arbitrary PC terminal access or claim to sandbox a PC agent by changing
-  its working directory. Existing owner-only PC control remains a separate mode.
+- Pairing supports history sync, file transfers and scoped live conversations.
+  PC owner devices must be explicitly selected; other users retain their named
+  folder and conversation scope. Agent tools follow the PC profile's policy;
+  changing a working directory is not an operating-system sandbox.
 - Existing unassigned PC conversations are not silently shared with a new user.
 - Names are normalized to Unicode NFC, checked for Windows filename safety, and
   compared without case. Invalid names and existing folders are refused; an
@@ -38,10 +41,12 @@ preserved and retain their previous explicit scope.
   while invalidating stale transfer tokens. Selecting a different parent does
   not move or expose old personal data: select the original parent to reuse it.
 - Pairings restore across gateway restarts when their saved LAN address and
-  port are available. Wi-Fi and PC availability are still required here; no
-  public relay, external account server or new cloud dependency is added.
-- Devices share the existing strict-prefix history sync. Resolving simultaneous
-  divergent continuations into one conversation remains explicitly deferred.
+  port are available. New QR enrolment includes available Wi-Fi and Tailscale
+  endpoints. The PC must be available for live control/transfers; autonomous
+  phone work remains separate. No public relay or account server is added.
+- Connected views share one live PC conversation. Genuine divergent offline
+  continuations retain both versions and require an explicit continuation
+  choice; they are not silently merged or selected using timestamps alone.
 - Android stores the optional space name/IDs with its existing protected pairing
   and displays the name in sync and transfers. Old pairing records remain valid.
 
