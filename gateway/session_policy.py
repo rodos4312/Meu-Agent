@@ -1073,7 +1073,8 @@ def policy_for_source(runner, source):
             # Cold recovery must restore the frozen policy before executing, not
             # reinterpret a LOCAL route as a default CLI launch.
             raise RuntimeStoreError('storage_unavailable')
-        return policy
+        from hermes_state_meu_projects import execution_policy
+        return execution_policy(adapter.authority.db, source.chat_id, policy)
     return None
 
 

@@ -159,6 +159,8 @@ class MobilePreview:
         app.router.add_post("/meu/pair", self._pair)
         from gateway.mobile_transfers import mount as mount_transfers
         mount_transfers(app, self)
+        from gateway.mobile_projects import mount as mount_projects
+        mount_projects(app, self)
         if self.sync_profile:
             from gateway.mobile_live import serve as serve_live
             from gateway.mobile_live import readiness as live_readiness

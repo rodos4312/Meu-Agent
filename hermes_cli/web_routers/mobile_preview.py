@@ -21,6 +21,8 @@ from hermes_cli.web_routers.mobile_devices import router as _devices_router
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/mobile-preview", dependencies=[Depends(owner_on_this_machine)])
+from hermes_cli.web_routers.meu_projects import router as _projects_router
+router.include_router(_projects_router)
 
 
 def _state(value):

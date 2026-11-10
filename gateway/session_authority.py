@@ -591,11 +591,15 @@ class SessionAuthority:
         from gateway.session_ingress_media import drop_capture_lease, reconcile_native_retry, release_unheld_media
         fresh = payload.get('native_text_v1', {}).get('media', [])
         session_id = self._current_owner(session_id)
+        def project_authorize(conn):
+            from hermes_state_meu_projects import require_project_execution
+            authorize(conn)
+            require_project_execution(self.db, conn, session_id)
         try:
             payload = reconcile_native_retry(self.db, principal_id=principal_id, session_id=session_id,
                                              request_id=request_id, payload=payload, raw=raw)
             return admit_session_input(self.db, epoch=self.epoch, principal_id=principal_id, session_id=session_id,
-                                       request_id=request_id, payload=payload, _authorize_write=authorize)
+                                       request_id=request_id, payload=payload, _authorize_write=project_authorize)
         except Exception:
             # A refused admission owns nothing it captured (unless another admission holds the same bytes).
             drop_capture_lease()
@@ -724,7 +728,9 @@ class SessionAuthority:
         write_gate = self._admission_gate(_authorize_write, queue_only=queue_only)
         def authorize(conn):
             from hermes_state_meu_observation import require_local_execution
+            from hermes_state_meu_projects import require_project_execution
             write_gate(conn)
+            require_project_execution(self.db, conn, request.ref.session_id)
             require_local_execution(self.db, request.ref.session_id, conn=conn)
         def admit():
             try:
@@ -1121,10 +1127,14 @@ class SessionAuthority:
             self._require_admission_open()
             from gateway.session_runtime_workers import tracked_write
             live.rescan = False  # a _schedule from here on may not be visible to this claim's read
+            def project_gate(conn):
+                from hermes_state_meu_projects import require_project_execution
+                self._admission_gate()(conn)
+                require_project_execution(self.db, conn, ref.session_id)
             # The row these checks validated, never whichever is first when the write runs: a
             # cancellation commits from a worker thread and can advance the FIFO at any point.
             row = await tracked_write(self, partial(claim_session_input, self.db, epoch=self.epoch,
-                                                    session_id=ref.session_id, _guard=self._admission_gate(),
+                                                    session_id=ref.session_id, _guard=project_gate,
                                                     head=first['admission_id'] if first is not None else None),
                                       then=partial(self._stamp_claim, ref, live))
             # Input scheduled while this claim's transaction ran may postdate its read: re-read

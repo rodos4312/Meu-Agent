@@ -14,6 +14,7 @@ function setup(failMigration = false) {
   let migrated = false
   const owner = { id: 'a'.repeat(32), name: 'Owner', owner: true }
   const api = vi.fn(async ({ path, method }: { path: string; method?: string }) => {
+    if (path === '/api/mobile-preview/projects') return { projects: [], conversations: [] }
     if (path === '/api/meu-transfers') return { enabled: true, directory: 'C:/fixture/shared' }
     if (path.endsWith('/migrate') && method === 'POST') {
       if (failMigration) throw new Error('controlled refusal')

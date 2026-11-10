@@ -88,7 +88,8 @@ async def test_launch_options_reach_the_owner_frozen_and_hooks_consented(tmp_pat
         return restore_policy(local_receipt(authority.db, session_id)['policy'])
     policy = frozen(sid)
     assert 'LAUNCH_SKILL_BODY' in policy.skills_prompt and policy.pass_session_id and policy.checkpoints_enabled
-    assert str(hook) in (home / shell_hooks.ALLOWLIST_FILENAME).read_text()
+    approvals = json.loads((home / shell_hooks.ALLOWLIST_FILENAME).read_text())['approvals']
+    assert any(item['command'] == str(hook) for item in approvals)
     assert len(get_plugin_manager()._hooks['pre_tool_call']) == 1
     # Retrying the request id resumes the frozen route; nothing re-renders or re-registers.
     assert await create('launch', **launch) == sid
@@ -470,21 +471,16 @@ def test_frozen_launch_url_override_never_borrows_the_named_pool(tmp_path, monke
     assert (runtime['api_key'], runtime['credential_pool']) == ('no-key-required', None)
 
 
-def test_lazy_info_reports_the_free_tier_pinned_model(tmp_path, monkeypatch):
-    """A not-yet-built session with no launch model/provider runs on ``nous/welcome`` on the free
-    tier (the agent build pins it), so ``session.info`` says so; an explicit launch model stands."""
-    from dataclasses import replace
+def test_lazy_info_reports_the_selected_model_without_an_account_route(tmp_path):
+    """An unbuilt session reports the user's selected provider/model without a portal override."""
     from types import SimpleNamespace
     from gateway.session_local import _lazy_model
     from gateway.session_policy import build_policy
-    from hermes_cli import anon_auth
     authority = SimpleNamespace(runner=None, profile_id='fixture')
-    monkeypatch.setattr(anon_auth, 'free_tier_route', lambda: True)
-    configured = replace(build_policy({'cwd': str(tmp_path)}, {'model': {'default': 'cfg-model'}}), model='cfg-model')
-    assert _lazy_model(authority, configured) == anon_auth.GUEST_MODEL
-    assert _lazy_model(authority, build_policy({'cwd': str(tmp_path), 'model': 'pick'}, {})) == 'pick'
-    monkeypatch.setattr(anon_auth, 'free_tier_route', lambda: False)
-    assert _lazy_model(authority, configured) == 'cfg-model'
+    for model in ('chosen-fast', 'chosen-pro'):
+        policy = build_policy({'cwd': str(tmp_path), 'model': model}, {'model': {'default': 'other'}})
+        assert _lazy_model(authority, policy) == model
+    assert _lazy_model(authority, None) is None
 
 
 def test_run_budget_is_a_frozen_launch_option(tmp_path):

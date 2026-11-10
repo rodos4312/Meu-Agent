@@ -7,6 +7,11 @@ on:
       - 'apps/android/**'
       - 'apps/desktop/assets/meu-icon.png'
       - 'gateway/mobile_preview.py'
+      - 'gateway/mobile_projects.py'
+      - 'hermes_state_meu_projects.py'
+      - 'meu_project_files.py'
+      - 'tests/gateway/test_meu_projects_transport.py'
+      - 'tests/hermes_state/test_meu_projects.py'
       - 'gateway/mobile_relay*.py'
       - 'gateway/run_api.py'
       - 'gateway/session_policy.py'
@@ -37,7 +42,7 @@ jobs:
           packages: git,ripgrep
       - name: Verify one-time pairing and a canonical Meu turn on Windows
         shell: bash
-        run: scripts/run_tests.sh -j 1 tests/gateway/test_mobile_preview.py tests/gateway/test_mobile_relay.py -- --override-ini=addopts= -q
+        run: scripts/run_tests.sh -j 1 tests/gateway/test_mobile_preview.py tests/gateway/test_mobile_relay.py tests/gateway/test_meu_projects_transport.py tests/hermes_state/test_meu_projects.py -- --override-ini=addopts= -q
 
   apk:
     name: Legacy Android companion compilation (no distribution)
