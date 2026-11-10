@@ -39,6 +39,7 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | [`baoyu-infographic`](../user-guide/skills/bundled/creative/creative-baoyu-infographic.md) | Infographics: 21 layouts x 21 styles (信息图, 可视化). | `creative/baoyu-infographic` |
 | [`claude-design`](../user-guide/skills/bundled/creative/creative-claude-design.md) | Design one-off HTML artifacts (landing, deck, prototype). | `creative/claude-design` |
 | [`humanizer`](../user-guide/skills/bundled/creative/creative-humanizer.md) | Humanize text: strip AI-isms and add real voice. | `creative/humanizer` |
+| [`local-png`](../user-guide/skills/bundled/creative/creative-local-png.md) | Create cards, posters and diagrams as local PNGs. | `creative/local-png` |
 | [`manim-video`](../user-guide/skills/bundled/creative/creative-manim-video.md) | Manim CE animations: 3Blue1Brown math/algo videos. | `creative/manim-video` |
 | [`p5js`](../user-guide/skills/bundled/creative/creative-p5js.md) | p5.js sketches: gen art, shaders, interactive, 3D. | `creative/p5js` |
 | [`popular-web-designs`](../user-guide/skills/bundled/creative/creative-popular-web-designs.md) | 54 real design systems (Stripe, Linear, Vercel) as HTML/CSS. | `creative/popular-web-designs` |

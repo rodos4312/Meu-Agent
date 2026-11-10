@@ -1,0 +1,4 @@
+# Optional native worker only; never install into the Meu or Android base environment.
+mt5-trading-mcp==1.6.1
+mcp>=1.28,<2
+MetaTrader5==5.0.6231

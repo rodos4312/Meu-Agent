@@ -229,6 +229,7 @@ hermes skills uninstall <skill-name>
 | [**duckduckgo-search**](../user-guide/skills/optional/research/research-duckduckgo-search.md) | Free keyless web, news, and image search via ddgs. |
 | [**gitnexus-explorer**](../user-guide/skills/optional/research/research-gitnexus-explorer.md) | Serve an interactive codebase knowledge graph web UI. |
 | [**llm-wiki**](../user-guide/skills/optional/research/research-llm-wiki.md) | Karpathy's LLM Wiki: build/query interlinked markdown KB. |
+| [**mt5-market-data**](../user-guide/skills/optional/research/research-mt5-market-data.md) | Analyze MT5/XAUUSD, gold and EA trades read-only. |
 | [**osint-investigation**](../user-guide/skills/optional/research/research-osint-investigation.md) | Follow the money via public records and sanctions data. |
 | [**parallel-cli**](../user-guide/skills/optional/research/research-parallel-cli.md) | Agent-native web search, deep research, and enrichment. |
 | [**qmd**](../user-guide/skills/optional/research/research-qmd.md) | Hybrid local search over notes, docs, and transcripts. |

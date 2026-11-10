@@ -37,6 +37,12 @@ Execute implementation plans by dispatching fresh subagents per task with system
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
 
+When the selected delegation backend is Meu Coordinator, first read
+`references/meu-coordinator.md`. Use its checkpointed requirements/quality
+pipeline for substantial implementation. It preserves the selected provider,
+bounded repair attempts and the lightweight path for small requests. The
+generic workflow below remains available with other delegation backends.
+
 ## When to Use
 
 Use this skill when:
