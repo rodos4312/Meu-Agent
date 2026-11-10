@@ -72,8 +72,12 @@ class ProjectStore:
     def _quiet(self, conn, item):
         root = Path(item['root'])
         sessions = set(item['sessions'])
+        conversations = {self.db._session_turn_lease_key_on_conn(conn, sid) for sid in sessions}
         for row in conn.execute('SELECT id,cwd FROM sessions'):
-            if row['cwd'] and Path(row['cwd']).is_relative_to(root):
+            # A compressed continuation may still carry the other device's cwd.
+            # Its queued/unknown workers remain part of this project's handoff.
+            if (self.db._session_turn_lease_key_on_conn(conn, row['id']) in conversations or
+                    row['cwd'] and Path(row['cwd']).is_relative_to(root)):
                 sessions.add(row['id'])
         for sid in sessions:
             require_quiet(self.db, conn, sid)

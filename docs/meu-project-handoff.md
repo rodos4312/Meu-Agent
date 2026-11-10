@@ -1,4 +1,4 @@
-# Personal project handoff (pending, no distribution)
+# Personal project handoff (dev.30 / Android 9687 test candidate)
 
 Windows and autonomous Android keep local project replicas. A project has one
 durable execution owner. Chat observation stays independent and may remain live
@@ -67,4 +67,14 @@ this pending batch deliberately does not automatically delete user data.
 
 Automated source/transport/UI/embedded-runtime checks and physical device
 acceptance must be reported separately. No release request or version bump is
-part of this batch.
+part of the earlier source-only batch. The owner subsequently requested a bug check
+and preparation of dev.30 / Android 9687 installers. Keep publication distinct
+from candidate preparation and physical-device acceptance.
+
+## Candidate regression check
+
+A compressed continuation can retain its previous device cwd. Project surrender
+checks every segment of the logical conversation, including queued/unknown work,
+not only sessions whose stored cwd already matches the receiving folder. The
+regression test fails before the fix and permits surrender only after the child
+work is settled.

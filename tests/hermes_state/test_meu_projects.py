@@ -218,6 +218,28 @@ def test_cancellation_before_release_can_be_retried_without_a_second_owner(tmp_p
         allowed(phone, sid)
 
 
+def test_compressed_continuation_with_old_device_path_blocks_handoff(tmp_path):
+    from hermes_state_errors import SessionActiveWriteGuardError
+    root = tmp_path / 'local-project'; root.mkdir()
+    sid, child = new_session_id(), new_session_id()
+    with SessionDB(tmp_path / 'phone-state' / 'store.db') as db:
+        db.create_session(sid, source='gui')
+        store = ProjectStore(db, 'phone')
+        pid = store.register(root, 'Work', [sid])['id']
+        db.end_session(sid, 'compression')
+        db.create_session(child, source='gui', parent_session_id=sid, cwd=str(tmp_path / 'old-device-path'))
+        db._execute_write(lambda conn: conn.execute(
+            "INSERT INTO session_admissions(admission_id, request_id, principal_id, target_session_id, "
+            "lineage_json, payload_json, payload_digest, intent, status) VALUES(?,?,?,?,?,?,?,'queue','unknown')",
+            ('child-work', 'request', 'owner', child, '[]', '{}', 'f' * 64)))
+        with pytest.raises(SessionActiveWriteGuardError):
+            store.prepare(pid, 'pc', 'compressed-work')
+        assert store.catalog()['projects'][0]['phase'] == 'ready'
+        db._execute_write(lambda conn: conn.execute(
+            "UPDATE session_admissions SET status='terminal' WHERE admission_id='child-work'"))
+        assert store.prepare(pid, 'pc', 'settled')['receiver'] == 'pc'
+
+
 @pytest.mark.platforms('posix')
 def test_symlink_is_not_a_project_file(tmp_path):
     root = tmp_path / 'root'; root.mkdir()
