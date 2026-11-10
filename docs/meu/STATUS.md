@@ -3,6 +3,14 @@
 Current published Windows version: [0.1.0-dev.29](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.29).
 Development remains on `dev/meu-foundation`; `main` is not changed.
 
+## Consolidated candidate preparation — 2026-11-10
+
+The owner authorized a grouped Windows dev.31 / private Android 9688 build.
+These new candidates supersede the earlier dev.30 / 9687 build inputs, include
+all committed stability and read-only MT5 corrections, and preserve Android
+package/signer/data. Build and rehearsal receipts remain required; physical
+phone acceptance is pending. No automatic publication is authorized.
+
 ## Current checks — 2026-11-10
 
 Windows dev.30 remains a draft/test candidate; Android 9687 is a local private
