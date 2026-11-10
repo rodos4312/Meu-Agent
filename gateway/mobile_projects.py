@@ -69,7 +69,11 @@ def mount(app, preview):
             if pid and op not in {'receive'}:
                 with store.db._read_ctx() as conn:
                     item = store._get(conn, pid)
-                if item['owner'] not in {'pc', peer} or (op in {'chunk', 'release', 'cancel'} and item.get('receiver') != peer):
+                # An unstarted cancellation only fences its attempt id; it never
+                # changes the owner or cancels another device's offered transfer.
+                cancel_unstarted = op == 'cancel' and item['phase'] == 'ready' and item['owner'] == 'pc'
+                if item['owner'] not in {'pc', peer} or (op in {'chunk', 'release', 'cancel'} and
+                        item.get('receiver') != peer and not cancel_unstarted):
                     raise web.HTTPForbidden()
             if op == 'receive':
                 with store.db._read_ctx() as conn:

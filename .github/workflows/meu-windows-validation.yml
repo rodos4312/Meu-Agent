@@ -41,6 +41,7 @@ on:
       - 'meu_project_files.py'
       - 'gateway/mobile_projects.py'
       - 'tests/hermes_state/test_meu_projects.py'
+      - 'tests/hermes_state/test_meu_project_cancellation.py'
       - 'tests/gateway/test_meu_projects_transport.py'
       - 'tests/hermes_state/test_meu_observation.py'
       - 'tests/hermes_cli/test_meu_observation_display.py'
@@ -183,7 +184,7 @@ jobs:
           tests/gateway/test_meu_sync_transport.py tests/gateway/test_meu_sync_listener_startup.py
           tests/gateway/test_mobile_live.py
           tests/gateway/test_meu_observation_transport.py tests/hermes_state/test_meu_observation.py
-          tests/hermes_state/test_meu_projects.py tests/gateway/test_meu_projects_transport.py
+          tests/hermes_state/test_meu_projects.py tests/hermes_state/test_meu_project_cancellation.py tests/gateway/test_meu_projects_transport.py
           tests/hermes_cli/test_meu_observation_display.py
           tests/gateway/test_mobile_device_migration.py tests/gateway/test_mobile_device_migration_live.py
           tests/tools/test_delegate_prompt_cache.py tests/tools/test_delegate_depth_prompt.py

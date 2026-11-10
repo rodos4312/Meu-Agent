@@ -316,6 +316,11 @@ class ProjectStore:
             item = self._get(conn, pid)
             if item.get('discarded_transfer') == transfer:
                 return self.public(item)
+            if (item['owner'] != self.local and item['phase'] in {'ready', 'released'} and
+                    item.get('transfer') != transfer):
+                # The source acknowledged cancellation before this replica received
+                # the offer. There is no staging state for this attempt to discard.
+                return self.public(item)
             if item['phase'] != 'receiving' or item['transfer'] != transfer or item['owner'] == self.local:
                 raise ValueError('handoff_mismatch')
             item.update(phase='ready', discarded_transfer=transfer)

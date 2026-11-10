@@ -1,9 +1,31 @@
 # Meu development and release status
 
-Current published Windows version: [0.1.0-dev.28](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.28).
+Current published Windows version: [0.1.0-dev.29](https://github.com/rodos4312/Meu-Agent/releases/tag/meu-v0.1.0-dev.29).
 Development remains on `dev/meu-foundation`; `main` is not changed.
 
-## Consolidated trial delivered — 2026-11-09
+## Current checks — 2026-11-10
+
+Windows dev.30 remains a draft/test candidate; Android 9687 is a local private
+candidate. These existing binaries do not contain this stability follow-up. The owner requested a
+single consolidated distribution after the checks and corrections, not a
+release for each small change. Published Android 9686 and Windows dev.29 are
+historical delivered binaries, separate from the working source.
+
+Project-file handoff and a durable single execution owner are implemented in
+the shared Windows/Android core. This supersedes the older history-only scope
+below; see [project handoff](../meu-project-handoff.md). Both devices must be
+reachable before transferring unsent files. The receiving device can continue
+with the PC off only after a verified handoff.
+
+This pass reproduces and corrects early-cancellation deadlocks, rechecks the
+Coordinator and Android independence/Auto/live history, and preserves the
+read-only MT5 arithmetic/structure/narrative work. See
+[consolidated checks](CONSOLIDATED_CHECKS_2026-11-10.md) and
+[MT5 validation](MT5_MARKET_VALIDATION.md). An
+[OpenViking comparison](OPENVIKING_REVIEW.md) is research only.
+Physical Android and actual Windows OS-reboot acceptance remain distinct.
+
+## Historical delivered trial — 2026-11-09
 
 Windows **dev.28** and owner-private Android **9684** are published for the
 consolidated device trial. Both embedded/source pins are

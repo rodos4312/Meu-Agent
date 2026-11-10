@@ -52,6 +52,20 @@ async def exercise(tmp_path):
                 async with client.post(url, ssl=tls, headers=headers, json={
                         'op': 'prepare', 'id': pid, 'transfer': 'steal', 'receiver': 'another-phone'}) as response:
                     assert response.status == 403
+                # A paired phone cannot cancel another phone's active offer.
+                foreign = ProjectStore(db).prepare(pid, 'phone-other', 'foreign')
+                async with client.post(url, ssl=tls, headers=headers, json={
+                        'op': 'cancel', 'id': pid, 'transfer': foreign['transfer']}) as response:
+                    assert response.status == 403
+                assert ProjectStore(db).catalog()['projects'][0]['phase'] == 'offered'
+                ProjectStore(db).cancel_offer(pid, 'foreign')
+                # Cancelling before prepare arrives still fences that exact attempt.
+                early = await call({'op': 'cancel', 'id': pid, 'transfer': 'never-received'})
+                assert early['owner'] == 'pc' and early['phase'] == 'ready'
+                async with client.post(url, ssl=tls, headers=headers, json={
+                        'op': 'prepare', 'id': pid, 'transfer': 'never-received', 'receiver': 'phone-legacy'}) as response:
+                    assert response.status == 409
+                    assert (await response.json())['reason'] == 'transfer_cancelled'
                 offer = await call({'op': 'prepare', 'id': pid, 'transfer': 'one', 'receiver': 'phone-legacy'})
                 target = ProjectStore(phone, 'phone-legacy')
                 target.receive(offer, replica)
