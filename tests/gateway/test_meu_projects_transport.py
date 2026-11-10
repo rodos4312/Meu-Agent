@@ -69,5 +69,18 @@ async def exercise(tmp_path):
                 with pytest.raises(RuntimeStoreError, match='session_busy'):
                     await authority.submit(actor, Submission('new', SessionRef('owned', sid), {'text': 'do not run'}, 'queue'))
                 assert list_session_admissions(db, session_id=sid) == []
+                # Return through the real HTTP route as well. This project was
+                # explicitly selected on the PC; no general transfer folder is set.
+                (replica / 'main.js').write_text('continued with the PC unavailable')
+                returned = target.prepare(pid, 'pc', 'back')
+                await call({'op': 'receive', 'offer': returned})
+                for entry in returned['files']:
+                    data = target.chunk(pid, 'back', entry['path'], 0)
+                    await call({'op': 'put', 'id': pid, 'transfer': 'back', 'path': entry['path'],
+                                'offset': 0, 'data': data['data']})
+                assert (await call({'op': 'verify', 'id': pid, 'transfer': 'back'}))['digest'] == returned['digest']
+                receipt = await call({'op': 'activate', 'grant': target.release(pid, 'back')})
+                assert receipt['owner'] == 'pc'
+                assert (root / 'main.js').read_text() == 'continued with the PC unavailable'
         finally:
             await preview.close()

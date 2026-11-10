@@ -72,8 +72,15 @@ def mount(app, preview):
                 if item['owner'] not in {'pc', peer} or (op in {'chunk', 'release', 'cancel'} and item.get('receiver') != peer):
                     raise web.HTTPForbidden()
             if op == 'receive':
-                from hermes_cli.meu_transfer_spaces import MobileTransferFolder
-                root, _ = MobileTransferFolder(preview).grant()
+                with store.db._read_ctx() as conn:
+                    registered = any(item['id'] == pid and item['space'] == store.space for item in store._records(conn))
+                if registered:
+                    # Returning an explicitly selected project does not require
+                    # a second, unrelated general-purpose file-sharing grant.
+                    root = None
+                else:
+                    from hermes_cli.meu_transfer_spaces import MobileTransferFolder
+                    root, _ = MobileTransferFolder(preview).grant()
             else:
                 root = None
             result = await asyncio.to_thread(operate, store, payload, receive_root=root)
