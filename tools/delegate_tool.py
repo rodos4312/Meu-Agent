@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ``tools.delegate_tool.<name>`` is re-imported here. Mutable flag globals live only in their owning module.
 from tools.delegate_tool_child_run import (
     _ChildRun, _attach_child, _build_child_goal_message, _close_child, _detach_child, _build_result_entry, _dump_subagent_timeout_diagnostic, _fabricated_entry,
-    _lease_child_credential, _merge_late_steer, _register_child, _start_heartbeat, _validate_child_output_schema,
+    _lease_child_credential, _merge_late_steer, _register_child, _reserve_child_transcript, _start_heartbeat, _validate_child_output_schema,
 )
 from tools.delegate_tool_config import (
     _DEFAULT_MAX_CONCURRENT_CHILDREN, _get_child_timeout, _get_max_async_children, _get_max_concurrent_children,
@@ -359,6 +359,7 @@ def _build_child_agent(
     if child_pool is not None:
         child._credential_pool = child_pool
 
+    _reserve_child_transcript(child)
     _attach_child(parent_agent, child)  # interrupt propagation
     # spawn_requested now — the child may queue for seconds when the pool is
     # saturated — then the subagent_start lifecycle hook.

@@ -331,9 +331,10 @@ class AIAgent(
                 profile_for_session = None
             # Carry the gateway routing identity: when the gateway SessionStore degraded to JSONL (corrupt
             # state.db) this lazy create is the ONLY durable write, and an identity-less row is unrecoverable.
+            model_config = self._session_row_model_config()
             self._session_db.create_session(
                 session_id=self.session_id, source=source, model=self.model,
-                model_config=self._session_row_model_config(), system_prompt=self._cached_system_prompt,
+                model_config=model_config, system_prompt=self._cached_system_prompt,
                 user_id=getattr(self, "_user_id", None), session_key=getattr(self, "_gateway_session_key", None),
                 chat_id=getattr(self, "_chat_id", None), chat_type=getattr(self, "_chat_type", None),
                 thread_id=getattr(self, "_thread_id", None),
@@ -341,6 +342,12 @@ class AIAgent(
                 origin_json=_gateway_origin_json(self), parent_session_id=self._parent_session_id,
                 cwd=_launch_cwd_for_session(source), profile_name=profile_for_session,
             )
+            if getattr(self, "_session_db_reserved", False) is True:
+                # Merge constructor fields with data written while the child was queued.
+                patch = {key: value for key, value in (model_config or {}).items() if value is not None}
+                if patch:
+                    self._session_db.patch_session_model_config(self.session_id, patch)
+                self._session_db_reserved = False
             self._session_db_created = True
         except Exception as e:
             # Transient failure (e.g. SQLite lock): _session_db_created stays False so the next turn retries.
