@@ -10,7 +10,7 @@ viewer attached (the authority's own subscriber records) the executor records it
 history, where the next turn sees it, and settles the admission without a model call. Queue order, restart survival and
 exactly-once are the admission contract's. With a viewer attached it runs as the turn it always was,
 except a local cron result, which is always a note; messaging, Kanban, ``/loop`` and heartbeat wakes
-never reach here.
+never reach here. A failed delegation's final result wakes its parent even with no viewer attached.
 """
 import json
 from functools import partial
@@ -33,7 +33,12 @@ def _producer(identity):
 def noted_completion(row):
     """*row* is a local completion admission: a note when it runs with no viewer attached."""
     descriptor = (row or {}).get('payload', {}).get('local_automation_v1')
-    return descriptor is not None and _producer(descriptor['identity']) in _NOTED_PRODUCERS | _ALWAYS_NOTED
+    if descriptor is None:
+        return False
+    producer = _producer(descriptor['identity'])
+    if producer == 'async_delegation' and descriptor.get('wakes_parent') is True:
+        return False
+    return producer in _NOTED_PRODUCERS | _ALWAYS_NOTED
 
 
 async def reopen_for_turn(authority, ref):

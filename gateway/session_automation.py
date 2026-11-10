@@ -23,6 +23,17 @@ def producer_identity(runner, event):
     return json.dumps(identity, separators=(',', ':'))
 
 
+def coalesced_delegation_event(runner, primary, siblings):
+    from tools.process_registry_notifications import delegation_wakes_parent
+
+    events = [primary, *(event for event, _ in siblings)]
+    return dict(
+        primary,
+        _automation_identities=[producer_identity(runner, event) for event in events],
+        _sibling_failed=any(delegation_wakes_parent(event) for event in events[1:]),
+    )
+
+
 def completion_admission(runner, event):
     from gateway.session_authorities import active_authority
     authority = active_authority(runner)
@@ -329,7 +340,8 @@ def automation_display_metadata(metadata):
 # proof at execution from the target the pre-claim check validated, and the turn's resolver reads it.
 _AUTOMATION_METADATA = frozenset({'gateway_session_key', 'gateway_session_id', 'automation_identities',
     'turn_author', 'notification_origin', 'original_trigger_message_id', 'notification_category',
-    'display_kind', 'display_text', 'gateway_proven_session_id', 'gateway_completion_ids', 'heartbeat_tick'})
+    'display_kind', 'display_text', 'gateway_proven_session_id', 'gateway_completion_ids', 'heartbeat_tick',
+    'completion_wakes_parent'})
 
 
 def admission_display(payload):
@@ -454,6 +466,8 @@ def snapshot_local_automation(authority, adapter, event, identity, entry):
     descriptor.update(automation_notification_metadata(event.metadata))
     descriptor.update(automation_display_metadata(event.metadata))
     descriptor.update(_tick_metadata(event.metadata))
+    if event.metadata.get('completion_wakes_parent') is True:
+        descriptor['wakes_parent'] = True
     if event.metadata.get('turn_author') is not None:
         from agent.turn_author import parse_turn_author
         descriptor['turn_author'] = parse_turn_author(event.metadata['turn_author'])

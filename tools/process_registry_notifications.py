@@ -150,6 +150,21 @@ def _is_truncated(entry: dict) -> bool:
     return bool(entry.get("truncated") or entry.get("exit_reason") == "max_iterations")
 
 
+_FAILED_DELEGATION_STATES = frozenset({"error", "failed", "timeout", "unknown", "stalled"})
+
+
+def delegation_wakes_parent(event: dict) -> bool:
+    """Wake a detached parent for terminal failure, once the whole unit has settled."""
+    if event.get("type") != "async_delegation" or event.get("task_failure_notice"):
+        return False
+    if event.get("_sibling_failed") or event.get("status") in _FAILED_DELEGATION_STATES:
+        return True
+    results = event.get("results")
+    if not isinstance(results, list):
+        return False
+    return any(isinstance(row, dict) and row.get("status") in _FAILED_DELEGATION_STATES for row in results)
+
+
 def _notice_lines(results) -> list[str]:
     """Blank + model_not_found notice block, or [] when the notice does not apply."""
     notice = _delegation_model_not_found_notice(results)

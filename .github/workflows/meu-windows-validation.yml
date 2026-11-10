@@ -179,6 +179,7 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
+          tests/gateway/test_unviewed_delegation_failure_turn.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
           tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_meu_transfer_browsing.py
           tests/gateway/test_mobile_personal_spaces.py tests/hermes_state/test_meu_sync_history.py
@@ -270,7 +271,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify paged subagent watch on Windows
         working-directory: apps/desktop
-        run: npm test -- src/api/canonical-watch-window-resume.test.ts --maxWorkers 1
+        run: npm.cmd test -- src/api/canonical-watch-window-resume.test.ts --maxWorkers=1
       - name: Build Meu desktop
         working-directory: apps/desktop
         run: npm run build
@@ -333,6 +334,7 @@ jobs:
           scripts/run_tests.sh -j 2 --file-retries 0
           tests/hermes_cli/test_meu_privacy.py
           tests/agent/test_model_metadata_memo_bounds.py tests/test_live_nous_services_fence.py
+          tests/agent/test_request_only_empty_recovery.py
           tests/hermes_cli/test_webapp_access.py
           tests/hermes_cli/test_webapp_access_ports.py
           tests/hermes_cli/test_meu_independent_identity.py
@@ -402,6 +404,7 @@ jobs:
           tests/gateway/test_session_model_reset.py
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/plugins/delegation/test_meu_coordinator.py
+          tests/gateway/test_unviewed_delegation_failure_turn.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
           tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_meu_transfer_browsing.py
           tests/gateway/test_mobile_personal_spaces.py tests/hermes_state/test_meu_sync_history.py
