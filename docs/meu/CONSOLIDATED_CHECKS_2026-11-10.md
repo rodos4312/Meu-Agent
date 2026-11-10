@@ -50,6 +50,9 @@ offer. Three Android process-bridge checks pass against the working core;
 the updated bridge regression separately fails against the older packaged seed.
 Targeted Dart analysis is clean. The new cancellation suite is included in both
 Windows and Android-compatibility CI, including their path triggers.
+The five read-only MT5 safety/arithmetic/market-structure suites and their
+source/test path triggers are also explicitly included in Windows CI;
+the older catalog-default test alone did not exercise this new adapter.
 
 Embedded-engine pin and current CI receipts are recorded
 separately before any later candidate rebuild. Older GitHub success applies

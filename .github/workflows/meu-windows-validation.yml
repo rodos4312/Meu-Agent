@@ -12,6 +12,8 @@ on:
       - 'apps/shared/**'
       - 'tests/ci/**'
       - 'optional-mcps/mt5-httpapi-read/**'
+      - 'optional-skills/research/mt5-market-data/**'
+      - 'tests/skills/test_mt5_market*.py'
       - 'ui-tui/**'
       - 'web/**'
       - 'locales/**'
@@ -489,6 +491,17 @@ jobs:
           scripts/run_tests.sh -j 1
           tests/hermes_cli/test_models_analytics_attribution.py
           tests/hermes_cli/test_mcp_catalog.py
+          -- --override-ini=addopts= -q
+
+      - name: Verify read-only MT5 summaries and market structure
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 1
+          tests/skills/test_mt5_market_data_skill.py
+          tests/skills/test_mt5_market_data_ea.py
+          tests/skills/test_mt5_market_metrics.py
+          tests/skills/test_mt5_market_structure.py
+          tests/skills/test_mt5_market_structure_reader.py
           -- --override-ini=addopts= -q
 
   windows-identity-and-safety:
