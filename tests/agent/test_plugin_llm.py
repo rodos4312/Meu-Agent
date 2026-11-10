@@ -219,6 +219,26 @@ class TestJsonParsing:
         assert parsed == {"language": "French", "is_question": True}
         assert ct == "json"
 
+    @pytest.mark.parametrize("body", ["not JSON", "123"])
+    def test_complete_json_with_code_in_a_string_still_matches_schema(self, body):
+        import json
+
+        value = {"markdown": f"Example: ```json {body}```"}
+        result = _parse_structured_text(
+            text=json.dumps(value),
+            json_mode=True,
+            json_schema={"type": "object", "required": ["markdown"]},
+        )
+        assert result == (value, "json")
+
+    def test_invalid_fenced_json_schema_is_not_silenced_by_fallback(self):
+        with pytest.raises(ValueError, match="did not match schema"):
+            _parse_structured_text(
+                text='Example: ```json\n{"other": 1}\n```',
+                json_mode=True,
+                json_schema={"type": "object", "required": ["markdown"]},
+            )
+
     def test_schema_validation_accepts_match(self):
         pytest.importorskip("jsonschema")
         schema = {

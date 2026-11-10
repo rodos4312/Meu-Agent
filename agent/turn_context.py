@@ -210,6 +210,12 @@ def _maybe_title_session_at_turn_start(
     if platform in _UNTITLED_PLATFORMS:
         return
     try:
+        from agent.oneshot_footprint import agent_is_oneshot
+
+        # Finite runs are hidden from session pickers and need no extra title request.
+        if agent_is_oneshot(agent):
+            return
+
         from agent.message_content import flatten_message_text
         from agent.title_generator import apply_subagent_title, maybe_auto_title
 
