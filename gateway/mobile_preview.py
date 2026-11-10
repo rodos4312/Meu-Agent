@@ -412,6 +412,7 @@ class MobilePreview:
         except ValueError:
             raise web.HTTPBadRequest() from None
         return web.json_response({**catalog,
+            **({'project_sync': 1} if request.query.get('projects') == '1' else {}),
             **({"observations": 1} if request.query.get("live") == "1" else {}),
             **({"live_chat": 1} if request.query.get("live") == "1" else {}),
             **({"timestamps": True} if request.query.get("timestamps") == "1" else {}),

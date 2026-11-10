@@ -21,3 +21,13 @@ it('links the selected folder and conversation in the owning profile', async () 
     body: { directory: 'C:/projects/Game', name: 'Game', session_id: 'chat-one' }
   })))
 })
+
+it('requests the phone to surrender instead of immediately starting a PC worker', async () => {
+  api.mockResolvedValue({ projects: [{ id: 'p1', name: 'Game', directory: 'C:/Game', owner: 'phone-one', phase: 'released' }], conversations: [] })
+  render(<ProjectSyncSettings profile="work" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue on PC' }))
+  await waitFor(() => expect(api).toHaveBeenCalledWith(expect.objectContaining({
+    profile: 'work', method: 'POST', path: '/api/mobile-preview/projects/p1/return'
+  })))
+  expect(api.mock.calls.some(([request]) => request.path.includes('prompt'))).toBe(false)
+})

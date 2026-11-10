@@ -50,6 +50,7 @@ def test_roundtrip_with_pc_closed_preserves_binary_updates_and_deletes(tmp_path)
         with pytest.raises(RuntimeStoreError):
             allowed(phone, sid)
         grant = a.release(pid, 'first')
+        assert a.request_return(pid)['return_requested'] is True
         assert a.release(pid, 'first') == grant  # lost HTTP response
         b.activate(grant)
         assert (phone_root / 'empty-assets').is_dir()
@@ -69,6 +70,7 @@ def test_roundtrip_with_pc_closed_preserves_binary_updates_and_deletes(tmp_path)
                 allowed(pc, sid)
             copy_offer(b, a, returned, pc_root)
             a.activate(b.release(pid, 'return'))
+            assert a.catalog()['projects'][0]['return_requested'] is False
             allowed(pc, sid)
             assert (pc_root / 'game.js').read_text() == 'level two built offline'
             assert not (pc_root / 'icon.png').exists()

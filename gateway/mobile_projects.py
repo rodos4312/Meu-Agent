@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 
 from aiohttp import web
+from fastapi import HTTPException
 from hermes_state_errors import SessionActiveWriteGuardError
 from hermes_state_meu_projects import ProjectStore, identity
 from meu_project_files import portable
@@ -81,6 +82,10 @@ def mount(app, preview):
             return web.json_response({'status': 'busy'}, status=409)
         except LookupError:
             raise web.HTTPNotFound() from None
+        except HTTPException as error:
+            return web.json_response({'status': 'refused', 'reason': error.detail}, status=error.status_code)
+        except OSError:
+            return web.json_response({'status': 'refused', 'reason': 'project_storage_unavailable'}, status=409)
         except (ValueError, KeyError, TypeError) as error:
             return web.json_response({'status': 'refused', 'reason': str(error)[:100]}, status=409)
     app.router.add_post('/meu/projects', handle)

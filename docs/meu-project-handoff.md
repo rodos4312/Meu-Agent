@@ -18,6 +18,13 @@ not concurrent distributed editing or migration of a running process.
    The other device stays readable but refuses execution, across restart and
    network loss, until a completed reverse handoff.
 
+Windows can request Continue on PC. The paired phone sees the durable request
+on its normal sync cycle and hands the project back once its work is quiet.
+The phone application/runtime must be reachable for that handoff; a suspended
+or powered-off phone cannot upload unsent work. The PC remains fenced while it
+waits. A transfer can be cancelled before source surrender, never by claiming
+that a missing network reply means the other executor has stopped.
+
 The existing TLS certificate pin, private-network restriction, revocable pairing,
 profile and personal-space checks remain authoritative. The remote peer cannot
 register arbitrary PC directories: new phone-origin projects land under the

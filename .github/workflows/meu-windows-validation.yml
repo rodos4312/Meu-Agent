@@ -646,7 +646,7 @@ jobs:
         run: npx vitest run --project ui --maxWorkers 2 src/app/settings/model-settings.test.tsx src/app/settings/providers-settings.test.tsx src/app/settings/web-access-settings.test.tsx src/app/session/hooks/use-model-controls.test.tsx src/lib/model-status-label.test.ts src/plugins/hermes-bots/routing.test.ts src/plugins/hermes-bots/model-picker.test.tsx src/plugins/hermes-bots/bot-row-opens-canonical-chat.test.ts src/app/command-center/open-session.test.tsx
       - name: Verify Coordinator model preferences
         working-directory: apps/desktop
-        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/delegation/routing-section.test.tsx src/app/settings/mobile-preview-panel.test.tsx src/app/settings/transfer-folder-settings.test.tsx
+        run: npx vitest run --project ui --maxWorkers 2 src/app/settings/delegation/routing-section.test.tsx src/app/settings/mobile-preview-panel.test.tsx src/app/settings/project-sync-settings.test.tsx src/app/settings/transfer-folder-settings.test.tsx
       - name: Verify Meu navigation, chat history and customization pages
         working-directory: apps/desktop
         run: npx vitest run --project ui --maxWorkers 2 src/app/shell/meu-navigation.test.tsx src/app/chat/sidebar/chat-sidebar.integration.test.tsx src/app/capabilities/index.test.tsx src/app/capabilities/plugins/plugins-tab.test.tsx src/app/capabilities/skills/skill-provenance.test.ts src/app/capabilities/skills/frontmatter.test.ts src/app/settings/personal-devices-settings.test.tsx

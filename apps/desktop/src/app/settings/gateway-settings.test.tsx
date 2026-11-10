@@ -47,6 +47,7 @@ vi.mock('./managed-updates-section', () => ({ ManagedUpdatesSection: () => null 
 // File grants have their own native-bridge coverage. These connection-form
 // tests deliberately provide only the machine configuration bridge.
 vi.mock('./transfer-folder-settings', () => ({ TransferFolderSettings: () => null }))
+vi.mock('./project-sync-settings', () => ({ ProjectSyncSettings: () => null }))
 
 const localConnection = {
   cloudOrg: '',

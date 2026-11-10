@@ -56,7 +56,18 @@ class ProjectStore:
 
     @staticmethod
     def public(item):
-        return {key: item[key] for key in ('id', 'name', 'owner', 'epoch', 'phase', 'sessions')}
+        return {**{key: item[key] for key in ('id', 'name', 'owner', 'epoch', 'phase', 'sessions')},
+                'return_requested': item.get('return_requested', False)}
+
+    def request_return(self, pid):
+        def write(conn):
+            item = self._get(conn, pid)
+            if self.local != 'pc' or item['owner'] == self.local:
+                raise ValueError('project_already_local')
+            item['return_requested'] = True
+            self._save(conn, item)
+            return self.public(item)
+        return self.db._execute_write(write)
 
     def _quiet(self, conn, item):
         root = Path(item['root'])
@@ -272,7 +283,7 @@ class ProjectStore:
             # A restart after rename verifies the published tree before granting execution.
             _content_digest(manifest(root), offer['files'])
             item.update(owner=self.local, epoch=offer['epoch'], phase='ready', last_grant=grant,
-                        baseline=fingerprint(manifest(root)))
+                        baseline=fingerprint(manifest(root)), return_requested=False)
             self._save(conn, item)
             for sid in item['sessions']:
                 conn.execute('UPDATE sessions SET cwd=? WHERE id=?', (str(root), sid))

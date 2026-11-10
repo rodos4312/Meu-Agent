@@ -42,3 +42,13 @@ async def select(request: Request, selection: Selection):
         return result
     except (ValueError, LookupError) as error:
         raise HTTPException(409, str(error)) from None
+
+
+@router.post('/{project_id}/return')
+async def request_return(request: Request, project_id: str):
+    from hermes_cli.web_routers.mobile_preview import _scope
+    _, authority = _scope(request)
+    try:
+        return await asyncio.to_thread(ProjectStore(authority.db).request_return, project_id)
+    except (ValueError, LookupError) as error:
+        raise HTTPException(409, str(error)) from None
