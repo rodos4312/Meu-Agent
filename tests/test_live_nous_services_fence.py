@@ -12,11 +12,15 @@ import pytest
 
 def test_retired_connector_action_mints_no_portal_guest():
     import json
-    from hermes_cli import anon_auth
+    from unittest.mock import patch
+
     from tools.connectors.tool import manage_connections
-    result = json.loads(manage_connections({"action": "connect", "connectors": ["gmail"]}))
+
+    with patch.object(socket, "getaddrinfo", side_effect=AssertionError("retired action tried network access")) as lookup:
+        result = json.loads(manage_connections({"action": "connect", "connectors": ["gmail"]}))
+
     assert "Hosted accounts are not supported" in result["error"]
-    assert not anon_auth.has_guest()
+    lookup.assert_not_called()
 
 
 @pytest.mark.parametrize("host", ["portal.nousresearch.com", "inference-api.nousresearch.com",

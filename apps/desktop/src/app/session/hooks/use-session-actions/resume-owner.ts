@@ -3,6 +3,11 @@ import { isActivePrimary, openGatewayForAgent, openGatewayForProfile } from '@/s
 import { $showAllProfiles, ensureGatewayAgent, ensureGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $connection, setSessionOwnerHint } from '@/store/session'
 import type { SessionOwnerScope, SessionProfileRoute } from '@/store/session-request-router'
+import type { SessionMessagesResponse, SessionResumeResult } from '@/types/hermes'
+
+import { singleFlightSessionResume } from '../use-prompt-actions/single-flight-resume'
+
+import { prefetchServesResume } from './resume-barrier-reread'
 
 /**
  * Connection that supplied the current session list, captured before resume's
@@ -119,14 +124,88 @@ export function primaryResumeParams(
   storedSessionId: string,
   watchWindow: boolean,
   authoritativeSnapshot: boolean | undefined,
-  sessionProfile: string | undefined
+  sessionProfile: string | undefined,
+  pagedWatch = false
 ): Record<string, unknown> {
   return {
     session_id: storedSessionId,
     cols: 96,
     source: 'desktop',
     defer_history: authoritativeSnapshot ? false : !watchWindow,
-    ...(authoritativeSnapshot ? { omit_messages: false } : watchWindow ? { lazy: true } : { omit_messages: true }),
+    ...(authoritativeSnapshot
+      ? { omit_messages: false }
+      : watchWindow
+        ? { lazy: true, ...(pagedWatch ? { omit_messages: true } : {}) }
+        : { omit_messages: true }),
     ...(sessionProfile ? { profile: sessionProfile } : {})
   }
+}
+
+/** Attach before reading the page so a child that finishes during open has its final rows in the page
+ * or its final event on the subscription. Gate the legacy snapshot fallback on the actual reply. */
+export async function resumeWatchWithHistory(
+  resume: (paged: boolean) => Promise<SessionResumeResult>,
+  readPage: () => Promise<SessionMessagesResponse>
+): Promise<{ resumed: SessionResumeResult; page: SessionMessagesResponse | null }> {
+  const resumed = await resume(true)
+
+  if (!resumed.messages_omitted) {
+    return { resumed, page: null }
+  }
+
+  const page = await readPage().catch(() => null)
+
+  if (
+    page &&
+    prefetchServesResume(page.session_id || null, resumed, page) &&
+    (page.messages.length > 0 || !resumed.message_count)
+  ) {
+    return { resumed, page }
+  }
+
+  return { resumed: await resume(false), page: null }
+}
+
+interface ResumeReadOptions {
+  storedSessionId: string
+  watchWindow: boolean
+  authoritativeSnapshot?: boolean
+  sessionProfile?: string
+  sessionOwner: SessionOwnerScope
+  requestResume: (params: Record<string, unknown>) => Promise<SessionResumeResult>
+  readPage: () => Promise<SessionMessagesResponse>
+  onAttached: (resumed: SessionResumeResult) => void
+}
+
+export function startResumeReads({
+  storedSessionId,
+  watchWindow,
+  authoritativeSnapshot,
+  sessionProfile,
+  sessionOwner,
+  requestResume,
+  readPage,
+  onAttached
+}: ResumeReadOptions) {
+  const attach = (pagedWatch = false) =>
+    singleFlightSessionResume(
+      storedSessionId,
+      () => requestResume(primaryResumeParams(storedSessionId, watchWindow, authoritativeSnapshot, sessionProfile, pagedWatch)),
+      { requiresMessages: authoritativeSnapshot || (watchWindow && !pagedWatch), scope: sessionOwner }
+    ).then(resumed => {
+      onAttached(resumed)
+
+      return resumed
+    })
+
+  // Normal chats prefetch in parallel. A watch subscribes before it reads the page.
+  const watch = watchWindow && !authoritativeSnapshot ? resumeWatchWithHistory(attach, readPage) : null
+
+  const prefetchPromise = watch?.then(result => result.page) ?? (authoritativeSnapshot ? null : readPage())
+  const resumePromise = watch?.then(result => result.resumed) ?? attach()
+
+  // The caller awaits resume after prefetch. Handle an early rejection while it waits.
+  resumePromise.catch(() => undefined)
+
+  return { prefetchPromise, resumePromise }
 }

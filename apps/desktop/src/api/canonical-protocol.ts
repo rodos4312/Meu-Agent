@@ -406,12 +406,12 @@ export class CanonicalDesktopProtocol {
       return { session_id: params.session_id, source: 'desktop', ...(params.profile ? { profile: params.profile } : {}) }
     }
 
-    // N93: a watch window's legacy `lazy` attach is not in the owner's resume contract (the owner
-    // holds the agent; nothing to defer). It skipped the REST prefetch, so it takes the transcript.
+    // The legacy watch flag is not part of the canonical resume contract.
+    // Keep the caller's explicit transcript choice when it will read pages over REST.
     if (method === 'session.resume' && 'lazy' in params) {
       const { lazy: _lazy, ...resume } = params
 
-      return { ...resume, omit_messages: false }
+      return { ...resume, omit_messages: resume.omit_messages ?? false }
     }
 
     if (method === 'session.interrupt' || method === 'session.redirect' || method === 'session.steer') {

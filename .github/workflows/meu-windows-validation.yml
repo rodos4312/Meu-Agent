@@ -213,7 +213,7 @@ jobs:
           tests/tools/test_project_memory_identity.py
           tests/tools/test_local_agent_context.py
           tests/tools/test_delegation_backends.py
-          tests/tools/test_delegation_profile_route.py
+          tests/tools/test_delegation_profile_route.py tests/tools/test_delegate_queued_transcript.py
           tests/tools/test_delegation_model_pin.py
           tests/agent/test_delegation_switch_next_session.py
           tests/hermes_cli/test_plugin_host_delegation.py
@@ -268,6 +268,9 @@ jobs:
           packages: git,ripgrep
       - name: Install locked desktop dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify paged subagent watch on Windows
+        working-directory: apps/desktop
+        run: npm test -- src/api/canonical-watch-window-resume.test.ts --maxWorkers 1
       - name: Build Meu desktop
         working-directory: apps/desktop
         run: npm run build
@@ -329,6 +332,7 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2 --file-retries 0
           tests/hermes_cli/test_meu_privacy.py
+          tests/agent/test_model_metadata_memo_bounds.py tests/test_live_nous_services_fence.py
           tests/hermes_cli/test_webapp_access.py
           tests/hermes_cli/test_webapp_access_ports.py
           tests/hermes_cli/test_meu_independent_identity.py

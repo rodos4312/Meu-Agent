@@ -20,6 +20,12 @@ import hermes_yaml as yaml
 from agent import model_metadata_http
 from agent.model_metadata_cache import _write_context_cache, locked_context_cache
 from agent.model_metadata_llamacpp import llamacpp_context
+from agent.model_metadata_memo_bounds import (
+    cached_endpoint_models,
+    remember_codex_catalog,
+    remember_endpoint_models as _remember_endpoint_models,
+    remember_no_codex_catalog as _remember_no_codex_catalog,
+)
 
 from utils import atomic_json_write, base_url_host_matches, base_url_hostname
 
@@ -998,12 +1004,6 @@ def _endpoint_memo_key(normalized: str, api_key: object) -> tuple[str, str]:
     return normalized, (fingerprint_secret_value(api_key) or "") if isinstance(api_key, str) else ""
 
 
-def _remember_endpoint_models(memo_key: tuple[str, str], cache: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    _endpoint_model_metadata_cache[memo_key] = cache
-    _endpoint_model_metadata_cache_time[memo_key] = time.time()
-    return cache
-
-
 def _parse_models_payload(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     cache: dict[str, dict[str, Any]] = {}
     for model in payload.get("data", []):
@@ -1021,8 +1021,8 @@ def fetch_endpoint_model_metadata(base_url: str, api_key: str = "", force_refres
     local = is_local_endpoint(normalized)
     memo_key = _endpoint_memo_key(normalized, api_key)
     if not force_refresh:
-        cached = _endpoint_model_metadata_cache.get(memo_key)
-        if cached is not None and (time.time() - _endpoint_model_metadata_cache_time.get(memo_key, 0)) < _ENDPOINT_MODEL_CACHE_TTL:
+        cached = cached_endpoint_models(memo_key)
+        if cached is not None:
             return cached
         memo = _endpoint_disk_cache_get(normalized) if not local else None
         if memo is not None:
@@ -1809,19 +1809,6 @@ def _codex_oauth_token_fingerprint(access_token: str, base_url: str = "") -> str
     return hashlib.sha256(f"{access_token}\n{(base_url or '').strip().rstrip('/')}".encode()).hexdigest()[:16]
 
 
-def _remember_no_codex_catalog(cache_key: str) -> None:
-    """A probe that found no catalog (down, non-200, not Codex-shaped) is remembered briefly: context
-    resolution runs on init, /status, aux and @-reference turns, and each miss can block ~30s. The entry is
-    stamped as if cached ``TTL - NEGATIVE_TTL`` ago, so the shared freshness check expires it after
-    ``_CODEX_OAUTH_CONTEXT_NEGATIVE_TTL``. A fresh catalog a concurrent probe just stored is kept, and the
-    max cache is left alone so an observed cap survives."""
-    now = time.time()
-    current = _codex_oauth_context_cache.get(cache_key)
-    if current is not None and current[0] and now - current[1] < _CODEX_OAUTH_CONTEXT_CACHE_TTL:
-        return
-    _codex_oauth_context_cache[cache_key] = ({}, now - _CODEX_OAUTH_CONTEXT_CACHE_TTL + _CODEX_OAUTH_CONTEXT_NEGATIVE_TTL)
-
-
 def _fetch_codex_oauth_context_lengths_with_source(access_token: str, base_url: str = "") -> tuple[dict[str, int], bool]:
     """Account-scoped catalogue context lengths and HTTP freshness; also retain max-context and
     speed metadata. In-process hits report False and must not drive persistent writes."""
@@ -1862,9 +1849,7 @@ def _fetch_codex_oauth_context_lengths_with_source(access_token: str, base_url: 
     if not result:
         _remember_no_codex_catalog(cache_key)
         return {}, False
-    # Max first: a reader that sees the fresh context entry must also see its cap.
-    _codex_oauth_max_context_cache[cache_key] = max_result
-    _codex_oauth_context_cache[cache_key] = (result, now)
+    remember_codex_catalog(cache_key, result, max_result, now)
     return result, True
 
 
@@ -1934,9 +1919,6 @@ def _validate_cached_context_length(model: str, base_url: str, cached: int, *, a
             log(msg, model, base_url, shown)
             _invalidate_cached_context_length(model, base_url)
             return None
-    # Nous Portal: /v1/models is authoritative. Bypass (don't drop) the cache so step
-    # 5b reconciles OR-seeded entries without touching disk when the portal is down.
-
     # For local endpoints, run the probe that respects configured Modelfile context values first.
     # _query_local_context_length prefers num_ctx from Modelfile, while _query_ollama_api_show returns the
     # GGUF training max first which can be larger and would create a false-safe window for compression
@@ -2111,9 +2093,8 @@ def _resolve_provider_aware_context_length(model: str, base_url: str, api_key: s
     with contextlib.suppress(Exception):  # fall through to models.dev
         if profile is not None and (ctx := profile.live_context_length(model, api_key=api_key or "", base_url=base_url or "")):
             return ctx
-    # 5b/5c. Nous portal and Codex OAuth (lower limits than the direct API for the same slug; its
-    # own /models is authoritative). Persist ONLY the authoritative source ("portal" / "live"): an
-    # OR-fallback or static-table value cached on a blip would be frozen in by step 1 forever.
+    # 5c. Codex OAuth's own catalog is authoritative for its account's context limit.
+    # Persist only an authenticated live probe, so a fallback cannot become a durable limit.
     sourced = {'openai-codex': lambda: _resolve_codex_oauth_context_length_with_source(model, access_token=api_key or '', base_url=base_url or '') + ('live',)}.get(effective_provider)
     if sourced is not None:
         ctx, source, persist_on = sourced()

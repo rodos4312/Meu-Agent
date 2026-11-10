@@ -150,7 +150,6 @@ import {
   resumeRouteStillCurrent,
   sessionContextDrift
 } from '../session-context-drift'
-import { singleFlightSessionResume } from '../use-prompt-actions/single-flight-resume'
 
 import { branchThroughRowId } from './branch-boundary'
 import { branchCreateKey } from './branch-create-key'
@@ -177,9 +176,9 @@ import { clearResumeLatches, clearResumeToasts, notifyResumeFailed, type ResumeA
 import {
   ambientResumeConnectionId,
   openResumeGateway,
-  primaryResumeParams,
   rememberResolvedResumeOwner,
-  resolveResumeOwner
+  resolveResumeOwner,
+  startResumeReads
 } from './resume-owner'
 import {
   livePromptStreamId,
@@ -1982,37 +1981,22 @@ export function useSessionActions({
         let prefetchedTranscriptMessages: ChatMessage[] | null = null
         let prefetchedPage: GraftedTranscriptPage | null = null
 
-        // REST transcript prefetch and the gateway resume RPC are independent
-        // — run them concurrently so a big session's wall time is
-        // max(prefetch, resume) instead of their sum. The prefetch paints the
-        // transcript as soon as it lands; the RPC binds the runtime id.
-        // Watch windows skip the prefetch — lazy resume attaches the live mirror.
-        const prefetchPromise =
-          watchWindow || options?.authoritativeSnapshot
-            ? null
-            : getLatestSessionMessages(storedSessionId, sessionRestScope)
-
         let resumeRuntimeBaselineMessages: ChatMessage[] = []
         const resumeStartedAt = Date.now() / 1000
 
-        const resumePromise = singleFlightSessionResume(
+        const { prefetchPromise, resumePromise } = startResumeReads({
           storedSessionId,
-          () =>
-            requestForSession<SessionResumeResult>(
-              'session.resume',
-              primaryResumeParams(storedSessionId, watchWindow, options?.authoritativeSnapshot, sessionProfile)
-            ),
-          { requiresMessages: options?.authoritativeSnapshot, scope: sessionOwner }
-        ).then(resumed => {
-          resumeRuntimeBaselineMessages =
-            sessionStateByRuntimeIdRef.current.get(resumed.session_id)?.messages ?? resumeRuntimeBaselineMessages
-
-          return resumed
+          watchWindow,
+          authoritativeSnapshot: options?.authoritativeSnapshot,
+          sessionProfile,
+          sessionOwner,
+          requestResume: params => requestForSession<SessionResumeResult>('session.resume', params),
+          readPage: () => getLatestSessionMessages(storedSessionId, sessionRestScope),
+          onAttached: resumed => {
+            resumeRuntimeBaselineMessages =
+              sessionStateByRuntimeIdRef.current.get(resumed.session_id)?.messages ?? resumeRuntimeBaselineMessages
+          }
         })
-
-        // The rejection is consumed by the `await` below; this guard only
-        // keeps it from surfacing as unhandled while the prefetch settles.
-        resumePromise.catch(() => undefined)
 
         let prefetchedResult: SessionMessagesResponse | null = null
 
