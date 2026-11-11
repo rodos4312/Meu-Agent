@@ -707,6 +707,8 @@ include = [
   "pm.*",
   "tools",
   "tools.*",
+  "meu_coding",
+  "meu_coding.*",
 ]
 
 [tool.setuptools.package-data]
