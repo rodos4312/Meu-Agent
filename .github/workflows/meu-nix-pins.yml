@@ -1,0 +1,26 @@
+name: Meu Nix pinned sources
+
+on:
+  push:
+    branches: [dev/meu-foundation]
+    paths:
+      - 'nix/pm-packages.nix'
+      - 'nix/npm-pinned.nix'
+      - 'nix/check-locked-sources.nix'
+      - 'pm/lock.json'
+      - '.github/workflows/meu-nix-pins.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
+      - name: Check Nix uses the pinned URLs and SHA-256
+        run: nix-instantiate --eval --strict --json nix/check-locked-sources.nix

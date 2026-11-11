@@ -49,7 +49,6 @@ uv.lock                         @NousResearch/hermes-agent-core
 .npmrc                          @NousResearch/hermes-agent-core
 
 # Where PM fetches artifacts from.
-/pm/artifact-mirror.json        @NousResearch/hermes-agent-core
 
 # The installers users pipe into a shell, and the generator for the pins they carry.
 /scripts/install.sh             @NousResearch/hermes-agent-core

@@ -10,7 +10,6 @@ let
   # url + sha256, so nix consumes it as pure data — no version or url
   # knowledge lives on the nix side.
   lock = builtins.fromJSON (builtins.readFile ../pm/lock.json);
-  mirror = builtins.fromJSON (builtins.readFile ../pm/artifact-mirror.json);
   pin = lock.packages.npm;
 in
 stdenv.mkDerivation {
@@ -18,7 +17,7 @@ stdenv.mkDerivation {
   version = pin.version;
 
   src = fetchurl {
-    urls = [ pin.artifacts.any.url "${mirror.origin}/${mirror.prefix}${pin.artifacts.any.sha256}" ];
+    url = pin.artifacts.any.url;
     sha256 = pin.artifacts.any.sha256;
   };
 
