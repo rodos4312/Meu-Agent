@@ -179,3 +179,20 @@ def test_official_resolver_uses_each_providers_own_saved_key(tmp_path, monkeypat
     route = resolve_runtime_provider(requested=provider, target_model=model)
     assert route["api_key"] == env_name + "-fixture"
     assert endpoint in route["base_url"]
+
+
+def test_locked_vision_role_does_not_enter_any_provider_fallback_on_capacity_error(monkeypatch):
+    from types import SimpleNamespace
+    from agent import auxiliary_client
+    from agent.auxiliary_task_config import session_auxiliary_scope
+    attempts = []
+    def fallback(*args, **kwargs):
+        attempts.append(args)
+        return None, None, ""
+    monkeypatch.setattr(auxiliary_client, "_try_configured_fallback_chain", fallback)
+    monkeypatch.setattr(auxiliary_client, "_try_main_agent_model_fallback", fallback)
+    route = SimpleNamespace(task="vision", tag="", resolved_provider="zai")
+    failure = httpx.ConnectError("fixture provider unavailable")
+    with session_auxiliary_scope({"vision": {"provider": "zai", "model": "glm-5.3-flash", "provider_locked": True}}):
+        assert list(auxiliary_client._ladder_provider_fallback(failure, route)) == []
+    assert attempts == []

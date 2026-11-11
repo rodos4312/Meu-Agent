@@ -7364,14 +7364,14 @@ def _ladder_provider_fallback(first_err: Exception, route: _LadderRoute):
     regardless of user intent. Auth errors from an explicit provider may only use the task's
     own configured fallback_chain; they never imply an unconfigured provider hop."""
     task, tag, resolved_provider = route.task, route.tag, route.resolved_provider
-    # Respect explicit provider choice for transient errors (auth, request validation, etc.) but fall back when
-    # the provider cannot serve due to capacity: payment/quota exhaustion (a daily-token 429 like a 402, #26803),
-    # connection failures, and a 429 after retries are exhausted (#52228) are not request constraints.
+    task_config = _get_auxiliary_task_config(task) if task else {}
+    if task_config.get("provider_locked") is True:
+        return None
     is_auto = resolved_provider in {"auto", "", None}
     reason = next((label for predicate, label in _FALLBACK_REASONS if predicate(first_err)), None)
     is_capacity_error = any(
         predicate(first_err) for predicate, label in _FALLBACK_REASONS if label != "auth error")
-    task_chain = _get_auxiliary_task_config(task).get("fallback_chain") if task else None
+    task_chain = task_config.get("fallback_chain")
     has_task_fallback_chain = isinstance(task_chain, list) and bool(task_chain)
     explicit_auth_with_task_chain = (
         reason == "auth error" and not is_auto and has_task_fallback_chain

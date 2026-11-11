@@ -36,7 +36,7 @@ def begin_workload_turn_route(agent, messages, system_prompt):
         previous = auxiliary.get("vision", {})
         previous = previous if isinstance(previous, dict) else {}
         vision_config = {key: value for key, value in previous.items() if key not in _AUX_ROUTE_KEYS}
-        scope = session_auxiliary_scope({**auxiliary, "vision": {**vision_config, **vision, "fallback_chain": []}})
+        scope = session_auxiliary_scope({**auxiliary, "vision": {**vision_config, **vision, "fallback_chain": [], "provider_locked": True}})
         scope.__enter__()
         state["auxiliary_scope"] = scope
     agent._turn_route_task = "workload"
