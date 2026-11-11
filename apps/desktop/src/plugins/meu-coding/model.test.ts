@@ -5,8 +5,12 @@ import {
   type CodingTask,
   decisionParams,
   errorText,
+  integrationFacts,
+  integrationStatusText,
   parseDiff,
+  PIPELINE,
   pipelineStep,
+  routingFacts,
   shortFingerprint,
   stageTone
 } from './model'
@@ -157,5 +161,65 @@ describe('stages and errors', () => {
   it('never shows a generic error', () => {
     expect(errorText(new Error('Proposal changed after approval — approval required again.'))).toContain('approval')
     expect(errorText(undefined)).toContain('Meu is running')
+  })
+})
+
+describe('integration and routing views', () => {
+  const preview = {
+    base_commit: 'b'.repeat(40),
+    changed_files: ['calc/ops.py'],
+    conflicts: [],
+    diff_stat: ' calc/ops.py | 4 ++++',
+    drift_commits: ['abc123 docs: drift'],
+    drift_files: ['README.md'],
+    explanation: 'The target branch moved 1 commit(s).',
+    overlapping_files: [],
+    result_commit: 'r'.repeat(40),
+    source_branch: 'hermes-subagent/subagent-coding-x',
+    status: 'needs_rebase_or_replay' as const,
+    strategies: ['APPLY_COMMIT', 'CHERRY_PICK_PREVIEW', 'CREATE_PR_PREVIEW'],
+    target_branch: 'main',
+    target_changed: true,
+    target_head: 't'.repeat(40)
+  }
+
+  it('shows source, target, drift and conflicts before any integration', () => {
+    const facts = Object.fromEntries(integrationFacts(preview).map(f => [f.label, f.value]))
+
+    expect(facts.Source).toBe(`hermes-subagent/subagent-coding-x @ ${'r'.repeat(12)}`)
+    expect(facts.Target).toBe(`main @ ${'t'.repeat(12)}`)
+    expect(facts['Target changed']).toBe('yes — 1 commit(s)')
+    expect(facts['Changed on target']).toBe('README.md')
+    expect(facts['Possible conflicts']).toBe('none')
+    expect(integrationStatusText('conflict')).toContain('blocked')
+  })
+
+  it('lists the model behind each role and why the coder was chosen', () => {
+    const rows = routingFacts(
+      task({
+        routing: {
+          architect: { route: 'deepseek:pro', source: 'models_by_workload:complex' },
+          coder_used: {
+            complexity: 'simple',
+            reasons: ['small, low-risk change'],
+            route: 'deepseek:flash',
+            workload: 'coding.simple'
+          },
+          reviewer: { route: 'deepseek:pro', source: 'models_by_workload:complex' }
+        }
+      })
+    )
+
+    const facts = Object.fromEntries(rows.map(f => [f.label, f.value]))
+
+    expect(facts.architect).toBe('deepseek:pro (models_by_workload:complex)')
+    expect(facts['coder used']).toContain('coding.simple')
+    expect(facts.reviewer).toContain('deepseek:pro')
+  })
+
+  it('includes integration in the pipeline but never a push or merge stage', () => {
+    expect(PIPELINE).toContain('integrated')
+    expect(PIPELINE.some(stage => /push|merge/.test(stage))).toBe(false)
+    expect(stageTone('integration_preview')).toBe('attention')
   })
 })

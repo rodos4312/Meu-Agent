@@ -73,6 +73,17 @@ class CodingCommitConfirmParams(CodingTaskParams):
     confirmed: bool
 
 
+class CodingIntegrationApproveParams(CodingTaskParams):
+    token: str = Field(min_length=64, max_length=64)
+    confirmed: bool
+
+
+class CodingPrUpdateParams(CodingTaskParams):
+    title: str | None = Field(default=None, max_length=200)
+    body: str | None = Field(default=None, max_length=20_000)
+    status: Literal["draft", "cancelled", "approved_for_later"] | None = None
+
+
 method("coding.start", params=CodingStartParams, result=CodingTaskResult,
        doc="Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval.")
 method("coding.get", params=CodingTaskParams, result=CodingTaskResult,
@@ -91,3 +102,13 @@ method("coding.commit.prepare", params=CodingTaskParams, result=CodingTaskResult
        doc="Preview a local commit on the worktree branch: files, stat, suggested message, token.")
 method("coding.commit.confirm", params=CodingCommitConfirmParams, result=CodingTaskResult,
        doc="Commit locally on the worktree branch with the user's message. Never pushes or merges.")
+method("coding.integration.preview", params=CodingTaskParams, result=CodingTaskResult,
+       doc="Read-only integration preview: target drift, conflicts, strategies and a preview token.")
+method("coding.integration.approve", params=CodingIntegrationApproveParams, result=CodingTaskResult,
+       doc="Apply the previewed result to an isolated integration branch, re-validate and re-review. Never merges.")
+method("coding.integration.cancel", params=CodingTaskParams, result=CodingTaskResult,
+       doc="Discard the integration preview; the committed worktree result stays ready to integrate.")
+method("coding.pr.prepare", params=CodingTaskParams, result=CodingTaskResult,
+       doc="Build a local PR preview from the integrated result. Nothing is sent to a remote.")
+method("coding.pr.update", params=CodingPrUpdateParams, result=CodingTaskResult,
+       doc="Edit, cancel or mark the local PR preview as approved for creation later.")

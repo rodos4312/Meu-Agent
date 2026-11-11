@@ -80,6 +80,7 @@ class CodingSession:
     attempts: list[ExecutionAttempt] = field(default_factory=list)
     planning: CodingResult | None = None
     pending: ExecutionApprovalRequest | None = None
+    last_request: ExecutionApprovalRequest | None = None  # the request the last execution consumed
     context: TaskContext | None = None
     blocked_reason: str = ""
 
@@ -119,6 +120,7 @@ class CodingSession:
         request = self.pending
         approved = approve_execution(request, decision)  # raises on any mismatch
         self.pending = None
+        self.last_request = request
         self.stages.append("approved")
         result = self.adapter.execute(approved, request.change.plan.test_plan.checks)
         self.stages += ["executed", "tested"] if result.executed else [f"execution_{result.status}"]

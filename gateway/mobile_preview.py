@@ -161,6 +161,8 @@ class MobilePreview:
         mount_transfers(app, self)
         from gateway.mobile_projects import mount as mount_projects
         mount_projects(app, self)
+        from gateway.mobile_coding import mount as mount_coding
+        mount_coding(app, self)
         if self.sync_profile:
             from gateway.mobile_live import serve as serve_live
             from gateway.mobile_live import readiness as live_readiness

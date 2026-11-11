@@ -63,3 +63,18 @@ def test_rpc_rejects_unknown_keys_and_malformed_decisions(coding):
     assert missing["error"]["code"] == 5072
     unconfirmed = _call("coding.commit.confirm", {"task_id": "nope", "message": "m", "token": "t"})
     assert "error" in unconfirmed  # ``confirmed`` is required, never defaulted
+
+
+def test_rpc_integration_and_pr_methods_are_validated(coding):
+    _repo, _service = coding
+    short = _call("coding.integration.approve", {"task_id": "t", "token": "abc", "confirmed": True})
+    assert "error" in short  # a preview token is exactly 64 characters
+    unconfirmed = _call("coding.integration.approve", {"task_id": "t", "token": "0" * 64})
+    assert "error" in unconfirmed  # ``confirmed`` is required
+    bad_status = _call("coding.pr.update", {"task_id": "t", "status": "merged"})
+    assert "error" in bad_status
+    for method in ("coding.integration.preview", "coding.pr.prepare"):
+        missing = _call(method, {"task_id": "nope"})
+        assert missing["error"]["code"] == 5072
+    for forbidden in ("coding.push", "coding.merge", "coding.pr.create"):
+        assert "error" in _call(forbidden, {"task_id": "t"})

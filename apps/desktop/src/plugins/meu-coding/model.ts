@@ -15,6 +15,10 @@ export type CodingStage =
   | 'committed'
   | 'executing'
   | 'failed'
+  | 'integrated'
+  | 'integrating'
+  | 'integration_preview'
+  | 'interrupted'
   | 'kept'
   | 'planning'
   | 'ready_to_commit'
@@ -27,6 +31,14 @@ export type StageTone = 'attention' | 'busy' | 'danger' | 'done' | 'muted' | 'su
 
 export interface CodingActions {
   approve: boolean
+  create_remote_pr?: boolean
+  integration_approve?: boolean
+  integration_cancel?: boolean
+  integration_preview?: boolean
+  merge?: boolean
+  pr_edit?: boolean
+  pr_prepare?: boolean
+  push?: boolean
   commit_confirm: boolean
   commit_prepare: boolean
   keep: boolean
@@ -133,6 +145,77 @@ export interface CodingCommit {
   worktree_path?: string
 }
 
+export interface CodingResult {
+  additions: number
+  approval_source: string
+  base_commit: string
+  changed_files: string[]
+  deletions: number
+  result_commit: string
+  reviewer_rationale: string
+  reviewer_verdict: string
+  states: string[]
+  target_branch: string
+  tests: { check: string; kind?: string; status: string }[]
+  worktree_branch: string
+}
+
+export interface CodingIntegrationPreview {
+  base_commit: string
+  changed_files: string[]
+  conflicts: string[]
+  diff_stat: string
+  drift_commits: string[]
+  drift_files: string[]
+  explanation: string
+  overlapping_files: string[]
+  result_commit: string
+  source_branch: string
+  status: 'blocked' | 'clean' | 'conflict' | 'needs_rebase_or_replay'
+  strategies: string[]
+  target_branch: string
+  target_changed: boolean
+  target_head: string
+}
+
+export interface CodingIntegration {
+  branch?: string
+  checks?: { check: string; kind: string; status: string }[]
+  final_diff?: string
+  final_diff_truncated?: boolean
+  final_files?: string[]
+  final_stat?: string
+  integration_commit?: string
+  patch_changed?: boolean
+  preview?: CodingIntegrationPreview
+  reason?: string
+  review?: { rationale: string; verdict: string }
+  status: string
+  target_head?: string
+  token?: string
+}
+
+export interface CodingPr {
+  body: string
+  files: string[]
+  message: string
+  remote_available: boolean
+  risk: string
+  source_branch: string
+  status: 'approved_for_later' | 'cancelled' | 'draft'
+  target_branch: string
+  tests: { failed: string[]; passed: number }
+  title: string
+}
+
+export interface CodingRouting {
+  complexity?: string
+  reasons?: string[]
+  route: string
+  source?: string
+  workload?: string
+}
+
 export interface CodingTask {
   actions: CodingActions
   approval: CodingApproval | null
@@ -143,8 +226,13 @@ export interface CodingTask {
   description: string
   error: string
   execution: CodingExecution | null
+  decisions?: { decision: string; device?: string; source?: string }[]
   history: string[]
+  integration?: CodingIntegration | null
   models: Record<string, string>
+  pr?: CodingPr | null
+  result?: CodingResult | null
+  routing?: Record<string, CodingRouting>
   plan: CodingPlan | null
   project: string
   restored: boolean
@@ -175,7 +263,10 @@ export const PIPELINE: readonly CodingStage[] = [
   'reviewing_diff',
   'awaiting_keep_reject',
   'ready_to_commit',
-  'committed'
+  'committed',
+  'integration_preview',
+  'integrating',
+  'integrated'
 ]
 
 const TONES: Record<CodingStage, StageTone> = {
@@ -184,9 +275,13 @@ const TONES: Record<CodingStage, StageTone> = {
   awaiting_keep_reject: 'attention',
   blocked: 'danger',
   coding: 'busy',
-  committed: 'done',
+  committed: 'success',
   executing: 'busy',
   failed: 'danger',
+  integrated: 'done',
+  integrating: 'busy',
+  integration_preview: 'attention',
+  interrupted: 'danger',
   kept: 'muted',
   planning: 'busy',
   ready_to_commit: 'success',
@@ -382,6 +477,66 @@ export function parseDiff(text: string): DiffFile[] {
   }
 
   return files
+}
+
+const INTEGRATION_TEXT: Record<CodingIntegrationPreview['status'], string> = {
+  blocked: 'Blocked — integration is not possible.',
+  clean: 'Clean — the target branch has not changed since the task began.',
+  conflict: 'Conflict — the target branch changed the same lines. Integration is blocked.',
+  needs_rebase_or_replay: 'The target branch moved. The result will be replayed onto it and re-validated.'
+}
+
+export function integrationStatusText(status: CodingIntegrationPreview['status']): string {
+  return INTEGRATION_TEXT[status] ?? status
+}
+
+/** Facts shown before the user approves an integration. */
+export function integrationFacts(preview: CodingIntegrationPreview): Fact[] {
+  const list = (items: readonly string[]) => (items.length ? items.join(', ') : 'none')
+
+  return [
+    { label: 'Status', value: integrationStatusText(preview.status) },
+    { label: 'Source', value: `${preview.source_branch} @ ${preview.result_commit.slice(0, 12)}` },
+    { label: 'Target', value: `${preview.target_branch} @ ${preview.target_head.slice(0, 12)}` },
+    { label: 'Task base', value: preview.base_commit.slice(0, 12) },
+    {
+      label: 'Target changed',
+      value: preview.target_changed ? `yes — ${preview.drift_commits.length} commit(s)` : 'no'
+    },
+    { label: 'Changed on target', value: list(preview.drift_files) },
+    {
+      label: 'Possible conflicts',
+      value: list(preview.conflicts.length ? preview.conflicts : preview.overlapping_files)
+    },
+    { label: 'Files', value: list(preview.changed_files) },
+    { label: 'Diff stat', value: preview.diff_stat || 'none' },
+    { label: 'Explanation', value: preview.explanation }
+  ]
+}
+
+/** "Architect: Deepseek · model (source)" rows for the details view. */
+export function routingFacts(task: CodingTask): Fact[] {
+  const routing = task.routing ?? {}
+  const rows: Fact[] = []
+
+  for (const role of ['architect', 'coder', 'coder_simple', 'reviewer']) {
+    const entry = routing[role]
+
+    if (entry?.route) {
+      rows.push({ label: role.replace('_', ' '), value: `${entry.route} (${entry.source ?? task.route_source})` })
+    }
+  }
+
+  const used = routing.coder_used
+
+  if (used?.route) {
+    rows.push({
+      label: 'coder used',
+      value: `${used.route} — ${used.workload ?? ''} (${used.complexity ?? ''}: ${(used.reasons ?? []).join('; ')})`
+    })
+  }
+
+  return rows
 }
 
 /** Actionable text for an RPC failure (the backend already words refusals for users). */

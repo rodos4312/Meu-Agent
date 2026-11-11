@@ -45,6 +45,10 @@ class AuditRecord:
     keep_reject: str = ""
     commit_hash: str = ""
     error: str = ""
+    routing: dict[str, Any] = field(default_factory=dict)
+    result: dict[str, Any] = field(default_factory=dict)
+    integration: dict[str, Any] = field(default_factory=dict)
+    pr: dict[str, Any] = field(default_factory=dict)
 
     def stage(self, name: str) -> None:
         self.stages.append({"stage": name, "at": round(time.time(), 3)})

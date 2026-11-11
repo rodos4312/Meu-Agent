@@ -35,12 +35,15 @@ from meu_coding.architect import Architect
 from meu_coding.coder import Coder
 from meu_coding.coding_interfaces import CodingTask, ReviewStatus, TaskConstraints
 from meu_coding.coding_session import CodingSession, SessionState
+from meu_coding.coding_result import ResultRecord, ResultState, result_from_attempt
 from meu_coding.commit_flow import CommitPlan, CommitRefused, confirm_commit, prepare_commit
 from meu_coding.execution import ApprovalError
 from meu_coding.impact import ImpactAnalyzer
 from meu_coding.intelligence import RepositoryIntelligence, analyze_repository
 from meu_coding.reviewer import Reviewer
 from meu_coding.safe_execution import ExecutionDecision, SafeExecutionAdapter
+from meu_coding.task_integration import IntegrationMixin
+from meu_coding.task_recovery import restore_record
 from meu_coding.task_views import friendly_error, snapshot
 from meu_coding.workspace import Worktree, WorkspaceError, read_identity
 
@@ -63,6 +66,10 @@ class Stage(str, Enum):
     REJECTED = "rejected"
     BLOCKED = "blocked"
     FAILED = "failed"
+    INTEGRATION_PREVIEW = "integration_preview"
+    INTEGRATING = "integrating"
+    INTEGRATED = "integrated"
+    INTERRUPTED = "interrupted"
 
 
 S = Stage
@@ -80,10 +87,15 @@ TRANSITIONS: dict[Stage, frozenset[Stage]] = {
     S.READY_TO_COMMIT: frozenset({S.COMMITTED, S.REJECTED}),
     S.BLOCKED: frozenset({S.REJECTED}),
     S.FAILED: frozenset({S.REJECTED}),
-    S.COMMITTED: frozenset(),
+    S.COMMITTED: frozenset({S.INTEGRATION_PREVIEW, S.REJECTED}),
+    S.INTEGRATION_PREVIEW: frozenset({S.INTEGRATING, S.COMMITTED, S.REJECTED}),
+    S.INTEGRATING: frozenset({S.INTEGRATED, S.BLOCKED, S.FAILED}),
+    S.INTEGRATED: frozenset({S.REJECTED}),
+    S.INTERRUPTED: frozenset({S.REJECTED}),
     S.REJECTED: frozenset(),
 }
-BUSY_STAGES = frozenset({S.ANALYZING, S.PLANNING, S.CODING, S.REVIEWING, S.EXECUTING, S.TESTING, S.REVIEWING_DIFF})
+BUSY_STAGES = frozenset({S.ANALYZING, S.PLANNING, S.CODING, S.REVIEWING, S.EXECUTING, S.TESTING, S.REVIEWING_DIFF,
+                         S.INTEGRATING})
 
 
 class TaskError(Exception):
@@ -97,6 +109,7 @@ class ModelBundle:
     review: Any
     routes: dict[str, str]
     source: str
+    sources: dict[str, str] = field(default_factory=dict)
 
     def used(self) -> dict[str, str]:
         used = dict(self.routes)
@@ -104,6 +117,15 @@ class ModelBundle:
         if last is not None:
             used["coder_used"] = str(last)
         return used
+
+    def routing(self) -> dict[str, Any]:
+        """Which model served each role and why (names only; never credentials)."""
+        roles: dict[str, Any] = {role: {"route": route, "source": self.sources.get(role, self.source)}
+                                 for role, route in self.routes.items()}
+        coder = dict(getattr(self.coding, "last_routing", {}) or {})
+        if coder:
+            roles["coder_used"] = coder
+        return roles
 
 
 def meu_models() -> ModelBundle:
@@ -118,7 +140,7 @@ def meu_models() -> ModelBundle:
     routes = {"architect": str(r.architect), "coder": str(r.coder), "reviewer": str(r.reviewer)}
     if r.coder_simple:
         routes["coder_simple"] = str(r.coder_simple)
-    return ModelBundle(models.planning, models.coding, models.review, routes, resolution.source)
+    return ModelBundle(models.planning, models.coding, models.review, routes, resolution.source, dict(r.sources))
 
 
 def spawn_in_context(target: Callable[[], None], name: str) -> None:
@@ -144,9 +166,14 @@ class TaskRecord:
     history: list[str] = field(default_factory=list)
     lock: threading.RLock = field(default_factory=threading.RLock)
     restored: bool = False
+    result: ResultRecord | None = None
+    integration_preview: Any = None
+    integration: dict[str, Any] = field(default_factory=dict)
+    integration_final_diff: str = ""
+    pr: dict[str, Any] | None = None
 
 
-class CodingTaskService:
+class CodingTaskService(IntegrationMixin):
     def __init__(self, *, models_factory: Callable[[], ModelBundle] = meu_models,
                  adapter_factory: Callable[..., SafeExecutionAdapter] = SafeExecutionAdapter,
                  spawn: Callable[[Callable[[], None], str], None] = spawn_in_context,
@@ -287,6 +314,7 @@ class CodingTaskService:
             plan_text = json.dumps([planning.plan.summary, planning.plan.files_to_change, planning.plan.steps])
             record.audit.plan_hash = hashlib.sha256(plan_text.encode("utf-8")).hexdigest()
         record.audit.models = record.models.used()
+        record.audit.routing = record.models.routing()
         if state == SessionState.AWAITING_APPROVAL:
             pending = session.pending
             record.audit.approval_id = pending.approval_id
@@ -311,17 +339,20 @@ class CodingTaskService:
     # ── approval decision (consumed once) ───────────────────────────────────
 
     def decide(self, task_id: str, *, approval_id: str, fingerprint: str, approve: bool,
-               approver: str, device: str = "") -> dict[str, Any]:
+               approver: str, device: str = "", source: str = "desktop") -> dict[str, Any]:
         record = self._require(task_id)
         with record.lock:
             session = record.session
             pending = session.pending if session else None
+            if record.stage == S.AWAITING_APPROVAL and record.restored:
+                raise TaskError("The approval expired when Meu restarted — start the task again.")
             if record.stage != S.AWAITING_APPROVAL or pending is None:
                 raise TaskError("This approval was already used or the task has moved on.")
             if approval_id != pending.approval_id or fingerprint != pending.fingerprint:
                 raise TaskError("Proposal changed after approval — approval required again.")
             entry = {"decision": "approve" if approve else "reject", "approver": approver[:80], "device": device[:80],
-                     "approval_id": approval_id, "fingerprint": fingerprint, "at": round(time.time(), 3)}
+                     "source": source, "approval_id": approval_id, "fingerprint": fingerprint,
+                     "at": round(time.time(), 3)}
             record.audit.decisions.append(entry)
             if not approve:
                 session.adapter.revoke(approval_id)
@@ -331,10 +362,10 @@ class CodingTaskService:
                 return self.get(task_id)
             decision = ExecutionDecision(True, approver or "desktop user", approval_id, fingerprint)
             self._set(record, S.EXECUTING)  # consumes the decision before any thread starts
-        self.spawn(lambda: self._execute(record, decision), f"coding-exec-{task_id[:8]}")
+        self.spawn(lambda: self._execute(record, decision, source), f"coding-exec-{task_id[:8]}")
         return self.get(task_id)
 
-    def _execute(self, record: TaskRecord, decision: ExecutionDecision) -> None:
+    def _execute(self, record: TaskRecord, decision: ExecutionDecision, source: str = "desktop") -> None:
         try:
             attempt = record.session.execute(decision)
         except ApprovalError as exc:
@@ -345,6 +376,9 @@ class CodingTaskService:
             self._fail(record, f"{type(exc).__name__}: {exc}")
             return
         result = attempt.result
+        record.result = result_from_attempt(record.task_id, attempt, record.session.last_request, source)
+        record.audit.result = record.result.to_dict()
+        record.audit.routing = record.models.routing()
         record.audit.worktree = {"path": result.worktree_path, "branch": result.worktree_branch,
                                  "base_commit": result.base_commit}
         record.audit.checks = [{"check": e.check.description, "status": e.result.status.value} for e in result.checks]
@@ -359,50 +393,70 @@ class CodingTaskService:
 
     # ── keep / reject / repair ──────────────────────────────────────────────
 
-    def keep(self, task_id: str) -> dict[str, Any]:
+    def keep(self, task_id: str, source: str = "desktop") -> dict[str, Any]:
         record = self._require(task_id)
         with record.lock:
-            if record.stage != S.AWAITING_KEEP_REJECT:
+            if record.stage != S.AWAITING_KEEP_REJECT or record.result is None:
                 raise TaskError("Keep is available after execution and review.")
             started = time.perf_counter()
-            last = record.session.attempts[-1]
-            passed = last.result.executed and last.review.status == ReviewStatus.PASS
+            result = record.result
+            passed = result.has(ResultState.EXECUTED) and result.reviewer_verdict == ReviewStatus.PASS.value
+            result.advance(ResultState.KEPT)
             record.audit.keep_reject = "kept"
+            record.audit.decisions.append({"decision": "keep", "source": source, "at": round(time.time(), 3)})
+            record.audit.result = result.to_dict()
             self._set(record, S.READY_TO_COMMIT if passed else S.KEPT)
             record.timings["keep"] = round(time.perf_counter() - started, 4)
         return self.get(task_id)
 
-    def reject(self, task_id: str) -> dict[str, Any]:
+    def reject(self, task_id: str, source: str = "desktop") -> dict[str, Any]:
         record = self._require(task_id)
         with record.lock:
-            if record.stage == S.AWAITING_APPROVAL:
+            if record.stage == S.AWAITING_APPROVAL and not record.restored:
                 raise TaskError("Use Reject on the approval card to decline the proposal.")
             if S.REJECTED not in TRANSITIONS[record.stage]:
                 raise TaskError("This task cannot be rejected now.")
             started = time.perf_counter()
             record.cleanup = self._cleanup(record)
             record.audit.keep_reject = "rejected"
+            record.audit.decisions.append({"decision": "reject_result", "source": source,
+                                           "at": round(time.time(), 3)})
+            if record.result is not None:
+                record.result.advance(ResultState.REJECTED)
+                record.audit.result = record.result.to_dict()
             self._set(record, S.REJECTED)
             record.timings["reject"] = round(time.perf_counter() - started, 3)
         return self.get(task_id)
 
-    def _cleanup(self, record: TaskRecord) -> dict[str, Any]:
-        """Existing worktree rules decide for every attempt's worktree; uncertainty keeps it."""
-        outcomes = []
+    def _worktrees(self, record: TaskRecord) -> list[dict[str, str]]:
+        found: dict[str, dict[str, str]] = {}
         session = record.session
         for attempt in (session.attempts if session else []):
-            result = attempt.result
-            if not result.worktree_path or not Path(result.worktree_path).exists():
-                continue
-            info = {"path": result.worktree_path, "branch": result.worktree_branch,
-                    "repo_root": record.project_root, "base_commit": result.base_commit}
-            worktree = Worktree(Path(result.worktree_path), result.worktree_branch, result.base_commit,
-                                record.project_root, info, touched=True)
+            r = attempt.result
+            found[r.worktree_path] = {"path": r.worktree_path, "branch": r.worktree_branch, "base": r.base_commit}
+        if record.result is not None:
+            r = record.result
+            found[r.worktree_path] = {"path": r.worktree_path, "branch": r.worktree_branch, "base": r.base_commit}
+        path = record.integration.get("worktree_path")
+        if path and record.integration.get("branch"):
+            found[path] = {"path": path, "branch": record.integration["branch"],
+                           "base": record.integration.get("target_head", "")}
+        return [w for w in found.values() if w["path"] and Path(w["path"]).exists()]
+
+    def _cleanup(self, record: TaskRecord) -> dict[str, Any]:
+        """Existing worktree rules decide for every worktree of the task; uncertainty keeps it."""
+        workspace = record.session.adapter.workspace if record.session else self.adapter_factory().workspace
+        outcomes = []
+        for item in self._worktrees(record):
+            info = {"path": item["path"], "branch": item["branch"], "repo_root": record.project_root,
+                    "base_commit": item["base"]}
+            worktree = Worktree(Path(item["path"]), item["branch"], item["base"], record.project_root, info,
+                                touched=True)
             try:
-                payload = session.adapter.workspace.finalize(worktree, discard=True)
+                payload = workspace.finalize(worktree, discard=True)
             except Exception as exc:  # cleanup must never raise past a reject: keep and explain
                 logger.warning("coding task %s: worktree cleanup failed", record.task_id, exc_info=True)
-                payload = {"path": result.worktree_path, "pruned": False, "inspection_failed": True,
+                payload = {"path": item["path"], "pruned": False, "inspection_failed": True,
                            "note": f"cleanup raised {type(exc).__name__}"}
             outcomes.append(payload)
         return {"worktrees": outcomes}
@@ -410,7 +464,8 @@ class CodingTaskService:
     def repair(self, task_id: str) -> dict[str, Any]:
         record = self._require(task_id)
         with record.lock:
-            if record.stage != S.AWAITING_KEEP_REJECT or not record.session.can_repair:
+            if (record.stage != S.AWAITING_KEEP_REJECT or record.session is None
+                    or not record.session.can_repair):
                 raise TaskError("A repair is available only after a review asked for fixes, up to 3 times.")
             self._set(record, S.CODING)
         self.spawn(lambda: self._repair(record), f"coding-repair-{task_id[:8]}")
@@ -433,14 +488,15 @@ class CodingTaskService:
             if record.stage != S.READY_TO_COMMIT:
                 raise TaskError("Commit is available only after Reviewer PASS and Keep.")
             started = time.perf_counter()
-            last = record.session.attempts[-1]
-            result = last.result
+            result = record.result
+            if result is None:
+                raise TaskError("No executed result is available to commit.")
             try:
                 record.commit_plan = prepare_commit(
                     worktree_path=result.worktree_path, worktree_branch=result.worktree_branch,
                     base_commit=result.base_commit, parent_root=record.project_root,
-                    reviewed_files=result.files_changed, reviewed_diff=result.diff,
-                    task_description=record.task.description, reviewer_rationale=last.review.rationale)
+                    reviewed_files=tuple(result.changed_files), reviewed_digest=result.reviewed_diff_digest,
+                    task_description=record.task.description, reviewer_rationale=result.reviewer_rationale)
             except (CommitRefused, WorkspaceError) as exc:
                 raise TaskError(str(exc)) from None
             record.timings["commit_prepare"] = round(time.perf_counter() - started, 3)
@@ -458,6 +514,10 @@ class CodingTaskService:
                 raise TaskError(str(exc)) from None
             record.commit_hash = commit_hash
             record.audit.commit_hash = commit_hash
+            record.result.result_commit = commit_hash
+            record.result.advance(ResultState.COMMITTED_IN_WORKTREE)
+            record.result.advance(ResultState.READY_TO_INTEGRATE)
+            record.audit.result = record.result.to_dict()
             self._set(record, S.COMMITTED)
         return self.get(task_id)
 
@@ -483,21 +543,8 @@ class CodingTaskService:
 
     def _restore(self) -> None:
         for audit in task_audit.load_all(self.audit_directory):
-            if audit.task_id in self.tasks:
-                continue
-            last = audit.stages[-1]["stage"] if audit.stages else S.FAILED.value
-            try:
-                stage = Stage(last)
-            except ValueError:
-                stage = S.FAILED
-            record = TaskRecord(audit.task_id, audit.project, CodingTask(audit.description or "(restored task)"),
-                                audit, stage=stage, restored=True)
-            if stage not in (S.COMMITTED, S.REJECTED, S.BLOCKED, S.FAILED):
-                where = audit.worktree.get("path") or "no worktree"
-                record.error = (f"Meu restarted while this task was {stage.value}; nothing continues automatically. "
-                                f"Worktree: {where} (preserved for inspection).")
-                record.stage = S.FAILED
-            self.tasks[audit.task_id] = record
+            if audit.task_id not in self.tasks:
+                self.tasks[audit.task_id] = restore_record(audit, TaskRecord, Stage)
 
 
 def _planning_reason(planning) -> str:

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,6 +48,8 @@ public final class MainActivity extends Activity {
     private SavedMeuConnection savedConnection;
     private Runnable chatRefresh;
     private boolean foreground;
+    private JSONArray lastCodingTasks;
+    private long lastCodingSync;
 
     private static final class Pending {
         final String requestId = UUID.randomUUID().toString();
@@ -349,8 +352,11 @@ public final class MainActivity extends Activity {
         entries.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(entries);
         status = label("Loading sessions…", 14, MUTED);
+        Button coding = button("Coding approvals");
+        coding.setOnClickListener(view -> showCodingTasks());
         root.addView(create);
         root.addView(refresh);
+        root.addView(coding);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         root.addView(status);
         root.addView(disconnect);
@@ -632,6 +638,297 @@ public final class MainActivity extends Activity {
             }
         }
         return null;
+    }
+
+    // ── Coding approvals ────────────────────────────────────────────────────────
+    // The PC owns every coding task. This screen only shows the PC's current state and sends
+    // decisions naming the exact approval id + fingerprint on screen; the PC refuses anything
+    // stale or already decided. No commit, integration, push or merge exists here.
+
+    private interface CodingRequest {
+        JSONObject build() throws JSONException;
+    }
+
+    private LinearLayout vertical() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        return layout;
+    }
+
+    private void showCodingTasks() {
+        screen("Coding · approvals from your PC");
+        LinearLayout page = root;
+        MeuClient connected = client;
+        LinearLayout entries = vertical();
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(entries);
+        status = label("Loading coding tasks…", 14, MUTED);
+        Button refresh = button("Refresh");
+        Button back = button("Sessions");
+        refresh.setOnClickListener(view -> showCodingTasks());
+        back.setOnClickListener(view -> showSessions());
+        root.addView(refresh);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(status);
+        root.addView(back);
+        if (lastCodingTasks != null) renderCodingRows(entries, lastCodingTasks);
+        worker.execute(() -> {
+            try {
+                JSONArray tasks = connected.coding(new JSONObject().put("op", "list")).getJSONArray("tasks");
+                onScreen(() -> {
+                    if (root != page) return;
+                    lastCodingTasks = tasks;
+                    lastCodingSync = System.currentTimeMillis();
+                    entries.removeAllViews();
+                    renderCodingRows(entries, tasks);
+                    status.setText(tasks.length() == 0 ? "No coding tasks on your PC." : "PC online · up to date");
+                });
+            } catch (IOException | JSONException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    status.setText(codingErrorText(error));
+                });
+            }
+        });
+    }
+
+    private void renderCodingRows(LinearLayout entries, JSONArray tasks) {
+        for (int index = 0; index < tasks.length(); index++) {
+            JSONObject item = tasks.optJSONObject(index);
+            if (item == null) continue;
+            String id = item.optString("task_id");
+            Button open = button(item.optString("label") + " · " + item.optString("project") + "\n"
+                    + item.optString("description"));
+            open.setOnClickListener(view -> showCodingTask(id));
+            entries.addView(open);
+        }
+    }
+
+    private String codingErrorText(Exception error) {
+        int code = httpStatus(error);
+        if (code == 409 && error instanceof MeuClient.HttpError && !((MeuClient.HttpError) error).reason.isEmpty()) {
+            return ((MeuClient.HttpError) error).reason;
+        }
+        if (code == 401 || code == 410) return "This pairing ended. Show a new code on your computer.";
+        if (code == 404) return "This coding task is no longer on your PC.";
+        String when = lastCodingSync == 0 ? "" : " Last synced "
+                + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(lastCodingSync)) + ".";
+        return "PC offline or unreachable — nothing runs from here until it is back. "
+                + "Pending approvals stay pending on the PC." + when;
+    }
+
+    private void showCodingTask(String taskId) {
+        screen("Coding task");
+        LinearLayout page = root;
+        MeuClient connected = client;
+        LinearLayout body = vertical();
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(body);
+        status = label("Loading…", 14, MUTED);
+        Button back = button("Coding tasks");
+        back.setOnClickListener(view -> showCodingTasks());
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(status);
+        root.addView(back);
+        codingCall(page, body, connected, () -> new JSONObject().put("op", "get").put("task_id", taskId));
+    }
+
+    private void codingCall(LinearLayout page, LinearLayout body, MeuClient connected, CodingRequest request) {
+        status.setText("Contacting your PC…");
+        worker.execute(() -> {
+            try {
+                JSONObject task = connected.coding(request.build()).getJSONObject("task");
+                lastCodingSync = System.currentTimeMillis();
+                onScreen(() -> {
+                    if (root != page) return;
+                    try {
+                        renderCodingTask(page, body, connected, task);
+                        status.setText("PC online · up to date");
+                    } catch (JSONException error) {
+                        status.setText("Could not read this coding task.");
+                    }
+                });
+            } catch (IOException | JSONException error) {
+                onScreen(() -> {
+                    if (root != page) return;
+                    status.setText(codingErrorText(error));
+                });
+            }
+        });
+    }
+
+    private void addFact(LinearLayout body, String name, String value) {
+        if (value == null || value.isEmpty()) return;
+        TextView view = label(name + ": " + value, 14, INK);
+        view.setPadding(0, dp(2), 0, dp(2));
+        body.addView(view);
+    }
+
+    private static String joined(JSONArray items) {
+        if (items == null || items.length() == 0) return "";
+        StringBuilder text = new StringBuilder();
+        for (int index = 0; index < items.length(); index++) {
+            if (index > 0) text.append(", ");
+            text.append(items.optString(index));
+        }
+        return text.toString();
+    }
+
+    private static String shortFingerprint(String fingerprint) {
+        return fingerprint.length() > 16
+                ? fingerprint.substring(0, 8) + "…" + fingerprint.substring(fingerprint.length() - 8) : fingerprint;
+    }
+
+    private JSONObject decisionBody(String taskId, JSONObject approval, String decision) throws JSONException {
+        return new JSONObject().put("op", "decide").put("task_id", taskId)
+                .put("approval_id", approval.getString("approval_id"))
+                .put("fingerprint", approval.getString("fingerprint")).put("decision", decision);
+    }
+
+    private void renderCodingTask(LinearLayout page, LinearLayout body, MeuClient connected, JSONObject task)
+            throws JSONException {
+        body.removeAllViews();
+        String taskId = task.getString("task_id");
+        TextView stage = label(task.optString("label"), 20, INK);
+        stage.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        body.addView(stage);
+        body.addView(label(task.optString("project") + " · " + task.optString("description"), 15, INK));
+        if (!task.optString("error").isEmpty()) body.addView(label(task.optString("error"), 14, 0xffb3261e));
+        JSONObject pc = task.optJSONObject("pc");
+        String branch = pc == null ? "" : pc.optString("worktree_branch");
+        addFact(body, "PC", "online" + (pc != null && pc.optBoolean("busy") ? " · working" : "")
+                + (branch.isEmpty() ? "" : " · " + branch));
+        addFact(body, "Risk", task.optString("risk").toUpperCase(Locale.ROOT));
+        addFact(body, "Files", joined(task.optJSONArray("files")));
+        addFact(body, "Plan", task.optString("summary"));
+        addFact(body, "Tests expected", joined(task.optJSONArray("tests_expected")));
+        JSONObject actions = task.getJSONObject("actions");
+        JSONObject approval = task.optJSONObject("approval");
+        if (approval != null) {
+            addFact(body, "Fingerprint", shortFingerprint(approval.getString("fingerprint")));
+            renderDiff(page, body, connected, taskId, "proposed", "Proposed changes", approval.optJSONObject("proposed"));
+            if (actions.optBoolean("approve")) {
+                Button approve = button("Approve " + shortFingerprint(approval.getString("fingerprint")));
+                Button reject = button("Reject");
+                approve.setOnClickListener(view -> codingCall(page, body, connected,
+                        () -> decisionBody(taskId, approval, "approve")));
+                reject.setOnClickListener(view -> codingCall(page, body, connected,
+                        () -> decisionBody(taskId, approval, "reject")));
+                body.addView(approve);
+                body.addView(reject);
+            }
+        }
+        JSONObject result = task.optJSONObject("result");
+        if (result != null) renderCodingResult(page, body, connected, taskId, result, actions);
+        renderCodingDetails(body, task, approval);
+        if (task.optBoolean("busy")) {
+            chatRefresh = () -> {
+                if (root == page && foreground) {
+                    codingCall(page, body, connected, () -> new JSONObject().put("op", "get").put("task_id", taskId));
+                }
+            };
+            ui.postDelayed(chatRefresh, 3000);
+        }
+    }
+
+    private void renderCodingResult(LinearLayout page, LinearLayout body, MeuClient connected, String taskId,
+                                    JSONObject result, JSONObject actions) {
+        addFact(body, "Changed", joined(result.optJSONArray("files_changed")) + " (+" + result.optInt("additions")
+                + " −" + result.optInt("deletions") + ")");
+        JSONArray tests = result.optJSONArray("tests");
+        for (int index = 0; tests != null && index < tests.length(); index++) {
+            JSONObject test = tests.optJSONObject(index);
+            if (test != null) addFact(body, test.optString("status"), test.optString("check"));
+        }
+        JSONObject reviewer = result.optJSONObject("reviewer");
+        if (reviewer != null) {
+            addFact(body, "Reviewer", reviewer.optString("verdict").toUpperCase(Locale.ROOT) + " — "
+                    + reviewer.optString("rationale"));
+        }
+        renderDiff(page, body, connected, taskId, "actual", "Actual changes", result.optJSONObject("actual"));
+        if (actions.optBoolean("keep")) {
+            Button keep = button("Keep");
+            keep.setOnClickListener(view -> codingCall(page, body, connected,
+                    () -> new JSONObject().put("op", "keep").put("task_id", taskId)));
+            body.addView(keep);
+        }
+        if (actions.optBoolean("reject") && !actions.optBoolean("approve")) {
+            Button reject = button("Reject result");
+            reject.setOnClickListener(view -> codingCall(page, body, connected,
+                    () -> new JSONObject().put("op", "reject").put("task_id", taskId)));
+            body.addView(reject);
+        }
+    }
+
+    private void renderCodingDetails(LinearLayout body, JSONObject task, JSONObject approval) throws JSONException {
+        LinearLayout details = vertical();
+        details.setVisibility(View.GONE);
+        if (approval != null) {
+            addFact(details, "Approval", approval.getString("approval_id"));
+            addFact(details, "Full fingerprint", approval.getString("fingerprint"));
+            addFact(details, "Edit strategy", approval.optString("strategy"));
+        }
+        JSONArray decisions = task.optJSONArray("decisions");
+        for (int index = 0; decisions != null && index < decisions.length(); index++) {
+            JSONObject decision = decisions.optJSONObject(index);
+            if (decision != null) addFact(details, decision.optString("decision"), "from " + decision.optString("source"));
+        }
+        Button toggle = button("View details");
+        toggle.setOnClickListener(view -> {
+            boolean hidden = details.getVisibility() != View.VISIBLE;
+            details.setVisibility(hidden ? View.VISIBLE : View.GONE);
+            toggle.setText(hidden ? "Hide details" : "View details");
+        });
+        body.addView(toggle);
+        body.addView(details);
+    }
+
+    private TextView diffLine(String line) {
+        TextView view = label(line, 12, line.startsWith("+") ? 0xff1b7a3a : line.startsWith("-") ? 0xffb3261e
+                : line.startsWith("@@") ? ACCENT : MUTED);
+        view.setTypeface(Typeface.MONOSPACE);
+        view.setPadding(0, 0, 0, 0);
+        return view;
+    }
+
+    private void renderDiff(LinearLayout page, LinearLayout body, MeuClient connected, String taskId, String which,
+                            String title, JSONObject summary) {
+        if (summary == null) return;
+        TextView heading = label(title, 16, INK);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        body.addView(heading);
+        JSONArray files = summary.optJSONArray("files");
+        for (int index = 0; files != null && index < files.length(); index++) {
+            JSONObject file = files.optJSONObject(index);
+            if (file == null) continue;
+            String filePath = file.optString("path");
+            TextView name = label(filePath + "   +" + file.optInt("additions") + " −" + file.optInt("deletions"), 14, INK);
+            name.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            body.addView(name);
+            LinearLayout lines = vertical();
+            JSONArray shown = file.optJSONArray("lines");
+            for (int line = 0; shown != null && line < shown.length(); line++) lines.addView(diffLine(shown.optString(line)));
+            body.addView(lines);
+            if (file.optBoolean("truncated")) {
+                Button more = button("Show full diff of " + filePath);
+                more.setOnClickListener(view -> worker.execute(() -> {
+                    try {
+                        JSONObject full = connected.coding(new JSONObject().put("op", "diff").put("task_id", taskId)
+                                .put("which", which).put("path", filePath));
+                        JSONArray all = full.getJSONArray("lines");
+                        onScreen(() -> {
+                            if (root != page) return;
+                            lines.removeAllViews();
+                            for (int line = 0; line < all.length(); line++) lines.addView(diffLine(all.optString(line)));
+                            more.setVisibility(View.GONE);
+                        });
+                    } catch (IOException | JSONException error) {
+                        onScreen(() -> { if (root == page) status.setText(codingErrorText(error)); });
+                    }
+                }));
+                body.addView(more);
+            }
+        }
     }
 
     private void onScreen(Runnable action) {

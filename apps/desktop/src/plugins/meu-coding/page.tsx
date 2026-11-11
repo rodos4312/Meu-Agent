@@ -24,13 +24,18 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { codingApi } from './api'
 import {
   approvalFacts,
+  type CodingIntegration,
+  type CodingIntegrationPreview,
+  type CodingResult,
   type CodingTask,
   decisionParams,
   type DiffFile,
   errorText,
+  integrationFacts,
   parseDiff,
   PIPELINE,
   pipelineStep,
+  routingFacts,
   shortFingerprint,
   type StageTone,
   stageTone
@@ -241,7 +246,8 @@ function ApprovalCard({ task }: { task: CodingTask }) {
               value: Object.entries(task.models)
                 .map(([k, v]) => `${k}=${v}`)
                 .join(', ')
-            }
+            },
+            ...routingFacts(task)
           ]}
         />
       )}
@@ -336,18 +342,212 @@ function ExecutionSection({ task }: { task: CodingTask }) {
   )
 }
 
+const COMMITTED_STAGES = new Set(['committed', 'integration_preview', 'integrating', 'integrated'])
+
+function ReadyToIntegrate({ result, task }: { result: CodingResult; task: CodingTask }) {
+  const action = useTaskAction(task.task_id)
+
+  return (
+    <Section title="Ready to integrate">
+      <FactList
+        rows={[
+          { label: 'Source branch', value: result.worktree_branch },
+          { label: 'Target branch', value: result.target_branch },
+          { label: 'Commit', value: result.result_commit.slice(0, 12) },
+          { label: 'Tests', value: result.tests.map(t => `${t.check}: ${t.status}`).join('; ') || 'none recorded' },
+          { label: 'Risk', value: (task.plan?.risk ?? 'unknown').toUpperCase() },
+          { label: 'Reviewer', value: result.reviewer_verdict.toUpperCase() }
+        ]}
+      />
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={action.pending || !task.actions.integration_preview}
+          onClick={() => action.run(() => codingApi.integrationPreview(task.task_id))}
+          size="xs"
+        >
+          Preview integration
+        </Button>
+      </div>
+      {action.error && <InlineError description={action.error} title="Preview refused" />}
+    </Section>
+  )
+}
+
+function IntegrationPreviewCard({ preview, task }: { preview: CodingIntegrationPreview; task: CodingTask }) {
+  const action = useTaskAction(task.task_id)
+  const [confirmed, setConfirmed] = useState(false)
+  const canApply = Boolean(task.actions.integration_approve)
+  const token = task.integration?.token ?? ''
+
+  return (
+    <Section title="Integration preview — nothing has changed yet">
+      <FactList rows={integrationFacts(preview)} />
+      {preview.drift_commits.length > 0 && (
+        <pre className="max-h-32 overflow-auto bg-muted p-1 font-mono text-[0.65rem]">
+          {preview.drift_commits.join('\n')}
+        </pre>
+      )}
+      {canApply && (
+        <label className="flex items-center gap-2 text-xs">
+          <input checked={confirmed} onChange={event => setConfirmed(event.target.checked)} type="checkbox" />
+          Apply this result to a new integration branch, re-run the checks and review the final diff. The target branch
+          is not changed.
+        </label>
+      )}
+      <div className="flex items-center gap-2">
+        {canApply && (
+          <Button
+            disabled={action.pending || !confirmed}
+            onClick={() => action.run(() => codingApi.integrationApprove(task.task_id, token))}
+            size="xs"
+          >
+            Apply to integration branch
+          </Button>
+        )}
+        <Button
+          disabled={action.pending || !task.actions.integration_cancel}
+          onClick={() => action.run(() => codingApi.integrationCancel(task.task_id))}
+          size="xs"
+          variant="outline"
+        >
+          Cancel
+        </Button>
+      </div>
+      {action.error && <InlineError description={action.error} title="Integration refused" />}
+    </Section>
+  )
+}
+
+function IntegratedCard({ integration }: { integration: CodingIntegration }) {
+  const review = integration.review
+
+  return (
+    <Section title="Integrated on an integration branch">
+      <FactList
+        rows={[
+          { label: 'Branch', value: integration.branch ?? '' },
+          { label: 'Commit', value: (integration.integration_commit ?? '').slice(0, 12) },
+          { label: 'Files', value: (integration.final_files ?? []).join(', ') },
+          { label: 'Checks', value: (integration.checks ?? []).map(c => `${c.check}: ${c.status}`).join('; ') },
+          { label: 'Final review', value: `${(review?.verdict ?? '').toUpperCase()} — ${review?.rationale ?? ''}` },
+          { label: 'Patch', value: integration.patch_changed ? 'changed by the replay — reviewed again' : 'unchanged' },
+          { label: 'Note', value: 'Not merged into the target branch. Not pushed.' }
+        ]}
+      />
+      <DiffView
+        label="Final integration diff"
+        text={integration.final_diff ?? ''}
+        truncated={Boolean(integration.final_diff_truncated)}
+      />
+    </Section>
+  )
+}
+
+function IntegrationSection({ task }: { task: CodingTask }) {
+  const integration = task.integration
+  const preview = integration?.preview
+
+  if (task.stage === 'committed' && task.result) {
+    return <ReadyToIntegrate result={task.result} task={task} />
+  }
+
+  if (task.stage === 'integration_preview' && preview) {
+    return <IntegrationPreviewCard preview={preview} task={task} />
+  }
+
+  if (task.stage === 'integrated' && integration) {
+    return <IntegratedCard integration={integration} />
+  }
+
+  return null
+}
+
+function PrSection({ task }: { task: CodingTask }) {
+  const action = useTaskAction(task.task_id)
+  const [title, setTitle] = useState<null | string>(null)
+  const [body, setBody] = useState<null | string>(null)
+  const pr = task.pr
+
+  if (task.stage !== 'integrated') {
+    return null
+  }
+
+  if (!pr || pr.status === 'cancelled') {
+    return (
+      <Section title="Pull request preview">
+        <Button
+          disabled={action.pending || !task.actions.pr_prepare}
+          onClick={() => action.run(() => codingApi.prPrepare(task.task_id))}
+          size="xs"
+          variant="outline"
+        >
+          Prepare PR preview
+        </Button>
+        {action.error && <InlineError description={action.error} title="PR preview refused" />}
+      </Section>
+    )
+  }
+
+  const save = (status?: string) =>
+    action.run(() => codingApi.prUpdate(task.task_id, { body: body ?? pr.body, status, title: title ?? pr.title }))
+
+  return (
+    <Section title={`Pull request preview — ${pr.status.replaceAll('_', ' ')}`}>
+      <p className="text-xs text-muted-foreground">{pr.message}</p>
+      <FactList
+        rows={[
+          { label: 'Source', value: pr.source_branch },
+          { label: 'Target', value: pr.target_branch },
+          {
+            label: 'Tests',
+            value: `${pr.tests.passed} passed${pr.tests.failed.length ? `; failed: ${pr.tests.failed.join(', ')}` : ''}`
+          }
+        ]}
+      />
+      <Input onChange={event => setTitle(event.target.value)} value={title ?? pr.title} />
+      <Textarea
+        className="min-h-32 font-mono text-xs"
+        onChange={event => setBody(event.target.value)}
+        value={body ?? pr.body}
+      />
+      <div className="flex items-center gap-2">
+        <Button disabled={action.pending || !task.actions.pr_edit} onClick={() => save()} size="xs">
+          Save
+        </Button>
+        <Button
+          disabled={action.pending || !task.actions.pr_edit}
+          onClick={() => save('approved_for_later')}
+          size="xs"
+          variant="outline"
+        >
+          Approve PR creation later
+        </Button>
+        <Button
+          disabled={action.pending}
+          onClick={() => action.run(() => codingApi.prUpdate(task.task_id, { status: 'cancelled' }))}
+          size="xs"
+          variant="ghost"
+        >
+          Cancel
+        </Button>
+      </div>
+      {action.error && <InlineError description={action.error} title="PR preview refused" />}
+    </Section>
+  )
+}
+
 function CommitSection({ task }: { task: CodingTask }) {
   const action = useTaskAction(task.task_id)
   const [message, setMessage] = useState<null | string>(null)
   const [confirmed, setConfirmed] = useState(false)
   const commit = task.commit
 
-  if (task.stage === 'committed' && commit?.hash) {
+  if (COMMITTED_STAGES.has(task.stage) && commit?.hash) {
     return (
-      <Section title="Committed locally">
+      <Section title="Committed in the worktree">
         <p className="text-xs">
           Commit <span className="font-mono">{commit.hash.slice(0, 12)}</span> on branch{' '}
-          <span className="font-mono">{commit.branch}</span>. Not pushed, not merged.
+          <span className="font-mono">{commit.branch ?? task.result?.worktree_branch}</span>. Not pushed, not merged.
         </p>
       </Section>
     )
@@ -474,6 +674,8 @@ function TaskDetail({ taskId }: { taskId: string }) {
       <ApprovalCard task={task} />
       <ExecutionSection task={task} />
       <CommitSection task={task} />
+      <IntegrationSection task={task} />
+      <PrSection task={task} />
       {task.cleanup.worktrees?.length ? (
         <Section title="Cleanup">
           {task.cleanup.worktrees.map((entry, index) => (

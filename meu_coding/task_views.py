@@ -19,8 +19,13 @@ STAGE_LABELS = {
     "awaiting_approval": "Awaiting approval", "executing": "Executing", "testing": "Testing",
     "reviewing_diff": "Reviewing diff", "awaiting_keep_reject": "Awaiting keep / reject", "kept": "Kept",
     "ready_to_commit": "Ready to commit", "committed": "Committed", "rejected": "Rejected",
-    "blocked": "Blocked", "failed": "Failed",
+    "blocked": "Blocked", "failed": "Failed", "committed_in_worktree": "Committed in worktree",
+    "integration_preview": "Integration preview", "integrating": "Integrating", "integrated": "Integrated",
+    "interrupted": "Execution interrupted",
 }
+STAGE_LABELS["committed"] = "Ready to integrate"
+BUSY = frozenset({"analyzing", "planning", "coding", "reviewing", "executing", "testing", "reviewing_diff",
+                  "integrating"})
 
 # Ordered: the first matching fragment decides the user-facing message.
 _FRIENDLY = (
@@ -144,14 +149,51 @@ def _commit(record) -> dict[str, Any] | None:
 
 def _actions(record) -> dict[str, bool]:
     stage = record.stage.value
+    live_approval = stage == "awaiting_approval" and not record.restored
     can_repair = bool(record.session and record.session.can_repair) and stage == "awaiting_keep_reject"
+    pr_status = (record.pr or {}).get("status")
     return {
-        "approve": stage == "awaiting_approval", "reject_proposal": stage == "awaiting_approval",
-        "keep": stage == "awaiting_keep_reject", "repair": can_repair,
-        "reject": stage in ("awaiting_keep_reject", "kept", "ready_to_commit", "blocked", "failed"),
+        "approve": live_approval, "reject_proposal": live_approval,
+        "keep": stage == "awaiting_keep_reject" and record.result is not None, "repair": can_repair,
+        "reject": stage in ("awaiting_keep_reject", "kept", "ready_to_commit", "blocked", "failed", "committed",
+                            "integration_preview", "integrated", "interrupted")
+        or (stage == "awaiting_approval" and record.restored),
         "commit_prepare": stage == "ready_to_commit",
         "commit_confirm": stage == "ready_to_commit" and record.commit_plan is not None,
+        "integration_preview": stage in ("committed", "integration_preview"),
+        "integration_approve": stage == "integration_preview" and record.integration_preview is not None
+        and record.integration_preview.status.value in ("clean", "needs_rebase_or_replay"),
+        "integration_cancel": stage == "integration_preview",
+        "pr_prepare": stage == "integrated",
+        "pr_edit": stage == "integrated" and pr_status in ("draft", "approved_for_later"),
+        # Never available in this phase, whatever the remote configuration.
+        "push": False, "merge": False, "create_remote_pr": False,
     }
+
+
+def _result(record) -> dict[str, Any] | None:
+    result = record.result
+    if result is None:
+        return None
+    return {"states": list(result.states), "target_branch": result.target_branch, "base_commit": result.base_commit,
+            "worktree_branch": result.worktree_branch, "worktree_path": result.worktree_path,
+            "result_commit": result.result_commit, "changed_files": list(result.changed_files),
+            "additions": result.additions, "deletions": result.deletions, "tests": list(result.tests),
+            "reviewer_verdict": result.reviewer_verdict, "reviewer_rationale": result.reviewer_rationale,
+            "approval_source": result.approval_source, "proposal_fingerprint": result.proposal_fingerprint}
+
+
+def _integration(record) -> dict[str, Any] | None:
+    if not record.integration:
+        return None
+    view = dict(record.integration)
+    preview = record.integration_preview
+    if preview is not None and record.stage.value == "integration_preview":
+        view["token"] = preview.token  # the approval names this exact preview
+    if record.integration_final_diff:
+        diff, truncated = _clip(record.integration_final_diff, MAX_DIFF_CHARS)
+        view["final_diff"], view["final_diff_truncated"] = diff, truncated
+    return view
 
 
 def snapshot(record) -> dict[str, Any]:
@@ -159,10 +201,12 @@ def snapshot(record) -> dict[str, Any]:
     return {
         "task_id": record.task_id, "description": record.task.description, "project": record.project_root,
         "stage": stage, "stage_label": STAGE_LABELS.get(stage, stage), "error": record.error,
-        "busy": stage in ("analyzing", "planning", "coding", "reviewing", "executing", "testing", "reviewing_diff"),
-        "restored": record.restored, "actions": _actions(record),
+        "busy": stage in BUSY, "restored": record.restored, "actions": _actions(record),
         "models": dict(record.audit.models), "route_source": record.audit.route_source,
+        "routing": dict(record.audit.routing), "created_at": record.audit.created_at,
         "plan": _plan(record), "approval": _approval(record), "execution": _execution(record),
+        "result": _result(record), "integration": _integration(record), "pr": dict(record.pr) if record.pr else None,
+        "decisions": [{k: d.get(k) for k in ("decision", "source", "device", "at")} for d in record.audit.decisions],
         "attempts": [{"number": a.number, "approval_id": a.approval_id, "verdict": a.review.status.value,
                       "status": a.result.status} for a in (record.session.attempts if record.session else [])],
         "commit": _commit(record), "cleanup": dict(record.cleanup),

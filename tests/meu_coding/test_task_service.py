@@ -56,8 +56,8 @@ def test_approval_view_shows_the_exact_fingerprinted_proposal(git_repo, tmp_path
     assert approval["strategy"] == EditStrategy.SEARCH_REPLACE.value
     assert approval["worktree_target"]["branch"] == "main"
     assert view["plan"]["risk"] and view["plan"]["checks"] and view["plan"]["files_to_change"]
-    assert view["actions"] == {"approve": True, "reject_proposal": True, "keep": False, "repair": False,
-                               "reject": False, "commit_prepare": False, "commit_confirm": False}
+    enabled = {name for name, allowed in view["actions"].items() if allowed}
+    assert enabled == {"approve", "reject_proposal"}  # nothing else is possible before a decision
 
 
 def test_wrong_or_stale_decisions_are_refused_and_a_decision_is_consumed_once(git_repo, tmp_path):
@@ -210,7 +210,7 @@ def test_invalid_transitions_and_restart_never_resume(git_repo, tmp_path):
     assert Stage.EXECUTING not in TRANSITIONS[Stage.REJECTED]
     restored = _service(tmp_path)  # same audit directory: a restarted backend
     again = restored.get(view["task_id"])
-    assert again["restored"] and again["stage"] == "failed" and "nothing continues" in again["error"]
+    assert again["restored"] and again["stage"] == "awaiting_approval" and "expired" in again["error"]
     assert again["approval"] is None and not again["actions"]["approve"]
 
 
@@ -234,7 +234,7 @@ def test_coding_routes_use_existing_settings_with_a_safe_fallback():
                                                                                                   "deepseek-pro-x")
     assert resolved.routes.coder_simple == Route("deepseek", "deepseek-flash-x")
     fallback = resolve_coding_routes({"model": {"provider": "zai", "default": "glm-x"}})
-    assert fallback.source == "main_model_fallback" and fallback.routes.coder_simple is None
+    assert fallback.source == "main_model_fallback" and fallback.routes.coder_simple == Route("zai", "glm-x")
     assert fallback.routes.architect == Route("zai", "glm-x")
     with pytest.raises(ProviderError):
         resolve_coding_routes({})

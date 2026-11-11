@@ -8,8 +8,6 @@ the service inherits that scope (``spawn_context_thread`` copies the caller's co
 
 from __future__ import annotations
 
-import threading
-
 from .method_ctx import HandlerRegistry, bind_module
 
 _registry = HandlerRegistry()
@@ -18,22 +16,10 @@ method = _registry.method
 # JSON-RPC error codes: refused by the task lifecycle (actionable message) / internal failure.
 _E_CODING_REFUSED, _E_CODING_FAILED = 5072, 5073
 
-_coding_services: dict[str, object] = {}
-_coding_services_lock = threading.Lock()
-
-
 def _coding_service():
-    from hermes_constants import get_hermes_home
+    from meu_coding.service_registry import current_service
 
-    from meu_coding.task_service import CodingTaskService
-
-    key = str(get_hermes_home())
-    with _coding_services_lock:
-        service = _coding_services.get(key)
-        if service is None:
-            service = CodingTaskService()
-            _coding_services[key] = service
-        return service
+    return current_service()
 
 
 def _coding_method(name: str):
@@ -78,7 +64,7 @@ def _coding_decide(service, params: dict) -> dict:
     return {"task": service.decide(str(params["task_id"]), approval_id=str(params["approval_id"]),
                                    fingerprint=str(params["fingerprint"]),
                                    approve=params["decision"] == "approve", approver=f"user@{device}",
-                                   device=device)}
+                                   device=device, source="desktop")}
 
 
 @_coding_method("coding.keep")
@@ -105,6 +91,33 @@ def _coding_commit_prepare(service, params: dict) -> dict:
 def _coding_commit_confirm(service, params: dict) -> dict:
     return {"task": service.commit_confirm(str(params["task_id"]), message=str(params["message"]),
                                            token=str(params["token"]), confirmed=params["confirmed"] is True)}
+
+
+@_coding_method("coding.integration.preview")
+def _coding_integration_preview(service, params: dict) -> dict:
+    return {"task": service.integration_preview(str(params["task_id"]))}
+
+
+@_coding_method("coding.integration.approve")
+def _coding_integration_approve(service, params: dict) -> dict:
+    return {"task": service.integration_approve(str(params["task_id"]), token=str(params["token"]),
+                                                confirmed=params["confirmed"] is True, source="desktop")}
+
+
+@_coding_method("coding.integration.cancel")
+def _coding_integration_cancel(service, params: dict) -> dict:
+    return {"task": service.integration_cancel(str(params["task_id"]), source="desktop")}
+
+
+@_coding_method("coding.pr.prepare")
+def _coding_pr_prepare(service, params: dict) -> dict:
+    return {"task": service.pr_prepare(str(params["task_id"]))}
+
+
+@_coding_method("coding.pr.update")
+def _coding_pr_update(service, params: dict) -> dict:
+    return {"task": service.pr_update(str(params["task_id"]), title=params.get("title"), body=params.get("body"),
+                                      status=params.get("status"))}
 
 
 def register(server) -> None:

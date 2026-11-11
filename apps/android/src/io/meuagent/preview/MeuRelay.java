@@ -59,7 +59,10 @@ final class MeuRelay {
             JSONObject decoded = new JSONObject(new String(
                     decrypt.doFinal(reply, 12, reply.length - 12), StandardCharsets.UTF_8));
             int status = decoded.getInt("status");
-            if (status < 200 || status >= 300) throw new MeuClient.HttpError(status);
+            if (status < 200 || status >= 300) {
+                JSONObject refusal = decoded.optJSONObject("body");
+                throw new MeuClient.HttpError(status, refusal == null ? "" : refusal.optString("reason", ""));
+            }
             return decoded.getJSONObject("body");
         } catch (GeneralSecurityException error) {
             throw new IOException("Could not verify the Meu relay response", error);

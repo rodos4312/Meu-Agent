@@ -29,5 +29,12 @@ export const codingApi = {
   repair: (taskId: string) => call('coding.repair', { task_id: taskId }),
   commitPrepare: (taskId: string) => call('coding.commit.prepare', { task_id: taskId }),
   commitConfirm: (taskId: string, message: string, token: string) =>
-    call('coding.commit.confirm', { confirmed: true, message, task_id: taskId, token })
+    call('coding.commit.confirm', { confirmed: true, message, task_id: taskId, token }),
+  integrationPreview: (taskId: string) => call('coding.integration.preview', { task_id: taskId }),
+  integrationApprove: (taskId: string, token: string) =>
+    call('coding.integration.approve', { confirmed: true, task_id: taskId, token }),
+  integrationCancel: (taskId: string) => call('coding.integration.cancel', { task_id: taskId }),
+  prPrepare: (taskId: string) => call('coding.pr.prepare', { task_id: taskId }),
+  prUpdate: (taskId: string, changes: { body?: string; status?: string; title?: string }) =>
+    call('coding.pr.update', { task_id: taskId, ...changes })
 }

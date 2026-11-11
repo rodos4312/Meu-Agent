@@ -331,6 +331,60 @@
       }
     },
     {
+      "name": "coding.integration.approve",
+      "summary": "Apply the previewed result to an isolated integration branch, re-validate and re-review. Never merges.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingIntegrationApproveParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.integration.cancel",
+      "summary": "Discard the integration preview; the committed worktree result stays ready to integrate.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.integration.preview",
+      "summary": "Read-only integration preview: target drift, conflicts, strategies and a preview token.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
       "name": "coding.keep",
       "summary": "Keep the executed, reviewed worktree result (ready to commit only after Reviewer PASS).",
       "params": [
@@ -363,6 +417,42 @@
         "name": "result",
         "schema": {
           "$ref": "#/components/schemas/CodingTaskListResult"
+        }
+      }
+    },
+    {
+      "name": "coding.pr.prepare",
+      "summary": "Build a local PR preview from the integrated result. Nothing is sent to a remote.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.pr.update",
+      "summary": "Edit, cancel or mark the local PR preview as approved for creation later.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingPrUpdateParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
         }
       }
     },
@@ -10083,6 +10173,115 @@
           "decision"
         ],
         "title": "CodingDecideParams",
+        "type": "object"
+      },
+      "CodingIntegrationApproveParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Token",
+            "type": "string"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "token",
+          "confirmed"
+        ],
+        "title": "CodingIntegrationApproveParams",
+        "type": "object"
+      },
+      "CodingPrUpdateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Body"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "cancelled",
+                  "approved_for_later"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Status"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "CodingPrUpdateParams",
         "type": "object"
       },
       "CodingStartParams": {

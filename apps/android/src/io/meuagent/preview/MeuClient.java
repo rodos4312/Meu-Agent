@@ -114,6 +114,11 @@ final class MeuClient {
         return request("meu/sessions/" + sessionId + query, null, null);
     }
 
+    /** Coding approvals on the PC. Identity is the pairing itself; the body never names a device. */
+    JSONObject coding(JSONObject body) throws IOException, JSONException {
+        return request("meu/coding", body, null);
+    }
+
     JSONObject status(String runId) throws IOException, JSONException {
         JSONObject run = request("v1/runs/" + runId, null, null);
         if (!runId.equals(run.optString("run_id"))) throw new IOException("Run ID mismatch");
@@ -143,7 +148,7 @@ final class MeuClient {
                 }
             }
             int status = connection.getResponseCode();
-            if (status < 200 || status >= 300) throw new HttpError(status);
+            if (status < 200 || status >= 300) throw new HttpError(status, refusalReason(connection));
             return readJson(connection);
         } finally {
             connection.disconnect();
@@ -162,12 +167,33 @@ final class MeuClient {
         }
     }
 
+    /** The PC's own explanation of a refused request (HTTP 409 ``{"reason": ...}``), else "". */
+    private static String refusalReason(HttpsURLConnection connection) {
+        try (InputStream input = connection.getErrorStream()) {
+            if (input == null) return "";
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            for (int count; (count = input.read(buffer)) != -1 && output.size() < 16384; ) {
+                output.write(buffer, 0, count);
+            }
+            return new JSONObject(output.toString("UTF-8")).optString("reason", "");
+        } catch (IOException | JSONException error) {
+            return "";
+        }
+    }
+
     static final class HttpError extends IOException {
         final int status;
+        final String reason;
 
         HttpError(int status) {
+            this(status, "");
+        }
+
+        HttpError(int status, String reason) {
             super("Gateway HTTP " + status);
             this.status = status;
+            this.reason = reason == null ? "" : reason;
         }
     }
 }

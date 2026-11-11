@@ -77,24 +77,27 @@ def _read_diff(worktree: str) -> dict:
 
 
 def prepare_commit(*, worktree_path: str, worktree_branch: str, base_commit: str, parent_root: str,
-                   reviewed_files: tuple[str, ...], reviewed_diff: str, task_description: str,
+                   reviewed_files: tuple[str, ...], reviewed_digest: str, task_description: str,
                    reviewer_rationale: str) -> CommitPlan:
+    """``reviewed_digest`` is :func:`diff_digest` of the diff the Reviewer passed; the worktree
+    must still produce exactly that diff (works after a restart, without keeping the diff)."""
     if not Path(worktree_path).is_dir():
         raise CommitRefused("The worktree no longer exists; nothing can be committed.")
     diff = _read_diff(worktree_path)
     files = changed_files(diff)
-    if files != tuple(sorted(reviewed_files)) or diff.get("diff", "") != reviewed_diff:
+    current = diff_digest(diff.get("diff", ""), files)
+    if files != tuple(sorted(reviewed_files)) or current != reviewed_digest:
         raise CommitRefused("The worktree changed after review — review it again before committing.")
     if git_probe(worktree_path, "rev-parse", "HEAD") != base_commit:
         raise CommitRefused("The worktree already has a commit; nothing more will be committed.")
     parent = read_identity(parent_root)
-    additions, deletions = diff_counts(reviewed_diff)
+    additions, deletions = diff_counts(diff.get("diff", ""))
     return CommitPlan(
         files=files, stat=diff.get("stat", ""), additions=additions, deletions=deletions,
         branch=worktree_branch, worktree_path=worktree_path, base_commit=base_commit,
         parent_branch=parent.branch, parent_head=parent.head,
         suggested_message=suggest_message(task_description, files, reviewer_rationale),
-        token=diff_digest(reviewed_diff, files),
+        token=current,
     )
 
 

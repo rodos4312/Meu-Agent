@@ -64,6 +64,19 @@ export interface CodingCommitConfirmParams {
   token: string
   confirmed: boolean
 }
+export interface CodingIntegrationApproveParams {
+  profile?: string | null
+  task_id: string
+  token: string
+  confirmed: boolean
+}
+export interface CodingPrUpdateParams {
+  profile?: string | null
+  task_id: string
+  title?: string | null
+  body?: string | null
+  status?: 'draft' | 'cancelled' | 'approved_for_later' | null
+}
 export interface DelegationStatusResult {
   active: ActiveSubagent[]
   paused: boolean
@@ -5562,10 +5575,20 @@ export interface RpcMethods {
   'coding.decide': { params: CodingDecideParams; result: CodingTaskResult }
   /** The task's current stage and views (approval preview, actual diff, review, commit preview). */
   'coding.get': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Apply the previewed result to an isolated integration branch, re-validate and re-review. Never merges. */
+  'coding.integration.approve': { params: CodingIntegrationApproveParams; result: CodingTaskResult }
+  /** Discard the integration preview; the committed worktree result stays ready to integrate. */
+  'coding.integration.cancel': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Read-only integration preview: target drift, conflicts, strategies and a preview token. */
+  'coding.integration.preview': { params: CodingTaskParams; result: CodingTaskResult }
   /** Keep the executed, reviewed worktree result (ready to commit only after Reviewer PASS). */
   'coding.keep': { params: CodingTaskParams; result: CodingTaskResult }
   /** Recent coding tasks of the profile, newest first (restored ones never resume). */
   'coding.list': { params: ProfileParams; result: CodingTaskListResult }
+  /** Build a local PR preview from the integrated result. Nothing is sent to a remote. */
+  'coding.pr.prepare': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Edit, cancel or mark the local PR preview as approved for creation later. */
+  'coding.pr.update': { params: CodingPrUpdateParams; result: CodingTaskResult }
   /** Reject an executed result; worktrees follow the existing safe cleanup rules. */
   'coding.reject': { params: CodingTaskParams; result: CodingTaskResult }
   /** Ask for a repair after a FIX review; the new proposal needs a new approval. */
@@ -6015,8 +6038,13 @@ export const RPC_METHODS = [
   'coding.commit.prepare',
   'coding.decide',
   'coding.get',
+  'coding.integration.approve',
+  'coding.integration.cancel',
+  'coding.integration.preview',
   'coding.keep',
   'coding.list',
+  'coding.pr.prepare',
+  'coding.pr.update',
   'coding.reject',
   'coding.repair',
   'coding.start',

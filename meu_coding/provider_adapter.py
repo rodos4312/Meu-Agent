@@ -65,6 +65,8 @@ class CodingRoutes:
     coder: Route
     reviewer: Route
     coder_simple: Route | None = None
+    # role → "models_by_workload:<slot>" | "main_model_fallback" (display/audit only)
+    sources: dict[str, str] = field(default_factory=dict, compare=False)
 
 
 def routes_from_workload_policy(policy: Mapping[str, Any]) -> CodingRoutes:
@@ -88,18 +90,28 @@ class RouteResolution:
 
 
 def resolve_coding_routes(config: Mapping[str, Any]) -> RouteResolution:
-    """Coding routes from existing settings only: Models by workload when its complex route is
-    set, otherwise the profile's main model for every role (no simple-coder shortcut)."""
-    policy = config.get("smart_model_routing")
-    if isinstance(policy, dict) and policy.get("routes"):
-        return RouteResolution(routes_from_workload_policy(policy), "models_by_workload")
-    main = config.get("model")
-    provider = str(main.get("provider") or "").strip() if isinstance(main, dict) else ""
-    model = str(main.get("default") or "").strip() if isinstance(main, dict) else ""
-    if not provider or not model:
+    """Coding routes from existing settings only (``meu_coding.routing_policy``): each coding
+    workload uses its Models-by-workload slot, else the profile's main model."""
+    from meu_coding.routing_policy import resolve_workloads
+
+    workloads = resolve_workloads(config)
+    needed = ("coding.architect", "coding.complex", "coding.review")
+    if any(w not in workloads for w in needed):
         raise ProviderError("No model is configured: choose a main model or Models by workload in Settings.")
-    route = Route(provider, model)
-    return RouteResolution(CodingRoutes(architect=route, coder=route, reviewer=route), "main_model_fallback")
+
+    def route(workload: str) -> Route:
+        return Route(workloads[workload].provider, workloads[workload].model)
+
+    simple = workloads.get("coding.simple")
+    sources = {"architect": workloads["coding.architect"].source, "coder": workloads["coding.complex"].source,
+               "reviewer": workloads["coding.review"].source}
+    if simple is not None:
+        sources["coder_simple"] = simple.source
+    routes = CodingRoutes(architect=route("coding.architect"), coder=route("coding.complex"),
+                         reviewer=route("coding.review"),
+                         coder_simple=Route(simple.provider, simple.model) if simple else None, sources=sources)
+    source = "models_by_workload" if any(v.startswith("models_by_workload") for v in sources.values())         else "main_model_fallback"
+    return RouteResolution(routes, source)
 
 
 def routes_from_meu_config() -> CodingRoutes:
@@ -286,12 +298,22 @@ class ProviderCodingModel:
     def __init__(self, session: ProviderSession) -> None:
         self.session = session
         self.last_route: Route | None = None
+        self.last_routing: dict[str, Any] = {}
 
     def route_for(self, request: CodingRequest) -> Route:
+        """coding.simple for SIMPLE first attempts, coding.complex otherwise (repairs included).
+        The class only picks a model; approvals are unchanged."""
+        from meu_coding.routing_policy import Complexity, classify
+
         routes = self.session.routes
-        targets = len(request.plan.files_to_change) + len(request.plan.new_files)
-        simple = request.plan.risk == RiskLevel.LOW and targets <= 1 and request.repair is None
-        return routes.coder_simple if simple and routes.coder_simple else routes.coder
+        classification = classify(request.plan)
+        simple = classification.complexity == Complexity.SIMPLE and request.repair is None
+        route = routes.coder_simple if simple and routes.coder_simple else routes.coder
+        workload = "coding.simple" if route is routes.coder_simple and simple else "coding.complex"
+        self.last_routing = {"complexity": classification.complexity.value, "workload": workload,
+                             "route": str(route), "reasons": list(classification.reasons),
+                             "repair": request.repair is not None}
+        return route
 
     def propose(self, request: CodingRequest) -> CoderOutput:
         route = self.route_for(request)
