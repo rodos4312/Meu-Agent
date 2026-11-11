@@ -7,6 +7,7 @@ _COMPLEX = re.compile(
     r"design|code|coding|program\w*|build|develop\w*|investigat\w*|complex|security|apk|android|application|"
     r"αναλυσ\w*|σχεδιασ\w*|αρχιτεκτον\w*|αλγοριθμ\w*|αποδει\w*|κωδικ\w*|εφαρμογ\w*|"
     r"διορθω\w*|υλοποι\w*|ασφαλει\w*|debugging|analysi|analise|kodika|kwdika|diorthose|ylopoiise|efarmog\w*)\b", re.IGNORECASE)
+_MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{1,199}")
 _FOLLOW_UP = re.compile(r"^(continue|go on|proceed|yes|ok|συνεχισε|προχωρα|ναι|sinehise|synexise|proxora)[.!\s]*$", re.IGNORECASE)
 
 
@@ -16,7 +17,7 @@ def has_images(messages):
                for part in message["content"])
 
 
-def complex_work(messages):
+def user_task_text(messages):
     for message in reversed(messages):
         if not isinstance(message, dict) or message.get("role") != "user":
             continue
@@ -27,13 +28,22 @@ def complex_work(messages):
             continue
         text = "".join(c for c in unicodedata.normalize("NFD", content.casefold()) if not unicodedata.combining(c)).strip()
         if text and not _FOLLOW_UP.fullmatch(text):
-            return len(text) >= 900 or "```" in text or bool(_COMPLEX.search(text))
-    return False
+            return text
+    return ""
+
+
+def complex_work(messages):
+    text = user_task_text(messages)
+    return len(text) >= 900 or "```" in text or bool(_COMPLEX.search(text))
 
 
 def selected_pair(policy, provider):
     if not isinstance(policy, dict) or policy.get("provider") != provider:
         return None
+    from agent.workload_routes import auto_routes_available
+    if auto_routes_available(policy, provider):
+        model = policy.get("base_model")
+        return (model, model) if isinstance(model, str) and _MODEL_ID.fullmatch(model) else None
     pair = tuple(policy.get(key) for key in ("routine", "complex"))
     if not all(isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{1,199}", model) for model in pair):
         return None
@@ -41,6 +51,8 @@ def selected_pair(policy, provider):
 
 
 def choose_from_pair(policy, provider, messages):
+    if isinstance(policy, dict) and policy.get("routes"):
+        return None
     pair = selected_pair(policy, provider)
     if pair is None:
         return None

@@ -857,6 +857,8 @@ def finalize_turn(
     # below (and the next turn) run on the session's main model.
     from agent.voice_turn_route import end_voice_turn_route
     end_voice_turn_route(agent)
+    from agent.workload_turn_route import end_workload_turn_route
+    end_workload_turn_route(agent)
 
     # Skill trigger is checked NOW — based on how many tool iterations THIS turn used.
     _should_review_skills = (

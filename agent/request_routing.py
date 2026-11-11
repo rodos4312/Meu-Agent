@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 def prepare_routed_request(agent, profile, messages):
     model = agent.model
     policy = getattr(agent, "_model_routing_config", {})
-    if (profile is not None and isinstance(policy, dict) and policy.get("enabled") is True
+    if (not getattr(agent, "_workload_route_state", None)
+            and profile is not None and isinstance(policy, dict) and policy.get("enabled") is True
             and (not policy.get("provider") or policy["provider"] == agent.provider)):
         from agent.model_routing_policy import choose_from_pair
         selected = choose_from_pair(policy, agent.provider, messages) if agent.provider != "deepseek" else None

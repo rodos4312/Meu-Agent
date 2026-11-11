@@ -365,6 +365,7 @@ def resolve_task_routes(task_list: list[dict[str, Any]], config: Mapping[str, An
         "model": getattr(parent_agent, "model", None),
         "base_url": base_url,
         "primary_provider": primary_provider,
+        "workload_policy": getattr(parent_agent, "_model_routing_config", {}),
     }}
     cache: dict[str, TaskRoute] = {}
     routes: list[TaskRoute] = []

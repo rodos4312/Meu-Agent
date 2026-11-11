@@ -384,6 +384,12 @@ def decide_image_input_mode(
     mode_cfg = _coerce_mode(_dict_or_empty(_dict_or_empty(cfg).get("agent")).get("image_input_mode"))
     if mode_cfg != "auto":
         return mode_cfg
+    policy = _dict_or_empty(cfg).get("smart_model_routing") or {}
+    if isinstance(policy, dict) and policy.get("enabled") is True:
+        from agent.workload_routes import explicit_routes
+        route = explicit_routes(policy).get("vision") if policy.get("provider") == provider else None
+        if route and _lookup_supports_vision(route["provider"], route["model"], cfg) is not False:
+            return "native"
     if _explicit_aux_vision_override(cfg):  # auto: an explicit auxiliary.vision backend wins
         return "text"
     # Keep the three-argument call contract for callers/tests that replace the lookup hook.

@@ -689,6 +689,11 @@ _DEEPSEEK_FLASH_VISION: dict[str, Any] = {
 }
 
 _BUILTIN_MODEL_METADATA: dict[tuple[str, str], dict[str, Any]] = {
+    ("zai", "glm-5.3-flash"): {
+        "limit": {"context": 1_048_576, "output": 131_072},
+        "modalities": {"input": ["text", "image", "video"], "output": ["text"]},
+        "tool_call": True, "reasoning": True, "family": "glm-5.3",
+    },
     ("openai", "gpt-6-astra"): {
         "limit": {"context": 1_050_000, "output": 128_000},
         "modalities": {"input": ["text", "image"], "output": ["text"]},

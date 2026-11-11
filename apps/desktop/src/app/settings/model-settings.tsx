@@ -34,8 +34,8 @@ import { catalogProviderMatches, findCatalogProvider } from '@/lib/model-options
 import { composerServiceTier } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
 import { showLargeModelNotice } from '@/store/agent-notices'
-import { $customModels, withCustomModels } from '@/store/custom-models'
 import { $activeConnectionId } from '@/store/connections'
+import { $customModels, withCustomModels } from '@/store/custom-models'
 import { setMainModelAssignment } from '@/store/model-assignment'
 import { notify, notifyError, readableError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
@@ -52,10 +52,9 @@ import {
   useAuxTaskRows
 } from './aux-task-rows'
 import { CONTROL_TEXT } from './constants'
-import { getNested, setNested } from './helpers'
+import { getNested } from './helpers'
 import {
   loadProviderAfterKeySave,
-  MainModelAutoMode,
   MainProviderKey,
   MainProviderPicker,
   startMainProviderSetup
@@ -63,6 +62,7 @@ import {
 import { ModelSelect, withActive } from './model-select'
 import { ListRow, ListRowSkeleton, Pill, SectionHeading, SectionHeadingSkeleton } from './primitives'
 import { dismissStaleAux, readStaleAuxDismissal, staleAuxFingerprint } from './stale-aux-dismissal'
+import { MainModelRoutingSettings, workloadDefaultsPatch } from './workload-model-settings'
 
 // Skeleton mirror of the Model settings DOM so the page keeps its shape while
 // the provider/model catalog loads, instead of collapsing to a centered
@@ -801,7 +801,7 @@ export function ModelSettings({ onConfigSaved, onMainModelChanged, scopeProfile,
   // surface changed meanwhile — a CLI-pinned auxiliary slot came back as
   // provider "auto" / model "" (#95460). Optimistic, with rollback on failure.
   const writeAgentDefault = useCallback(
-    async (key: string, value: boolean | string) => {
+    async (key: string, value: boolean | string | Record<string, unknown>) => {
       if (!config) {
         return
       }
@@ -809,11 +809,12 @@ export function ModelSettings({ onConfigSaved, onMainModelChanged, scopeProfile,
       const prev = config
       const epoch = profileEpoch.current
       const connectionId = $activeConnectionId.get()
-      const next = setNested(config, key, value)
+      const { patch, next } = workloadDefaultsPatch(config, key, value)
       setConfig(next)
 
       try {
-        await saveHermesConfig(setNested({}, key, value), writeScope ?? scopeProfile)
+        await saveHermesConfig(patch, writeScope ?? scopeProfile)
+
         if (
           profileEpoch.current === epoch &&
           connectionId === $activeConnectionId.get() &&
@@ -822,7 +823,7 @@ export function ModelSettings({ onConfigSaved, onMainModelChanged, scopeProfile,
           onConfigSaved?.()
         }
       } catch (err) {
-        if (profileEpoch.current === epoch && connectionId === $activeConnectionId.get()) setConfig(prev)
+        if (profileEpoch.current === epoch && connectionId === $activeConnectionId.get()) {setConfig(prev)}
         notifyError(err, m.defaultsFailed)
       }
     },
@@ -1139,19 +1140,15 @@ export function ModelSettings({ onConfigSaved, onMainModelChanged, scopeProfile,
               </Button>
             </div>
           )}
-          {needsSetup && !setupIsApiKey && selectedProviderRow && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {selectedProviderRow?.auth_type === 'api_key'
-                ? `${selectedProviderRow?.name} needs an API key — set it up to choose a model.`
-                : `${selectedProviderRow?.name} signs in through your browser — Meu runs the flow for you.`}
-            </p>
-          )}
-          <MainModelAutoMode
+          <MainModelRoutingSettings
+            catalogProvider={selectedProviderRow}
             config={config}
+            mainModel={mainModel}
+            needsSetup={needsSetup}
             onChange={writeAgentDefault}
             onRefresh={() => void refresh()}
-            provider={selectedProvider}
-            supported={selectedProviderRow?.automatic_routing === true}
+            scope={writeScope ?? scopeProfile}
+            setupIsApiKey={setupIsApiKey}
           />
           {config && mainModel && (reasoningSupported || fastSupported || ultrafastSupported) && (
             <MainModelDefaults

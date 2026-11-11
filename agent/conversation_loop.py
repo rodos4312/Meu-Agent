@@ -1611,6 +1611,8 @@ def _run_conversation_turn(
         return _preflight_timeout_result(agent, _preflight_timeout_exc, conversation_history)
     # Voice turns may run on auxiliary.voice_chat: bound after the prompt/row/compaction were settled
     # against the main model, undone in finalize_turn (and run_conversation's finally on early exits).
+    from agent.workload_turn_route import begin_workload_turn_route
+    _ctx.active_system_prompt = begin_workload_turn_route(agent, _ctx.messages, _ctx.active_system_prompt)
     from agent.voice_turn_route import begin_voice_turn_route
     _ctx.active_system_prompt = begin_voice_turn_route(agent, _ctx.messages, _ctx.active_system_prompt)
 
@@ -1751,6 +1753,8 @@ def run_conversation(
             )
         finally:
             end_voice_turn_route(agent)
+            from agent.workload_turn_route import end_workload_turn_route
+            end_workload_turn_route(agent)
     settle_held_final(agent, result)
     result = export_current_turn_boundary(agent, result, user_message)
     if isinstance(result, dict):

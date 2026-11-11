@@ -193,7 +193,7 @@ def session_runtime_view(agent: Any) -> Any:
     """What a surface reports or persists as the SESSION's model and effort. Mid voice turn the agent
     runs on the voice route (often reasoning off); reported as the chat's own setting, Desktop adopted
     it into the composer, and every new chat it opened inherited reasoning off."""
-    state = getattr(agent, "_voice_route_state", None)
+    state = getattr(agent, "_voice_route_state", None) or getattr(agent, "_workload_route_state", None)
     return _SessionRuntimeView(agent, state) if state else agent
 
 

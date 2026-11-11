@@ -348,7 +348,7 @@ describe('ModelSettings', () => {
     renderModelSettings()
     await waitFor(() => expect(getHermesConfigRecord).toHaveBeenCalled())
 
-    const fastSwitch = await screen.findByRole('switch')
+    const fastSwitch = await screen.findByRole('switch', { name: /fast/i })
     fireEvent.click(fastSwitch)
 
     await waitFor(() => expect(saveHermesConfig).toHaveBeenCalledWith({ agent: { service_tier: 'fast' } }))
@@ -370,7 +370,7 @@ describe('ModelSettings', () => {
     renderModelSettings()
     await waitFor(() => expect(getHermesConfigRecord).toHaveBeenCalled())
 
-    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByRole('switch', { name: /fast/i })).toBeNull()
   })
 
   it('renders plugin-registered auxiliary tasks after the built-ins with the server label (#40880)', async () => {
@@ -1090,6 +1090,7 @@ describe('Meu credentials and automatic model selection', () => {
     renderModelSettings(scope, appQueryClient, undefined, onMainModelChanged)
     fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(setModelAssignment).toHaveBeenCalled())
+
     if (scope === 'default') {
       await waitFor(() => expect(onMainModelChanged).toHaveBeenCalledWith('deepseek', 'deepseek-v4-pro'))
     } else {

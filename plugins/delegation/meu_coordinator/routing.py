@@ -7,7 +7,7 @@ GENERAL_BACKEND = "meu_coordinator_general"
 COORDINATOR_BACKENDS = {DEEPSEEK_BACKEND, GENERAL_BACKEND}
 _DEEPSEEK_FLASH = "deepseek-flash"
 _DEEPSEEK_PRO = "deepseek-v4-pro"
-_TIER = {"routine": 0, "standard": 1, "complex": 2, "vision": 0}
+_TIER = {"routine": 0, "standard": 1, "complex": 2, "vision": 0, "web": 0}
 WORKLOADS = tuple(_TIER)
 _LIGHT = {"flash", "luna", "haiku", "mini", "nano", "lite", "spark"}
 _HEAVY = {"pro", "astra", "opus", "fable", "ultra", "max"}
@@ -61,7 +61,7 @@ def select_deepseek_model(workload: str, parent_route: Mapping[str, Any]) -> str
     if _session_provider(parent_route) != "deepseek":
         raise DelegationRouteError("Meu Coordinator · DeepSeek requires a DeepSeek session. "
                                    "Choose Meu Coordinator · General for other providers.")
-    return _DEEPSEEK_FLASH if workload in {"routine", "vision"} else _DEEPSEEK_PRO
+    return _DEEPSEEK_FLASH if workload in {"routine", "vision", "web"} else _DEEPSEEK_PRO
 
 
 def _explicit_model(workload: str, provider: str, overrides: Any) -> str | None:

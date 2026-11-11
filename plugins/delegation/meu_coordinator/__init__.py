@@ -25,7 +25,7 @@ class MeuCoordinator(DelegationProvider):
     @property
     def summary(self) -> str:
         if self.general:
-            return "Pick models by task from the session's provider and check parallel write scopes."
+            return "Use the saved workload models and check parallel write scopes."
         return "For DeepSeek sessions: use Flash for routine and visual work, Pro for harder work."
 
     def task_parameters(self, config: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
@@ -33,7 +33,7 @@ class MeuCoordinator(DelegationProvider):
             "workload": {
                 "type": "string", "enum": list(WORKLOADS),
                 "description": "Required. Assess the actual subtask, not its length: routine = bounded extraction, "
-                "lookup or mechanical edits; standard = ordinary implementation or synthesis; complex = architecture, "
+                "lookup or mechanical edits; web = online research with sources; standard = ordinary implementation or synthesis; complex = architecture, "
                 "difficult debugging or critical review; vision = interpreting images or screenshots.",
             },
             "acceptance": {"type": "string", "description": "Required. State what to check and the expected result or "
@@ -68,7 +68,9 @@ class MeuCoordinator(DelegationProvider):
             "Routine mechanical or read-only tasks remain light; do not label real implementation routine to skip checks. "
             "The parent integrates "
             "and reports verified results and remaining uncertainty. Model selection is fixed for each child; "
-            "there is no additional planner API call. Existing stop, progress and concurrency limits still apply."
+            "there is no additional planner API call. For online research use workload=web and return source URLs. "
+            "For images use workload=vision and pass the actual images to the helper. "
+            "Existing stop, progress and concurrency limits still apply."
         )
 
     def validate_tasks(self, tasks: list[dict[str, Any]], config: Mapping[str, Any]) -> None:
@@ -77,10 +79,24 @@ class MeuCoordinator(DelegationProvider):
     def route_task(self, task: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:
         workload = task.get("workload")
         if workload not in WORKLOADS:
-            raise DelegationRouteError("Set workload to routine, standard, complex or vision for this subtask.")
+            raise DelegationRouteError("Set workload to routine, standard, complex, web or vision for this subtask.")
         parent_route = config.get("parent_route") or {}
-        model = (select_model(workload, parent_route, self.settings(config).get("models"))
-                 if self.general else select_deepseek_model(workload, parent_route))
+        from agent.workload_routes import explicit_routes
+        policy = parent_route.get("workload_policy") or {}
+        routes = explicit_routes(policy) if self.general and policy.get("enabled") is True else {}
+        slot = "complex" if workload in {"standard", "complex"} else workload
+        chosen = routes.get(slot)
+        if (workload == "vision" or task.get("images")) and routes:
+            from agent.workload_routes import choose_workload_route
+            chosen = choose_workload_route(policy, policy.get("provider"), [
+                {"role": "user", "content": [{"type": "image_url", "image_url": {"url": "attachment"}}]}
+            ])
+        if chosen:
+            model = chosen["model"]
+        elif self.general:
+            model = select_model(workload, parent_route, self.settings(config).get("models"))
+        else:
+            model = select_deepseek_model(workload, parent_route)
         paths = task.get("write_paths", [])
         scope = ", ".join(paths) if paths else "Read-only: do not modify project files."
         route = {"model": model, "label": f"{workload} · {model or 'session model'}", "fallback_providers": [],
@@ -88,8 +104,12 @@ class MeuCoordinator(DelegationProvider):
                 f"Acceptance checks: {task.get('acceptance', '')}\n"
                 "Return the work/artifact locations, checks actually run and their results, and any unresolved issues. "
                 "Do not claim an unrun check passed. Stay inside this task's write scope."}
+        if chosen:
+            route.update(provider=chosen["provider"], label=f"{workload} · {chosen['provider']} · {model}")
+        if workload == "web":
+            route["allowed_tools"] = ["web_search", "web_extract", "read_file"]
         if task.get("tool_access") == "files_only":
-            route["allowed_tools"] = list(_FILE_TOOLS)
+            route["allowed_tools"] = ["read_file"] if workload == "web" else list(_FILE_TOOLS)
         return route
 
 

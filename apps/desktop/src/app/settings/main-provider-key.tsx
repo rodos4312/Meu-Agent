@@ -32,7 +32,7 @@ export function MainModelAutoMode({
   const { t } = useI18n()
   const m = t.settings.model
 
-  if (provider !== 'deepseek' || !config) {
+  if (provider !== 'deepseek' || !config || getNested(config, 'smart_model_routing.routes')) {
     return null
   }
 

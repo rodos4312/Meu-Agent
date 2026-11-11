@@ -42,7 +42,7 @@ def display_model(model, provider, config):
     policy = config.get('smart_model_routing') or {}
     if policy.get('enabled') is not True:
         return model
-    if provider == 'deepseek':
+    if provider == 'deepseek' and not policy.get('routes'):
         return AUTO_MODEL
     return GENERAL_AUTO_MODEL if selected_pair(policy, provider) else model
 
@@ -55,7 +55,11 @@ def profile_auto_policy(authority):
 def decorate_options(payload, config):
     """Only gateways implementing session mode selection advertise the virtual selector."""
     for row in payload['providers']:
-        if row['slug'] == 'deepseek' and row.get('automatic_routing') is True:
+        from agent.workload_routes import auto_routes_available
+        if auto_routes_available(config.get('smart_model_routing'), row['slug']):
+            row['automatic_routing'] = True
+            row['models'] = [GENERAL_AUTO_MODEL, *[m for m in row['models'] if m not in (GENERAL_AUTO_MODEL, AUTO_MODEL)]]
+        elif row['slug'] == 'deepseek' and row.get('automatic_routing') is True:
             row['models'] = [AUTO_MODEL, *[m for m in row['models'] if m != AUTO_MODEL]]
         elif row['slug'] != 'deepseek':
             from agent.model_routing_policy import selected_pair
