@@ -153,8 +153,8 @@ def test_generated_windows_pins_match_the_shared_authority(tmp_path):
             assert "MirrorUrl" not in pin
 
 
-@pytest.mark.platforms("posix")
-def test_dev_setup_reaches_the_same_mirror_without_python(tmp_path, server):
+@pytest.mark.platforms("windows", "posix")
+def test_dev_setup_ignores_a_stale_mirror_manifest(tmp_path, server, real_bash):
     from pm.store import current_target
     body = uv_archive()
     digest = hashlib.sha256(body).hexdigest()
@@ -169,6 +169,8 @@ def test_dev_setup_reaches_the_same_mirror_without_python(tmp_path, server):
         "python": {"version": "3.14.7"},
     }}, indent=2, sort_keys=True), encoding="utf-8")
     env = {**os.environ, "HERMES_HOME": str(tmp_path / "home"), "HOME": str(tmp_path / "home"), "HERMES_RUNTIME_DIR": str(tmp_path / "tools")}
-    result = subprocess.run(["bash", str(repo / "setup-hermes.sh")], cwd=repo, env=env, text=True, capture_output=True, timeout=60, check=False)
-    assert result.returncode == 73, result.stdout + result.stderr  # stop at the bootstrap interpreter boundary
-    assert http.requests == ["/missing.tar.gz", "/archive/" + digest]
+    result = subprocess.run([real_bash, str(repo / "setup-hermes.sh")], cwd=repo, env=env,
+                            text=True, encoding="utf-8", capture_output=True, timeout=60, check=False)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert f"failed to download pinned uv from {base}/missing.tar.gz" in result.stderr
+    assert http.requests == ["/missing.tar.gz"]

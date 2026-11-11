@@ -54,15 +54,6 @@ echo -e "${CYAN}→${NC} Checking for uv..."
 lock="$SCRIPT_DIR/pm/lock.json"
 [ -f "$lock" ] || { echo -e "${RED}✗${NC} pm/lock.json not found" >&2; exit 1; }
 
-# Read the shared mirror location before Python is available. Match object
-# keys, not indentation — same rule as pin() below.
-mirror_origin="$(awk -F '"' '$2 == "origin" { print $4; exit }' "$SCRIPT_DIR/pm/artifact-mirror.json")"
-mirror_prefix="$(awk -F '"' '$2 == "prefix" { print $4; exit }' "$SCRIPT_DIR/pm/artifact-mirror.json")"
-mirror_url_for() { # $1 = lowercase sha256
-  [ -n "$mirror_origin" ] && [ -n "$mirror_prefix" ] || return 1
-  printf '%s/%s%s' "$mirror_origin" "$mirror_prefix" "$1"
-}
-
 case "$(uname -s)" in
   Linux) os=linux ;;
   Darwin) os=darwin ;;
@@ -119,16 +110,9 @@ else
   mkdir -p "$store"
   tmp="$(mktemp -d "$store/.bootstrap-XXXXXX")"; trap 'rm -rf "$tmp"' EXIT
   archive="$tmp/${url##*/}"
-  fetch_pinned() {
-    if curl -fsSL -o "$2" "$1"; then return 0; else _curl_status=$?; fi
-    case "$_curl_status" in 5|6|7|18|22|28|52|55|56) ;; *) return "$_curl_status" ;; esac
-    local mirror; mirror="$(mirror_url_for "$sha")" || return 1
-    curl -fsSL -o "$2" "$mirror" || return 1
-  }
-  if ! fetch_pinned "$url" "$archive"; then
-    _tried="$url"
-    if _m="$(mirror_url_for "$sha")"; then _tried="$_tried or $_m"; fi
-    echo -e "${RED}✗${NC} failed to download pinned uv from $_tried" >&2
+  if ! curl -fsSL --retry 4 --retry-connrefused --retry-max-time 180 \
+          --connect-timeout 15 --max-time 90 -o "$archive" "$url"; then
+    echo -e "${RED}✗${NC} failed to download pinned uv from $url" >&2
     exit 1
   fi
   got="$( (sha256sum "$archive" 2>/dev/null || shasum -a 256 "$archive") | cut -d' ' -f1 | tr -d '\\')"

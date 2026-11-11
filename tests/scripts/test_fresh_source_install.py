@@ -102,8 +102,6 @@ def test_current_installer_publishes_real_dependencies_and_warm_path(tmp_path, s
         "def main():\n print(json.dumps({'module':installer_probe.__file__, 'argv':sys.argv[1:]}))\n"
         "if __name__ == '__main__': main()\n", encoding="utf-8")
     docroot, url = served
-    (source / "pm/artifact-mirror.json").write_text(
-        json.dumps({"origin": url, "prefix": "mirror/"}, indent=2), encoding="utf-8")
     pins = {}
     for name, files in {
         "python": [(bootstrap, "python")],

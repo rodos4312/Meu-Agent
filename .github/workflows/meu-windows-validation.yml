@@ -28,6 +28,9 @@ on:
       - 'tests/gateway/test_whatsapp_cloud.py'
       - 'tests/tools/test_mcp_cimd.py'
       - 'tests/hermes_cli/test_meu_independent_identity.py'
+      - 'setup-hermes.sh'
+      - 'tests/hermes_cli/test_setup_pin_values.py'
+      - 'tests/pm/test_setup_lock_format.py'
       - 'tests/scripts/test_bootstrap_mirror.py'
       - 'tests/hermes_cli/test_meu_transfers.py'
       - 'tests/hermes_cli/test_meu_transfer_browsing.py'
@@ -180,6 +183,7 @@ jobs:
           scripts/run_tests.sh -j 2
           tests/plugins/delegation/test_meu_coordinator.py
           tests/gateway/test_unviewed_delegation_failure_turn.py
+          tests/pm/test_setup_lock_format.py
           tests/plugins/delegation/test_meu_openrouter_routing.py
           tests/hermes_cli/test_meu_transfers.py tests/hermes_cli/test_meu_transfer_browsing.py
           tests/gateway/test_mobile_personal_spaces.py tests/hermes_state/test_meu_sync_history.py
@@ -341,6 +345,7 @@ jobs:
           tests/tools/test_mcp_cimd.py
           tests/pm/test_artifact_mirror.py
           tests/scripts/test_bootstrap_mirror.py
+          tests/hermes_cli/test_setup_pin_values.py
           tests/gateway/test_mobile_preview.py
           tests/tools/test_meu_direct_modal.py
           tests/tools/test_meu_direct_browser.py

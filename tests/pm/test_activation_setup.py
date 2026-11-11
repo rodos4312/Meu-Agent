@@ -127,11 +127,6 @@ def test_activation_real_setup_pm_lifecycle(tmp_path, served):
     assert not (hermes_home / "installs").exists()
 
     docroot, base_url = served
-    # Both the shell bootstrap and PM's fallback downloader stay on loopback.
-    (core / "pm" / "artifact-mirror.json").write_text(
-        json.dumps({"origin": base_url, "prefix": "mirror/"}, indent=2) + "\n",
-        encoding="utf-8",
-    )
     calls = tmp_path / "uv-calls"
     uv_script = (
         f"#!{bash}\n"
