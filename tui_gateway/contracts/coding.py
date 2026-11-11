@@ -32,6 +32,7 @@ class CodingTaskView(OpenModel):
     approval: dict[str, JsonValue] | None = None
     execution: dict[str, JsonValue] | None = None
     commit: dict[str, JsonValue] | None = None
+    remote: dict[str, JsonValue] | None = None
 
 
 class CodingTaskResult(OpenModel):
@@ -84,6 +85,41 @@ class CodingPrUpdateParams(CodingTaskParams):
     status: Literal["draft", "cancelled", "approved_for_later"] | None = None
 
 
+
+RemoteKind = Literal["push", "pr", "merge"]
+
+
+class CodingRemoteKindParams(CodingTaskParams):
+    kind: RemoteKind
+
+
+class CodingRemotePreviewParams(CodingRemoteKindParams):
+    title: str | None = Field(default=None, max_length=200)
+    body: str | None = Field(default=None, max_length=20_000)
+    method: Literal["merge", "squash", "rebase"] = "squash"
+
+
+class CodingRemoteApproveParams(CodingRemoteKindParams):
+    fingerprint: str = Field(min_length=64, max_length=64)
+    confirmed: bool
+
+
+class CodingRemoteRepairParams(CodingTaskParams):
+    comment_ids: list[int] = Field(min_length=1, max_length=20)
+
+
+class CodingReviewComment(OpenModel):
+    id: int | None = None
+    path: str = ""
+    line: int | None = None
+    author: str = ""
+    body: str = ""
+
+
+class CodingRemoteFeedbackResult(OpenModel):
+    comments: list[CodingReviewComment]
+
+
 method("coding.start", params=CodingStartParams, result=CodingTaskResult,
        doc="Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval.")
 method("coding.get", params=CodingTaskParams, result=CodingTaskResult,
@@ -112,3 +148,17 @@ method("coding.pr.prepare", params=CodingTaskParams, result=CodingTaskResult,
        doc="Build a local PR preview from the integrated result. Nothing is sent to a remote.")
 method("coding.pr.update", params=CodingPrUpdateParams, result=CodingTaskResult,
        doc="Edit, cancel or mark the local PR preview as approved for creation later.")
+method("coding.remote.detect", params=CodingTaskParams, result=CodingTaskResult,
+       doc="Detect the repository's remote, GitHub identity and credential availability (read-only).")
+method("coding.remote.preview", params=CodingRemotePreviewParams, result=CodingTaskResult,
+       doc="Read-only preview of a push, a PR creation or a merge, with the fingerprint its approval must name.")
+method("coding.remote.approve", params=CodingRemoteApproveParams, result=CodingTaskResult,
+       doc="Execute exactly the previewed push / PR creation / merge; single use, re-verified, never forced.")
+method("coding.remote.cancel", params=CodingRemoteKindParams, result=CodingTaskResult,
+       doc="Discard a pending remote preview without executing it.")
+method("coding.remote.refresh", params=CodingTaskParams, result=CodingTaskResult,
+       doc="Refresh the PR's state, checks, reviews and head/target drift on demand.")
+method("coding.remote.feedback", params=CodingTaskParams, result=CodingRemoteFeedbackResult,
+       doc="Read the PR's review comments (no code is edited).")
+method("coding.remote.repair", params=CodingRemoteRepairParams, result=CodingTaskResult,
+       doc="Start a NEW coding task from selected review comments; it needs its own approval.")

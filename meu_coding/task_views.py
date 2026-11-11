@@ -166,9 +166,77 @@ def _actions(record) -> dict[str, bool]:
         "integration_cancel": stage == "integration_preview",
         "pr_prepare": stage == "integrated",
         "pr_edit": stage == "integrated" and pr_status in ("draft", "approved_for_later"),
-        # Never available in this phase, whatever the remote configuration.
-        "push": False, "merge": False, "create_remote_pr": False,
+        **_remote_actions(record),
     }
+
+
+REMOTE_LABELS = {
+    "unavailable": "No remote configured", "not_checked": "Remote not checked", "ready_to_push": "Ready to push",
+    "push_preview": "Push approval required", "pushed": "Pushed", "pr_ready": "PR ready to create",
+    "pr_preview": "PR approval required", "pr_open": "PR open", "checks_running": "Checks running",
+    "changes_requested": "Changes requested", "approved": "Approved", "merge_preview": "Merge approval required",
+    "merged": "Merged", "blocked": "Blocked",
+}
+
+
+def remote_state(record) -> str:
+    remote = record.remote or {}
+    pending = remote.get("pending") or {}
+    status = remote.get("pr_status") or {}
+    info = remote.get("info")
+    if remote.get("merged"):
+        return "merged"
+    if remote.get("blocked"):
+        return "blocked"
+    if remote.get("pr"):
+        if "merge" in pending:
+            return "merge_preview"
+        if status.get("checks", {}).get("state") in ("pending",):
+            return "checks_running"
+        if status.get("reviews", {}).get("changes_requested"):
+            return "changes_requested"
+        if status.get("reviews", {}).get("approvals"):
+            return "approved"
+        return "pr_open"
+    if remote.get("pushed"):
+        return "pr_preview" if "pr" in pending else "pr_ready"
+    if info is None:
+        return "not_checked"
+    if not info.get("available"):
+        return "unavailable"
+    return "push_preview" if "push" in pending else "ready_to_push"
+
+
+def _remote_actions(record) -> dict[str, bool]:
+    remote = record.remote or {}
+    pending = remote.get("pending") or {}
+    integrated = record.stage.value == "integrated" and (record.integration.get("review") or {}).get("verdict") == "pass"
+    available = bool((remote.get("info") or {}).get("available"))
+    ready = integrated and available and not remote.get("merged")
+    return {
+        "remote_detect": integrated,
+        "push": ready and not remote.get("pushed"),
+        "push_approve": integrated and "push" in pending and pending["push"].status == "ready",
+        "create_remote_pr": ready and bool(remote.get("pushed")) and not remote.get("pr"),
+        "pr_create_approve": integrated and "pr" in pending,
+        "pr_refresh": bool(remote.get("pr")),
+        "merge": ready and bool(remote.get("pr")),
+        "merge_approve": integrated and "merge" in pending and pending["merge"].status == "clean",
+        "repair_from_feedback": bool(remote.get("pr")) and not remote.get("merged"),
+    }
+
+
+def _remote(record) -> dict[str, Any] | None:
+    remote = record.remote
+    if not remote and record.stage.value != "integrated":
+        return None
+    remote = remote or {}
+    state = remote_state(record)
+    keys = ("info", "push_preview", "pushed", "pr_preview", "pr", "pr_status", "merge_preview", "merged", "blocked")
+    view: dict[str, Any] = {k: remote[k] for k in keys if remote.get(k)}
+    view.update({"state": state, "state_label": REMOTE_LABELS.get(state, state),
+                 "pending": sorted((remote.get("pending") or {}).keys()), "events": list(remote.get("events") or [])[-30:]})
+    return view
 
 
 def _result(record) -> dict[str, Any] | None:
@@ -206,6 +274,7 @@ def snapshot(record) -> dict[str, Any]:
         "routing": dict(record.audit.routing), "created_at": record.audit.created_at,
         "plan": _plan(record), "approval": _approval(record), "execution": _execution(record),
         "result": _result(record), "integration": _integration(record), "pr": dict(record.pr) if record.pr else None,
+        "remote": _remote(record),
         "decisions": [{k: d.get(k) for k in ("decision", "source", "device", "at")} for d in record.audit.decisions],
         "attempts": [{"number": a.number, "approval_id": a.approval_id, "verdict": a.review.status.value,
                       "status": a.result.status} for a in (record.session.attempts if record.session else [])],

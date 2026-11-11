@@ -475,6 +475,132 @@
       }
     },
     {
+      "name": "coding.remote.approve",
+      "summary": "Execute exactly the previewed push / PR creation / merge; single use, re-verified, never forced.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRemoteApproveParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.cancel",
+      "summary": "Discard a pending remote preview without executing it.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRemoteKindParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.detect",
+      "summary": "Detect the repository's remote, GitHub identity and credential availability (read-only).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.feedback",
+      "summary": "Read the PR's review comments (no code is edited).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRemoteFeedbackResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.preview",
+      "summary": "Read-only preview of a push, a PR creation or a merge, with the fingerprint its approval must name.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRemotePreviewParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.refresh",
+      "summary": "Refresh the PR's state, checks, reviews and head/target drift on demand.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.remote.repair",
+      "summary": "Start a NEW coding task from selected review comments; it needs its own approval.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRemoteRepairParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
       "name": "coding.repair",
       "summary": "Ask for a repair after a FIX review; the new proposal needs a new approval.",
       "params": [
@@ -10284,6 +10410,265 @@
         "title": "CodingPrUpdateParams",
         "type": "object"
       },
+      "CodingRemoteApproveParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "push",
+              "pr",
+              "merge"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "kind",
+          "fingerprint",
+          "confirmed"
+        ],
+        "title": "CodingRemoteApproveParams",
+        "type": "object"
+      },
+      "CodingRemoteFeedbackResult": {
+        "additionalProperties": true,
+        "properties": {
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/CodingReviewComment"
+            },
+            "title": "Comments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "comments"
+        ],
+        "title": "CodingRemoteFeedbackResult",
+        "type": "object"
+      },
+      "CodingRemoteKindParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "push",
+              "pr",
+              "merge"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "kind"
+        ],
+        "title": "CodingRemoteKindParams",
+        "type": "object"
+      },
+      "CodingRemotePreviewParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "push",
+              "pr",
+              "merge"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Body"
+          },
+          "method": {
+            "default": "squash",
+            "enum": [
+              "merge",
+              "squash",
+              "rebase"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "kind"
+        ],
+        "title": "CodingRemotePreviewParams",
+        "type": "object"
+      },
+      "CodingRemoteRepairParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "comment_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Comment Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task_id",
+          "comment_ids"
+        ],
+        "title": "CodingRemoteRepairParams",
+        "type": "object"
+      },
+      "CodingReviewComment": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Id"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Line"
+          },
+          "author": {
+            "default": "",
+            "title": "Author",
+            "type": "string"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "title": "CodingReviewComment",
+        "type": "object"
+      },
       "CodingStartParams": {
         "additionalProperties": false,
         "properties": {
@@ -10512,6 +10897,19 @@
             ],
             "default": null,
             "title": "Commit"
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Remote"
           }
         },
         "required": [

@@ -1,6 +1,7 @@
 package io.meuagent.preview;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
@@ -820,6 +821,8 @@ public final class MainActivity extends Activity {
         }
         JSONObject result = task.optJSONObject("result");
         if (result != null) renderCodingResult(page, body, connected, taskId, result, actions);
+        JSONObject remote = task.optJSONObject("remote");
+        if (remote != null) renderCodingRemote(page, body, connected, taskId, remote);
         renderCodingDetails(body, task, approval);
         if (task.optBoolean("busy")) {
             chatRefresh = () -> {
@@ -858,6 +861,96 @@ public final class MainActivity extends Activity {
                     () -> new JSONObject().put("op", "reject").put("task_id", taskId)));
             body.addView(reject);
         }
+    }
+
+    // Remote push / PR / merge: the PC prepares each preview; the phone approves exactly that
+    // preview (kind + full fingerprint) after an explicit confirmation. Each is its own approval.
+    private static final String[][] REMOTE_KINDS = {
+        {"push", "push_preview", "Approve push"},
+        {"pr", "pr_preview", "Approve PR creation"},
+        {"merge", "merge_preview", "Approve merge"},
+    };
+
+    private void renderCodingRemote(LinearLayout page, LinearLayout body, MeuClient connected, String taskId,
+                                    JSONObject remote) {
+        TextView title = label("Remote · " + remote.optString("label"), 16, INK);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        body.addView(title);
+        if (!remote.optString("repository").isEmpty()) addFact(body, "Repository", remote.optString("repository"));
+        if (!remote.optBoolean("available") && !remote.optString("reason").isEmpty()) {
+            body.addView(label(remote.optString("reason"), 14, MUTED));
+        }
+        if (!remote.optString("blocked").isEmpty()) body.addView(label(remote.optString("blocked"), 14, 0xffb3261e));
+        JSONObject pr = remote.optJSONObject("pr");
+        if (pr != null) addFact(body, "Pull request", "#" + pr.optInt("number") + " · " + pr.optString("state"));
+        JSONObject status = remote.optJSONObject("pr_status");
+        if (status != null) {
+            JSONObject checks = status.optJSONObject("checks");
+            JSONObject reviews = status.optJSONObject("reviews");
+            addFact(body, "Checks", checks == null ? "" : checks.optString("state"));
+            addFact(body, "Reviews", reviews == null ? "" : reviews.optInt("approvals") + " approval(s), "
+                    + reviews.optInt("changes_requested") + " change request(s)");
+        }
+        JSONObject merged = remote.optJSONObject("merged");
+        if (merged != null) {
+            addFact(body, "Merged", merged.optString("method") + " · " + merged.optString("merge_commit")
+                    + (merged.optBoolean("target_verified") ? " · target verified" : " · target NOT verified"));
+        }
+        JSONObject approve = remote.optJSONObject("approve");
+        for (String[] kind : REMOTE_KINDS) {
+            JSONObject preview = remote.optJSONObject(kind[1]);
+            if (preview == null) continue;
+            renderRemotePreview(body, kind[0], preview);
+            if (approve == null || !approve.optBoolean(kind[0])) continue;
+            String fingerprint = preview.optString("fingerprint");
+            Button button = button(kind[2] + " " + shortFingerprint(fingerprint));
+            button.setOnClickListener(view -> new AlertDialog.Builder(this)
+                    .setTitle(kind[2] + "?")
+                    .setMessage(remoteSummary(kind[0], preview) + "\n\nFingerprint " + shortFingerprint(fingerprint))
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Approve", (dialog, which) -> codingCall(page, body, connected,
+                            () -> new JSONObject().put("op", "remote_approve").put("task_id", taskId)
+                                    .put("kind", kind[0]).put("fingerprint", fingerprint).put("confirmed", true)))
+                    .show());
+            body.addView(button);
+        }
+        if (pr != null) {
+            Button refresh = button("Refresh pull request");
+            refresh.setOnClickListener(view -> codingCall(page, body, connected,
+                    () -> new JSONObject().put("op", "remote_refresh").put("task_id", taskId)));
+            body.addView(refresh);
+        }
+    }
+
+    private void renderRemotePreview(LinearLayout body, String kind, JSONObject preview) {
+        if ("push".equals(kind)) {
+            addFact(body, "Push", preview.optString("source_branch") + " @ " + preview.optString("new_sha"));
+            addFact(body, "To", preview.optString("remote") + " · " + preview.optString("destination_branch"));
+            addFact(body, "Force", preview.optBoolean("force_required") ? "required — blocked" : "forbidden");
+        } else if ("pr".equals(kind)) {
+            addFact(body, "PR title", preview.optString("title"));
+            addFact(body, "Head → base", preview.optString("source_branch") + " → " + preview.optString("target_branch"));
+        } else {
+            addFact(body, "Merge", "PR #" + preview.optInt("pr_number") + " · " + preview.optString("method")
+                    + " → " + preview.optString("target_branch"));
+            addFact(body, "Status", preview.optString("status"));
+            addFact(body, "Head / target", preview.optString("source_sha") + " / " + preview.optString("target_sha"));
+            JSONArray reasons = preview.optJSONArray("reasons");
+            if (reasons != null && reasons.length() > 0) addFact(body, "Why", joined(reasons));
+        }
+        addFact(body, "Risk", preview.optString("risk").toUpperCase(Locale.ROOT));
+        addFact(body, "Files", joined(preview.optJSONArray("changed_files")));
+    }
+
+    private static String remoteSummary(String kind, JSONObject preview) {
+        if ("push".equals(kind)) {
+            return "Push " + preview.optString("refspec") + " to " + preview.optString("remote") + ". No force.";
+        }
+        if ("pr".equals(kind)) {
+            return "Create PR \"" + preview.optString("title") + "\" on " + preview.optString("repository") + ".";
+        }
+        return "Merge PR #" + preview.optInt("pr_number") + " (" + preview.optString("method") + ") into "
+                + preview.optString("target_branch") + " at " + preview.optString("source_sha") + ".";
     }
 
     private void renderCodingDetails(LinearLayout body, JSONObject task, JSONObject approval) throws JSONException {

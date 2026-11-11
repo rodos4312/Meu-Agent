@@ -120,5 +120,50 @@ def _coding_pr_update(service, params: dict) -> dict:
                                       status=params.get("status"))}
 
 
+def _remote_kind(params: dict) -> str:
+    kind = str(params["kind"])
+    if kind not in ("push", "pr", "merge"):
+        raise ValueError("unknown remote action")
+    return kind
+
+
+@_coding_method("coding.remote.detect")
+def _coding_remote_detect(service, params: dict) -> dict:
+    return {"task": service.remote_detect(str(params["task_id"]))}
+
+
+@_coding_method("coding.remote.preview")
+def _coding_remote_preview(service, params: dict) -> dict:
+    return {"task": service.remote_preview(str(params["task_id"]), _remote_kind(params), title=params.get("title"),
+                                           body=params.get("body"), method=str(params.get("method") or "squash"))}
+
+
+@_coding_method("coding.remote.approve")
+def _coding_remote_approve(service, params: dict) -> dict:
+    return {"task": service.remote_approve(str(params["task_id"]), _remote_kind(params),
+                                           fingerprint=str(params["fingerprint"]),
+                                           confirmed=params["confirmed"] is True, source="desktop")}
+
+
+@_coding_method("coding.remote.cancel")
+def _coding_remote_cancel(service, params: dict) -> dict:
+    return {"task": service.remote_cancel(str(params["task_id"]), _remote_kind(params), source="desktop")}
+
+
+@_coding_method("coding.remote.refresh")
+def _coding_remote_refresh(service, params: dict) -> dict:
+    return {"task": service.remote_refresh(str(params["task_id"]))}
+
+
+@_coding_method("coding.remote.feedback")
+def _coding_remote_feedback(service, params: dict) -> dict:
+    return {"comments": service.remote_feedback(str(params["task_id"]))}
+
+
+@_coding_method("coding.remote.repair")
+def _coding_remote_repair(service, params: dict) -> dict:
+    return {"task": service.remote_repair_task(str(params["task_id"]), [int(i) for i in params["comment_ids"]])}
+
+
 def register(server) -> None:
     bind_module(globals(), server)

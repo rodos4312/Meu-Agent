@@ -42,8 +42,11 @@ from meu_coding.impact import ImpactAnalyzer
 from meu_coding.intelligence import RepositoryIntelligence, analyze_repository
 from meu_coding.reviewer import Reviewer
 from meu_coding.safe_execution import ExecutionDecision, SafeExecutionAdapter
+from meu_coding.github_adapter import default_github
+from meu_coding.remote_refs import github_auth_available, parse_github
 from meu_coding.task_integration import IntegrationMixin
 from meu_coding.task_recovery import restore_record
+from meu_coding.task_remote import RemoteMixin
 from meu_coding.task_views import friendly_error, snapshot
 from meu_coding.workspace import Worktree, WorkspaceError, read_identity
 
@@ -171,14 +174,20 @@ class TaskRecord:
     integration: dict[str, Any] = field(default_factory=dict)
     integration_final_diff: str = ""
     pr: dict[str, Any] | None = None
+    remote: dict[str, Any] | None = None
 
 
-class CodingTaskService(IntegrationMixin):
+class CodingTaskService(IntegrationMixin, RemoteMixin):
     def __init__(self, *, models_factory: Callable[[], ModelBundle] = meu_models,
                  adapter_factory: Callable[..., SafeExecutionAdapter] = SafeExecutionAdapter,
                  spawn: Callable[[Callable[[], None], str], None] = spawn_in_context,
                  intelligence_factory: Callable[[str], RepositoryIntelligence] = analyze_repository,
-                 audit_directory: Path | None = None) -> None:
+                 audit_directory: Path | None = None, github_factory: Callable[[], Any] = default_github,
+                 remote_identity: Callable[[str], tuple[str, str] | None] = parse_github,
+                 remote_auth: Callable[[], bool] = github_auth_available) -> None:
+        self.github_factory = github_factory
+        self.remote_identity = remote_identity
+        self.remote_auth = remote_auth
         self.models_factory = models_factory
         self.adapter_factory = adapter_factory
         self.spawn = spawn
@@ -416,6 +425,9 @@ class CodingTaskService(IntegrationMixin):
                 raise TaskError("Use Reject on the approval card to decline the proposal.")
             if S.REJECTED not in TRANSITIONS[record.stage]:
                 raise TaskError("This task cannot be rejected now.")
+            if (record.remote or {}).get("pushed"):
+                raise TaskError("The integration branch was pushed; Meu never deletes branches. Close the pull "
+                                "request or delete the branch on GitHub yourself.")
             started = time.perf_counter()
             record.cleanup = self._cleanup(record)
             record.audit.keep_reject = "rejected"

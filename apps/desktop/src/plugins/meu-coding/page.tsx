@@ -19,7 +19,7 @@ import {
   useQueryClient,
   useValue
 } from '@hermes/plugin-sdk'
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { codingApi } from './api'
 import {
@@ -40,6 +40,8 @@ import {
   type StageTone,
   stageTone
 } from './model'
+import { FactList, InlineError, LIST_KEY, Section, TASK_KEY, useTaskAction } from './parts'
+import { RemoteSection } from './remote'
 
 // The selected task survives navigation (module state) and a window reload (remembered id).
 // Selecting never restarts anything: the backend owns the task; an id this backend does not
@@ -69,8 +71,6 @@ $selectedCodingTask.subscribe(id => {
 })
 
 const DEVICE = 'desktop'
-const TASK_KEY = (id: string) => ['meu-coding', 'task', id]
-const LIST_KEY = ['meu-coding', 'tasks']
 
 const BADGE: Record<StageTone, 'default' | 'destructive' | 'muted' | 'solid' | 'success' | 'warn'> = {
   attention: 'warn',
@@ -79,37 +79,6 @@ const BADGE: Record<StageTone, 'default' | 'destructive' | 'muted' | 'solid' | '
   done: 'solid',
   muted: 'muted',
   success: 'success'
-}
-
-function InlineError({ title, description }: { title: string; description: string }) {
-  return (
-    <p className="rounded-[3px] bg-destructive/10 px-2 py-1 text-xs text-destructive" role="alert">
-      <span className="font-semibold">{title}: </span>
-      {description}
-    </p>
-  )
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2 border-t border-(--ui-stroke-secondary) pt-3">
-      <h3 className="text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase">{title}</h3>
-      {children}
-    </section>
-  )
-}
-
-function FactList({ rows }: { rows: { label: string; value: string }[] }) {
-  return (
-    <dl className="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-xs">
-      {rows.map(row => (
-        <div className="contents" key={row.label}>
-          <dt className="text-muted-foreground">{row.label}</dt>
-          <dd className="min-w-0 font-mono text-[0.7rem] break-all">{row.value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
 }
 
 const LINE_CLASS = {
@@ -175,23 +144,6 @@ function Pipeline({ task }: { task: CodingTask }) {
       ))}
     </ol>
   )
-}
-
-function useTaskAction(taskId: string) {
-  const client = useQueryClient()
-  const [error, setError] = useState('')
-
-  const mutation = useMutation({
-    mutationFn: (run: () => Promise<CodingTask>) => run(),
-    onError: (err: unknown) => setError(errorText(err)),
-    onSuccess: (task: CodingTask) => {
-      setError('')
-      client.setQueryData(TASK_KEY(taskId), task)
-      void client.invalidateQueries({ queryKey: LIST_KEY })
-    }
-  })
-
-  return { error, pending: mutation.isPending, run: (fn: () => Promise<CodingTask>) => mutation.mutate(fn) }
 }
 
 function ApprovalCard({ task }: { task: CodingTask }) {
@@ -676,6 +628,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
       <CommitSection task={task} />
       <IntegrationSection task={task} />
       <PrSection task={task} />
+      <RemoteSection task={task} />
       {task.cleanup.worktrees?.length ? (
         <Section title="Cleanup">
           {task.cleanup.worktrees.map((entry, index) => (

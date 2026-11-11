@@ -28,6 +28,7 @@ export interface CodingTaskView {
   approval?: Record<string, unknown> | null
   execution?: Record<string, unknown> | null
   commit?: Record<string, unknown> | null
+  remote?: Record<string, unknown> | null
   [key: string]: unknown
 }
 export interface CodingTaskParams {
@@ -76,6 +77,43 @@ export interface CodingPrUpdateParams {
   title?: string | null
   body?: string | null
   status?: 'draft' | 'cancelled' | 'approved_for_later' | null
+}
+export interface CodingRemotePreviewParams {
+  profile?: string | null
+  task_id: string
+  kind: 'push' | 'pr' | 'merge'
+  title?: string | null
+  body?: string | null
+  method?: 'merge' | 'squash' | 'rebase'
+}
+export interface CodingRemoteApproveParams {
+  profile?: string | null
+  task_id: string
+  kind: 'push' | 'pr' | 'merge'
+  fingerprint: string
+  confirmed: boolean
+}
+export interface CodingRemoteKindParams {
+  profile?: string | null
+  task_id: string
+  kind: 'push' | 'pr' | 'merge'
+}
+export interface CodingRemoteFeedbackResult {
+  comments: CodingReviewComment[]
+  [key: string]: unknown
+}
+export interface CodingReviewComment {
+  id?: number | null
+  path?: string
+  line?: number | null
+  author?: string
+  body?: string
+  [key: string]: unknown
+}
+export interface CodingRemoteRepairParams {
+  profile?: string | null
+  task_id: string
+  comment_ids: number[]
 }
 export interface DelegationStatusResult {
   active: ActiveSubagent[]
@@ -5591,6 +5629,20 @@ export interface RpcMethods {
   'coding.pr.update': { params: CodingPrUpdateParams; result: CodingTaskResult }
   /** Reject an executed result; worktrees follow the existing safe cleanup rules. */
   'coding.reject': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Execute exactly the previewed push / PR creation / merge; single use, re-verified, never forced. */
+  'coding.remote.approve': { params: CodingRemoteApproveParams; result: CodingTaskResult }
+  /** Discard a pending remote preview without executing it. */
+  'coding.remote.cancel': { params: CodingRemoteKindParams; result: CodingTaskResult }
+  /** Detect the repository's remote, GitHub identity and credential availability (read-only). */
+  'coding.remote.detect': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Read the PR's review comments (no code is edited). */
+  'coding.remote.feedback': { params: CodingTaskParams; result: CodingRemoteFeedbackResult }
+  /** Read-only preview of a push, a PR creation or a merge, with the fingerprint its approval must name. */
+  'coding.remote.preview': { params: CodingRemotePreviewParams; result: CodingTaskResult }
+  /** Refresh the PR's state, checks, reviews and head/target drift on demand. */
+  'coding.remote.refresh': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Start a NEW coding task from selected review comments; it needs its own approval. */
+  'coding.remote.repair': { params: CodingRemoteRepairParams; result: CodingTaskResult }
   /** Ask for a repair after a FIX review; the new proposal needs a new approval. */
   'coding.repair': { params: CodingTaskParams; result: CodingTaskResult }
   /** Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval. */
@@ -6046,6 +6098,13 @@ export const RPC_METHODS = [
   'coding.pr.prepare',
   'coding.pr.update',
   'coding.reject',
+  'coding.remote.approve',
+  'coding.remote.cancel',
+  'coding.remote.detect',
+  'coding.remote.feedback',
+  'coding.remote.preview',
+  'coding.remote.refresh',
+  'coding.remote.repair',
   'coding.repair',
   'coding.start',
   'command.dispatch',

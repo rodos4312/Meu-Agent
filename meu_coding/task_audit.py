@@ -49,6 +49,7 @@ class AuditRecord:
     result: dict[str, Any] = field(default_factory=dict)
     integration: dict[str, Any] = field(default_factory=dict)
     pr: dict[str, Any] = field(default_factory=dict)
+    remote: dict[str, Any] = field(default_factory=dict)
 
     def stage(self, name: str) -> None:
         self.stages.append({"stage": name, "at": round(time.time(), 3)})

@@ -7,6 +7,7 @@
 import { host } from '@hermes/plugin-sdk'
 
 import type { CodingTask, CodingTaskRow, DecisionParams } from './model'
+import { remoteApproveParams, type RemoteKind } from './remote-model'
 
 // Planning and execution run in the background; these calls return a snapshot quickly.
 const TIMEOUT_MS = 60_000
@@ -36,5 +37,25 @@ export const codingApi = {
   integrationCancel: (taskId: string) => call('coding.integration.cancel', { task_id: taskId }),
   prPrepare: (taskId: string) => call('coding.pr.prepare', { task_id: taskId }),
   prUpdate: (taskId: string, changes: { body?: string; status?: string; title?: string }) =>
-    call('coding.pr.update', { task_id: taskId, ...changes })
+    call('coding.pr.update', { task_id: taskId, ...changes }),
+  remoteDetect: (taskId: string) => call('coding.remote.detect', { task_id: taskId }),
+  remotePreview: (taskId: string, kind: RemoteKind, extra: { body?: string; method?: string; title?: string } = {}) =>
+    call('coding.remote.preview', { kind, task_id: taskId, ...extra }),
+  remoteApprove: (taskId: string, kind: RemoteKind, fingerprint: string) =>
+    call('coding.remote.approve', remoteApproveParams(taskId, kind, fingerprint)),
+  remoteCancel: (taskId: string, kind: RemoteKind) => call('coding.remote.cancel', { kind, task_id: taskId }),
+  remoteRefresh: (taskId: string) => call('coding.remote.refresh', { task_id: taskId }),
+  remoteFeedback: async (taskId: string) =>
+    (await host.request<{ comments: ReviewComment[] }>('coding.remote.feedback', { task_id: taskId }, TIMEOUT_MS))
+      .comments,
+  remoteRepair: (taskId: string, commentIds: number[]) =>
+    call('coding.remote.repair', { comment_ids: commentIds, task_id: taskId })
+}
+
+export interface ReviewComment {
+  author: string
+  body: string
+  id: number
+  line: null | number
+  path: string
 }

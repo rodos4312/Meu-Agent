@@ -6,6 +6,8 @@
  * approval the user is LOOKING AT (its exact id + fingerprint), never from a vague "allow".
  */
 
+import type { CodingRemote } from './remote-model'
+
 export type CodingStage =
   | 'analyzing'
   | 'awaiting_approval'
@@ -38,7 +40,13 @@ export interface CodingActions {
   merge?: boolean
   pr_edit?: boolean
   pr_prepare?: boolean
+  pr_create_approve?: boolean
+  pr_refresh?: boolean
   push?: boolean
+  push_approve?: boolean
+  merge_approve?: boolean
+  remote_detect?: boolean
+  repair_from_feedback?: boolean
   commit_confirm: boolean
   commit_prepare: boolean
   keep: boolean
@@ -235,6 +243,7 @@ export interface CodingTask {
   routing?: Record<string, CodingRouting>
   plan: CodingPlan | null
   project: string
+  remote?: CodingRemote | null
   restored: boolean
   route_source: string
   stage: CodingStage

@@ -5,8 +5,10 @@ One authority: the phone calls the SAME per-profile ``CodingTaskService`` the de
 desktop shows, once; whichever device decides first wins and the other gets a refusal.
 
 Identity is the pairing's own ``device_id`` (server-side), never a value from the request
-body. The phone may approve or reject a proposal and keep or reject an executed result. It
-cannot start tasks, commit, integrate, push or merge. Views are sanitized: project names
+body. The phone may approve or reject a proposal, keep or reject an executed result, and
+approve a remote push / PR creation / merge that the PC previewed (naming that preview's exact
+fingerprint, each its own single-use approval). It cannot start tasks, commit, integrate, or
+create a remote preview, and nothing remote runs without such an approval. Views are sanitized: project names
 instead of host paths, branch names instead of worktree paths, diff summaries capped by
 default with explicit per-file expansion.
 """
@@ -34,6 +36,60 @@ MOBILE_LABELS = {
     "integration_preview": "Integration on PC", "integrating": "Integration on PC", "integrated": "Integrated",
     "rejected": "Rejected", "blocked": "Blocked", "failed": "Failed", "interrupted": "Interrupted",
 }
+
+
+_REMOTE_KINDS = ("push", "pr", "merge")
+_SHA_FIELDS = ("source_commit", "new_sha", "expected_remote_sha", "source_sha", "target_sha", "remote_sha",
+               "merge_commit_sha")
+
+
+def _short(value: str) -> str:
+    return value[:12] if isinstance(value, str) else ""
+
+
+def _remote_preview(kind: str, preview: dict[str, Any]) -> dict[str, Any]:
+    keep = {"push": ("repository", "remote", "source_branch", "destination_branch", "refspec", "remote_exists",
+                     "force_required", "status", "reason", "changed_files", "risk"),
+            "pr": ("repository", "source_branch", "target_branch", "title", "body", "commits", "changed_files",
+                   "risk", "limitations"),
+            "merge": ("repository", "pr_number", "target_branch", "method", "allowed_methods", "checks", "reviews",
+                      "changed_files", "target_drift", "conflicts", "reviewer", "risk", "status", "reasons")}[kind]
+    out = {k: preview[k] for k in keep if k in preview}
+    out.update({k: _short(preview[k]) for k in _SHA_FIELDS if preview.get(k)})
+    out["fingerprint"] = preview.get("fingerprint", "")
+    return out
+
+
+def _remote_view(remote: dict[str, Any] | None, actions: dict[str, Any]) -> dict[str, Any] | None:
+    """Repository identity, refs, short SHAs, checks and reviews — never URLs with paths or credentials."""
+    if not remote:
+        return None
+    info = remote.get("info") or {}
+    out: dict[str, Any] = {"state": remote.get("state", ""), "label": remote.get("state_label", ""),
+                           "repository": info.get("identity", "") if info.get("is_github") else "",
+                           "available": bool(info.get("available")), "reason": info.get("reason", ""),
+                           "pending": [k for k in remote.get("pending", []) if k in _REMOTE_KINDS],
+                           "approve": {"push": bool(actions.get("push_approve")),
+                                       "pr": bool(actions.get("pr_create_approve")),
+                                       "merge": bool(actions.get("merge_approve"))}}
+    for kind in _REMOTE_KINDS:
+        if kind in out["pending"] and remote.get(f"{kind}_preview"):
+            out[f"{kind}_preview"] = _remote_preview(kind, remote[f"{kind}_preview"])
+    if remote.get("pr"):
+        pr = remote["pr"]
+        out["pr"] = {"number": pr.get("number"), "url": pr.get("url", ""), "state": pr.get("state", ""),
+                     "source_sha": _short(pr.get("source_sha", ""))}
+    if remote.get("pr_status"):
+        status = remote["pr_status"]
+        out["pr_status"] = {k: status.get(k) for k in ("state", "merged", "draft", "mergeable", "head_drift",
+                                                       "target_drift", "checks", "reviews")}
+    if remote.get("merged"):
+        out["merged"] = {"merge_commit": _short(remote["merged"].get("merge_commit_sha", "")),
+                         "method": remote["merged"].get("method", ""),
+                         "target_verified": bool(remote["merged"].get("target_verified"))}
+    if remote.get("blocked"):
+        out["blocked"] = remote["blocked"].get("reason", "")
+    return out
 
 
 def device_source(device_id: str | None) -> str:
@@ -104,6 +160,11 @@ def mobile_view(view: dict[str, Any]) -> dict[str, Any]:
         "pc": {"online": True, "busy": bool(view.get("busy")), "worktree_branch": worktree_branch},
         "decisions": [{"decision": d.get("decision"), "source": d.get("source")} for d in view.get("decisions", [])],
     }
+    remote = _remote_view(view.get("remote"), actions)
+    if remote:
+        out["remote"] = remote
+        if any(remote["approve"].values()):
+            out["label"] = "Needs remote approval"
     if approval:
         out["approval"] = {"approval_id": approval["approval_id"], "fingerprint": approval["fingerprint"],
                            "strategy": approval.get("strategy", ""),
@@ -170,6 +231,14 @@ def operate(service, device_id: str | None, payload: dict[str, Any]) -> dict[str
         return {"task": mobile_view(service.keep(task_id, source="mobile"))}
     if op == "reject":
         return {"task": mobile_view(service.reject(task_id, source="mobile"))}
+    if op == "remote_approve":
+        kind, fingerprint = payload.get("kind"), payload.get("fingerprint")
+        if kind not in _REMOTE_KINDS or not isinstance(fingerprint, str) or not _FINGERPRINT.match(fingerprint)                 or payload.get("confirmed") is not True:
+            raise ValueError("invalid_remote_approval")
+        return {"task": mobile_view(service.remote_approve(task_id, kind, fingerprint=fingerprint, confirmed=True,
+                                                           source=source))}
+    if op == "remote_refresh":
+        return {"task": mobile_view(service.remote_refresh(task_id))}
     raise ValueError("invalid_coding_operation")
 
 
