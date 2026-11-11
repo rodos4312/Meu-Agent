@@ -22,6 +22,7 @@ from meu_coding.architect import Architect
 from meu_coding.coder import Coder
 from meu_coding.coding_interfaces import (
     CodeChangeProposal,
+    ImpactReport,
     CodingTask,
     RepairRequest,
     ReviewRequest,
@@ -61,6 +62,7 @@ class ExecutionAttempt:
     result: ExecutionResult
     review: ReviewResult
     timings: dict[str, float]
+    impact: ImpactReport | None = None
 
 
 @dataclass
@@ -125,13 +127,13 @@ class CodingSession:
             if result.executed else None
         refresh_seconds = time.perf_counter() - mark
         mark = time.perf_counter()
-        review = review_execution(request, result, self.context, self.reviewer,
-                                  overlay or _EMPTY_OVERLAY, impact_of(self.intelligence, result, request))
+        impact = impact_of(self.intelligence, result, request)
+        review = review_execution(request, result, self.context, self.reviewer, overlay or _EMPTY_OVERLAY, impact)
         timings = {**result.timings, "targeted_refresh": round(refresh_seconds, 4),
                    "actual_review": round(time.perf_counter() - mark, 3)}
         self.stages.append(f"reviewed_{review.status.value}")
         attempt = ExecutionAttempt(len(self.attempts), request.approval_id, request.fingerprint, result,
-                                   review, timings)
+                                   review, timings, impact)
         self.attempts.append(attempt)
         self.state = SessionState.REVIEWED
         return attempt

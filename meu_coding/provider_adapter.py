@@ -81,14 +81,36 @@ def routes_from_workload_policy(policy: Mapping[str, Any]) -> CodingRoutes:
     return CodingRoutes(architect=strong, coder=strong, reviewer=strong, coder_simple=simple)
 
 
+@dataclass(frozen=True)
+class RouteResolution:
+    routes: CodingRoutes
+    source: str  # "models_by_workload" | "main_model_fallback"
+
+
+def resolve_coding_routes(config: Mapping[str, Any]) -> RouteResolution:
+    """Coding routes from existing settings only: Models by workload when its complex route is
+    set, otherwise the profile's main model for every role (no simple-coder shortcut)."""
+    policy = config.get("smart_model_routing")
+    if isinstance(policy, dict) and policy.get("routes"):
+        return RouteResolution(routes_from_workload_policy(policy), "models_by_workload")
+    main = config.get("model")
+    provider = str(main.get("provider") or "").strip() if isinstance(main, dict) else ""
+    model = str(main.get("default") or "").strip() if isinstance(main, dict) else ""
+    if not provider or not model:
+        raise ProviderError("No model is configured: choose a main model or Models by workload in Settings.")
+    route = Route(provider, model)
+    return RouteResolution(CodingRoutes(architect=route, coder=route, reviewer=route), "main_model_fallback")
+
+
 def routes_from_meu_config() -> CodingRoutes:
-    """Routes from the active profile's ``smart_model_routing`` (Models by workload)."""
+    """Routes from the active profile's config (see :func:`resolve_coding_routes`)."""
     from hermes_cli.config import load_config_readonly
 
-    policy = load_config_readonly().get("smart_model_routing")
+    config = load_config_readonly()
+    policy = config.get("smart_model_routing")
     if not isinstance(policy, dict) or not policy.get("routes"):
         raise ProviderError("Models by workload are not configured; choose coding routes explicitly.")
-    return routes_from_workload_policy(policy)
+    return resolve_coding_routes(config).routes
 
 
 def provider_has_credentials(provider: str) -> bool:
@@ -182,7 +204,9 @@ ARCHITECT_SYSTEM = _COMMON + (
     "\"new_files\": [path], \"symbols_to_change\": [str], \"steps\": [str], "
     "\"checks\": [{\"kind\": \"syntax\"|\"lint\"|\"unit_test\"|\"build\", \"targets\": [path]}], "
     "\"assumptions\": [str], \"unresolved_questions\": [str], \"risk\": \"low\"|\"medium\"|\"high\"}. "
-    "Keep the change minimal; never plan protected files.")
+    "Keep the change minimal; never plan protected files. Use unresolved_questions ONLY when the task "
+    "cannot be implemented without the answer (it stops the task); for style or detail choices pick the "
+    "simplest option consistent with the existing code and record it in assumptions.")
 
 CODER_SYSTEM = _COMMON + (
     " Role: Coder. Propose edits for the approved plan only. Schema: {\"operations\": [{\"path\": str, "

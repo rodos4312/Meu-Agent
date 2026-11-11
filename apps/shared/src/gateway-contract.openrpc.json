@@ -259,6 +259,168 @@
       }
     },
     {
+      "name": "coding.commit.confirm",
+      "summary": "Commit locally on the worktree branch with the user's message. Never pushes or merges.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingCommitConfirmParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.commit.prepare",
+      "summary": "Preview a local commit on the worktree branch: files, stat, suggested message, token.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.decide",
+      "summary": "Approve or reject the exact fingerprinted proposal; consumed once.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingDecideParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.get",
+      "summary": "The task's current stage and views (approval preview, actual diff, review, commit preview).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.keep",
+      "summary": "Keep the executed, reviewed worktree result (ready to commit only after Reviewer PASS).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.list",
+      "summary": "Recent coding tasks of the profile, newest first (restored ones never resume).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/ProfileParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskListResult"
+        }
+      }
+    },
+    {
+      "name": "coding.reject",
+      "summary": "Reject an executed result; worktrees follow the existing safe cleanup rules.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.repair",
+      "summary": "Ask for a repair after a FIX review; the new proposal needs a new approval.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.start",
+      "summary": "Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingStartParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
       "name": "command.dispatch",
       "summary": "Run a quick/plugin/bundle/skill/built-in slash command and answer a structured directive.",
       "params": [
@@ -9815,6 +9977,352 @@
           "session_id"
         ],
         "title": "ClipboardPasteParams",
+        "type": "object"
+      },
+      "CodingCommitConfirmParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "message",
+          "token",
+          "confirmed"
+        ],
+        "title": "CodingCommitConfirmParams",
+        "type": "object"
+      },
+      "CodingDecideParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "approval_id": {
+            "minLength": 1,
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Device"
+          }
+        },
+        "required": [
+          "task_id",
+          "approval_id",
+          "fingerprint",
+          "decision"
+        ],
+        "title": "CodingDecideParams",
+        "type": "object"
+      },
+      "CodingStartParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "description": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "project_root": {
+            "minLength": 1,
+            "title": "Project Root",
+            "type": "string"
+          },
+          "explicit_files": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Explicit Files",
+            "type": "array"
+          },
+          "protected_paths": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Protected Paths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "description",
+          "project_root"
+        ],
+        "title": "CodingStartParams",
+        "type": "object"
+      },
+      "CodingTaskListResult": {
+        "additionalProperties": true,
+        "properties": {
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/CodingTaskRow"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "title": "CodingTaskListResult",
+        "type": "object"
+      },
+      "CodingTaskParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "CodingTaskParams",
+        "type": "object"
+      },
+      "CodingTaskResult": {
+        "additionalProperties": true,
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/CodingTaskView"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "title": "CodingTaskResult",
+        "type": "object"
+      },
+      "CodingTaskRow": {
+        "additionalProperties": true,
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "description",
+          "project",
+          "stage"
+        ],
+        "title": "CodingTaskRow",
+        "type": "object"
+      },
+      "CodingTaskView": {
+        "additionalProperties": true,
+        "description": "``meu_coding/task_views.py::snapshot``.",
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "stage_label": {
+            "title": "Stage Label",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "busy": {
+            "default": false,
+            "title": "Busy",
+            "type": "boolean"
+          },
+          "actions": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Actions",
+            "type": "object"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plan"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Approval"
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Execution"
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Commit"
+          }
+        },
+        "required": [
+          "task_id",
+          "stage",
+          "stage_label",
+          "description",
+          "project"
+        ],
+        "title": "CodingTaskView",
         "type": "object"
       },
       "CommandCatalogMeta": {

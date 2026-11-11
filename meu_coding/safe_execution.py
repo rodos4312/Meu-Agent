@@ -343,7 +343,9 @@ class SafeExecutionAdapter:
         timings["verify"] = time.perf_counter() - started
         worktree = None
         try:
+            mark = time.perf_counter()
             worktree = self.workspace.open(request.binding.repo_root)
+            timings["worktree_open"] = time.perf_counter() - mark
             return self._run(request, worktree, checks, timings)
         except (ExecutionBlocked, WorkspaceError) as exc:
             reasons = getattr(exc, "reasons", (str(exc),))
@@ -377,7 +379,9 @@ class SafeExecutionAdapter:
             state = self._settle(worktree, wrote=bool(file_ops.written))
             return ExecutionResult("failed", (f"apply failed: {error}",), request.approval_id, request.fingerprint,
                                    *self._where(worktree), worktree_state=state, timings=_rounded(timings))
+        mark = time.perf_counter()
         before = self.workspace.diff(worktree)
+        timings["diff_read"] = time.perf_counter() - mark
         mismatch = self._mismatch(binding, worktree, before)
         if mismatch:
             return self._finish(request, worktree, before, (), "blocked", mismatch, timings)

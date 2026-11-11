@@ -3,9 +3,66 @@
 // tests/tui_gateway/contracts/test_generated.py fails when this file is stale.
 /* eslint-disable */
 // ── Types ──
+export interface CodingStartParams {
+  profile?: string | null
+  description: string
+  project_root: string
+  explicit_files?: string[]
+  protected_paths?: string[]
+}
+export interface CodingTaskResult {
+  task: CodingTaskView
+  [key: string]: unknown
+}
+/** ``meu_coding/task_views.py::snapshot``. */
+export interface CodingTaskView {
+  task_id: string
+  stage: string
+  stage_label: string
+  description: string
+  project: string
+  error?: string
+  busy?: boolean
+  actions?: Record<string, boolean>
+  plan?: Record<string, unknown> | null
+  approval?: Record<string, unknown> | null
+  execution?: Record<string, unknown> | null
+  commit?: Record<string, unknown> | null
+  [key: string]: unknown
+}
+export interface CodingTaskParams {
+  profile?: string | null
+  task_id: string
+}
 /** Any method the desktop may route to a named profile (``requestGatewayForProfile`` adds ``profile``). */
 export interface ProfileParams {
   profile?: string | null
+}
+export interface CodingTaskListResult {
+  tasks: CodingTaskRow[]
+  [key: string]: unknown
+}
+export interface CodingTaskRow {
+  task_id: string
+  description: string
+  project: string
+  stage: string
+  [key: string]: unknown
+}
+export interface CodingDecideParams {
+  profile?: string | null
+  task_id: string
+  approval_id: string
+  fingerprint: string
+  decision: 'approve' | 'reject'
+  device?: string | null
+}
+export interface CodingCommitConfirmParams {
+  profile?: string | null
+  task_id: string
+  message: string
+  token: string
+  confirmed: boolean
 }
 export interface DelegationStatusResult {
   active: ActiveSubagent[]
@@ -5497,6 +5554,24 @@ export interface RpcMethods {
   'client.capabilities': { params: ClientCapabilitiesParams; result: ClientCapabilitiesResult }
   /** Save the host clipboard image into the session and queue it for the next turn. */
   'clipboard.paste': { params: ClipboardPasteParams; result: AttachedImageResult }
+  /** Commit locally on the worktree branch with the user's message. Never pushes or merges. */
+  'coding.commit.confirm': { params: CodingCommitConfirmParams; result: CodingTaskResult }
+  /** Preview a local commit on the worktree branch: files, stat, suggested message, token. */
+  'coding.commit.prepare': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Approve or reject the exact fingerprinted proposal; consumed once. */
+  'coding.decide': { params: CodingDecideParams; result: CodingTaskResult }
+  /** The task's current stage and views (approval preview, actual diff, review, commit preview). */
+  'coding.get': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Keep the executed, reviewed worktree result (ready to commit only after Reviewer PASS). */
+  'coding.keep': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Recent coding tasks of the profile, newest first (restored ones never resume). */
+  'coding.list': { params: ProfileParams; result: CodingTaskListResult }
+  /** Reject an executed result; worktrees follow the existing safe cleanup rules. */
+  'coding.reject': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Ask for a repair after a FIX review; the new proposal needs a new approval. */
+  'coding.repair': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval. */
+  'coding.start': { params: CodingStartParams; result: CodingTaskResult }
   /** Run a quick/plugin/bundle/skill/built-in slash command and answer a structured directive. */
   'command.dispatch': { params: CommandDispatchParams; result: CommandDispatchResult }
   /** Canonical registry command for a name or alias. */
@@ -5936,6 +6011,15 @@ export const RPC_METHODS = [
   'cli.exec',
   'client.capabilities',
   'clipboard.paste',
+  'coding.commit.confirm',
+  'coding.commit.prepare',
+  'coding.decide',
+  'coding.get',
+  'coding.keep',
+  'coding.list',
+  'coding.reject',
+  'coding.repair',
+  'coding.start',
   'command.dispatch',
   'command.resolve',
   'commands.catalog',
