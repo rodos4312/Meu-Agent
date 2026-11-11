@@ -6,6 +6,19 @@ sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 [[ -n "$sdk" ]] || { echo 'Set ANDROID_HOME to the Android SDK directory.' >&2; exit 1; }
 tools="$sdk/build-tools/35.0.0"
 platform="$sdk/platforms/android-35/android.jar"
+# d8 and apksigner are shell scripts on Linux/macOS but .bat wrappers on Windows (Git Bash).
+build_tool() {
+  if [[ -f "$tools/$1" && -x "$tools/$1" ]]; then
+    echo "$tools/$1"
+  elif [[ -f "$tools/$1.bat" ]]; then
+    echo "$tools/$1.bat"
+  else
+    echo "Android build-tools 35.0.0 has no $1 (or $1.bat) in $tools." >&2
+    return 1
+  fi
+}
+d8=$(build_tool d8)
+apksigner=$(build_tool apksigner)
 out=${1:-"$app/out"}
 mkdir -p "$out"
 out=$(cd "$out" && pwd)
@@ -34,7 +47,7 @@ cp "$app/../desktop/assets/meu-icon.png" "$work/res/drawable-nodpi/meu_icon.png"
 mapfile -t sources < <(find "$app/src" "$work/generated" -name '*.java' | sort)
 javac --release 8 -encoding UTF-8 -classpath "$platform:$zxing" -d "$work/classes" "${sources[@]}"
 jar cf "$work/classes.jar" -C "$work/classes" .
-"$tools/d8" --min-api 26 --lib "$platform" --output "$work/dex" "$work/classes.jar" "$zxing"
+"$d8" --min-api 26 --lib "$platform" --output "$work/dex" "$work/classes.jar" "$zxing"
 jar uf "$work/resources.apk" -C "$work/dex" classes.dex
 mkdir -p "$work/notices/META-INF"
 cp "$app/ZXING-LICENSE.txt" "$work/notices/META-INF/ZXING-LICENSE.txt"
@@ -45,7 +58,7 @@ jar uf "$work/resources.apk" -C "$work/notices" META-INF/ZXING-LICENSE.txt
 keytool -genkeypair -noprompt -keystore "$work/preview.jks" -storepass android \
   -keypass android -alias meu-preview -keyalg RSA -keysize 2048 -validity 365 \
   -dname 'CN=Meu Android Preview'
-"$tools/apksigner" sign --ks "$work/preview.jks" --ks-pass pass:android \
+"$apksigner" sign --ks "$work/preview.jks" --ks-pass pass:android \
   --out "$out/Meu-Android-preview.apk" "$work/aligned.apk"
-"$tools/apksigner" verify --print-certs "$out/Meu-Android-preview.apk"
+"$apksigner" verify --print-certs "$out/Meu-Android-preview.apk"
 (cd "$out" && sha256sum Meu-Android-preview.apk > SHA256SUMS.txt)
