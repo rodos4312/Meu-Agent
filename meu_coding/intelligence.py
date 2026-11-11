@@ -253,10 +253,15 @@ class RepositoryIntelligence:
         return self._engine.rank(query, limit, self.recently_changed)
 
     def find_relevant_context(self, query: str, budget: int = 12_000) -> ContextBundle:
+        return self.context_with_ranking(query, budget)[0]
+
+    def context_with_ranking(self, query: str, budget: int = 12_000) -> tuple[ContextBundle, tuple[RankedItem, ...]]:
+        """The context bundle plus the ranking it was built from, so callers that need both
+        do not rank twice."""
         ranked = self.rank(query)
         if self.deep_analyze(self._deep_targets(ranked)):
             ranked = self.rank(query)
-        return ContextBuilder(self.analysis, self.graph, self.limits).build(query, ranked, budget)
+        return ContextBuilder(self.analysis, self.graph, self.limits).build(query, ranked, budget), ranked
 
     def lookup_symbol(self, name: str) -> tuple[Symbol, ...]:
         return self.graph.lookup_symbol(name)
