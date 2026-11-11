@@ -52,6 +52,7 @@ class CodingResult:
     repair: RepairOutcome | None = None
     impact: ImpactReport | None = None
     approval: ApprovalRequest | None = None
+    context: TaskContext | None = None  # the shared context every stage used
 
     @property
     def attempts(self) -> tuple[Attempt, ...]:
@@ -121,7 +122,8 @@ class CodingOrchestrator:
             plan = architect.plan(context)
         except PlanningError as exc:
             log.add("architect", "failed")
-            return CodingResult(task, OutcomeStatus.PLANNING_FAILED, log.stages, plan_errors=exc.errors or (str(exc),))
+            return CodingResult(task, OutcomeStatus.PLANNING_FAILED, log.stages, plan_errors=exc.errors or (str(exc),),
+                                context=context)
         log.add("architect", f"{len(plan.files_to_change) + len(plan.new_files)} file(s), risk {plan.risk.value}")
 
         def propose(repair: RepairRequest | None) -> CodeChangeProposal:
@@ -144,4 +146,4 @@ class CodingOrchestrator:
             status = OutcomeStatus.AWAITING_APPROVAL
             approval = ApprovalRequest.for_review(plan, outcome.final.proposal, outcome.final.review)
             log.add("approval_boundary", approval.fingerprint[:12])
-        return CodingResult(task, status, log.stages, plan, (), outcome, final_impact, approval)
+        return CodingResult(task, status, log.stages, plan, (), outcome, final_impact, approval, context)

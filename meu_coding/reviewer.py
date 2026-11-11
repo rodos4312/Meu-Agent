@@ -180,3 +180,8 @@ def _verdict(findings: list[ReviewFinding], has_results: bool) -> ReviewResult:
         rationale = f"{worst.value}: " + "; ".join(f.message for f in blocking[:5])
     return ReviewResult(worst, tuple(findings), repairs if worst == ReviewStatus.FIX else (),
                         round(confidence, 2), rationale)
+
+
+def verdict(findings: list[ReviewFinding], has_results: bool) -> ReviewResult:
+    """Combine findings from several reviewers: the most severe finding wins."""
+    return _verdict(findings, has_results)

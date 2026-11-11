@@ -30,3 +30,11 @@ def make_repo(tmp_path):
     def _make(files: dict[str, str | bytes]) -> Path:
         return write_tree(tmp_path / "repo", files)
     return _make
+
+
+@pytest.fixture
+def git_repo(tmp_path):
+    """A committed temporary git repository (Phase 3 execution tests)."""
+    from tests.meu_coding.phase3_support import make_git_repo
+
+    return make_git_repo(tmp_path)
