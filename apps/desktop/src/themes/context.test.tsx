@@ -359,7 +359,7 @@ describe('ThemeProvider theme typography (#41766)', () => {
     cleanup()
   })
 
-  // The merged typography is DEFAULT ← nous ← theme, so a user theme that sets
+  // The merged typography is DEFAULT ← meu ← theme, so a user theme that sets
   // only the new knobs still inherits the font stacks.
   const bigTypeTheme: DesktopTheme = {
     ...midnightTheme,

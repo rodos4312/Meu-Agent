@@ -144,7 +144,7 @@ class TestSearchRescue:
             "agent.web_search_provider.get_provider_env", lambda name: ""
         )
         monkeypatch.setattr(
-            "tools.tool_backend_helpers.read_selection", lambda kind: "nous"
+            "tools.tool_backend_helpers.read_selection", lambda kind: "retired-managed"
         )
         with patch.object(
             keyless_mcp, "search_with_failover", return_value=_ring_ok()

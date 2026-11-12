@@ -72,7 +72,11 @@ test('truncation really frees the file, and an append-mode writer restarts at 0'
     const handle = fs.openSync(file, 'a')
 
     try {
-      fs.ftruncateSync(handle, LOG_MAX_BYTES + 1) // Grow without writing GBs.
+      // Grow without writing GBs. Windows refuses ftruncate on an append-only handle, so size the
+      // file through a second, ordinary handle while the append handle stays open.
+      const grow = fs.openSync(file, 'r+')
+      fs.ftruncateSync(grow, LOG_MAX_BYTES + 1)
+      fs.closeSync(grow)
 
       assert.equal(
         reclaimActiveLogIfOversized(file, {

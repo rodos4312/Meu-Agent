@@ -9,7 +9,7 @@ export const zhGatewayHost: GatewayHostTranslations = {
     'Webapp 始终使用提供它的 Hermes 主机。如需切换网关、登录 Hermes Cloud 或管理已保存的连接，请使用 Hermes Desktop 应用。',
   webAccess: {
     title: '网页访问',
-    intro: '用手机或其他电脑，以你的 Nous 账户登录并打开这台电脑上的 Meu。登录的人可以在这台电脑上运行命令。',
+    intro: '用手机或其他电脑，以你的账户登录并打开这台电脑上的 Meu。登录的人可以在这台电脑上运行命令。',
     failed: '无法更改网页访问',
     running: '运行中',
     stopped: '已停止',
@@ -18,7 +18,7 @@ export const zhGatewayHost: GatewayHostTranslations = {
     restartNeeded: '需要重启',
     unavailable: '不可用',
     notRunningDetail: '启动后即可从其他设备打开 Meu。',
-    needsSignIn: "请先配置控制面板的登录提供商。",
+    needsSignIn: '请先配置控制面板的登录提供商。',
     runningLan: '在同一网络中的设备上打开此地址。',
     runningPublic: '通过你的网址提供服务。',
     runningLocal: '只有这台电脑可以打开。要从其他设备打开，请先停止，再重新启动。',

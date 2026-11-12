@@ -11,10 +11,6 @@ When using [OpenRouter](https://openrouter.ai) as your LLM provider, Hermes Agen
 
 OpenRouter routes requests to many providers (e.g., Anthropic, Google, AWS Bedrock, Together AI). Provider routing lets you optimize for cost, speed, quality, or enforce specific provider requirements.
 
-:::note
-[Nous Portal](../../integrations/nous-portal.md) decides routing centrally per model and does not accept caller-supplied provider preferences; Hermes never sends the `provider` object to Portal, so `provider_routing` is simply ignored there.
-:::
-
 ## Configuration
 
 Add a `provider_routing` section to your `~/.hermes/config.yaml`:
@@ -28,10 +24,6 @@ provider_routing:
   require_parameters: false  # Only use providers that support all parameters
   data_collection: null   # Control data collection ("allow" or "deny")
 ```
-
-:::info
-Provider routing only applies when using OpenRouter. It has no effect on Nous Portal or direct provider connections (e.g., connecting directly to the Anthropic API).
-:::
 
 ## Options
 

@@ -28,7 +28,7 @@ def test_paid_model_without_original_shows_no_sale():
 
 
 
-def test_fetch_models_with_pricing_copies_nested_original(monkeypatch):
+def test_fetch_models_with_pricing_keeps_only_generic_price_fields(monkeypatch):
     models_pricing._pricing_cache.clear()
     payload = {
         "data": [
@@ -63,56 +63,10 @@ def test_fetch_models_with_pricing_copies_nested_original(monkeypatch):
         lambda req, timeout=8.0: resp,
     )
 
-    # Nous Portal opts in via include_sale_original=True.
-    result = fetch_models_with_pricing(
-        api_key="sk-test",
-        base_url="https://example.test",
-        force_refresh=True,
-        include_sale_original=True,
-    )
-    paid = result["anthropic/claude-sonnet-5"]
-    assert paid["prompt"] == "0.0000016"
-    assert paid["completion"] == "0.000008"
-    assert paid["original"] == {
-        "prompt": "0.000002",
-        "completion": "0.00001",
-        "input_cache_read": "0.0000002",
-    }
-    assert "original" not in result["free/model"]
-
-
-def test_fetch_models_with_pricing_copies_billing_mode_for_nous_only(monkeypatch):
-    payload = {"data": [{"id": "a/b", "billing_mode": "subscription", "pricing": {"prompt": "0.000002", "completion": "0.00001"}}]}
-    resp = MagicMock()
-    resp.read.return_value = json.dumps(payload).encode()
-    resp.__enter__ = lambda self: self
-    resp.__exit__ = lambda *a: False
-    monkeypatch.setattr(models_mod, "_urlopen_model_catalog_request", lambda req, timeout=8.0: resp)
-
-    fetch = lambda **kw: fetch_models_with_pricing(api_key="sk-test", base_url="https://example.test", force_refresh=True, **kw)
-    assert fetch(include_sale_original=True)["a/b"]["billing_mode"] == "subscription"
-    assert "billing_mode" not in fetch()["a/b"]
-
-
-
-
-
-
-def test_resolve_nous_pricing_credentials_normalizes_either_suffix(monkeypatch):
-    """``/v1`` on the override is optional and must not change the result."""
-    monkeypatch.setattr(
-        "hermes_cli.auth.resolve_nous_runtime_credentials", lambda: None
-    )
-    for override in (
-        "https://stg-inference-api.nousresearch.com",
-        "https://stg-inference-api.nousresearch.com/",
-        "https://stg-inference-api.nousresearch.com/v1",
-        "https://stg-inference-api.nousresearch.com/v1/",
-    ):
-        monkeypatch.setenv("NOUS_INFERENCE_BASE_URL", override)
-        assert models_pricing._resolve_nous_pricing_credentials()[1] == (
-            "https://stg-inference-api.nousresearch.com"
-        )
+    prices = models_pricing.fetch_models_with_pricing(api_key="k", base_url="https://example.invalid/api")
+    assert prices["anthropic/claude-sonnet-5"]["prompt"] == "0.0000016"
+    for entry in prices.values():
+        assert not {"original", "billing_mode", "top_tier", "usage_level", "name"} & set(entry)
 
 
 def test_a_failed_catalog_fetch_is_not_cached_forever(monkeypatch):
@@ -179,21 +133,3 @@ def test_a_successful_catalog_fetch_stays_cached(monkeypatch):
     assert len(calls) == 1
 
 
-
-def test_fetch_models_with_pricing_keeps_the_display_name_for_nous_only(monkeypatch):
-    """The limit card names a model the way the catalog does ("Model A"); a name equal to the id
-    adds nothing and is dropped."""
-    payload = {"data": [
-        {"id": "a/b", "name": "  A B Model ", "pricing": {"prompt": "0.000002", "completion": "0.00001"}},
-        {"id": "c/d", "name": "c/d", "pricing": {"prompt": "0.000002", "completion": "0.00001"}},
-    ]}
-    resp = MagicMock()
-    resp.read.return_value = json.dumps(payload).encode()
-    resp.__enter__ = lambda self: self
-    resp.__exit__ = lambda *a: False
-    monkeypatch.setattr(models_mod, "_urlopen_model_catalog_request", lambda req, timeout=8.0: resp)
-
-    fetch = lambda **kw: fetch_models_with_pricing(api_key="sk-test", base_url="https://example.test", force_refresh=True, **kw)
-    nous = fetch(include_sale_original=True)
-    assert nous["a/b"]["name"] == "A B Model" and "name" not in nous["c/d"]
-    assert "name" not in fetch()["a/b"]

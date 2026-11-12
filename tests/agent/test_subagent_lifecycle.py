@@ -291,7 +291,7 @@ def test_routing_request_provider_wins_without_mixing_bundles(routing_lifecycle,
 
     service, build, config, resolve = routing_lifecycle
     config.return_value = {
-        "provider": "nous", "model": "delegated-model",
+        "provider": "provider-a", "model": "delegated-model",
         "base_url": "https://delegation.example/v1", "api_key": "delegation-fixture-key",
         "api_mode": "anthropic_messages", "command": "delegation-command",
         "request_overrides": {"temperature": 0.9},

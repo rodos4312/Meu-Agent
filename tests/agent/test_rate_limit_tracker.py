@@ -26,9 +26,9 @@ NOUS_HEADERS = {
 
 class TestParseHeaders:
     def test_basic_parsing(self):
-        state = parse_rate_limit_headers(NOUS_HEADERS, provider="nous")
+        state = parse_rate_limit_headers(NOUS_HEADERS, provider="provider-a")
         assert state is not None
-        assert state.provider == "nous"
+        assert state.provider == "provider-a"
         assert state.has_data
 
         assert state.requests_min.limit == 800

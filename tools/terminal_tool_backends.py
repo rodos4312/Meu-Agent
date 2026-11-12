@@ -47,6 +47,8 @@ def terminal_backend_unavailable_reason() -> Optional[str]:
 _VERCEL_SANDBOX_DEFAULT_CWD = "/vercel/sandbox"
 _SUPPORTED_VERCEL_RUNTIMES = ("node24", "node22", "python3.13")
 _BUILTIN_BACKENDS = "local, docker, modal, daytona, vercel_sandbox, ssh"
+# Backends that run a container image; with no image configured they fail closed (no implicit pull).
+_IMAGE_BACKENDS = {"docker": "docker_image", "modal": "modal_image", "daytona": "daytona_image"}
 
 # Config -> kwargs shapers, driven by (out_key, config_key, default) tables. The container table's
 # (key, default) literal is intentionally greppable; tools/terminal_tool.py keeps its own for the AST test.
@@ -245,6 +247,9 @@ def _create_environment(env_type: str, image: str, cwd: str, timeout: int,
     for local/ssh/vercel; ``container_config`` carries the container_*/docker_* resource keys; ``host_cwd`` is
     the host dir bound into Docker when cwd mounting is enabled. ``probe_only`` asks ssh for a throwaway
     connection with no remote setup/sync (the prompt-time probe). Unknown types fall through to plugin backends."""
+    if env_type in _IMAGE_BACKENDS and not (image or "").strip():
+        from hermes_cli.config_defaults import SANDBOX_IMAGE_UNSET_REASON
+        raise RuntimeError(f"The {env_type} terminal backend is unavailable: {SANDBOX_IMAGE_UNSET_REASON}.")
     builder = _ENV_BUILDERS.get(env_type)
     kwargs = dict(image=image, cwd=cwd, timeout=timeout, cc=container_config or {}, task_id=task_id,
                   ssh_config=ssh_config, local_config=local_config, host_cwd=host_cwd, probe_only=probe_only)

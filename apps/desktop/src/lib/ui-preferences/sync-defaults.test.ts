@@ -145,7 +145,7 @@ it('a fresh browser’s auto-speak migration never replaces native’s choice, a
 
 it('a migrated auto-speak value stays put here while the store lacks it, and a real choice is shared', async () => {
   const file = storeFile()
-  becomeNative({ [THEME]: 'nous' })
+  becomeNative({ [THEME]: 'provider-a' })
   const choose: { autoSpeak?: (enabled: boolean) => Promise<void> } = {}
 
   const native = await load(file, async () => {

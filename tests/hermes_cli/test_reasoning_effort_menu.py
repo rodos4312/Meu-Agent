@@ -50,9 +50,9 @@ def test_hermes_model_offers_reasoning_whenever_a_pick_is_saved(tmp_path, monkey
 
     def _pick_same_model_on_nous(config, current_model, args):
         _save_model_choice(current_model)
-        save_config({**load_config(), "model": {"default": current_model, "provider": "nous"}})
+        save_config({**load_config(), "model": {"default": current_model, "provider": "provider-a"}})
 
-    for slug, flow, expected in (("nous", _pick_same_model_on_nous, [("m", "nous")]),
+    for slug, flow, expected in (("provider-a", _pick_same_model_on_nous, [("m", "provider-a")]),
                                  ("anthropic", lambda c, m, a: print("No change."), [])):
         prompted.clear()
         monkeypatch.setattr(main, "_pick_provider", lambda *a, _s=slug, **k: _s)

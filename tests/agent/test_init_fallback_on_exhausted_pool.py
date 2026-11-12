@@ -175,7 +175,7 @@ def test_init_fallback_recomputes_api_mode_for_per_model_profile_exception():
          patch("agent.process_bootstrap.OpenAI", return_value=MagicMock()):
 
         agent = AIAgent(
-            provider="nous",
+            provider="provider-a",
             model="gpt-5.4-mini",
             api_mode="codex_responses",
             api_key=None,
@@ -210,7 +210,7 @@ def test_init_fallback_keeps_codex_responses_for_openai_codex():
          patch("agent.process_bootstrap.OpenAI", return_value=MagicMock()):
 
         agent = AIAgent(
-            provider="nous",
+            provider="provider-a",
             model="gpt-5.4-mini",
             api_mode="codex_responses",
             api_key=None,

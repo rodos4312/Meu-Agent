@@ -429,7 +429,6 @@ def _resolve_relay_identity_token() -> str:
           ``$DOMINO_API_PROXY/access-token``): a plain GET whose body IS the token,
           raw JWT or a JSON envelope with ``access_token``. Possession of the
           (typically loopback) endpoint is the credential.
-      2.  Nous Portal (default): ``resolve_nous_access_token()``.
 
     Raises on failure; callers decide whether that's fatal (enroll CLI) or a graceful
     boot no-op (self-provision).

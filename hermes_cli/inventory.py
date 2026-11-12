@@ -76,7 +76,7 @@ def build_models_payload(
     ctx: ConfigContext, *, explicit_only: bool = False, include_unconfigured: bool = False,
     picker_hints: bool = False, canonical_order: bool = False, pricing: bool = False,
     pricing_cache_only: bool = False,
-    capabilities: bool = False, featured: bool = False, force_fresh_nous_tier: bool = False,
+    capabilities: bool = False, featured: bool = False,
     refresh: bool = False, probe_custom_providers: bool = True, probe_current_custom_provider: bool = False,
     for_picker: bool = False, max_models: int | None = None, non_blocking_catalogs: bool = False,
     fast_custom_probe: bool | None = None,
@@ -94,7 +94,7 @@ def build_models_payload(
     rows = list_authenticated_providers(
         current_provider=ctx.current_provider, current_base_url=ctx.current_base_url,
         current_model=ctx.current_model, user_providers=ctx.user_providers,
-        custom_providers=ctx.custom_providers, force_fresh_nous_tier=force_fresh_nous_tier,
+        custom_providers=ctx.custom_providers,
         max_models=max_models, refresh=refresh, probe_custom_providers=probe_custom_providers,
         probe_current_custom_provider=probe_current_custom_provider, for_picker=for_picker,
         excluded_providers=ctx.excluded_providers or [],
@@ -145,7 +145,7 @@ def build_models_payload(
     if canonical_order:
         rows = _reorder_canonical(rows)
     if pricing:
-        _apply_pricing(rows, force_fresh_nous_tier=force_fresh_nous_tier, cached_only=pricing_cache_only)
+        _apply_pricing(rows, cached_only=pricing_cache_only)
     # Both metadata decorators consult ``model_overrides``.  Snapshot the
     # read-only config once for this payload rather than letting each model
     # lookup reopen config.yaml through models_dev._cfg_get().
@@ -870,12 +870,9 @@ def _reorder_canonical(rows: list[dict]) -> list[dict]:
 
 
 
-# health: allow CC -- usage-window plans: one branch attaches plan usage to the Nous row (built in _attach_nous_plan_usage); over target on main
-def _apply_pricing(rows: list[dict], *, force_fresh_nous_tier: bool = False, cached_only: bool = False) -> None:
-    """Set ``row["pricing"] = {model_id: {input, output, cache | None, free}}``; for Nous also
-    ``free_tier`` (account is free-tier) and ``unavailable_models`` (paid models a free user can't pick).
-    ``cached_only`` never hits the network: unknown Nous entitlement fails closed (``free_tier_pending``,
-    all models locked) and missing pricing is marked ``pricing_pending``."""
+def _apply_pricing(rows: list[dict], *, cached_only: bool = False) -> None:
+    """Set ``row["pricing"] = {model_id: {input, output, cache | None, free}}``.
+    ``cached_only`` never hits the network."""
     from hermes_cli.models_pricing import _format_price_per_mtok, get_pricing_for_provider
 
 
@@ -908,8 +905,6 @@ def _apply_pricing(rows: list[dict], *, force_fresh_nous_tier: bool = False, cac
                 "cache": _format_price_per_mtok(cache_raw) if cache_raw else None,
                 "free": inp == "free" and out in ("free", ""),  # both input and output cost nothing
             }
-            # Sale chrome is Nous Portal-only (other catalogs' nested pricing.original is ignored); free
-            # models get flat -100% chrome, was_* only when the gateway served an original.
             formatted[mid] = entry
 
         if formatted:

@@ -6,12 +6,17 @@
 #   - Uses explicit port mappings instead
 #   - Uses Windows-style volume path for ~/.hermes
 #
+# Meu publishes no container image: the gateway image is built locally from ./Dockerfile
+# (same `meu-agent` tag as docker-compose.yml); nothing is pulled from a registry.
+#
 # Usage:
-#   docker compose -f docker-compose.windows.yml up -d
+#   docker compose -f docker-compose.windows.yml up -d --build
 #
 services:
   gateway:
-    image: nousresearch/hermes-agent:latest
+    build: .
+    image: meu-agent
+    pull_policy: never
     container_name: hermes
     restart: unless-stopped
     volumes:
@@ -22,7 +27,8 @@ services:
     command: ["gateway", "run"]
 
   dashboard:
-    image: nousresearch/hermes-agent:latest
+    image: meu-agent
+    pull_policy: never
     container_name: hermes-dashboard
     restart: unless-stopped
     depends_on:

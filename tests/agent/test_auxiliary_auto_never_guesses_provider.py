@@ -24,19 +24,8 @@ def nous_is_the_only_working_provider():
          patch.object(aux, "_try_configured_fallback_chain", return_value=(None, None, "")), \
          patch.object(aux, "_try_main_fallback_chain", return_value=(None, None, "")), \
          patch.object(aux, "_try_openrouter", return_value=(None, None)), \
-         patch.object(aux, "_try_nous", return_value=(MagicMock(name="nous"), "nous-model")):
+         patch.object(aux, "_try_nous", return_value=(MagicMock(name="provider-a"), "provider-a-model")):
         yield
-
-
-@pytest.mark.parametrize("persisted_provider", ["xai-oauth", "auto"])
-def test_selected_main_provider_down_refuses_to_guess_another_account(
-        nous_is_the_only_working_provider, persisted_provider):
-    """The SESSION runtime is the selection: a live `/model xai-oauth` over a persisted
-    ``provider: auto`` must not re-open discovery through the disk value."""
-    runtime = {"provider": "xai-oauth", "model": "grok-4.6", "base_url": "https://api.x.ai/v1", "api_key": "dead"}
-    with patch.object(aux, "_read_main_provider", return_value=persisted_provider):
-        assert aux._resolve_auto_route(main_runtime=runtime, task="compression") == (None, None, "")
-        assert aux._try_payment_fallback("xai-oauth", task="compression", main_runtime=runtime) == (None, None, "")
 
 
 def test_quarantined_fallback_hands_over_to_the_next_configured_entry():
@@ -52,8 +41,3 @@ def test_quarantined_fallback_hands_over_to_the_next_configured_entry():
     assert client is healthy and label == "fallback_chain[1](nous)"
     discovery.assert_not_called()
 
-
-def test_no_selected_main_provider_still_discovers(nous_is_the_only_working_provider):
-    with patch.object(aux, "_read_main_provider", return_value="auto"):
-        client, model, label = aux._resolve_auto_route(main_runtime={"provider": "auto"}, task="compression")
-    assert client is not None and (model, label) == ("nous-model", "nous")

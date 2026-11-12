@@ -10,7 +10,8 @@ import { buildManualUpdateCommand } from './checkout'
 import { resolveUpdaterMechanism } from './index'
 
 describe('build stamp → update ownership', () => {
-  const provenance = { commit: 'a'.repeat(40), branch: 'main', dirty: false, source: 'ci' }
+  // Meu admits update-enabled Windows artifacts only from its development branch (meu-release.cjs).
+  const provenance = { commit: 'a'.repeat(40), branch: 'dev/meu-foundation', dirty: false, source: 'ci' }
 
   const runtime = {
     repoDir: 'app',

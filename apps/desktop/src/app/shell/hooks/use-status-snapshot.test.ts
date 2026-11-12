@@ -559,7 +559,7 @@ describe('useStatusSnapshot', () => {
     await act(async () => {
       $desktopOnboarding.set({
         ...$desktopOnboarding.get(),
-        flow: { status: 'success', provider: { id: 'nous', name: 'Nous' } as never }
+        flow: { status: 'success', provider: { id: 'provider-a', name: 'Nous' } as never }
       })
       await vi.advanceTimersByTimeAsync(0)
     })
@@ -584,7 +584,7 @@ describe('useStatusSnapshot', () => {
     await act(async () => {
       $desktopOnboarding.set({
         ...$desktopOnboarding.get(),
-        flow: { status: 'starting', provider: { id: 'nous', name: 'Nous' } as never }
+        flow: { status: 'starting', provider: { id: 'provider-a', name: 'Nous' } as never }
       })
       await vi.advanceTimersByTimeAsync(0)
     })

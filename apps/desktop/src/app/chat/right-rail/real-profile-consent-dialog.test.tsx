@@ -105,7 +105,7 @@ describe('shouldOfferRealProfilePrompt', () => {
 
 describe('RealProfileConsentDialog', () => {
   beforeEach(() => {
-    mocks.loadedConfig = { browser: { allow_private_urls: false }, model: { provider: 'nous' } }
+    mocks.loadedConfig = { browser: { allow_private_urls: false }, model: { provider: 'provider-a' } }
     mocks.save.mockResolvedValue({ ok: true })
     $realProfilePromptDismissed.set(false)
     $realProfilePromptMuted.set(false)
@@ -133,7 +133,7 @@ describe('RealProfileConsentDialog', () => {
     expect(mocks.save).toHaveBeenCalledWith({ browser: { use_real_profile: true } }, undefined)
     expect(mocks.cache).toHaveBeenCalledWith({
       browser: { allow_private_urls: false, use_real_profile: true },
-      model: { provider: 'nous' }
+      model: { provider: 'provider-a' }
     })
     expect(mocks.notify).toHaveBeenCalled()
   })

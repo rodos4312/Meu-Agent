@@ -89,7 +89,7 @@ def installation(tmp_path, monkeypatch):
 
     def local(request, *args, **kwargs):
         url = urlsplit(request.full_url)
-        assert url.hostname in {"api.github.com", "hermes-assets.nousresearch.com", "raw.githubusercontent.com"}
+        assert url.hostname in {"api.github.com", "provider-a.example", "raw.githubusercontent.com"}
         rewritten = urllib.request.Request(
             f"http://127.0.0.1:{server.server_port}{url.path}" + (f"?{url.query}" if url.query else ""),
             headers=dict(request.header_items()))

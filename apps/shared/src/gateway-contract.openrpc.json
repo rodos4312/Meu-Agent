@@ -5787,10 +5787,6 @@
             ],
             "title": "Billing Url"
           },
-          "is_nous": {
-            "title": "Is Nous",
-            "type": "boolean"
-          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -5813,7 +5809,6 @@
           "provider_label",
           "model",
           "billing_url",
-          "is_nous",
           "message"
         ],
         "title": "BillingBlock",
@@ -22851,7 +22846,7 @@
       },
       "ModelPricing": {
         "additionalProperties": false,
-        "description": "``hermes_cli/inventory.py::_apply_pricing`` \u2014 formatted $/Mtok strings (``\"\"`` unknown,\n``\"free\"``); the sale fields are Nous Portal-only.",
+        "description": "``hermes_cli/inventory.py::_apply_pricing`` \u2014 formatted $/Mtok strings (``\"\"`` unknown,\n``\"free\"``); the sale fields appear only when a catalog serves them.",
         "properties": {
           "input": {
             "title": "Input",
@@ -42359,7 +42354,7 @@
             "type": "string"
           },
           "provider": {
-            "default": "nous",
+            "default": "",
             "title": "Provider",
             "type": "string"
           }
@@ -44504,7 +44499,6 @@
           "REISSUE_REFUSED",
           "UNKNOWN_OPERATION",
           "INVALID_ANSWER",
-          "NEEDS_NOUS_AUTH",
           "CONNECTOR_NOT_FOUND",
           "TOOLS_UNAVAILABLE",
           "CONNECTORS_UNAVAILABLE",

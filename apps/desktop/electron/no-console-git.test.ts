@@ -44,7 +44,9 @@ function hangingTreeFixture() {
   )
 
   if (process.platform === 'win32') {
-    const python = execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim()
+    const python = execFileSync(process.env.HERMES_PYTHON || 'python3', ['-c', 'import sys; print(sys.executable)'], {
+      encoding: 'utf8'
+    }).trim()
     vi.stubEnv('HERMES_DESKTOP_PYTHON', python)
   }
 
@@ -217,7 +219,7 @@ test('host script forwards git argv unchanged and sets CREATE_NO_WINDOW', () => 
 
     fs.writeFileSync(script, NO_CONSOLE_GIT_SCRIPT)
 
-    const out = execFileSync('python3', [script, ...gitArgs], {
+    const out = execFileSync(process.env.HERMES_PYTHON || 'python3', [script, ...gitArgs], {
       encoding: 'utf8',
       env: {
         ...process.env,

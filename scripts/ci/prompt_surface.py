@@ -27,6 +27,7 @@ import difflib
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -79,6 +80,9 @@ def _pin_environment() -> None:
     socket.socket.connect = refuse  # type: ignore[method-assign]
     socket.create_connection = refuse  # type: ignore[assignment]
     socket.getaddrinfo = refuse  # type: ignore[assignment]
+    # Native extensions pick their OS backend at import; load psutil for the REAL host before the
+    # platform pin below, or a Windows render would import psutil's Linux backend and crash.
+    import psutil
     sys.platform = "linux"  # skills index ``platforms:`` gate
 
     import hermes_time
@@ -113,7 +117,9 @@ def _scrub(text: str, home: Path) -> str:
         f"{_platform.system()} ({_platform.release()})": "<HOST_OS>",
     }.items(), key=lambda kv: -len(kv[0])):
         text = text.replace(raw, token)
-    return text
+    # A Windows render prints <HOME>\plain; the snapshot is host-independent, so use "/" there.
+    return re.sub(r"(<HERMES_HOME>|<HOME>)((?:\\[^\s\\)\]\"',;]+)+)",
+                  lambda m: m.group(1) + m.group(2).replace("\\", "/"), text)
 
 
 def _enabled_toolsets(platform: str) -> list[str]:
@@ -205,6 +211,7 @@ def render(out: Path) -> int:
             "PATH": os.environ.get("PATH", ""), "HOME": str(home), "HERMES_HOME": str(home / ".hermes"),
             "TZ": "UTC", "LANG": "C.UTF-8", "PYTHONHASHSEED": "0", "PYTHONPATH": str(ROOT),
             "TMPDIR": tmp, "PYTHONDONTWRITEBYTECODE": "1",
+            "USERPROFILE": str(home),  # Windows resolves Path.home() from USERPROFILE, not HOME
         }
         for key in ("HERMES_RUNTIME_DIR", "SYSTEMROOT"):
             if os.environ.get(key):

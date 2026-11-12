@@ -123,7 +123,6 @@ handler does; `client-local (cli_only)` commands are terminal/UI features of a c
 | `/tools` | refused | HermesCLI._handle_tools_command | refused: not available yet | slash.exec: refused | session.info | client-local (cli_only) |
 | `/toolsets` | read | HermesCLI.show_toolsets | slash.exec | unavailable: terminal | slash.exec | client-local (cli_only) |
 | `/topic` | refused | messaging-only: unknown command | slash.exec: refused | slash.exec: refused | slash.exec: refused | messaging-only |
-| `/topup` | read | HermesCLI._show_billing | sidecar: billing.state | slash.exec | slash.exec |  |
 | `/undo` | refused | HermesCLI._cmd_undo | canonical route | action: undo | session.mutate rewind |  |
 | `/update` | refused | HermesCLI._cmd_update | local | unavailable: terminal | slash.exec: refused |  |
 | `/usage` | read (bare only (`reset` refused)) | HermesCLI._handle_usage_command | canonical route | slash.exec | slash.exec |  |

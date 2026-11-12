@@ -101,50 +101,6 @@ class TestDynamicParamGating(unittest.TestCase):
         self.assertEqual(sorted(props), ["aspect_ratio", "prompt"])
         self.assertNotIn("upscale", props)
 
-    def test_managed_krea_model_advertises_krea_edit_args_and_upscale(self):
-        """provider nous + a Krea model id is served by the Krea gateway, so the
-        schema must advertise what the Krea plugin declares, not the FAL catalog."""
-        from plugins.image_gen.krea import KreaImageGenProvider
-
-        with patch.object(ig, "_read_configured_image_provider",
-                          return_value="nous"), \
-             patch.object(ig, "_read_configured_image_model",
-                          return_value="krea-2-medium"):
-            schema = _build_dynamic_image_schema()
-        props = schema["parameters"]["properties"]
-        self.assertIn("image_url", props)
-        self.assertEqual(
-            props["reference_image_urls"]["maxItems"],
-            KreaImageGenProvider().capabilities()["max_reference_images"],
-        )
-        self.assertIn("upscale", props)
-
-    def test_creative_controls_follow_the_active_backend(self):
-        """A managed Krea model renders exactly the controls the Krea plugin declares; FAL renders none."""
-        from plugins.image_gen.krea import KreaImageGenProvider
-
-        with patch.object(ig, "_read_configured_image_provider", return_value="nous"), \
-             patch.object(ig, "_read_configured_image_model", return_value="krea-2-medium"):
-            props = _build_dynamic_image_schema()["parameters"]["properties"]
-        declared = KreaImageGenProvider().capabilities()["creative_controls"]
-        self.assertTrue(declared)
-        self.assertLessEqual(set(declared), set(props))
-        for model in (self._t2i_only(), self._edit_multi_ref()):
-            self.assertFalse(set(ig._CREATIVE_CONTROL_PARAMS) & set(self._schema_for(model)["parameters"]["properties"]))
-
-    def test_style_reference_backend_describes_image_inputs_as_style_not_edit(self):
-        """A backend declaring source_image_role "style" gets the style wording; FAL keeps the edit wording."""
-        with patch.object(ig, "_read_configured_image_provider", return_value="nous"), \
-             patch.object(ig, "_read_configured_image_model", return_value="krea-2-medium"):
-            krea = _build_dynamic_image_schema()
-        fal = self._schema_for(self._edit_multi_ref())
-        self.assertIs(krea["parameters"]["properties"]["image_url"], ig._STYLE_IMAGE_URL_PARAM)
-        self.assertIs(fal["parameters"]["properties"]["image_url"], ig._IMAGE_URL_PARAM)
-        self.assertNotIn("edit", krea["parameters"]["properties"]["reference_image_urls"]["description"])
-        self.assertNotIn("edit", krea["parameters"]["properties"]["prompt"]["description"])
-        self.assertIn("edit", fal["parameters"]["properties"]["reference_image_urls"]["description"])
-        self.assertIn("edit", fal["parameters"]["properties"]["prompt"]["description"])
-
     def test_krea_3_advertises_edit_wording_and_its_own_controls(self):
         """Krea 3 edits the pictures it is given, so the edit wording applies with the plugin's
         reference cap, and the schema offers Krea 3's controls and none of Krea 2's."""

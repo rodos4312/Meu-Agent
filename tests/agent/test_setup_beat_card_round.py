@@ -23,7 +23,7 @@ from tools.setup_beat_tool import SETUP_BEAT_SCHEMA
 
 def _agent():
     agent = AIAgent.__new__(AIAgent)
-    agent.provider, agent.model, agent.session_id, agent.tools = "nous", "m", "s1", []
+    agent.provider, agent.model, agent.session_id, agent.tools = "provider-a", "m", "s1", []
     agent.log_prefix, agent.quiet_mode, agent.verbose_logging = "", True, False
     agent._mute_post_response, agent._base_url, agent.api_mode = False, "", "chat_completions"
     agent._current_streamed_assistant_text = ""

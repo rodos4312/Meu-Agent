@@ -15,9 +15,24 @@ test('validate-only admits real prepared inputs without launching tools and reje
   try {
     const electron = path.join(out, 'electron.zip')
     fs.writeFileSync(electron, 'fixture archive')
-    const toolsets = { sevenZip: path.join(out, 'sevenZip'), icons: path.join(out, 'icons') }
+    const toolsets = { sevenZip: path.join(out, 'sevenZip'), icons: path.join(out, 'icons'),
+      // A win32 target also needs the Windows tool selection; validation never launches them.
+      ...(process.platform === 'win32' ? { winCodeSign: path.join(out, 'winCodeSign') } : {})
+    }
     for (const dir of Object.values(toolsets)) fs.mkdirSync(dir)
-    const manifest = await publishPackagingInputs({ source, out, target: `${process.platform}-${process.arch}`, formats: ['dir'], electron, toolsets })
+    const windows =
+      process.platform === 'win32'
+        ? {
+            makeappx: path.join(out, 'makeappx.exe'),
+            signtool: path.join(out, 'signtool.exe'),
+            dlib: null,
+            dotnetRoot: path.join(out, 'dotnet')
+          }
+        : null
+    if (windows) fs.mkdirSync(windows.dotnetRoot)
+    const manifest = await publishPackagingInputs({ source, out, target: `${process.platform}-${process.arch}`, formats: ['dir'], electron, toolsets,
+      windows
+    })
     const nativeDeps = path.join(out, 'native')
     fs.mkdirSync(path.join(nativeDeps, 'node-pty'), { recursive: true })
     fs.writeFileSync(path.join(nativeDeps, 'node-pty/package.json'), '{}')
@@ -36,7 +51,8 @@ test('validate-only admits real prepared inputs without launching tools and reje
 
 test('source multiarch prepares isolated native and packaging inputs before each strict invocation', () => {
   const calls = []
-  const spawn = (_node, args) => { calls.push(args); return { status: 0 } }
+  const spawn = (_node, args) => { calls.push(args)
+    return { status: 0 } }
   assert.equal(runElectronBuilder(['--mac', '--x64', '--arm64', '--dir'], { spawn }), 0)
   for (const arch of ['x64', 'arm64']) {
     const native = calls.find(args => args[0].endsWith('stage-native-deps.mjs') && args.includes(arch))
@@ -93,7 +109,8 @@ test('npm run builder forwards an apostrophe path to the wrapper verbatim', () =
 
 test('source builds hand every child the builder heap without rewriting inherited NODE_OPTIONS', () => {
   const calls = []
-  const spawn = (_node, args, options) => { calls.push({ args, options }); return { status: 0 } }
+  const spawn = (_node, args, options) => { calls.push({ args, options })
+    return { status: 0 } }
   assert.equal(runElectronBuilder(['--dir'], { spawn }), 0)
   assert.ok(calls.length >= 2)
   const heap = /--max-old-space-size=16384$/

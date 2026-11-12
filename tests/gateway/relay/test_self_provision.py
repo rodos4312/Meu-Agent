@@ -81,60 +81,7 @@ def test_provision_url_maps_ws_to_http():
 # ─────────────────────────── trigger logic ───────────────────────────
 
 
-def test_skips_when_relay_not_configured(monkeypatch):
-    _arm(monkeypatch, url=None)
-    called = {"n": 0}
-    monkeypatch.setattr(relay, "_post_provision", lambda **k: called.__setitem__("n", called["n"] + 1) or {})
-    assert relay.self_provision_relay() is False
-    assert called["n"] == 0
-
-
-def test_skips_when_secret_already_pinned(monkeypatch):
-    """A self-hosted, enrolled gateway has a pinned secret -> never self-provisions."""
-    _arm(monkeypatch)
-    monkeypatch.setenv("GATEWAY_RELAY_ID", "gw-pinned")
-    monkeypatch.setenv("GATEWAY_RELAY_SECRET", "deadbeef")
-    called = {"n": 0}
-    monkeypatch.setattr(relay, "_post_provision", lambda **k: called.__setitem__("n", called["n"] + 1) or {})
-    assert relay.self_provision_relay() is False
-    assert called["n"] == 0
-    # The pinned secret is untouched.
-    assert relay.relay_connection_auth() == ("gw-pinned", "deadbeef")
-
-
 # ─────────────────────────── happy path ───────────────────────────
-
-def test_provisions_and_sets_env_in_process(monkeypatch):
-    _arm(monkeypatch)
-    monkeypatch.setenv("GATEWAY_RELAY_ENDPOINT", "https://gw.example.com/inbound")
-    monkeypatch.setenv("GATEWAY_RELAY_ROUTE_KEYS", "guild-1,guild-2")
-    captured: dict = {}
-    monkeypatch.setattr(relay, "_post_provision", _stub_post(captured))
-
-    assert relay.self_provision_relay() is True
-    # The connector POST carried the gateway-asserted endpoint + route keys.
-    assert captured["provision_url"] == "https://connector.example/relay/provision"
-    assert captured["access_token"] == "nas-token"
-    assert captured["gateway_endpoint"] == "https://gw.example.com/inbound"
-    assert captured["route_keys"] == ["guild-1", "guild-2"]
-    # Creds landed in os.environ (in-process), so register_relay_adapter() reads them.
-    gid, secret = relay.relay_connection_auth()
-    assert gid and secret == "a" * 64
-    # The delivery key is persisted in-process too (issued by the connector,
-    # kept for forward-compat; inbound rides the WS so it isn't consumed).
-    assert os.environ["GATEWAY_RELAY_DELIVERY_KEY"] == "b" * 64
-
-
-def test_outbound_only_when_no_endpoint(monkeypatch):
-    _arm(monkeypatch)
-    captured: dict = {}
-    monkeypatch.setattr(relay, "_post_provision", _stub_post(captured))
-
-    assert relay.self_provision_relay() is True
-    assert captured["gateway_endpoint"] is None
-    assert captured["route_keys"] == []
-    assert relay.relay_connection_auth()[1] == "a" * 64
-
 
 # ─────────────────── instance-id forwarding (Phase 6 Unit α) ───────────────────
 
@@ -194,37 +141,7 @@ def test_post_provision_body_includes_instanceId_only_when_set(monkeypatch):
 # ─────────────────── wake-url forwarding (Phase 5 Unit C) ───────────────────
 
 
-def test_forwards_wake_url_to_provision(monkeypatch):
-    """A suspendable agent stamped with GATEWAY_RELAY_WAKE_URL forwards it to the
-    connector so the connector can poke it awake when the first buffered event
-    lands on a flipped destination (Unit C wake primitive)."""
-    _arm(monkeypatch)
-    monkeypatch.setenv("GATEWAY_RELAY_WAKE_URL", "https://wake.example/poke")
-    captured: dict = {}
-    monkeypatch.setattr(relay, "_post_provision", _stub_post(captured))
-
-    assert relay.self_provision_relay() is True
-    assert captured["wake_url"] == "https://wake.example/poke"
-
-
-
-
 # ─────────────────────────── fail-soft ───────────────────────────
-
-def test_no_nas_token_is_non_fatal(monkeypatch):
-    """A self-hosted box with a relay URL but no resolvable NAS identity skips
-    quietly (this is the branch that replaces the old is_managed() gate for the
-    non-NAS case)."""
-    monkeypatch.setattr(relay, "relay_url", lambda: "wss://connector.example/relay")
-
-    def _boom():
-        raise RuntimeError("no token")
-
-    monkeypatch.setattr("hermes_cli.auth.resolve_nous_access_token", _boom)
-    # Must not raise; returns False; no creds set.
-    assert relay.self_provision_relay() is False
-    assert relay.relay_connection_auth() == (None, None)
-
 
 # ─────────────────────────── displayName (Phase 1 parity, gg#171) ───────────────────────────
 
@@ -253,15 +170,15 @@ def _boot_with_expired_login(tmp_path, monkeypatch, *, env_file: str, stored_por
     launch_home.mkdir()
     (launch_home / ".env").write_text(env_file, encoding="utf-8")
     (launch_home / "auth.json").write_text(json.dumps({
-        "active_provider": "nous",
-        "providers": {"nous": {
+        "active_provider": "provider-a",
+        "providers": {"provider-a": {
             "portal_base_url": stored_portal,
             "access_token": "expired-access-token", "refresh_token": "refresh-token",
             "expires_at": "2000-01-01T00:00:00+00:00",
         }},
     }), encoding="utf-8")
     monkeypatch.setenv("HERMES_HOME", str(launch_home))
-    for name in ("HERMES_PORTAL_BASE_URL", "NOUS_PORTAL_BASE_URL", "NOUS_INFERENCE_BASE_URL"):
+    for name in ("HERMES_PORTAL_BASE_URL", "PROVIDER_A_PORTAL_URL", "PROVIDER_A_BASE_URL"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(relay, "relay_url", lambda: "wss://connector.example/relay")
     monkeypatch.setattr(relay, "register_relay_adapter", lambda: False)
@@ -273,44 +190,6 @@ def _boot_with_expired_login(tmp_path, monkeypatch, *, env_file: str, stored_por
 
     monkeypatch.setattr("hermes_cli.auth._refresh_nous_or_quarantine", _refresh)
     return portals
-
-
-def test_startup_refresh_uses_launch_profile_portal_when_multiplexed(tmp_path, monkeypatch, caplog):
-    """A Portal override in the launch profile's .env survives the startup refresh."""
-    portals = _boot_with_expired_login(
-        tmp_path, monkeypatch, env_file="HERMES_PORTAL_BASE_URL=https://portal.example\n",
-        stored_portal="https://portal.example")
-    secret_scope.set_multiplex_active(True)
-
-    with caplog.at_level(logging.WARNING):
-        GatewayStartupMixin._start_register_plugins_relay_hooks()
-
-    assert portals == ["https://portal.example"]
-    assert not [r for r in caplog.records if "no profile secret scope" in r.getMessage()]
-
-
-def test_startup_refresh_without_override_stays_on_default_portal(tmp_path, monkeypatch):
-    """With no override anywhere, the startup refresh keeps the default Portal."""
-    from hermes_cli.auth_nous import DEFAULT_NOUS_PORTAL_URL
-
-    portals = _boot_with_expired_login(
-        tmp_path, monkeypatch, env_file="", stored_portal=DEFAULT_NOUS_PORTAL_URL)
-    secret_scope.set_multiplex_active(True)
-
-    GatewayStartupMixin._start_register_plugins_relay_hooks()
-
-    assert portals == [DEFAULT_NOUS_PORTAL_URL]
-
-
-def test_startup_refresh_single_profile_reads_process_env_override(tmp_path, monkeypatch):
-    """Single-profile hosts (multiplexing off) still take the override from the process env."""
-    portals = _boot_with_expired_login(
-        tmp_path, monkeypatch, env_file="", stored_portal="https://portal.example")
-    monkeypatch.setenv("HERMES_PORTAL_BASE_URL", "https://portal.example")
-
-    GatewayStartupMixin._start_register_plugins_relay_hooks()
-
-    assert portals == ["https://portal.example"]
 
 
 def test_startup_idp_secret_ref_keeps_launch_env_value_when_multiplexed(tmp_path, monkeypatch):

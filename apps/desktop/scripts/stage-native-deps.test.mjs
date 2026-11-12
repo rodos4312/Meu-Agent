@@ -31,7 +31,7 @@ function makeFakeNode(filePath, platform) {
     // On x64/arm64 Darwin, Mach-O binaries are stored little-endian on disk
     // (MH_CIGAM_64 = cffaedfe). This is the form node-pty's prebuilds ship in.
     darwin:  Buffer.from([0xcf, 0xfa, 0xed, 0xfe, 0x00, 0x00, 0x00, 0x00]), // Mach-O 64-bit LE (CIGAM_64)
-    win32:   Buffer.from([0x4d, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),  // MZ (PE)
+    win32:   Buffer.from([0x4d, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]) // MZ (PE)
   }
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, headers[platform] ?? headers.linux)
@@ -54,7 +54,7 @@ function makeFakeUnixTerminal(srcRoot) {
   fs.writeFileSync(
     join(srcRoot, 'lib', 'unixTerminal.js'),
     [
-      "exports.resolveHelper = function (helperPath) {",
+      'exports.resolveHelper = function (helperPath) {',
       "  helperPath = helperPath.replace('app.asar', 'app.asar.unpacked');",
       "  helperPath = helperPath.replace('node_modules.asar', 'node_modules.asar.unpacked');",
       '  return helperPath;',
@@ -65,7 +65,8 @@ function makeFakeUnixTerminal(srcRoot) {
 
 // ─── optional native helper tests ───────────────────────────────────
 
-test('a missing Linux HUD toolchain leaves no empty package directories', () => {
+// Host-specific: the missing-toolchain branch exists only on a Linux host.
+test.runIf(process.platform === 'linux')('a missing Linux HUD toolchain leaves no empty package directories', () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'hermes-hud-'))
   const warnings = []
   const originalWarn = console.warn
@@ -466,7 +467,7 @@ test('win32-x64 staging degrades to the fail-soft JS surface when only foreign b
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'hermes-stage-'))
   const warnings = []
   const origWarn = console.warn
-  console.warn = (msg) => warnings.push(String(msg))
+  console.warn = msg => warnings.push(String(msg))
   try {
     const srcRoot = join(tmp, 'get-windows')
     const destRoot = join(tmp, 'dest')
@@ -547,7 +548,7 @@ test('darwin staging degrades (not staged) when the helper binary is missing', (
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'hermes-stage-'))
   const warnings = []
   const origWarn = console.warn
-  console.warn = (msg) => warnings.push(String(msg))
+  console.warn = msg => warnings.push(String(msg))
   try {
     const srcRoot = join(tmp, 'get-windows')
     const destRoot = join(tmp, 'dest')
@@ -662,7 +663,7 @@ test('darwin staging ships the Swift helper executable and the rewritten windows
 test('staging degrades (never throws) when get-windows is absent on every platform', () => {
   const warnings = []
   const origWarn = console.warn
-  console.warn = (msg) => warnings.push(String(msg))
+  console.warn = msg => warnings.push(String(msg))
   try {
     for (const [platform, arch] of [['linux', 'x64'], ['darwin', 'arm64'], ['win32', 'arm64'], ['win32', 'x64']]) {
       assert.equal(
@@ -675,8 +676,8 @@ test('staging degrades (never throws) when get-windows is absent on every platfo
     console.warn = origWarn
   }
   assert.equal(warnings.length, 4)
-  assert.ok(warnings.every((w) => w.includes('read_window_below will be unavailable')))
-  assert.ok(warnings.every((w) => !w.includes('half-extracted')), 'no repair hint without a stale dir')
+  assert.ok(warnings.every(w => w.includes('read_window_below will be unavailable')))
+  assert.ok(warnings.every(w => !w.includes('half-extracted')), 'no repair hint without a stale dir')
 })
 
 test('a half-installed get-windows dir is found and named in a repair hint', () => {
@@ -692,7 +693,7 @@ test('a half-installed get-windows dir is found and named in a repair hint', () 
 
     const warnings = []
     const origWarn = console.warn
-    console.warn = (msg) => warnings.push(String(msg))
+    console.warn = msg => warnings.push(String(msg))
     try {
       stageGetWindows({
         platform: 'win32',
@@ -716,14 +717,15 @@ test('a half-installed get-windows dir is found and named in a repair hint', () 
 
 test('a native tree missing a piece this host could stage is incomplete; unfixable gaps are not', () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'native-complete-'))
-  const put = relative => { fs.mkdirSync(path.dirname(join(tmp, relative)), { recursive: true }); fs.writeFileSync(join(tmp, relative), '') }
+  const put = relative => { fs.mkdirSync(path.dirname(join(tmp, relative)), { recursive: true })
+    fs.writeFileSync(join(tmp, relative), '') }
   try {
     // Without a loadable node-pty binding no target is complete.
     put('get-windows/lib/windows.js')
     assert.equal(nativeTreeComplete(tmp, 'win32', 'arm64'), false)
     put('node-pty/prebuilds/any-target/pty.node')
     // A cross-target pack (here: win32 packed off Windows) never builds the HUD helper.
-    const crossWin = (arch) => nativeTreeComplete(tmp, 'win32', arch)
+    const crossWin = arch => nativeTreeComplete(tmp, 'win32', arch)
     if (process.platform !== 'win32') {
       assert.equal(crossWin('x64'), false) // x64 can still get its prebuilt binding
       assert.equal(crossWin('arm64'), true) // arm64 has no prebuild: nothing a host fix adds

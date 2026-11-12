@@ -76,10 +76,10 @@ describe('resolveOauthPartition (#92183 per-connection cookie jars)', () => {
 
   it('keeps cloud connections on the legacy partition (silent portal cascade needs the shared jar)', () => {
     const reg = registry('local', [
-      { id: 'cloud-1', kind: 'cloud', url: 'https://agent.nousresearch.com', authMode: 'oauth' }
+      { id: 'cloud-1', kind: 'cloud', url: 'https://provider-a.example', authMode: 'oauth' }
     ])
 
-    expect(resolveOauthPartition('https://agent.nousresearch.com/api/status', { registry: reg })).toBe(
+    expect(resolveOauthPartition('https://provider-a.example/api/status', { registry: reg })).toBe(
       LEGACY_OAUTH_PARTITION
     )
   })
@@ -93,7 +93,7 @@ describe('resolveOauthPartition (#92183 per-connection cookie jars)', () => {
   it('falls back to the legacy partition for unmatched, portal, and malformed inputs', () => {
     const reg = registry('local', [remote('conn-a', 'https://gw-a.example.com')])
 
-    expect(resolveOauthPartition('https://portal.nousresearch.com/api/agents', { registry: reg })).toBe(
+    expect(resolveOauthPartition('https://portal.provider-a.example/api/agents', { registry: reg })).toBe(
       LEGACY_OAUTH_PARTITION
     )
     expect(resolveOauthPartition('not a url', { registry: reg })).toBe(LEGACY_OAUTH_PARTITION)
@@ -220,7 +220,7 @@ describe('resolveOauthPartition with connectionId (pre-save sign-in identity)', 
       { id: 'local', kind: 'local' },
       remote('conn-a', 'https://gw-a.example.com'),
       remote('tok-1', 'https://gw-t.example.com', { authMode: 'token' }),
-      { id: 'cloud-1', kind: 'cloud', url: 'https://agent.nousresearch.com', authMode: 'oauth' }
+      { id: 'cloud-1', kind: 'cloud', url: 'https://provider-a.example', authMode: 'oauth' }
     ])
 
     expect(resolveOauthPartition('https://gw-a.example.com', { registry: reg, connectionId: 'conn-a' })).toBe(
@@ -232,7 +232,7 @@ describe('resolveOauthPartition with connectionId (pre-save sign-in identity)', 
     expect(resolveOauthPartition('https://gw-t.example.com', { registry: reg, connectionId: 'tok-1' })).toBe(
       LEGACY_OAUTH_PARTITION
     )
-    expect(resolveOauthPartition('https://agent.nousresearch.com', { registry: reg, connectionId: 'cloud-1' })).toBe(
+    expect(resolveOauthPartition('https://provider-a.example', { registry: reg, connectionId: 'cloud-1' })).toBe(
       LEGACY_OAUTH_PARTITION
     )
   })

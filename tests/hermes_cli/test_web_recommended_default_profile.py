@@ -34,16 +34,3 @@ def client(_isolate_hermes_home, monkeypatch):
     c.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN
     return c
 
-
-def test_nous_recommendation_reads_the_requested_profile(client):
-    launch = client.get("/api/model/recommended-default", params={"provider": "nous"})
-    named = client.get("/api/model/recommended-default",
-                       params={"provider": "nous", "profile": "freebie"})
-    unknown = client.get("/api/model/recommended-default",
-                         params={"provider": "nous", "profile": "no-such-profile"})
-
-    assert launch.status_code == named.status_code == 200
-    assert launch.json()["free_tier"] is False
-    assert named.json()["free_tier"] is True
-    assert unknown.status_code == 404, unknown.text
-    assert "no-such-profile" in unknown.json()["detail"]

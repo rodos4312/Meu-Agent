@@ -186,13 +186,11 @@ export interface Translations extends NoticeTranslations {
       showAllMatches: string
       segmentNoMatch: (segment: string) => string
       freeTierNote: string
-      signInLine: string
       signIn: string
       managedUnavailable: string
       writeFailed: string
       refreshFailed: string
       disconnectNoAccount: string
-      disconnectRefused: string
     }
     add: {
       action: string
@@ -243,7 +241,6 @@ export interface Translations extends NoticeTranslations {
       turnOffLocal: string
       providedByPlugin: (plugin: string) => string
       openPlugins: string
-      nousLine: string
       rulesReadOnly: string
       rulesAppOff: (name: string) => string
       rulesSignIn: string
@@ -634,7 +631,7 @@ export interface Translations extends NoticeTranslations {
         repoLabel: string
         verified: string
         unverified: string
-        reviewedByNous: string
+        reviewedByCatalog: string
         installsAndEnables: (profile: string) => string
         installsOnly: (profile: string) => string
         advanced: string
@@ -3629,7 +3626,7 @@ export interface Translations extends NoticeTranslations {
       errorAddCredits: string
       /** Error card button: opens Settings → Billing in-app (Keep going, buy credits). */
       errorOpenBillingSettings: string
-      /** Error card body when a Nous account is out of credits (its button opens Settings → Billing). */
+      /** Error card body when the provider account is out of credits. */
       errorCompressConversation: string
       errorCompressFailed: string
       errorOpenHermesFolder: string
@@ -3639,7 +3636,6 @@ export interface Translations extends NoticeTranslations {
        *  provider's sign-in flow (auth layer, authKind 'oauth'). */
       errorSignInAgain: (provider: string) => string
       /** Free-tier refusals: opens the free sign-in dialog (signing in is free and lifts the refusal). */
-      errorSignInFreeTier: string
       /** Explains WHY the turn failed for an OAuth 401 — the raw body
        *  ("HTTP 401: User not found.") doesn't say "sign in again". */
       errorOauthExpired: (provider: string) => string

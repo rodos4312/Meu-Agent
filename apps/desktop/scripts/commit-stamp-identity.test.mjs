@@ -16,7 +16,11 @@ test('desktop stamp uses the admitted checkout rather than the dispatch SHA', ()
   try {
     fs.mkdirSync(scripts, { recursive: true })
     for (const name of ['write-build-stamp.mjs', 'utils.mjs', 'bundle-env.mjs']) fs.copyFileSync(path.join(root, 'apps/desktop/scripts', name), path.join(scripts, name))
-    fs.copyFileSync(path.join(root, 'apps/desktop/product-identity.cjs'), path.join(repo, 'apps/desktop/product-identity.cjs'))
+    fs.copyFileSync(path.join(root, 'apps/desktop/product-identity.cjs'), path.join(repo, 'apps/desktop/product-identity.cjs')
+    )
+    // write-build-stamp.mjs loads Meu's release policy (and its signing key) next to the identity.
+    for (const name of ['meu-release.cjs', 'meu-release-signing.cjs', 'meu-update-key.json'])
+      fs.copyFileSync(path.join(root, 'apps/desktop', name), path.join(repo, 'apps/desktop', name))
     fs.mkdirSync(path.join(repo, 'scripts'), { recursive: true })
     fs.copyFileSync(path.join(root, 'scripts/msix-shared.mjs'), path.join(repo, 'scripts/msix-shared.mjs'))
     fs.copyFileSync(path.join(root, 'scripts/release-content-types.json'), path.join(repo, 'scripts/release-content-types.json'))
@@ -68,7 +72,19 @@ test('desktop stamp uses the admitted checkout rather than the dispatch SHA', ()
       assert.notEqual(run(override).status, 0)
       assert.deepEqual(fs.readFileSync(out), before)
     }
-    assert.equal(run({ HERMES_BUILD_COMMIT: '', HERMES_PAYLOAD_TAG: 'v1.2.3', GITHUB_SHA: feature }).status, 0)
+    // A Meu Windows release build is admitted only from Meu's development branch (meu-release.cjs):
+    // refused from 'feature', accepted from the admitted branch at the same commit.
+    if (process.platform === 'win32') {
+      assert.notEqual(run({ HERMES_BUILD_COMMIT: '', HERMES_PAYLOAD_TAG: 'v1.2.3', GITHUB_SHA: feature }).status, 0)
+      git('checkout', '-q', '-b', 'dev/meu-foundation')
+    }
+    const tagged = run({
+      HERMES_BUILD_COMMIT: '',
+      HERMES_PAYLOAD_TAG: 'v1.2.3',
+      GITHUB_SHA: feature,
+      ...(process.platform === 'win32' ? { GITHUB_REF_NAME: 'dev/meu-foundation' } : {})
+    })
+    assert.equal(tagged.status, 0, tagged.stderr)
     assert.equal(JSON.parse(fs.readFileSync(out, 'utf8')).tag, 'v1.2.3')
     assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8')).runtime, runtime)
   } finally {

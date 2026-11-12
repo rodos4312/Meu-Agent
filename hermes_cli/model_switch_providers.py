@@ -23,7 +23,7 @@ logger = logging.getLogger("hermes_cli.model_switch")
 # Rows never capped by max_models: aggregators whose full catalogs (70+ models) must stay visible, and
 # rows that are already a curated list (Nous = curated + Portal picks, OpenRouter = curated ∩ live),
 # where the cap only cut the bottom "Free tier" block and the Portal's appended recommendations.
-_UNCAPPED_PICKER_PROVIDERS: frozenset[str] = frozenset({"opencode-zen", "opencode-go", "nous", "openrouter"})
+_UNCAPPED_PICKER_PROVIDERS: frozenset[str] = frozenset({"opencode-zen", "opencode-go", "openrouter"})
 
 
 def _save_discovered_models_to_config(
@@ -622,9 +622,7 @@ def _collect_authed_provider_slugs(
         if has_creds or _auth_store_has_provider(cp.slug) or _pool_usable(cp.slug):
             _emit(cp.slug, cp.slug)
 
-    # Nous excluded: its picker branch builds from the curated list and never reads the
-    # api_key-only cache entry a prefetch would write.
-    return [s for s in slugs if s != "nous"]
+    return slugs
 
 
 @dataclass
@@ -638,7 +636,6 @@ class _PickerBuild:
     current_model: str
     max_models: int | None
     for_picker: bool
-    force_fresh_nous_tier: bool
     probe_custom_providers: bool
     probe_current_custom_provider: bool
     refresh: bool
@@ -1144,7 +1141,7 @@ def _build_curated_lists(current_provider: str, current_base_url: str, current_m
 
 def list_authenticated_providers(
     current_provider: str = "", current_base_url: str = "", user_providers: dict | None = None,
-    custom_providers: list | None = None, *, force_fresh_nous_tier: bool = False,
+    custom_providers: list | None = None, *,
     max_models: int | None = None, current_model: str = "", refresh: bool = False,
     probe_custom_providers: bool = True, probe_current_custom_provider: bool = False,
     for_picker: bool = False, excluded_providers: list | None = None,
@@ -1154,7 +1151,6 @@ def list_authenticated_providers(
     Returns dicts with ``slug`` (the --provider value), ``name``, ``is_current``,
     ``is_user_defined``, ``models`` (up to max_models), ``total_models``, ``source``
     ("built-in", "hermes", "canonical", "user-config", "model-config").
-    ``force_fresh_nous_tier`` bypasses the short Nous tier cache (account-sensitive flows only);
     ``refresh`` busts the model-id disk cache up front (explicit user action only);
     ``probe_custom_providers`` enables live ``/models`` discovery for saved custom endpoints (CLI
     true, GUI false); ``probe_current_custom_provider`` probes only the selected custom endpoint.
@@ -1193,7 +1189,7 @@ def list_authenticated_providers(
     # as (hermes_id / mdev_id / canonical slug).
     b = _PickerBuild(
         current_provider=current_provider, current_base_url=current_base_url, current_model=current_model,
-        max_models=max_models, for_picker=for_picker, force_fresh_nous_tier=force_fresh_nous_tier,
+        max_models=max_models, for_picker=for_picker,
         probe_custom_providers=probe_custom_providers, probe_current_custom_provider=probe_current_custom_provider,
         refresh=refresh, excluded={str(p).strip().lower() for p in (excluded_providers or []) if p},
         non_blocking_catalogs=non_blocking_catalogs, fast_custom_probe=fast_custom_probe,

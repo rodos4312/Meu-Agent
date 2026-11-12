@@ -38,7 +38,7 @@ def test_state_answers_run_and_eligible(launched_under_work, monkeypatch):
     # The user's own "work" profile is install history, so an unset flag is not due, and on the
     # desktop's local backend nothing carries a first chat: the trial is never claimed on a used machine.
     as_local_desktop_backend(monkeypatch)
-    for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "NOUS_API_KEY"):
+    for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "PROVIDER_A_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     assert _call("onboarding.state")["result"] == {"run": False, "eligible": False, "session_id": None, "run_id": None}
 

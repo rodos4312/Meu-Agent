@@ -25,23 +25,23 @@ class BrowserUseBrowserProvider(CloudBrowserProvider):
     ]
 
     def _get_config_or_none(self) -> dict[str, Any] | None:
-        from tools.tool_backend_helpers import read_selection
+        from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION, read_selection
 
         # A saved retired selection must not silently start billing the user's direct account.
-        if read_selection("browser") == "nous":
+        if read_selection("browser") == RETIRED_MANAGED_SELECTION:
             return None
         api_key = get_secret("BROWSER_USE_API_KEY")
         return {"api_key": api_key, "base_url": _BASE_URL} if api_key else None
 
     def _get_config(self) -> dict[str, Any]:
-        from tools.tool_backend_helpers import read_selection, selection_error
+        from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION, read_selection, selection_error
 
         config = self._get_config_or_none()
         if config is not None:
             return config
         selected = read_selection("browser")
-        if selected == "nous":
-            raise ValueError("Nous-managed browsing has been removed. Select a local browser or configure "
+        if selected == RETIRED_MANAGED_SELECTION:
+            raise ValueError("Managed browsing has been removed. Select a local browser or configure "
                              "your own browser provider in settings.")
         if selected is not None:
             raise ValueError(selection_error("browser", selected, "BROWSER_USE_API_KEY is not set"))

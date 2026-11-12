@@ -343,8 +343,8 @@ describe('createGatewayEventHandler', () => {
           is_nous: true,
           message: 'out of credits',
           model: 'm',
-          provider: 'nous',
-          provider_label: 'Nous Portal'
+          provider: 'provider-a',
+          provider_label: 'Provider A'
         },
         text: 'Billing or credits exhausted: ...'
       },

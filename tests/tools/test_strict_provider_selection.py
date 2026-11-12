@@ -26,15 +26,15 @@ class TestReadSelection:
         with self._with_raw({"image_gen": {"provider": "fal"}}):
             assert tbh.read_selection("image_gen") == "fal"
 
-    def test_nous_provider_returned(self):
+    def test_legacy_managed_provider_maps_to_retired(self):
         with self._with_raw({"image_gen": {"provider": "nous"}}):
-            assert tbh.read_selection("image_gen") == "nous"
+            assert tbh.read_selection("image_gen") == tbh.RETIRED_MANAGED_SELECTION
 
-    def test_legacy_use_gateway_true_maps_to_nous(self):
+    def test_legacy_use_gateway_true_maps_to_retired(self):
         """Old configs stored use_gateway: true beside a vendor name — only
-        the managed picker row ever wrote it, so it means 'nous'."""
+        the managed picker row ever wrote it, so it means the retired service."""
         with self._with_raw({"video_gen": {"provider": "fal", "use_gateway": True}}):
-            assert tbh.read_selection("video_gen") == "nous"
+            assert tbh.read_selection("video_gen") == tbh.RETIRED_MANAGED_SELECTION
 
     def test_legacy_use_gateway_false_keeps_vendor(self):
         with self._with_raw({"tts": {"provider": "openai", "use_gateway": False}}):
@@ -101,7 +101,7 @@ class TestBrowserUseStrictSelection:
     def test_retired_selection_refuses_direct_key(self):
         provider = self._provider()
         with patch("plugins.browser.browser_use.provider.get_secret", return_value="bu-key"), \
-             patch("tools.tool_backend_helpers.read_selection", return_value="nous"):
+             patch("tools.tool_backend_helpers.read_selection", return_value=tbh.RETIRED_MANAGED_SELECTION):
             assert provider._get_config_or_none() is None
             with pytest.raises(ValueError, match="has been removed"):
                 provider._get_config()

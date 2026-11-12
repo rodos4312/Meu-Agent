@@ -43,7 +43,9 @@ afterEach(() => {
   clearSessionTodos('owner')
 })
 
-it('offers a collapsed read-only checklist from an idle session, without a running spinner', () => {
+// Meu keeps the settled checklist visibly expanded after a turn (756278c179); it stays read-only,
+// collapsible, and never shows a running spinner.
+it('offers an expanded read-only checklist from an idle session, without a running spinner', () => {
   restoreSessionTodosFromSnapshot(
     'owner',
     {
@@ -58,11 +60,11 @@ it('offers a collapsed read-only checklist from an idle session, without a runni
   render(stack())
 
   const review = screen.getByRole('button', { name: /Previous tasks 1\/2/ })
-  expect(review.getAttribute('aria-expanded')).toBe('false')
-  expect(screen.queryByText('Still open')).toBeNull()
-  fireEvent.click(review)
+  expect(review.getAttribute('aria-expanded')).toBe('true')
   expect(screen.getByText('Still open')).toBeTruthy()
   expect(screen.queryByLabelText('Running')).toBeNull()
+  fireEvent.click(review)
+  expect(review.getAttribute('aria-expanded')).toBe('false')
 })
 
 it('auto-expands only todos and keeps other groups closed as activity arrives', () => {

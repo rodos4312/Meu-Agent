@@ -69,7 +69,11 @@ test.runIf(process.platform === 'win32')('native verification binds cached bytes
     fs.writeFileSync(files[1], corrupted)
     expect(await verifySignedPayloads(files, publisher)).toEqual(new Set([files[0]]))
   } finally { f.cleanup() }
-}, 30000)
+    // Six native Authenticode checks of a full node.exe copy, each in its own PowerShell: well past 30s on
+    // a loaded Windows host. The assertions, not the clock, are the contract.
+  },
+  180_000
+)
 
 test.runIf(process.platform === 'win32')('catalog trust cannot mask the embedded signature', async () => {
   const f = fixture()

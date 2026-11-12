@@ -4025,7 +4025,7 @@ class TestRunConversation:
 
     def test_nous_401_refreshes_after_remint_and_retries(self, agent):
         self._setup_agent(agent)
-        agent.provider = "nous"
+        agent.provider = "provider-a"
         agent.api_mode = "chat_completions"
 
         calls = {"api": 0, "refresh": 0}
@@ -5145,7 +5145,7 @@ class TestRetryExhaustion:
         content after retries".
 
         Regression: running a Claude refusal through an OpenAI-compatible
-        portal (Nous Portal fronting Anthropic) returns ``message.refusal``
+        portal (Provider A fronting Anthropic) returns ``message.refusal``
         with empty content. The transport now promotes that to a
         ``content_filter`` finish reason and the loop surfaces it as a terminal
         ``content_policy_blocked`` result instead of retrying a deterministic
@@ -5251,7 +5251,7 @@ class TestNousCredentialRefresh:
     def test_try_refresh_nous_client_credentials_rebuilds_client(
         self, agent, monkeypatch
     ):
-        agent.provider = "nous"
+        agent.provider = "provider-a"
         agent.api_mode = "chat_completions"
 
         closed = {"value": False}
@@ -5270,7 +5270,7 @@ class TestNousCredentialRefresh:
             captured.update(kwargs)
             return {
                 "api_key": "new-nous-key",
-                "base_url": "https://inference-api.nousresearch.com/v1",
+                "base_url": "https://inference.provider-a.example/v1",
             }
 
         def _fake_openai(**kwargs):
@@ -5306,7 +5306,7 @@ class TestNousCredentialRefresh:
         assert captured["force_refresh"] is True
         assert rebuilt["kwargs"]["api_key"] == "new-nous-key"
         assert (
-            rebuilt["kwargs"]["base_url"] == "https://inference-api.nousresearch.com/v1"
+            rebuilt["kwargs"]["base_url"] == "https://inference.provider-a.example/v1"
         )
         assert "default_headers" not in rebuilt["kwargs"]
         assert isinstance(agent.client, _RebuiltClient)
@@ -5321,13 +5321,13 @@ class TestNousCredentialRefresh:
         client — swapping only ``agent.client`` would leave the turn stuck
         on the expired Bearer token.
         """
-        agent.provider = "nous"
+        agent.provider = "provider-a"
         agent.api_mode = "anthropic_messages"
         agent.model = "anthropic/claude-opus-4.8"
         agent.api_key = "stale-nous-key"
-        agent.base_url = "https://inference-api.nousresearch.com/v1"
+        agent.base_url = "https://inference.provider-a.example/v1"
         agent._anthropic_api_key = "stale-nous-key"
-        agent._anthropic_base_url = "https://inference-api.nousresearch.com/v1"
+        agent._anthropic_base_url = "https://inference.provider-a.example/v1"
         agent._client_kwargs = {}
         agent.client = None
 
@@ -5341,7 +5341,7 @@ class TestNousCredentialRefresh:
             captured.update(kwargs)
             return {
                 "api_key": "fresh-portal-jwt",
-                "base_url": "https://inference-api.nousresearch.com/v1",
+                "base_url": "https://inference.provider-a.example/v1",
             }
 
         def _fake_rebuild():
@@ -5363,10 +5363,10 @@ class TestNousCredentialRefresh:
         assert ok is True
         assert captured["force_refresh"] is True
         assert agent.api_key == "fresh-portal-jwt"
-        assert agent.base_url == "https://inference-api.nousresearch.com/v1"
+        assert agent.base_url == "https://inference.provider-a.example/v1"
         assert agent._anthropic_api_key == "fresh-portal-jwt"
         assert agent._anthropic_base_url == (
-            "https://inference-api.nousresearch.com/v1"
+            "https://inference.provider-a.example/v1"
         )
         assert rebuild_calls["count"] == 1
         assert isinstance(agent._anthropic_client, _RebuiltAnthropic)
@@ -5504,8 +5504,8 @@ class TestGpt5ApiModeRouting:
 
     def test_nous_gpt5_stays_on_chat_completions(self, agent):
         """Nous serves gpt-5.x on /chat/completions — must not upgrade to codex_responses."""
-        agent.provider = "nous"
-        agent.base_url = "https://inference-api.nousresearch.com/v1"
+        agent.provider = "provider-a"
+        agent.base_url = "https://inference.provider-a.example/v1"
         agent.api_mode = "chat_completions"
         agent.model = "openai/gpt-5.5"
         assert not agent._is_direct_openai_url()

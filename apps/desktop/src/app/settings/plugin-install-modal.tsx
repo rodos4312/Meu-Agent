@@ -486,7 +486,7 @@ function InstallView({ request, installing, onInstallingChange }: InstallViewPro
 
   // Retrying reruns an install or a read that failed; it cannot add a capability this environment lacks.
   const retryable = Boolean(installError) || !(probe?.unavailable || nothing)
-  const line = `${verified ? m.reviewedByNous : m.securityIntro} ${(enable ? m.installsAndEnables : m.installsOnly)(targetLabel)}`
+  const line = `${verified ? m.reviewedByCatalog : m.securityIntro} ${(enable ? m.installsAndEnables : m.installsOnly)(targetLabel)}`
 
   const install = async (withoutReviewedCommit = false) => {
     onInstallingChange(true)

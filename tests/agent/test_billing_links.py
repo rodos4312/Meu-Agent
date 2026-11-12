@@ -13,7 +13,7 @@ from agent.billing_links import (
 
 def test_known_provider_by_slug_resolves_label_and_url():
     block = build_billing_block(provider="openai", base_url="", model="gpt-5")
-    assert block.is_nous is False
+    assert "is_nous" not in block.to_dict()
     assert block.provider_label == "OpenAI"
     assert block.billing_url is not None
     assert "openai.com" in block.billing_url

@@ -22,7 +22,7 @@ Pick whichever fits the moment. They share state, so you can start a session in 
 
 ## Install
 
-Download the app from the [Hermes Desktop product page](https://hermes-agent.nousresearch.com/desktop), or follow the [installation instructions for Hermes Desktop](../getting-started/installation.md).
+Download the app from the [Meu releases page](https://github.com/rodos4312/Meu-Agent/releases), or follow the [installation instructions for Hermes Desktop](../getting-started/installation.md).
 
 If you already have Hermes installed, simply run
 
@@ -77,7 +77,7 @@ for a trusted LAN or VPN, OAuth/OIDC for anything internet-facing). Behind a rev
 you run, keep the loopback host and set `webapp.public_url` to the address it serves instead; that
 requires the same sign-in. `hermes webapp` then opens the Webapp's address, where you sign in with
 your dashboard account: `webapp.public_url` when set; on the LAN, the address **Web Access → Start**
-registered Nous sign-in for, while it is still this machine's address and the Webapp's port; else the
+registered sign-in for, while it is still this machine's address and the Webapp's port; else the
 loopback address (a password provider, or sign-in you set up by hand for that address). One-use
 links serve only a Webapp that needs no sign-in. HTTPS is strongly recommended remotely.
 
@@ -121,7 +121,7 @@ sessions adopt` for another profile), or open them once in the native Desktop, T
 ### Open it from your phone or another computer
 
 In the native app, **Settings → Web Access** turns the Webapp on for other devices, behind sign-in with
-your Nous account (Providers → Accounts). It appears only in the native app on its local connection,
+the gateway's own dashboard sign-in. It appears only in the native app on its local connection,
 and only that app can change it: a browser signed in over the network cannot.
 
 - **This network:** devices on the same Wi-Fi open `http://<this computer's address>:<port>`, where the
@@ -134,7 +134,7 @@ and only that app can change it: a browser signed in over the network cannot.
   from your router directly.
 
 **Start** builds the Webapp if it is missing or out of date (the same build `hermes webapp` runs, which
-can take a few minutes the first time), registers its sign-in address with your Nous account when that
+can take a few minutes the first time), registers its sign-in address with the gateway's sign-in provider when that
 address changed, saves the `webapp:` settings and restarts the gateway, which reads them when it
 starts. While a chat is running the gateway refuses to restart: the pane shows **Restart needed**, the
 settings apply on the next restart, and **Restart gateway** restarts it once the chat ends. **Stop**
@@ -143,10 +143,7 @@ turns the Webapp off the same way. A Webapp you turned on for this computer only
 
 Web Access changes only the `webapp:` settings and keeps your `webapp.port`. It leaves
 `dashboard.public_url` alone, so a standalone dashboard you publish separately keeps its own address.
-Its Nous sign-in uses a sign-in client of its own, which the first Start registers with your Nous
-account and keeps in the gateway's home (`webapp/sign-in-registration.json`). Start never reads or
-writes `HERMES_DASHBOARD_OAUTH_CLIENT_ID` in `.env`, so turning Web Access on never changes the
-standalone dashboard's Nous sign-in. A standalone profile with its own gateway serves its Webapp on a
+A standalone profile with its own gateway serves its Webapp on a
 port of its own: when its `webapp.port` is unset, the first Start picks the first free port above 9120
 that no other profile uses and saves it as that profile's `webapp.port`, so its address stays the same
 after restarts. A `webapp.port` you set is always kept. `hermes update` rebuilds the Webapp
@@ -527,7 +524,7 @@ The desktop app and the Hermes backend it talks to update on separate clocks —
 
 After any backend update, the app also re-checks its own version and warns with a one-click **Update desktop app** action if the GUI is still behind — so updating a remote backend can never silently leave you on a stale desktop build.
 
-The [manual update process](https://hermes-agent.nousresearch.com/docs/getting-started/updating) also works with the GUI.
+The [manual update process](../getting-started/updating.md) also works with the GUI.
 
 ## Uninstalling
 

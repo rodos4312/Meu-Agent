@@ -213,7 +213,7 @@ def _kanban_failures():
     from hermes_cli.auth import AuthError
     from hermes_cli.auth_constants import CODEX_RATE_LIMITED_CODE
     return [(AuthError('quota', provider='openai-codex', code=CODEX_RATE_LIMITED_CODE), kb.KANBAN_RATE_LIMIT_EXIT_CODE),
-            (AuthError('relogin', provider='nous', relogin_required=True), kb.KANBAN_TERMINAL_PROVIDER_EXIT_CODE)]
+            (AuthError('relogin', provider='provider-a', relogin_required=True), kb.KANBAN_TERMINAL_PROVIDER_EXIT_CODE)]
 
 
 @pytest.mark.parametrize('error, expected', _kanban_failures())
@@ -258,7 +258,7 @@ def _primary_auth_failure(monkeypatch, fallback_ok):
         calls.append(requested)
         if requested == FALLBACK['provider'] and fallback_ok:
             return {'provider': 'openrouter', 'api_key': 'fake-fallback', 'base_url': 'https://openrouter.ai/api/v1'}
-        raise AuthError('relogin', provider='nous', relogin_required=True)
+        raise AuthError('relogin', provider='provider-a', relogin_required=True)
     monkeypatch.setattr('hermes_cli.runtime_provider_custom._resolve_named_custom_runtime', lambda **kw: None)
     monkeypatch.setattr('hermes_cli.runtime_provider.resolve_runtime_provider', resolve)
     return calls

@@ -66,7 +66,7 @@ export const ruPluginSettings = {
       serverNotConnected: (server, reason) => `MCP-сервер ${server} не подключён${reason ? `: ${reason}` : '.'}`,
       verified: 'Проверен',
       unverified: 'Не проверен',
-      reviewedByNous: 'Проверен Nous.',
+      reviewedByCatalog: 'Проверен составителями каталога.',
       installsAndEnables: profile => `Устанавливается для ${profile} и сразу включается.`,
       installsOnly: profile => `Устанавливается для ${profile}.`,
       advanced: 'Дополнительно',

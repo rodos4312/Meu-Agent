@@ -116,36 +116,3 @@ def test_oauth_plugin_status_follows_the_credential_pool(plugin):
 
     assert auth.get_plugin_oauth_auth_status("openai-codex") == {"logged_in": False}
 
-
-def test_any_external_process_plugin_counts_as_signed_in_when_its_binary_resolves(plugin, monkeypatch, tmp_path):
-    """The Desktop ``explicit_only`` filter (``build_model_options_payload`` behind
-    ``tui_gateway/methods_complete.py::model.options``) keeps an out-of-tree ACP row exactly like the
-    bundled one: binary resolves → auth evidence; missing binary → hidden."""
-    import providers
-    from hermes_cli import auth
-    from hermes_cli.inventory import _external_process_signed_in, _filter_explicit_provider_rows
-
-    plugin(ProviderProfile(name="example-acp", auth_type="external_process", base_url="acp://example",
-                           process_command="example-acp-bin", fallback_models=("acp-a",)))
-
-    class _Ctx:
-        current_provider = "nous"
-
-    rows = [{"slug": "example-acp", "models": ["acp-a"]}]
-    monkeypatch.setenv("PATH", str(tmp_path / "nowhere"))
-    assert _external_process_signed_in("example-acp") is False
-    assert _filter_explicit_provider_rows(rows, _Ctx()) == []
-
-    _fake_binary(tmp_path, monkeypatch, "example-acp-bin")
-    status = auth.get_external_process_provider_status("example-acp")
-    assert status["auth_verified"] is True and status["auth_source"].startswith("command: ")
-    assert [r["slug"] for r in _filter_explicit_provider_rows(rows, _Ctx())] == ["example-acp"]
-    # A profile with its own token-store evidence keeps it: a resolving binary alone is not a sign-in there.
-    class _TokenStoreProfile(ProviderProfile):
-        def external_auth_evidence(self):
-            return (False, None)
-
-    plugin(_TokenStoreProfile(name="example-acp-tokens", auth_type="external_process", base_url="acp://tokens",
-                              process_command="example-acp-tokens-bin"))
-    assert auth._external_process_auth_evidence("example-acp-tokens", str(tmp_path / "example-acp-tokens-bin")) == \
-        providers.get_provider_profile("example-acp-tokens").external_auth_evidence()

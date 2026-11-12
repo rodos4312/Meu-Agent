@@ -33,7 +33,7 @@ if (!['', 'light', 'bundled', 'store'].includes(variant)) {
 // MSIX package identity. The Store re-signs on submission.
 const store = variant === 'store'
 const light = variant === 'light'
-const name = variants[store ? 'bundled' : (variant || '')]
+const name = variants[store ? 'bundled' : variant || '']
 
 // The electron-updater feed channel this build PUBLISHES to. A canary
 // tag (vX.Y.Z+canary.YYYYMMDDTHHMMSSZ) writes canary.yml / light-canary.yml;
@@ -68,7 +68,7 @@ const identity = {
   displayName,
   appId: `com.nousresearch.${name.kebab}${kebabSuffix}`,
   // Store and commit builds do not publish a release feed.
-  channel: store || buildCommit ? null : light ? (canary ? 'light-canary' : 'light') : (canary ? 'canary' : 'latest'),
+  channel: store || buildCommit ? null : light ? (canary ? 'light-canary' : 'light') : canary ? 'canary' : 'latest',
   appNamePascal: `${name.pascal}${pascalSuffix}`,
   artifactNamePascal: name.pascal,
   windowsExecutableName: kebabSuffix ? cliName : displayName,
@@ -94,18 +94,13 @@ const request = channelBuildRequest()
 // the regular app. It must also run like one: a token would make the runtime
 // pin a userData dir and single-instance lock that installed stable doesn't use.
 // The updater reads the token from the stamped request, not from this export.
-const officialChannel =
-  request !== null &&
-  ['appId', 'displayName', 'appNamePascal', 'artifactNamePascal', 'windowsExecutableName', 'cliName', 'msixAppIdWithOrg'].every(
-    key => request.identity[key] === identity[key]
-  )
 
 // Meu is a distinct personal desktop product. Preserve the existing Hermes CLI
 // command and Python protocol for compatibility, but never claim Nous's OS
 // identity or subscribe to Nous's auto-update feed for a source-built Meu app.
 // The official Store identity is intentionally untouched and is NOT a Meu build.
-const meuIdentity = !store && !light && !request
-  ? {
+const meuStable = !store && !light
+    ? {
       ...identity,
       displayName: 'Meu',
       appId: 'com.meuagent.desktop',
@@ -116,11 +111,28 @@ const meuIdentity = !store && !light && !request
       channel: null
     }
   : null
+const meuIdentity = !request ? meuStable : null
+// The identity this build would have without a channel request: Meu's for a source build.
+// Comparing against the upstream identity instead would treat a stable-branded Meu channel
+// as foreign, keep its token and give it a userData dir the installed Meu does not use.
+const stableIdentity = meuStable || identity
+
+const officialChannel =
+  request !== null &&
+  [
+    'appId',
+    'displayName',
+    'appNamePascal',
+    'artifactNamePascal',
+    'windowsExecutableName',
+    'cliName',
+    'msixAppIdWithOrg'
+  ].every(key => request.identity[key] === stableIdentity[key])
 
 module.exports = meuIdentity || (!request
   ? identity
   : Object.freeze(
       officialChannel
-        ? { ...identity, channel: request.channel }
+        ? { ...stableIdentity, channel: request.channel }
         : { ...request.identity, store: false, light: false, channel: request.channel }
     ))

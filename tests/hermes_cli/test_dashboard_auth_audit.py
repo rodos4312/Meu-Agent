@@ -47,10 +47,10 @@ def test_audit_bounds_string_values(profile_home: Path, non_native: bool) -> Non
 
 
 def test_audit_writes_jsonlines(profile_home):
-    audit_log(AuditEvent.LOGIN_START, provider="nous", ip="1.2.3.4")
+    audit_log(AuditEvent.LOGIN_START, provider="provider-a", ip="1.2.3.4")
     audit_log(
         AuditEvent.LOGIN_SUCCESS,
-        provider="nous", user_id="u1",
+        provider="provider-a", user_id="u1",
         email="a@b.com", ip="1.2.3.4",
     )
 
@@ -61,7 +61,7 @@ def test_audit_writes_jsonlines(profile_home):
 
     second = json.loads(lines[1])
     assert second["event"] == "login_success"
-    assert second["provider"] == "nous"
+    assert second["provider"] == "provider-a"
     assert second["user_id"] == "u1"
     assert second["email"] == "a@b.com"
     assert "ts" in second  # ISO-8601 timestamp
@@ -98,7 +98,7 @@ def test_audit_rotates_on_crossing_write(profile_home, monkeypatch):
     prior = logs / "dashboard-auth.log"
     prior.write_bytes(b"x" * 190)
 
-    audit_log(AuditEvent.LOGIN_START, provider="nous")
+    audit_log(AuditEvent.LOGIN_START, provider="provider-a")
 
     assert (logs / "dashboard-auth.log.1").read_bytes() == b"x" * 190
     assert prior.stat().st_size < 200
@@ -107,7 +107,7 @@ def test_audit_rotates_on_crossing_write(profile_home, monkeypatch):
 def test_audit_redacts_token_like_fields(profile_home):
     audit_log(
         AuditEvent.LOGIN_SUCCESS,
-        provider="nous", access_token="should-not-appear",
+        provider="provider-a", access_token="should-not-appear",
         refresh_token="also-not", code="not-this", state="nope",
     )
     raw = (profile_home / "logs" / "dashboard-auth.log").read_text()

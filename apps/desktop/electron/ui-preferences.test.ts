@@ -137,10 +137,10 @@ test('a client’s localStorage import only adds the keys a store lacks', async 
 
   const seeded = await writeUiPreferences(file, {
     seed: true,
-    values: { 'hermes-desktop-mode-v1': 'light', 'hermes-desktop-theme-v2': 'nous' }
+    values: { 'hermes-desktop-mode-v1': 'light', 'hermes-desktop-theme-v2': 'provider-a' }
   })
 
-  assert.deepEqual(seeded.values, { 'hermes-desktop-mode-v1': 'dark', 'hermes-desktop-theme-v2': 'nous' })
+  assert.deepEqual(seeded.values, { 'hermes-desktop-mode-v1': 'dark', 'hermes-desktop-theme-v2': 'provider-a' })
   assert.deepEqual(readUiPreferences(file).values, seeded.values)
 })
 
@@ -151,7 +151,9 @@ test.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
   async () => {
     const home = scratchHome()
     const file = uiPreferencesPath(home)
-    await writeUiPreferences(file, { values: { 'hermes-desktop-theme-v2': 'nous', 'hermes.desktop.keybinds': '{}' } })
+    await writeUiPreferences(file, {
+      values: { 'hermes-desktop-theme-v2': 'provider-a', 'hermes.desktop.keybinds': '{}' }
+    })
     const before = fs.readFileSync(file, 'utf8')
     fs.chmodSync(file, 0)
 

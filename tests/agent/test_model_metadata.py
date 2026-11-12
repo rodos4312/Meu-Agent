@@ -978,7 +978,7 @@ class TestEndpointContextResolution:
     def test_legacy_portal_cache_remains_offline(self, tmp_path, monkeypatch):
         from agent import model_metadata as mm
 
-        base_url = "https://inference-api.nousresearch.com/v1"
+        base_url = "https://inference.provider-a.example/v1"
         model = "qwen3.6-plus"
         cache_file = tmp_path / "context_length_cache.yaml"
         original = {"context_lengths": {f"{model}@{base_url}": 1_000_000}}
@@ -989,7 +989,7 @@ class TestEndpointContextResolution:
             patch.object(mm, "fetch_endpoint_model_metadata") as endpoint,
             patch.object(mm, "fetch_model_metadata") as openrouter,
         ):
-            assert mm.get_model_context_length(model=model, base_url=base_url, api_key="fake", provider="nous") == 1_000_000
+            assert mm.get_model_context_length(model=model, base_url=base_url, api_key="fake", provider="provider-a") == 1_000_000
 
         endpoint.assert_not_called()
         openrouter.assert_not_called()

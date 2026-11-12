@@ -5,10 +5,10 @@
 # Bot Screen, computer_use and the browser can live INSIDE the sandbox instead of
 # on the gateway host. No Hermes runtime in here; the gateway shells in.
 #
-#   docker build -f docker/sandbox-desktop.Dockerfile -t nousresearch/hermes-sandbox:desktop .
+#   docker build -f docker/sandbox-desktop.Dockerfile -t meu-sandbox:desktop .
 #
-# Published as nousresearch/hermes-sandbox:desktop by .github/workflows/sandbox-image.yml
-# on releases and manual dispatch only: it carries no Hermes code, so it does not track main.
+# Meu publishes no sandbox image: build it locally and set terminal.docker_image to the local tag.
+# It carries no agent code, so it does not track main.
 # The tag lives in the ARG so CI and a local build read one place; hadolint cannot
 # see through the substitution, hence the inline ignore.
 ARG SANDBOX_BASE=nikolaik/python-nodejs:python3.13-nodejs26

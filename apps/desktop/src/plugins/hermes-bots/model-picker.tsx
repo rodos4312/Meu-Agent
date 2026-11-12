@@ -171,7 +171,7 @@ export function ModelPicker({ bot = null, value, onChange, placeholderModel }: M
                 provider: event.target.value
               })
             }
-            placeholder="omnirouter / 9router / nous …"
+            placeholder="omnirouter / 9router / openrouter …"
             value={value.provider}
           />
         )}

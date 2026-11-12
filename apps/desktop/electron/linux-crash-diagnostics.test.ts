@@ -9,23 +9,27 @@ import { CHROMIUM_LOG_FILENAME, enableLinuxCrashDiagnostics, linuxCrashDiagnosti
 // shared fatal-handler address and no launcher kept the FATAL message. The
 // fix is not a guess at the cause; it is making the next crash legible.
 
-test('on linux, fatal Chromium output lands in a file under the Hermes logs dir', () => {
-  const plan = linuxCrashDiagnostics('/home/u/.hermes/logs', 'linux')
+// Host-specific: Linux-only crash log path.
+test.runIf(process.platform === 'linux')(
+  'on linux, fatal Chromium output lands in a file under the Hermes logs dir',
+  () => {
+    const plan = linuxCrashDiagnostics('/home/u/.hermes/logs', 'linux')
 
-  assert.ok(plan)
+    assert.ok(plan)
 
-  const switches = new Map(plan.switches)
+    const switches = new Map(plan.switches)
 
-  assert.equal(switches.get('enable-logging'), 'file')
+    assert.equal(switches.get('enable-logging'), 'file')
 
-  const logFile = switches.get('log-file')
+    const logFile = switches.get('log-file')
 
-  assert.ok(logFile)
-  assert.equal(path.dirname(logFile), '/home/u/.hermes/logs')
-  // FATAL (3) must survive the level filter; anything stricter would drop it.
-  assert.ok(Number(switches.get('log-level')) <= 3)
-  assert.equal(plan.crashReporter.uploadToServer, false)
-})
+    assert.ok(logFile)
+    assert.equal(path.dirname(logFile), '/home/u/.hermes/logs')
+    // FATAL (3) must survive the level filter; anything stricter would drop it.
+    assert.ok(Number(switches.get('log-level')) <= 3)
+    assert.equal(plan.crashReporter.uploadToServer, false)
+  }
+)
 
 test('other platforms get no Chromium logging switches and no crash reporter', () => {
   assert.equal(linuxCrashDiagnostics('/Users/u/.hermes/logs', 'darwin'), null)

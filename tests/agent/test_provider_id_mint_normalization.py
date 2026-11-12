@@ -20,7 +20,7 @@ def _tool_call(raw_id, n, **extra):
 def _agent():
     # Real AIAgent methods (duplicate repair, assistant serialization), no init side effects.
     agent = AIAgent.__new__(AIAgent)
-    agent.provider, agent.model, agent.session_id, agent.tools = "nous", "m", "s1", []
+    agent.provider, agent.model, agent.session_id, agent.tools = "provider-a", "m", "s1", []
     agent.valid_tool_names = {"read_file"}
     agent.log_prefix = ""
     agent._invalid_tool_retries = agent._invalid_json_retries = 0

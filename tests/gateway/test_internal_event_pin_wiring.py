@@ -590,7 +590,7 @@ async def test_internal_event_never_reuses_prompt_pin_from_another_privacy_polic
 # config reads are substituted), not the ``_capture`` stub above.
 # ---------------------------------------------------------------------------
 
-_WELCOME = "https://welcome-api.nousresearch.com/v1"
+_WELCOME = "https://welcome.provider-a.example/v1"
 
 
 class _TurnAgent:
@@ -627,7 +627,7 @@ class _TurnAgent:
     "runtime, global_model, expected_model",
     [
         ({"api_key": "fake", "provider": "openrouter"}, "default/model", "chan/model"),
-        ({"api_key": "fake", "provider": "nous", "base_url": _WELCOME}, "nous/welcome", "nous/welcome"),
+        ({"api_key": "fake", "provider": "provider-a", "base_url": _WELCOME}, "provider-a/welcome", "provider-a/welcome"),
     ],
     ids=["named-channel-model", "welcome-host-pins-over-channel-model"],
 )

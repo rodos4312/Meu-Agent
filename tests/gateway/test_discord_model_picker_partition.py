@@ -78,21 +78,21 @@ def test_nous_free_models_render_across_partitioned_selects():
     view = ModelPickerView(
         providers=[
             {
-                "slug": "nous",
-                "name": "Nous Portal",
+                "slug": "provider-a",
+                "name": "Provider A",
                 "models": list(models),
                 "total_models": len(models),
                 "is_current": True,
             }
         ],
         current_model="tencent/hy3",
-        current_provider="nous",
+        current_provider="provider-a",
         session_key="session-1",
         on_model_selected=lambda *a, **k: None,
         allowed_user_ids={"123"},
     )
-    view._selected_provider = "nous"
-    view._build_model_select("nous")
+    view._selected_provider = "provider-a"
+    view._build_model_select("provider-a")
 
     # The tail must render — this is the regression that was failing before
     # multi-select partitioning.
@@ -162,15 +162,15 @@ def test_a_large_row_carries_its_tag_as_the_option_description():
     second line (Large / Free only); every other row and every other account has no description."""
     view = ModelPickerView(
         providers=[{
-            "slug": "nous", "name": "Nous Portal", "models": ["example/model-b", "example/model-free:free"],
+            "slug": "provider-a", "name": "Provider A", "models": ["example/model-b", "example/model-free:free"],
             "total_models": 2, "is_current": True,
             "model_labels": {"example/model-b": "Large"},
         }],
-        current_model="example/model-b", current_provider="nous", session_key="session-1",
+        current_model="example/model-b", current_provider="provider-a", session_key="session-1",
         on_model_selected=lambda *a, **k: None, allowed_user_ids={"123"},
     )
-    view._selected_provider = "nous"
-    view._build_model_select("nous")
+    view._selected_provider = "provider-a"
+    view._build_model_select("provider-a")
     options = {opt.value: opt.description for child in view.children
                if str(getattr(child, "custom_id", "")).startswith("model_model_select")
                for opt in getattr(child, "options", [])}

@@ -300,7 +300,7 @@ def test_resolve_credentials_quarantines_dead_tokens_on_terminal_refresh_failure
     Mirrors the credential_pool.py quarantine for the singleton/direct resolve path.
     """
     hermes_home = tmp_path / "hermes"
-    _seed_xai_oauth_state(hermes_home, dict(_STALE_XAI_OAUTH_STATE), active_provider="nous")
+    _seed_xai_oauth_state(hermes_home, dict(_STALE_XAI_OAUTH_STATE), active_provider="provider-a")
     monkeypatch.setenv("HERMES_HOME", str(hermes_home))
 
     def _terminal_refresh(tokens, **kwargs):
@@ -339,7 +339,7 @@ def test_resolve_credentials_quarantines_dead_tokens_on_terminal_refresh_failure
     assert "at" in err
 
     # Active provider must be unchanged.
-    assert raw["active_provider"] == "nous"
+    assert raw["active_provider"] == "provider-a"
 
 
 # ---------------------------------------------------------------------------

@@ -697,7 +697,7 @@ describe('useSessionTileDelegate resumeTile', () => {
 
 describe('useSessionTileDelegate switchSessionModel', () => {
   it('answers applied only after a guarded target is confirmed, and never on "keep current model"', async () => {
-    const asked = { key: 'model', session_id: 'rt-1', value: 'example/model-a --provider nous --session' }
+    const asked = { key: 'model', session_id: 'rt-1', value: 'example/model-a --provider provider-a --session' }
 
     const requestGateway = vi.fn(async (_method: string, params: Record<string, unknown>) =>
       params.confirm_expensive_model ? {} : { confirm_message: 'Large model', confirm_required: true }
@@ -707,12 +707,12 @@ describe('useSessionTileDelegate switchSessionModel', () => {
     const switchSessionModel = sessionTileDelegate()!.switchSessionModel!
 
     vi.mocked(confirm).mockResolvedValueOnce(false)
-    await expect(switchSessionModel('rt-1', 'example/model-a', 'nous')).resolves.toBe(false)
+    await expect(switchSessionModel('rt-1', 'example/model-a', 'provider-a')).resolves.toBe(false)
     expect(requestGateway).toHaveBeenCalledTimes(1)
     expect(requestGateway).toHaveBeenCalledWith('config.set', asked)
 
     vi.mocked(confirm).mockResolvedValueOnce(true)
-    await expect(switchSessionModel('rt-1', 'example/model-a', 'nous')).resolves.toBe(true)
+    await expect(switchSessionModel('rt-1', 'example/model-a', 'provider-a')).resolves.toBe(true)
     expect(requestGateway).toHaveBeenLastCalledWith('config.set', { ...asked, confirm_expensive_model: true })
   })
 })

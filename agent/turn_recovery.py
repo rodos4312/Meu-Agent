@@ -1050,7 +1050,7 @@ def max_retries_exhausted_result(
         "failure_retryable": bool(classified.retryable),
         # True when the billing verdict rests on an ambiguous body.
         "billing_unverified": _billing_unverified,
-        # Present only for billing walls: (provider, billing_url, is_nous, message).
+        # Present only for billing walls: (provider, billing_url, message).
         "billing_block": _billing_block,
     })
     # Retry-exhaustion after partial delivery (#119001): the text was already
@@ -1674,7 +1674,5 @@ def route_classified_error(
         if agent._try_activate_fallback(reason=classified.reason):
             return _fallback_break()
 
-    # Nous Portal: a genuine account-level 429 is recorded to a shared file so ALL
-    # sessions back off; is_genuine_nous_rate_limit excludes upstream 429s.
     # Upstream capacity 429: normal retry logic will typically succeed.
     return _verdict("fallthrough")

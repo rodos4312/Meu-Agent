@@ -340,8 +340,8 @@ class TestBackendSelection:
 
     def test_retired_backend_does_not_select_firecrawl(self):
         from tools.web_tools import _get_backend
-        with patch("tools.web_tools._load_web_config", return_value={"backend": "nous"}):
-            assert _get_backend() == "nous"
+        with patch("tools.web_tools._load_web_config", return_value={"backend": "provider-a"}):
+            assert _get_backend() == "provider-a"
 
     def test_managed_gateway_does_not_preempt_explicit_exa(self):
         """Regression: a Nous OAuth token (managed gateway "ready") must NOT

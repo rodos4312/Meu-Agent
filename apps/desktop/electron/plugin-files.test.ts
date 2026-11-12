@@ -10,6 +10,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createPluginFiles, type PluginFiles } from './plugin-files'
+import { canCreateSymlinks } from './test-symlink-capability'
 
 let scratch: string
 let userData: string
@@ -90,7 +91,7 @@ describe('grants', () => {
     expect(await files.addGrant('plexus', ssh)).toMatchObject({ ok: false, error: 'protected' })
   })
 
-  it('refuses to grant a symlink that resolves into the Hermes home', async () => {
+  it.runIf(canCreateSymlinks)('refuses to grant a symlink that resolves into the Hermes home', async () => {
     const link = path.join(scratch, 'innocent')
     fs.symlinkSync(hermesHome, link)
 
@@ -119,7 +120,7 @@ describe('grants', () => {
     })
   })
 
-  it('refuses a grant whose folder was swapped for a link into the Hermes home', async () => {
+  it.runIf(canCreateSymlinks)('refuses a grant whose folder was swapped for a link into the Hermes home', async () => {
     const id = await grantVault()
     fs.rmSync(vault, { recursive: true })
     fs.symlinkSync(hermesHome, vault)
@@ -153,7 +154,7 @@ describe('path containment', () => {
     expect(fs.readFileSync(path.join(hermesHome, 'config.yaml'), 'utf8')).toBe('model: x\n')
   })
 
-  it('refuses to read through a symlinked file that points outside the folder', async () => {
+  it.runIf(canCreateSymlinks)('refuses to read through a symlinked file that points outside the folder', async () => {
     const id = await grantVault()
     fs.symlinkSync(path.join(hermesHome, '.env'), path.join(vault, 'notes', 'leak.md'))
 
@@ -167,7 +168,7 @@ describe('path containment', () => {
     })
   })
 
-  it('refuses to write through a symlinked file or folder that points outside', async () => {
+  it.runIf(canCreateSymlinks)('refuses to write through a symlinked file or folder that points outside', async () => {
     const id = await grantVault()
     fs.symlinkSync(path.join(hermesHome, 'config.yaml'), path.join(vault, 'cfg.md'))
     fs.symlinkSync(hermesHome, path.join(vault, 'home'))
@@ -183,7 +184,7 @@ describe('path containment', () => {
     expect(fs.existsSync(path.join(hermesHome, 'new.md'))).toBe(false)
   })
 
-  it('refuses a dangling symlink instead of creating its target', async () => {
+  it.runIf(canCreateSymlinks)('refuses a dangling symlink instead of creating its target', async () => {
     const id = await grantVault()
     const outside = path.join(scratch, 'created-outside.md')
     fs.symlinkSync(outside, path.join(vault, 'dangling.md'))
@@ -194,7 +195,7 @@ describe('path containment', () => {
     expect(fs.existsSync(outside)).toBe(false)
   })
 
-  it('refuses listing, renaming and trashing through a symlinked folder into the Hermes home', async () => {
+  it.runIf(canCreateSymlinks)('refuses listing, renaming and trashing through a symlinked folder into the Hermes home', async () => {
     const id = await grantVault()
     fs.symlinkSync(hermesHome, path.join(vault, 'home'))
 
@@ -213,7 +214,7 @@ describe('path containment', () => {
     expect(fs.existsSync(path.join(hermesHome, '.env'))).toBe(true)
   })
 
-  it('a listing hides links that leave the folder and keeps links that stay inside', async () => {
+  it.runIf(canCreateSymlinks)('a listing hides links that leave the folder and keeps links that stay inside', async () => {
     const id = await grantVault()
     fs.symlinkSync(hermesHome, path.join(vault, 'escape'))
     fs.symlinkSync(path.join(vault, 'notes'), path.join(vault, 'alias'))
@@ -270,7 +271,7 @@ describe('plugin data folder', () => {
     )
   })
 
-  it("cannot reach another plugin's data folder or the grants record", async () => {
+  it.runIf(canCreateSymlinks)("cannot reach another plugin's data folder or the grants record", async () => {
     await files.run('other', { op: 'writeText', folder: 'data', path: 'secret.json', text: 'theirs' })
     await files.run('plexus', { op: 'writeText', folder: 'data', path: 'mine.json', text: 'mine' })
 

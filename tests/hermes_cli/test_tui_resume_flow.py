@@ -250,14 +250,14 @@ def test_launch_tui_exports_model_provider_and_toolsets(monkeypatch, main_mod):
 
     with pytest.raises(SystemExit):
         main_mod._launch_tui(
-            model="nous/hermes-test", provider="nous", toolsets="web, terminal"
+            model="provider-a/hermes-test", provider="provider-a", toolsets="web, terminal"
         )
 
     env = captured["env"]
-    assert env["HERMES_MODEL"] == "nous/hermes-test"
-    assert env["HERMES_INFERENCE_MODEL"] == "nous/hermes-test"
-    assert env["HERMES_TUI_PROVIDER"] == "nous"
-    assert env["HERMES_INFERENCE_PROVIDER"] == "nous"
+    assert env["HERMES_MODEL"] == "provider-a/hermes-test"
+    assert env["HERMES_INFERENCE_MODEL"] == "provider-a/hermes-test"
+    assert env["HERMES_TUI_PROVIDER"] == "provider-a"
+    assert env["HERMES_INFERENCE_PROVIDER"] == "provider-a"
     assert env["HERMES_TUI_TOOLSETS"] == "web,terminal"
     active_path = Path(env["HERMES_TUI_ACTIVE_SESSION_FILE"])
     assert active_path.name.startswith("hermes-tui-active-session-")

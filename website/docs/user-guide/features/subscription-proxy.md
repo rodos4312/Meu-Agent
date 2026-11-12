@@ -32,10 +32,6 @@ proxy when you just want **the model** through your subscription.
 hermes portal
 ```
 
-This opens your browser for the Nous Portal OAuth flow. Hermes stores
-the refresh token in `~/.hermes/auth.json` — the same place all Hermes
-provider logins live.
-
 ### 2. Start the proxy
 
 ```bash
@@ -72,10 +68,6 @@ automatically when the bearer approaches expiry.
 hermes proxy providers
 ```
 
-Currently shipped: `nous` (Nous Portal) and `xai` (xAI / Grok). More
-OAuth providers can be added by implementing the `UpstreamAdapter`
-interface in `hermes_cli/proxy/adapters/`.
-
 ## Check status
 
 ```bash
@@ -87,11 +79,6 @@ Hermes proxy upstream adapters
 
   [nous    ] Nous Portal — ready (bearer expires 2026-05-15T06:43:21Z)
 ```
-
-If you see `not logged in`, run `hermes portal`. If you see
-`credentials need attention`, your refresh token was revoked (rare —
-happens if you signed out from the Portal web UI) — just re-run
-`hermes portal`.
 
 ## Allowed paths
 
@@ -139,11 +126,6 @@ hermes proxy start
 openviking-server
 ```
 
-OpenViking's VLM calls now flow through your Portal subscription. The
-embedding model side still needs its own provider — Portal does serve
-`/v1/embeddings` but the model selection depends on what your tier
-supports; check `portal.nousresearch.com/models`.
-
 ## Configuring Karakeep (or any bookmark/summarizer app)
 
 [Karakeep](https://karakeep.app/) takes an OpenAI-compatible API for
@@ -181,11 +163,6 @@ Use a firewall, VPN, or reverse proxy with proper auth if you expose
 this beyond your trusted network.
 
 ## Rate limits
-
-Your Portal tier's RPM/TPM limits apply across the whole proxy. The
-proxy doesn't fan out or pool — it's a single bearer with your full
-subscription quota. Monitor usage at
-[portal.nousresearch.com](https://portal.nousresearch.com).
 
 ## Architecture
 

@@ -10,7 +10,7 @@ export const esGatewayHost: GatewayHostTranslations = {
     'La Webapp siempre usa el host de Hermes que la sirve. Para cambiar de gateway, iniciar sesión en Hermes Cloud o gestionar conexiones guardadas, usa la app Hermes Desktop.',
   webAccess: {
     title: 'Acceso web',
-    intro: 'Abre Meu de este ordenador desde tu teléfono u otro ordenador, con tu cuenta de Nous. Quien inicie sesión puede ejecutar comandos en este ordenador.',
+    intro: 'Abre Meu de este ordenador desde tu teléfono u otro ordenador, con tu cuenta. Quien inicie sesión puede ejecutar comandos en este ordenador.',
     failed: 'No se pudo cambiar el acceso web',
     running: 'En ejecución',
     stopped: 'Detenido',
@@ -19,7 +19,7 @@ export const esGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Reinicio necesario',
     unavailable: 'No disponible',
     notRunningDetail: 'Inícialo para abrir Meu desde otro dispositivo.',
-    needsSignIn: "Configura primero un proveedor de acceso al panel.",
+    needsSignIn: 'Configura primero un proveedor de acceso al panel.',
     runningLan: 'Abre esta dirección en un dispositivo de la misma red.',
     runningPublic: 'Servido a través de tu URL.',
     runningLocal: 'Solo este ordenador puede abrirla. Detenla y vuelve a iniciarla para abrirla desde otros dispositivos.',

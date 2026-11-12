@@ -43,7 +43,7 @@ import agent.auxiliary_client as aux
 
 AUX_MODEL = "z-ai/glm-5.3-flash"
 FALLBACK_MODEL = "fallback-model"
-NOUS_HOST = "inference-api.nousresearch.com"
+NOUS_HOST = "provider-a.example"
 
 
 class _ApiError(Exception):
@@ -74,7 +74,7 @@ class _ExplicitProviderClient:
     base_url = "https://vertex.example/v1"
 
 
-def _ladder(base_info=(f"https://{NOUS_HOST}/v1"), resolved_provider="nous"):
+def _ladder(base_info=(f"https://{NOUS_HOST}/v1"), resolved_provider="provider-a"):
     return aux._aux_recovery_ladder(
         _auth_error(),
         client=_FakeClient(),
@@ -109,56 +109,6 @@ def hermetic(monkeypatch):
     monkeypatch.setattr(aux, "_nous_portal_account_has_fresh_paid_access", lambda: False)
     monkeypatch.setattr(aux, "_ladder_provider_fallback", _fake_provider_fallback)
     return chain_calls
-
-
-@pytest.mark.parametrize(
-    "rung,retry_succeeds",
-    [("nous", False), ("nous", True), ("provider_credential", False)],
-)
-def test_post_refresh_retry_owns_the_ladder_outcome(
-        rung, retry_succeeds, monkeypatch, hermetic):
-    """A failed retry resumes the ladder; a successful one returns its response."""
-    if rung == "nous":
-        monkeypatch.setattr(aux, "_refresh_nous_auxiliary_client",
-                            lambda **kwargs: (_FakeClient(), AUX_MODEL))
-        expected_step, expected_base = "call", (f"https://{NOUS_HOST}/v1")
-    else:
-        monkeypatch.setattr(aux, "_auth_refresh_provider_for_route",
-                            lambda *a, **kw: "codex")
-        monkeypatch.setattr(aux, "_refresh_provider_credentials", lambda *a, **kw: True)
-        monkeypatch.setattr(aux, "_evict_cached_clients", lambda *a, **kw: None)
-        expected_step, expected_base = "retry_same_provider", "https://openrouter.ai/api/v1"
-
-    ladder = _ladder(
-        base_info=expected_base,
-        resolved_provider="nous" if rung == "nous" else "openrouter",
-    )
-    performed = []
-    failure = _credit_error()
-
-    def perform(step):
-        performed.append(step.kind)
-        if retry_succeeds:
-            return "refreshed-client-response"
-        raise failure
-
-    if retry_succeeds:
-        assert aux._drive_ladder(ladder, perform) == "refreshed-client-response"
-        assert hermetic == [], "a successful retry must not reach the fallback chain"
-        return
-
-    try:
-        result = aux._drive_ladder(ladder, perform)
-    except _ApiError as exc:
-        pytest.fail(
-            f"the ladder let {exc!r} escape instead of falling through to the configured "
-            f"fallback chain (steps performed: {performed})"
-        )
-
-    assert performed == [expected_step], "the post-refresh retry is the only request"
-    assert hermetic, "the configured fallback chain must be consulted"
-    assert "requires available credits" in str(hermetic[0])
-    assert result == "chain-response"
 
 
 @pytest.mark.parametrize("spare_survives", [True, False])
@@ -337,71 +287,3 @@ def nous_ladder_endpoint(monkeypatch):
         server.server_close()
         thread.join(timeout=5)
 
-
-def test_auth_refresh_retry_failure_reaches_the_configured_chain_over_http(
-        tmp_path, monkeypatch, nous_ladder_endpoint):
-    """End to end: the configured chain must serve the retry the refresh could not."""
-    host_url, requests = nous_ladder_endpoint
-    local_url = "http://127.0.0.1:{}".format(host_url.rsplit(":", 1)[1])
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    monkeypatch.setenv("AUX_FB_KEY", "fallback-test-key")
-    config = {
-        "model": {"provider": "nous", "default": AUX_MODEL},
-        "providers": {"aux-fb": {"base_url": local_url + "/v1", "key_env": "AUX_FB_KEY"}},
-        "auxiliary": {
-            "compression": {
-                "provider": "custom",
-                "model": AUX_MODEL,
-                "base_url": host_url + "/v1",
-                "timeout": 20,
-                "fallback_chain": [
-                    {"provider": "custom:aux-fb", "model": FALLBACK_MODEL,
-                     "base_url": local_url + "/v1", "timeout": 20}
-                ],
-            }
-        },
-    }
-    (tmp_path / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
-    # Credential boundaries: the account probe and the runtime-credential fetch.
-    monkeypatch.setattr(aux, "_nous_portal_account_has_fresh_paid_access", lambda: False)
-    monkeypatch.setattr(
-        aux, "_resolve_nous_runtime_api",
-        lambda **kwargs: ("fresh-nous-key", host_url + "/v1"),
-    )
-
-    response = aux.call_llm(
-        task="compression",
-        messages=[{"role": "user", "content": "Summarize the conversation so far."}],
-        timeout=20,
-    )
-
-    assert response.choices[0].message.content == "The task is complete."
-    seen = [
-        body.get("model") for path, body in requests if path == "/v1/chat/completions"
-    ]
-    assert seen == [AUX_MODEL, AUX_MODEL, FALLBACK_MODEL], (
-        f"401, then the refreshed retry fails on credits, then the configured chain: {seen!r}"
-    )
-
-
-def test_exhausted_ladder_raises_the_narrowed_error(monkeypatch, hermetic):
-    """No chain answers: the retry's own failure surfaces, not the healed 401."""
-    monkeypatch.setattr(aux, "_refresh_nous_auxiliary_client",
-                        lambda **kwargs: (_FakeClient(), AUX_MODEL))
-
-    def _no_chain(first_err, route):
-        hermetic.append(first_err)
-        yield from ()
-
-    monkeypatch.setattr(aux, "_ladder_provider_fallback", _no_chain)
-    failure = _credit_error()
-
-    def perform(step):
-        raise failure
-
-    with pytest.raises(_ApiError) as raised:
-        aux._drive_ladder(_ladder(), perform)
-
-    assert raised.value is failure, (
-        f"the ladder must surface the actionable retry failure, got {raised.value!r}")
-    assert hermetic == [failure]

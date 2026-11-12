@@ -416,9 +416,7 @@ _SECTIONS = (
 
 def show_status(args):
     """One-screen summary by default; ``--full``/``--deep`` print every section."""
-    # Shared by section renderers: config, --deep, and the Nous login facts Auth Providers derives
-    # for the later Nous Tool Gateway section.
-    ctx = SimpleNamespace(deep=getattr(args, 'deep', False), config={}, nous_logged_in=False,
-                          nous_inference_present=False, nous_account_info=None)
+    # Shared by section renderers: config and --deep.
+    ctx = SimpleNamespace(deep=getattr(args, 'deep', False), config={})
     for render in _SECTIONS if getattr(args, 'full', False) or ctx.deep else (_render_summary,):
         render(ctx)

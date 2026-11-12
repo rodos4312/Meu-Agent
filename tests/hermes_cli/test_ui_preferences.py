@@ -64,7 +64,7 @@ def test_an_unreadable_or_corrupt_store_is_never_merged_over(tmp_path):
     and stays intact; a corrupt one is kept aside and replaced by a NEW generation, which every
     open window follows whatever revision it had seen."""
     path = tmp_path / "ui-preferences.json"
-    kept = ui_preferences.write_preferences({"hermes-desktop-theme-v2": "nous", "hermes.desktop.keybinds": "{}"},
+    kept = ui_preferences.write_preferences({"hermes-desktop-theme-v2": "provider-a", "hermes.desktop.keybinds": "{}"},
                                             path=path)
     before = path.read_bytes()
     path.chmod(0)

@@ -138,7 +138,7 @@ def cmd_gateway_enroll(args) -> None:
 
     # Caller-identity token (proves the tenant). ``gateway.relay`` owns the ONE resolver shared with
     # the runtime self-provision path: generic OIDC client-credentials when ``gateway.idp.token_url``
-    # is set (air-gapped / self-hosted IdP), otherwise Nous Portal.
+    # is set (air-gapped / self-hosted IdP); without one, enrolment fails closed.
     try:
         from gateway.relay import _resolve_relay_identity_token
 

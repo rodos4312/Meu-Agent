@@ -83,7 +83,12 @@ describe('update child proxy env from the system proxy (#123387)', () => {
 
   it("extends the user's own NO_PROXY instead of replacing it, and restores it for the relaunched app", async () => {
     const user = { PATH: '/usr/bin', NO_PROXY: 'corp.internal' }
-    const env = await systemProxyEnv(user, pac({ 'github.com': 'PROXY 10.0.0.7:7890' }), ['github.com'])
+
+    // POSIX semantics (case-sensitive names); the Windows case-insensitive rule has its own test.
+    const env = await systemProxyEnv(user, pac({ 'github.com': 'PROXY 10.0.0.7:7890' }), ['github.com'],
+      () => {},
+      false
+    )
 
     expect(env.NO_PROXY).toBe(['corp.internal', ...LOCAL_BYPASS].join(','))
     expect(env.no_proxy).toBe(env.NO_PROXY)

@@ -29,6 +29,7 @@ from hermes_constants import get_hermes_home, hermes_home_key
 from tools.browser_harness_dirs import (daemon_env, daemon_identity, fit_default_socket_dir, harness_pid_file,
                                         namespace_harness_dirs)
 from utils import is_truthy_value
+from tools.tool_backend_helpers import is_retired_selection
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +228,7 @@ def _read_browser_cfg() -> dict:
 def _retired_gateway_selected(browser_cfg: dict) -> bool:
     """Recognize old settings so they never activate the direct account implicitly."""
     return (is_truthy_value(browser_cfg.get("use_gateway"), default=False)
-            or str(browser_cfg.get("cloud_provider") or "").strip().lower() == "nous")
+            or is_retired_selection(browser_cfg.get("cloud_provider")))
 
 
 def is_legacy_browser_use_cloud_config(browser_cfg: dict) -> bool:

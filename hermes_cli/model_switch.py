@@ -98,16 +98,16 @@ def _bare_custom_provider_def(current_base_url: str) -> Optional[ProviderDef]:
 # --- Non-agentic model warning
 
 _HERMES_MODEL_WARNING = (
-    "Nous Research Hermes 3 & 4 models are NOT agentic and are not designed "
-    "for use with Hermes Agent. They lack the tool-calling capabilities "
+    "Hermes 3 & 4 chat models are NOT agentic and are not designed "
+    "for use with Meu. They lack the tool-calling capabilities "
     "required for agent workflows. Consider using an agentic model instead "
     "(Claude, GPT, Gemini, DeepSeek, etc.).")
 
-# Match only the real Nous Research Hermes 3 / 4 chat families; a bare substring check
+# Match only the real Hermes 3 / 4 chat model families; a bare substring check
 # false-positived on tool-capable local Modelfiles like ``hermes-brain:qwen3-14b-ctx16k``.
 #   match:    NousResearch/Hermes-3-Llama-3.1-70B, hermes-4-405b, openrouter/hermes3:70b
 #   no match: hermes-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
-_NOUS_HERMES_NON_AGENTIC_RE = re.compile(r"(?:^|[/:])hermes[-_ ]?[34](?:[-_.:]|$)", re.IGNORECASE)
+_NON_AGENTIC_HERMES_CHAT_RE = re.compile(r"(?:^|[/:])hermes[-_ ]?[34](?:[-_.:]|$)", re.IGNORECASE)
 
 
 # Opaque proxy model IDs (Palantir Foundry: ``ri.language-model-service..language-model.<slug>``)
@@ -124,14 +124,14 @@ def format_model_for_display(model_name: str) -> str:
     return model_name
 
 
-def is_nous_hermes_non_agentic(model_name: str) -> bool:
-    """True if *model_name* is a real Nous Hermes 3/4 chat model (single owner; cli.py uses it too)."""
-    return bool(model_name and _NOUS_HERMES_NON_AGENTIC_RE.search(model_name))
+def is_non_agentic_hermes_chat_model(model_name: str) -> bool:
+    """True if *model_name* is a real Hermes 3/4 chat model (single owner; cli.py uses it too)."""
+    return bool(model_name and _NON_AGENTIC_HERMES_CHAT_RE.search(model_name))
 
 
 def _check_hermes_model_warning(model_name: str) -> str:
-    """Warning string if *model_name* is a Nous Hermes 3/4 chat model, else ""."""
-    return _HERMES_MODEL_WARNING if is_nous_hermes_non_agentic(model_name) else ""
+    """Warning string if *model_name* is a Hermes 3/4 chat model, else ""."""
+    return _HERMES_MODEL_WARNING if is_non_agentic_hermes_chat_model(model_name) else ""
 
 
 # --- Model aliases -- short names -> (vendor, family) with NO version numbers,
@@ -882,12 +882,12 @@ def get_authenticated_provider_slugs(
 def _resolve_alias_fallback(
     raw_input: str, authenticated_providers: list[str] = (), user_providers: Optional[dict] = None,
     custom_providers: Optional[list] = None) -> Optional[tuple[str, str, str]]:
-    """Resolve an alias on the user's authenticated providers (``("openrouter", "nous")`` when none given).
+    """Resolve an alias on the user's authenticated providers (``("openrouter",)`` when none given).
 
     AmbiguousAliasError propagates: the alias exists on this provider, the user just has to
     choose — trying the next provider would silently switch them somewhere they didn't ask for."""
     results = (resolve_alias(raw_input, p, user_providers, custom_providers)
-               for p in authenticated_providers or ("openrouter", "nous"))
+               for p in authenticated_providers or ("openrouter",))
     return next((r for r in results if r is not None), None)
 
 

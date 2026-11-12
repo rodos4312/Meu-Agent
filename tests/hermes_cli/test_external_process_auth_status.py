@@ -205,7 +205,7 @@ def test_explicit_filter_keeps_signed_in_external_process_row(tmp_path, monkeypa
     monkeypatch.setattr(acme_acp, "evidence", (True, "~/.acme/credentials.json"), raising=False)
 
     class _Ctx:
-        current_provider = "nous"
+        current_provider = "provider-a"
 
     rows = [{"slug": "acme-acp", "models": ["gpt-5.4"]}]
     kept = _filter_explicit_provider_rows(rows, _Ctx())
@@ -224,7 +224,7 @@ def test_explicit_filter_drops_unverified_external_process_row(tmp_path, monkeyp
     monkeypatch.setattr(acme_acp, "evidence", (False, None), raising=False)
 
     class _Ctx:
-        current_provider = "nous"
+        current_provider = "provider-a"
 
     rows = [{"slug": "acme-acp", "models": ["gpt-5.4"]}]
     kept = _filter_explicit_provider_rows(rows, _Ctx())
@@ -251,7 +251,7 @@ def test_cli_command_reflects_configured_executable(tmp_path, monkeypatch, acme_
 def test_cli_command_untouched_for_non_external_providers(acme_acp):
     from hermes_cli.web_server_oauth import _external_process_cli_command
 
-    assert _external_process_cli_command("nous", "hermes auth add nous") == "hermes auth add nous"
+    assert _external_process_cli_command("provider-a", "hermes auth add nous") == "hermes auth add nous"
 
 
 def test_cli_command_default_when_no_override(monkeypatch, acme_acp):

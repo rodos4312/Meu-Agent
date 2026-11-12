@@ -98,19 +98,23 @@ test('controlSocketPath is stable, short, and host-distinct', () => {
   assert.match(path.basename(a), /^[0-9a-f]{16}\.sock$/)
 })
 
-test('controlSocketPath default base stays under sun_path even with the temp-listener suffix', () => {
-  // OpenSSH binds a temporary listener at `<ControlPath>.<16 random chars>` (a
-  // 17-byte suffix) while opening the master. The macOS regression was the
-  // default base under os.tmpdir() (/var/folders/.../T/) pushing it over 104.
-  const p = controlSocketPath('hermes', 'remote-build-server', 22) // no baseDir → default
-  const worstCase = `${p}.0123456789abcdef` // mimic the .<16-char> temp suffix
-  assert.ok(
-    worstCase.length <= 104,
-    `default control socket + temp suffix must fit sun_path (got ${worstCase.length}: ${worstCase})`
-  )
-  // And it must NOT live under the deeply-nested macOS per-user temp dir.
-  assert.ok(!p.includes('/var/folders/'), 'default base must not be os.tmpdir() on macOS')
-})
+// Host-specific: unix-socket sun_path, ControlPersist and POSIX signals.
+test.runIf(process.platform !== 'win32')(
+  'controlSocketPath default base stays under sun_path even with the temp-listener suffix',
+  () => {
+    // OpenSSH binds a temporary listener at `<ControlPath>.<16 random chars>` (a
+    // 17-byte suffix) while opening the master. The macOS regression was the
+    // default base under os.tmpdir() (/var/folders/.../T/) pushing it over 104.
+    const p = controlSocketPath('hermes', 'remote-build-server', 22) // no baseDir → default
+    const worstCase = `${p}.0123456789abcdef` // mimic the .<16-char> temp suffix
+    assert.ok(
+      worstCase.length <= 104,
+      `default control socket + temp suffix must fit sun_path (got ${worstCase.length}: ${worstCase})`
+    )
+    // And it must NOT live under the deeply-nested macOS per-user temp dir.
+    assert.ok(!p.includes('/var/folders/'), 'default base must not be os.tmpdir() on macOS')
+  }
+)
 
 test.runIf(process.platform !== 'win32')(
   'deep HOME uses a private short directory and binds a real listener',
@@ -556,33 +560,37 @@ test('forward() issues -O forward with a loopback-bound -L spec', async () => {
   await conn.cancelForward(5000, 6000)
 })
 
-test('mux forward keeps the ControlPersist master alive until the final forward is cancelled', async () => {
-  vi.useFakeTimers()
+// Host-specific: unix-socket sun_path, ControlPersist and POSIX signals.
+test.runIf(process.platform !== 'win32')(
+  'mux forward keeps the ControlPersist master alive until the final forward is cancelled',
+  async () => {
+    vi.useFakeTimers()
 
-  try {
-    const spawnFn = scriptedSpawn({ code: 0 })
+    try {
+      const spawnFn = scriptedSpawn({ code: 0 })
 
-    const conn = new SshConnection({ host: 'box', user: 'me' }, { spawnFn, controlDir: '/tmp/d' })
+      const conn = new SshConnection({ host: 'box', user: 'me' }, { spawnFn, controlDir: '/tmp/d' })
 
-    await conn.forward(5000, 6000)
-    await conn.forward(5001, 6001)
-    assert.ok(CONTROL_FORWARD_KEEPALIVE_MS < CONTROL_PERSIST_SECONDS * 1_000)
-    await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS)
+      await conn.forward(5000, 6000)
+      await conn.forward(5001, 6001)
+      assert.ok(CONTROL_FORWARD_KEEPALIVE_MS < CONTROL_PERSIST_SECONDS * 1_000)
+      await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS)
 
-    const checks = () => spawnFn.calls.filter(args => args[0] === '-O' && args[1] === 'check').length
-    assert.equal(checks(), 1, 'a tracked forward refreshes the ControlPersist timer')
+      const checks = () => spawnFn.calls.filter(args => args[0] === '-O' && args[1] === 'check').length
+      assert.equal(checks(), 1, 'a tracked forward refreshes the ControlPersist timer')
 
-    await conn.cancelForward(5000, 6000)
-    await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS)
-    assert.equal(checks(), 2, 'cancelling one of several forwards keeps the refresh active')
+      await conn.cancelForward(5000, 6000)
+      await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS)
+      assert.equal(checks(), 2, 'cancelling one of several forwards keeps the refresh active')
 
-    await conn.cancelForward(5001, 6001)
-    await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS * 2)
-    assert.equal(checks(), 2, 'cancelling the final forward stops the refresh timer')
-  } finally {
-    vi.useRealTimers()
+      await conn.cancelForward(5001, 6001)
+      await vi.advanceTimersByTimeAsync(CONTROL_FORWARD_KEEPALIVE_MS * 2)
+      assert.equal(checks(), 2, 'cancelling the final forward stops the refresh timer')
+    } finally {
+      vi.useRealTimers()
+    }
   }
-})
+)
 
 test('lifecycle logging passes through redaction', async () => {
   const logs: string[] = []
@@ -728,48 +736,56 @@ test('exec() does not classify a signal death with empty stderr as unreachable',
   )
 })
 
-test('forward() does not classify a signal death with empty stderr as unreachable', async () => {
-  const spawnFn = scriptedSpawn([{ signal: 'SIGPIPE', stderr: '' }])
-  const conn = new SshConnection({ host: 'box', user: 'me' }, { spawnFn, controlDir: '/tmp/d' })
+// Host-specific: unix-socket sun_path, ControlPersist and POSIX signals.
+test.runIf(process.platform !== 'win32')(
+  'forward() does not classify a signal death with empty stderr as unreachable',
+  async () => {
+    const spawnFn = scriptedSpawn([{ signal: 'SIGPIPE', stderr: '' }])
+    const conn = new SshConnection({ host: 'box', user: 'me' }, { spawnFn, controlDir: '/tmp/d' })
 
-  await assert.rejects(
-    () => conn.forward(5000, 6000),
-    (err: any) => assertSignalDeathNotUnreachable(err, 'SIGPIPE')
-  )
-})
+    await assert.rejects(
+      () => conn.forward(5000, 6000),
+      (err: any) => assertSignalDeathNotUnreachable(err, 'SIGPIPE')
+    )
+  }
+)
 
-test('close() does not report a signal-killed -O exit with empty stderr as unreachable', async () => {
-  const logs: string[] = []
+// Host-specific: unix-socket sun_path, ControlPersist and POSIX signals.
+test.runIf(process.platform !== 'win32')(
+  'close() does not report a signal-killed -O exit with empty stderr as unreachable',
+  async () => {
+    const logs: string[] = []
 
-  const spawnFn = scriptedSpawn(args => {
-    if (args.includes('check')) {
-      return { code: 255 }
-    }
+    const spawnFn = scriptedSpawn(args => {
+      if (args.includes('check')) {
+        return { code: 255 }
+      }
 
-    if (args.includes('-M')) {
-      return { code: 0 }
-    }
+      if (args.includes('-M')) {
+        return { code: 0 }
+      }
 
-    return { signal: 'SIGINT', stderr: '' }
-  })
+      return { signal: 'SIGINT', stderr: '' }
+    })
 
-  const conn = new SshConnection(
-    { host: 'box', user: 'me' },
-    {
-      spawnFn,
-      controlDir: '/tmp/d',
-      controlMasterHolders: createControlMasterHolders(),
-      rememberLog: line => logs.push(line)
-    }
-  )
+    const conn = new SshConnection(
+      { host: 'box', user: 'me' },
+      {
+        spawnFn,
+        controlDir: '/tmp/d',
+        controlMasterHolders: createControlMasterHolders(),
+        rememberLog: line => logs.push(line)
+      }
+    )
 
-  await conn.open()
-  await conn.close()
+    await conn.open()
+    await conn.close()
 
-  const logged = logs.join('\n')
-  assert.match(logged, /SIGINT/)
-  assert.doesNotMatch(logged, /Could not reach/)
-})
+    const logged = logs.join('\n')
+    assert.match(logged, /SIGINT/)
+    assert.doesNotMatch(logged, /Could not reach/)
+  }
+)
 
 test('no-mux open() still classifies a normal non-zero exit with empty stderr as unreachable', async () => {
   const spawnFn = scriptedSpawn([{ code: 255, stderr: '' }])

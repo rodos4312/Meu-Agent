@@ -28,7 +28,7 @@ def _clean_inference_env(monkeypatch):
         "ANTHROPIC_API_KEY",
         "ANTHROPIC_TOKEN",
         "CLAUDE_CODE_OAUTH_TOKEN",
-        "NOUS_API_KEY",
+        "PROVIDER_A_API_KEY",
         "HERMES_INFERENCE_PROVIDER",
     ):
         monkeypatch.delenv(key, raising=False)

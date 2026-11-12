@@ -70,30 +70,6 @@ def _arm(monkeypatch, *, url="wss://connector.example/relay", token="nas-token")
     monkeypatch.setattr("hermes_cli.auth.resolve_nous_access_token", lambda: token)
 
 
-def test_self_provision_loops_per_platform(monkeypatch):
-    _arm(monkeypatch)
-    monkeypatch.setenv("GATEWAY_RELAY_PLATFORMS", "discord,telegram")
-    monkeypatch.setenv(
-        "GATEWAY_RELAY_BOT_IDS",
-        json.dumps({"discord": {"botId": "app-1"}, "telegram": {"botId": "bot-9"}}),
-    )
-    calls = []
-
-    def _fake(**kwargs):
-        calls.append((kwargs["platform"], kwargs["bot_id"], kwargs["gateway_id"]))
-        return {"secret": "s" * 64, "deliveryKey": "d" * 64, "tenant": "t", "gatewayId": kwargs["gateway_id"]}
-
-    monkeypatch.setattr(relay, "_post_provision", _fake)
-    assert relay.self_provision_relay() is True
-    # One POST per fronted platform, all under the SAME gatewayId.
-    assert [(p, b) for p, b, _ in calls] == [("discord", "app-1"), ("telegram", "bot-9")]
-    assert len({gw for _, _, gw in calls}) == 1
-    # The in-process secret is set once (from the first success).
-    import os
-
-    assert os.environ["GATEWAY_RELAY_SECRET"] == "s" * 64
-
-
 # ─────────────────────────── per-frame egress (adapter) ───────────────────────────
 
 @pytest.mark.asyncio

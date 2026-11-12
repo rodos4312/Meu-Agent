@@ -304,7 +304,7 @@ def test_a_refusal_lands_in_the_profile_logs_not_only_on_stdout(monkeypatch, cap
     monkeypatch.setattr(
         "gateway.host_attach.decide",
         lambda home, replace=False: host_attach.HostAttachDecision(
-            host_attach.REFUSE, host_attach._refuse_message(owner, "nous"), owner))
+            host_attach.REFUSE, host_attach._refuse_message(owner, "provider-a"), owner))
 
     with caplog.at_level("WARNING", logger="hermes_cli.gateway"), pytest.raises(SystemExit) as exc:
         gw._attach_to_host_gateway_or_guard(force=False)

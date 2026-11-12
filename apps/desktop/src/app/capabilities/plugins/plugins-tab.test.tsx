@@ -220,8 +220,8 @@ describe('PluginsTab', () => {
       {
         description: '',
         has_desktop_half: true,
-        key: 'nous-prices',
-        name: 'nous-prices',
+        key: 'provider-a-prices',
+        name: 'provider-a-prices',
         source: 'catalog',
         status: 'enabled',
         version: '1'
@@ -230,7 +230,7 @@ describe('PluginsTab', () => {
 
     renderPlugins({ profile: null })
 
-    const detail = within(screen.getByRole('row', { name: /^nous-prices/ }))
+    const detail = within(screen.getByRole('row', { name: /^provider-a-prices/ }))
     expect(detail.getByText('unavailable (remote backend)')).toBeTruthy()
     expect(detail.queryByText('copying…')).toBeNull()
   })
@@ -240,8 +240,8 @@ describe('PluginsTab', () => {
       {
         description: '',
         has_desktop_half: true,
-        key: 'nous-prices',
-        name: 'nous-prices',
+        key: 'provider-a-prices',
+        name: 'provider-a-prices',
         source: 'catalog',
         status: 'enabled',
         version: '1'
@@ -250,7 +250,7 @@ describe('PluginsTab', () => {
 
     renderPlugins({ profile: null })
 
-    const detail = within(screen.getByRole('row', { name: /^nous-prices/ }))
+    const detail = within(screen.getByRole('row', { name: /^provider-a-prices/ }))
     expect(detail.getByText('copying…')).toBeTruthy()
     expect(detail.queryByText('unavailable (remote backend)')).toBeNull()
   })

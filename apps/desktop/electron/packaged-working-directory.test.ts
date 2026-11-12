@@ -107,7 +107,7 @@ test.skipIf(process.platform !== 'win32')(
                 builder.onLoad({ filter: /.*/, namespace: 'fixture' }, ({ path: name }) => ({
                   contents:
                     name === 'electron'
-                      ? `export const app = { isPackaged: ${packaged} }`
+                      ? `export const app = { isPackaged: ${packaged} }; export const session = {}`
                       : [
                           `import { spawn } from 'node:child_process'`,
                           `spawn(process.env.FIXTURE_NODE, ['-e', ${JSON.stringify(HELPER)}], { detached: true, stdio: ['ignore', 'inherit', 'ignore'] })`,
@@ -153,7 +153,8 @@ test.skipIf(process.platform !== 'win32')(
         }
       }
     } finally {
-      await rm(root, { recursive: true, force: true })
+      // Windows releases a killed helper's cwd handle asynchronously; retry instead of racing it.
+      await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })
     }
   }
 )

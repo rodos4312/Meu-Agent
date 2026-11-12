@@ -550,7 +550,7 @@ def _migrate_to_39(results: dict[str, Any], quiet: bool) -> None:
             "removed retired 'bfl' toolset from saved toolset lists",
             "  ✓ Removed the retired BFL FLUX 3 toolset from saved toolset "
             "lists — video generation now lives under `hermes tools` → "
-            "Video Generation (Nous Subscription or FAL).")
+            "Video Generation (FAL).")
 
 
 def _migrate_to_41(results: dict[str, Any], quiet: bool) -> None:
@@ -653,13 +653,12 @@ def _migrate_to_46(results: dict[str, Any], quiet: bool) -> None:
 
 
 def _migrate_to_48(results: dict[str, Any], quiet: bool) -> None:
-    # 47 → 48: the container sandbox default gains a display stack (nousresearch/hermes-sandbox:
-    # desktop) so Bot Screen / computer_use / the browser run inside the sandbox. A saved value
-    # still equal to the OLD default is the template copied, not a choice: the key is DROPPED so
-    # the file follows the default. It is not rewritten to the new image, because a written image
-    # is a pin and a pin recreates a persisted Docker container without asking; unpinned, the
-    # runtime keeps an existing sandbox and the CLI / Screen pane ask first. A pinned image stays.
+    # 47 → 48 (upstream): an old default image saved in the file was dropped so the file followed a
+    # new vendor default. Meu has no default image (DEFAULT_SANDBOX_IMAGE is empty), so dropping the
+    # key would turn a working sandbox off: with no default to follow, the saved image is kept.
     from hermes_cli.config_defaults import DEFAULT_SANDBOX_IMAGE, LEGACY_SANDBOX_IMAGES
+    if not DEFAULT_SANDBOX_IMAGE:
+        return
     for legacy in LEGACY_SANDBOX_IMAGES:
         for key, old in (
             ("docker_image", legacy),

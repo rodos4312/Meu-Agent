@@ -6,13 +6,7 @@
 
 import type { ErrorCardCopy, Translations } from '@/i18n/types'
 
-import {
-  errorCardKey,
-  type ErrorSurface,
-  formatResetClock,
-  isFreeTierSurface,
-  scheduledRetryDelayMs
-} from './error-surface'
+import { errorCardKey, type ErrorSurface, formatResetClock, scheduledRetryDelayMs } from './error-surface'
 
 export interface ErrorCardText {
   title: string
@@ -74,9 +68,9 @@ export function errorCardText(
   if ('code' in key) {
     const copy = thread.errorCodes[key.code]
 
-    // Free-tier and usage-window refusals arrive with the backend's own sentence (the
-    // wait, the model, the way forward); the table body is only the fallback for an older backend.
-    const ownSentence = isFreeTierSurface(surface) || surface?.code === 'usage_window'
+    // Usage-window refusals arrive with the backend's own sentence (the wait, the model, the
+    // way forward); the table body is only the fallback for an older backend.
+    const ownSentence = surface?.code === 'usage_window'
 
     const body = surface?.retryable === false && copy.bodyNoRetry ? copy.bodyNoRetry : copy.body
 

@@ -531,8 +531,6 @@ Every `api_mode` gate (`determine_api_mode`, runtime resolution, agent construct
 | `auth_type` | Meaning | Who uses it |
 |---|---|---|
 | `api_key` | Single env var carries a static API key | Most providers |
-| `oauth_device_code` | Device-code OAuth flow | Nous Portal; out-of-tree plugins via `auth_handler` |
-| `oauth_external` | User signs in elsewhere, tokens land in `auth.json` | Anthropic OAuth, MiniMax OAuth, Qwen Portal, Nous Portal |
 | *plugin-defined* | Any other value: login and refresh are provider-owned (`auth_handler`, `refresh_credential`, the credential hooks below); `registry_auth_type` names the auth-registry row when it differs | e.g. `copilot` in the [`github-copilot` labs plugin](https://github.com/NousResearch/hermes-labs-plugins/tree/main/github-copilot) |
 | `aws_sdk` | AWS SDK credential chain (IAM role, profile, env) | `bedrock` plugin only |
 | `external_process` | Auth handled by a subprocess the agent spawns (see [External-process providers](#external-process-acp-providers)) | out-of-tree ACP plugins (e.g. `copilot-acp` in the `github-copilot` labs plugin) |

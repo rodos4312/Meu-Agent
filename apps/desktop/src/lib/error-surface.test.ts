@@ -170,32 +170,17 @@ describe('error copy never names a hidden Retry', () => {
   })
 })
 
-describe('free-tier refusals', () => {
-  const surface = parseErrorSurface({
-    code: 'free_tier_disabled',
-    layer: 'provider',
-    message: '  Using Hermes without signing in is switched off right now. To sign in: /login. ',
-    provider: 'nous',
-    retryable: false
-  })!
-
-  it('carries the backend sentence and offers another provider for an archived free-tier refusal', () => {
-    expect(surface.message).toBe('Using Hermes without signing in is switched off right now. To sign in: /login.')
+// Meu has no managed free tier: a `free_tier_*` code from archived history is just an unknown
+// provider failure, so the card never offers a sign-in to a service that does not exist.
+describe('archived free-tier codes', () => {
+  it('render through the generic provider card with no sign-in action', () => {
+    const surface = parseErrorSurface({
+      code: 'free_tier_disabled',
+      layer: 'provider',
+      retryable: false
+    })!
     expect(errorCardActions(surface)).toEqual({ primary: 'switch_provider' })
-  })
-
-  it('renders the backend sentence as the body under its own title', () => {
-    const { body, title } = errorCardText(en.assistant.thread, surface)
-    expect(title).toBe(en.assistant.thread.errorCodes.free_tier_disabled.title)
-    expect(body).toBe(surface.message)
-  })
-
-  it('falls back to the table body when an older backend sent no sentence', () => {
-    const bare = parseErrorSurface({ code: 'free_tier_rate_limited', layer: 'provider', retryable: true })!
-    expect(errorCardText(en.assistant.thread, bare).body).toBe(
-      en.assistant.thread.errorCodes.free_tier_rate_limited.body
-    )
-    expect(errorCardOffers(bare, 'retry')).toBe(true)
+    expect(errorCardText(en.assistant.thread, surface).title).toBeTruthy()
   })
 })
 
@@ -247,7 +232,12 @@ describe('usage-window refusal', () => {
     const { body, title } = errorCardText(en.assistant.thread, surface)
     expect(title).toBe(en.assistant.thread.errorCodes.usage_window.title)
     expect(body).toBe(message)
-    const plain = parseErrorSurface({ code: 'billing', layer: 'billing', provider: 'nous', retryable: false })!
+    const plain = parseErrorSurface({
+      code: 'billing',
+      layer: 'billing',
+      provider: 'example-provider',
+      retryable: false
+    })!
     expect(body).not.toBe(errorCardText(en.assistant.thread, plain).body)
   })
 
@@ -276,7 +266,7 @@ describe('usage-window refusal', () => {
       usage_limit: {
         credits: { action: 'use_credits' },
         suggestions: [
-          { label: 'Model A', model: 'example/model-a', note: 'included', provider: 'nous' },
+          { label: 'Model A', model: 'example/model-a', note: 'included', provider: 'example-provider' },
           { model: 'bad' },
           { label: 'x' }
         ]
@@ -286,8 +276,8 @@ describe('usage-window refusal', () => {
     expect(surface.usageLimit).toEqual({
       credits: 'use_credits',
       suggestions: [
-        { label: 'Model A', model: 'example/model-a', note: 'included', provider: 'nous' },
-        { label: 'bad', model: 'bad', note: '', provider: 'nous' }
+        { label: 'Model A', model: 'example/model-a', note: 'included', provider: 'example-provider' },
+        { label: 'bad', model: 'bad', note: '', provider: '' }
       ]
     })
     expect(errorCardActions(surface)).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
@@ -349,7 +339,7 @@ describe('limit reset (#98852)', () => {
 
 describe('out of credits (not a window plan)', () => {
   it('offers Billing, then another provider, for Nous and other providers alike', () => {
-    for (const provider of ['nous', 'example']) {
+    for (const provider of ['provider-a', 'example']) {
       const surface = parseErrorSurface({ code: 'billing', layer: 'billing', provider, retryable: false })
 
       expect(errorCardActions(surface)).toEqual({ primary: 'open_billing', secondary: 'switch_provider' })
@@ -370,7 +360,7 @@ describe('error card actions: one main action, at most one second option', () =>
       usage_limit: { credits: { action: credits }, suggestions }
     })
 
-    const suggestion = { label: 'Model Free', model: 'example/free', provider: 'nous' }
+    const suggestion = { label: 'Model Free', model: 'example/free', provider: 'example-provider' }
 
     expect(at(limit('add_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
     expect(at(limit('use_credits', [suggestion]))).toEqual({ primary: 'switch_to_model', secondary: 'choose_model' })
@@ -429,7 +419,6 @@ describe('error card actions: one main action, at most one second option', () =>
 
     expect(severity({ code: 'rate_limit', layer: 'provider', retryable: true })).toBe('degraded')
     expect(severity({ code: 'truncated', layer: 'provider', retryable: true })).toBe('degraded')
-    expect(severity({ code: 'free_tier_model_not_free', layer: 'provider', retryable: false })).toBe('degraded')
     expect(severity({ auth_kind: 'api_key', code: 'auth', layer: 'auth', retryable: false })).toBe('blocking')
     expect(severity({ code: 'agent_init_failed', layer: 'runtime', retryable: true })).toBe('blocking')
     expect(severity({ code: 'SESSION_OWNER_UNCONFIRMED', layer: 'gateway', retryable: false })).toBe('blocking')

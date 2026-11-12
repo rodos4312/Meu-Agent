@@ -179,34 +179,6 @@ export const zhHantAssistant = {
           title: '你的磁碟已滿',
           body: 'Meu 無法儲存此對話。請釋放空間後重試。'
         },
-        free_tier_disabled: {
-          title: '登入以繼續聊天',
-          body: '使用 Nous 帳戶登入即可繼續聊天，完全免費。'
-        },
-        free_tier_rate_limited: {
-          title: '免費額度已用完',
-          body: '額度很快就會恢復。使用 Nous 帳戶登入可獲得更多額度，完全免費。'
-        },
-        free_tier_at_capacity: {
-          title: '免費方案忙碌中',
-          body: '登入即可免排隊，完全免費；或稍後再試。'
-        },
-        free_tier_model_not_free: {
-          title: '此模型需要登入',
-          body: 'Meu 目前改用免費模型。使用 Nous 帳戶登入即可使用更多模型，完全免費。'
-        },
-        free_tier_route: {
-          title: '無法連線到免費模型',
-          body: '請使用 Nous 帳戶登入（完全免費），或檢查 NOUS_INFERENCE_BASE_URL 設定。'
-        },
-        free_tier_outage: {
-          title: '免費模型發生問題',
-          body: '請稍候一分鐘再重新傳送訊息。'
-        },
-        free_tier_refused: {
-          title: '登入以繼續聊天',
-          body: '使用 Nous 帳戶登入完全免費。'
-        },
         cron_session_read_only: {
           title: '此聊天屬於一個排程工作',
           body: '它只會執行該工作，因此你的訊息未被執行。請開始新的聊天後再傳送。'

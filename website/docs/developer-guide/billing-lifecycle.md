@@ -5,26 +5,10 @@ description: "Map from every billing/subscription state and typed refusal to the
 
 # Billing lifecycle: client-side state, errors, and recovery
 
-This is the map from every `billing.*`/`subscription.*` state shape the gateway
-serves (from NAS) to what the terminal actually renders, and from every typed
-refusal/error code to its exact user-facing copy and recovery action. The
-guarantee: no NAS billing state and no typed refusal falls through to a
-generic toast — every case below is an explicit branch in
-`ui-tui/src/app/slash/commands/topup.ts`, `ui-tui/src/components/billingOverlay.tsx`,
-or `ui-tui/src/components/subscriptionOverlay.tsx`. An **unknown** code still
-degrades gracefully: it hits the `default` branch (a generic-but-real message
-pulled from the server payload, never a blank toast) rather than crashing or
-silently dropping the refusal.
-
 ## 1. `billing.state` shapes → render
-
-Source: `ui-tui/src/components/billingOverlay.tsx` (`OverviewScreen`,
-`BuyScreen`, `AutoReloadScreen`), `ui-tui/src/app/slash/commands/topup.ts` (`/topup` run).
 
 | State shape | Render |
 |---|---|
-| Logged out (`s.logged_in === false`) | Overlay never opens. `sys`: `💳 Not logged into Nous Portal — run /portal to log in, then /topup.` |
-| `billing.state` RPC fetch fails (transport/timeout) | **Fail-closed**: `.catch(ctx.guardedErr)` — overlay never opens, no state is assumed. `sys`: `error: <message or "request failed">`. Never renders "no card" or any other guessed state; user must retry `/topup`. |
 | `card: null` (no saved card), full menu (`is_admin && cli_billing_enabled`) | Overview shows `No saved card on file — "Add funds" walks you through adding one.` "Add funds" opens the **add-card path**: `Add a card on the portal` / `I've added it — check again` / `Back` (never an amount picker, which would 403 `no_payment_method`). |
 | `card` present, `resolved_via` set | `Card: {display}` (e.g. `Visa ····4242 — the card on your subscription`) using the provenance-aware `display` field. |
 | `card` present, `resolved_via` absent (older NAS) | Falls back to the generic `Card: {masked}`; Confirm screen adds `Your card saved on the portal will be charged.` |
@@ -44,9 +28,6 @@ step-up screen instead of a preflight check.
 
 ## 2. Refusal codes (`renderBillingError`, in code order)
 
-Source: `renderBillingError` in `ui-tui/src/app/slash/commands/topup.ts:37-149`.
-"Portal" row = `sys('Portal: {portal_url}')` is appended whenever `portal_url` is present, for every code (including default).
-
 | `error` code | Copy | Portal URL | `retry_after` |
 |---|---|:-:|:-:|
 | `insufficient_scope` | `This needs Remote Spending allowed. Start a top-up to allow it, then retry.` | if present | — |
@@ -57,7 +38,6 @@ Source: `renderBillingError` in `ui-tui/src/app/slash/commands/topup.ts:37-149`.
 | `consent_required` | `This action needs a one-time card confirmation and consent step on the portal before it can proceed.` | if present | — |
 | `org_access_denied` | `This token isn't bound to an org you can manage. Sign in with the right org, or manage this on the portal.` | if present | — |
 | `upgrade_cap_exceeded` | `🔴 Daily plan-change limit reached (5 per org) — try again tomorrow, or manage this on the portal.` | if present | — |
-| `auto_top_up_disabled_failures` | `Auto-reload was turned off after repeated charge failures. Fix the card issue, then re-enable it from /topup → Auto-reload.` | if present | — |
 | `idempotency_conflict` | `🔴 That charge key was already used for a different amount. Start a fresh top-up.` | if present | — |
 | `no_payment_method` | `💳 No saved card for terminal charges yet. Set one up on the portal (one-time credit buys don't save a reusable card).` | if present | — |
 | `monthly_cap_exceeded` | `🔴 Monthly spend cap reached — ${remainingUsd} headroom left.` if `payload.remainingUsd` present, else `🔴 Monthly spend cap reached.` | if present | — |
@@ -67,12 +47,6 @@ Source: `renderBillingError` in `ui-tui/src/app/slash/commands/topup.ts:37-149`.
 
 ## 3. Charge settlement outcomes (`pollCharge` / `renderChargeFailed`)
 
-Source: `pollCharge` (`ui-tui/src/app/slash/commands/topup.ts:170-258`) and
-`renderChargeFailed` (`:260-290`). Poll cadence: 2s interval, 5-minute cap
-(`POLL_INTERVAL_MS=2000`, `POLL_CAP_MS=5*60*1000`), applied on **every**
-non-terminal path (pending *and* throttled), so a sustained 429/503 can't
-keep the poll alive forever.
-
 | Outcome | Copy | Notes |
 |---|---|---|
 | `status: 'settled'` | `✅ ${amount_usd} added.` (or `✅ Credits added.` if no amount) | Terminal success. |
@@ -81,7 +55,6 @@ keep the poll alive forever.
 | `status: 'failed'`, `reason: 'card_declined'` | `🔴 Your card was declined. Try another card on the portal.` | + `Portal:` line. |
 | `status: 'failed'`, `reason: 'processing_error'` | `🔴 The charge didn't go through (processing_error).` | + `Portal:` line. |
 | `status: 'failed'`, unrecognized/missing `reason` | `🔴 The charge didn't go through ({reason \|\| 'processing_error'}).` | Same portal funnel — parity with `cli.py`'s `_billing_portal_hint`. |
-| Poll timeout (still `pending` past the 5-min cap) | `🟡 Still processing after 5 minutes — this is a timeout, not a failure. Check /topup or the portal shortly.` | + `Portal:` line if `portalUrl`. Explicitly NOT called a failure. |
 | Revocation mid-poll (`remote_spending_revoked` / `session_revoked` while polling) | Renders the matching §2 copy, **then** appends: `🟡 Your last charge's outcome is unconfirmed — check your balance/history before retrying.` | CF-7 rule 4: a post-revoke 403 while polling is ambiguous (the charge may have already settled) — never call it "failed". |
 | 429/503 while polling (`rate_limited`/`temporarily_unavailable`/`stripe_unavailable`) | No error shown; backs off using `retry_after` (default 5s, capped at 30s) and keeps polling until the 5-min cap, then reads as timeout. | Not a payment failure. |
 | Other `!ok` status-check error | `🔴 Could not check the charge: {message \|\| error \|\| 'error'}` | |
@@ -153,24 +126,11 @@ this change on the portal.`
 
 ## Text-mode (CLI) parity
 
-`cli.py`'s `_show_billing` / `_billing_overview` and `_show_subscription` /
-`_subscription_overview` render the same state shapes (balance title, two-bar
-dollar usage, auto-reload line, card line, monthly cap) and share the
-"fail-open on logged-out/portal-hiccup, never crash" discipline. The CLI's
-`/subscription` gives a paid admin/owner in an interactive context the **full
-in-terminal change flow** (tier picker → preview → confirm → apply, parity
-with the TUI overlay); members and non-interactive contexts fall back to
-`_billing_portal_hint`'s deep-link to `subscription_manage_url`. `/topup`'s
-interactive modal (prompt_toolkit) mirrors the TUI overlay the same way, and
-non-interactive contexts fall back to the same text + portal-link rendering,
-never prompting.
-
 | CLI surface / state | Behavior (parity with TUI / desktop) |
 | --- | --- |
 | `/subscription` on **Free** + admin/owner + interactive | `_subscription_free_catalog` prints the plan catalog from the same `tiers[]` data the TUI uses — one row per enabled paid tier, cheapest first, `name · $/mo · $credits/mo` (monthly credits are DOLLARS → `$22 credits/mo`, never a bare number). A numbered pick opens the `/manage-subscription` deep-link with `plan=<tier_id>` appended so the portal preselects the chosen plan. Starting a new subscription needs a fresh card, so the only action is the portal hand-off (the terminal never charges here). |
 | Any CLI-built manage/subscribe URL | `subscription_manage_url(state, tier_id=…)` appends `plan=<tier_id>` (the stable `tiers[]` id, never a name/slug) **only when a tier was picked** (the Free catalog). The portal validates it server-side and ignores an unknown tier, so the CLI appends unconditionally on a pick, mirroring the TUI's `?plan=`. `org_id` is emitted first, `plan` second. |
 | **Downgrades** in the CLI | Stay **native / in-app** for normal changes (chargeless scheduling via `put_subscription_pending_change`). A blocked downgrade may still print the generic manage URL, but it never carries `plan=<tier_id>` — selected-tier deep-links are reserved for new subscriptions and upgrades. |
-| `/topup` overview action copy | Splits one-time top-up from automatic refill, the distinction stated up front in each first sentence: `Add funds now — a single charge, added to your balance today.` vs `Refill when low — charges $X automatically when your balance falls below $Y.` ("credits" stays out of the dollars-only `/topup` surface — "Add funds now" carries the one-time meaning without it). When auto-reload is off, the automatic line omits concrete amounts. |
 
 ## Forward compatibility
 

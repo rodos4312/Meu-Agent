@@ -72,15 +72,6 @@ export const ERROR_CODE_KEYS = [
   // Raised by the desktop, never by the backend: the backend reported a turn
   // over after its events stopped, and no reply reached this window.
   'no_reply',
-  // The Nous free tier refused or could not serve the turn (agent/error_surface.py
-  // `free_tier_<kind>`). The backend's sentence rides in `message` and is the card body.
-  'free_tier_disabled',
-  'free_tier_rate_limited',
-  'free_tier_at_capacity',
-  'free_tier_model_not_free',
-  'free_tier_route',
-  'free_tier_outage',
-  'free_tier_refused',
   // A usage-window plan limit ran out and credits won't pay. The backend's
   // stop-line sentence (which limit, the reset, the way on) rides in `message`.
   'usage_window'
@@ -103,7 +94,7 @@ export interface ErrorSurface {
    *  the fix is signing in again (expired/revoked grant); `api_key` means a
    *  key needs replacing. Absent from older backends. */
   authKind?: 'api_key' | 'oauth'
-  /** Auth layer only: display name of the failing provider ("Nous Portal"). */
+  /** Auth layer only: display name of the failing provider ("OpenRouter"). */
   providerLabel?: string
   /** Auth layer, api_key only: the env var holding the rejected key
    *  (OPENAI_API_KEY). Deep-links Settings → Keys to that row. Absent from
@@ -153,7 +144,7 @@ function parseUsageLimit(value: unknown): UsageLimitSurface | undefined {
             model: s.model,
             label: typeof s.label === 'string' && s.label ? s.label : s.model,
             note: typeof s.note === 'string' ? s.note : '',
-            provider: typeof s.provider === 'string' && s.provider ? s.provider : 'nous'
+            provider: typeof s.provider === 'string' ? s.provider : ''
           }
         ]
       : []
@@ -246,12 +237,6 @@ export function formatCountdown(remainingMs: number): string {
   const tail = `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`
 
   return hours > 0 ? `${hours}h ${tail}` : tail.replace(/^0/, '')
-}
-
-/** True when the Nous free tier refused or could not serve the turn: the way
- *  forward is the free sign-in (or another provider), never an OAuth re-login. */
-export function isFreeTierSurface(surface: ErrorSurface | null | undefined): boolean {
-  return typeof surface?.code === 'string' && surface.code.startsWith('free_tier_')
 }
 
 /** True when the failed turn's provider rejected an OAuth grant — the
@@ -385,9 +370,7 @@ const CODE_ACTIONS: Partial<Record<ErrorCodeKey, ErrorCardActions>> = {
   content_policy_blocked: { primary: 'edit_message' },
   context_overflow: { primary: 'compress', secondary: 'start_new_session' },
   disk_full: { primary: 'open_hermes_folder', secondary: 'retry' },
-  free_tier_at_capacity: { primary: 'switch_provider', secondary: 'retry' },
   format_error: { primary: 'switch_provider', secondary: 'start_new_session' },
-  free_tier_outage: { primary: 'retry' },
   model_not_found: { primary: 'choose_model' },
   payload_too_large: { primary: 'compress', secondary: 'start_new_session' },
   provider_policy_blocked: { primary: 'open_provider_settings', secondary: 'choose_model' },
@@ -488,11 +471,6 @@ export function errorCardActions(surface: ErrorSurface | null | undefined): Erro
     return byCode
   }
 
-  // Signing in is free and lifts the refusal; a transient one (rate limit) can also just be retried.
-  if (isFreeTierSurface(surface)) {
-    return surface.retryable ? { primary: 'switch_provider', secondary: 'retry' } : { primary: 'switch_provider' }
-  }
-
   if (
     (surface.code === 'rate_limit' || surface.code === 'upstream_rate_limit') &&
     scheduledRetryDelayMs(surface.resetsAt) !== null
@@ -527,10 +505,6 @@ export type ErrorCardSeverity = 'blocking' | 'degraded'
 const DEGRADED_ACTIONS: ReadonlySet<ErrorActionId> = new Set(['retry', 'retry_at_reset', 'continue'])
 
 export function errorCardSeverity(surface: ErrorSurface | null | undefined): ErrorCardSeverity {
-  if (surface?.code === 'free_tier_model_not_free') {
-    return 'degraded'
-  }
-
   if (surface?.code === 'agent_init_failed') {
     return 'blocking'
   }

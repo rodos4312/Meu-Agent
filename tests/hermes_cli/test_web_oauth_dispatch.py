@@ -50,9 +50,9 @@ def _fake_nous_device_data():
     return {
         "device_code": "device-code",
         "user_code": "NOUS-1234",
-        "verification_uri": "https://portal.nousresearch.com/device",
+        "verification_uri": "https://portal.provider-a.example/device",
         "verification_uri_complete": (
-            "https://portal.nousresearch.com/device?user_code=NOUS-1234"
+            "https://portal.provider-a.example/device?user_code=NOUS-1234"
         ),
         "expires_in": 600,
         "interval": 5,
@@ -60,7 +60,7 @@ def _fake_nous_device_data():
 
 
 def _invoke_scope_refusal():
-    request = httpx.Request("POST", "https://portal.nousresearch.com/oauth/device/code")
+    request = httpx.Request("POST", "https://portal.provider-a.example/oauth/device/code")
     response = httpx.Response(
         400,
         json={

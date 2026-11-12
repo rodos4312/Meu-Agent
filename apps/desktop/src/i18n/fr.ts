@@ -119,14 +119,11 @@ export const frOverrides = {
       showAllMatches: 'Afficher tous les résultats',
       segmentNoMatch: (segment: string) => `Aucun résultat dans ${segment} : tous les résultats sont affichés.`,
       freeTierNote: 'Les connexions restent sur cet ordinateur jusqu’à ce que vous vous connectiez.',
-      signInLine: 'Connectez-vous à Nous pour utiliser les applications gérées.',
       signIn: 'Se connecter',
       managedUnavailable: 'Les applications gérées ne sont pas encore disponibles pour ce compte.',
       writeFailed: 'Cette modification n’a pas été enregistrée.',
       refreshFailed: 'La liste des outils n’a pas été actualisée.',
-      disconnectNoAccount: 'Meu n’a aucun compte à déconnecter ici. Actualisez la page et réessayez.',
-      disconnectRefused:
-        'Nous ne peut pas supprimer cette connexion pour le moment. Désactivez plutôt l’application avec l’interrupteur, ou réessayez plus tard.'
+      disconnectNoAccount: 'Meu n’a aucun compte à déconnecter ici. Actualisez la page et réessayez.'
     },
     add: {
       action: 'Ajouter le vôtre',
@@ -177,7 +174,6 @@ export const frOverrides = {
       turnOffLocal: 'Désactiver le serveur local',
       providedByPlugin: (plugin: string) => `Fourni par le plugin ${plugin}`,
       openPlugins: "Ouvrir l'onglet Plugins",
-      nousLine: 'Les applications Nous suivent votre compte, pas le profil.',
       rulesReadOnly: 'Les règles ne peuvent pas être modifiées pour le moment.',
       rulesAppOff: (name: string) => `Activez ${name} pour modifier ses outils.`,
       rulesSignIn: 'Connectez-vous pour modifier ce que Meu peut faire ici.',
@@ -234,7 +230,7 @@ export const frOverrides = {
       remove: 'Supprimer',
       offTitle: (name: string) => `${name} est désactivé.`,
       offBody: "Activez-le avec l'interrupteur ci-dessus pour lire les outils qu'il apporte.",
-      signedOutTitle: 'Connectez-vous à Nous pour lire la liste des outils.',
+      signedOutTitle: 'Connectez-vous pour lire la liste des outils.',
       signedOutBody: 'Vos serveurs sur cet ordinateur ne sont pas affectés.',
       conflictTitle: "Quelqu'un a modifié cette règle pendant que vous l'éditiez.",
       conflictBody: (theyOff: number, theyOn: number) => {
@@ -818,7 +814,7 @@ export const frOverrides = {
           `${name} est installé, mais a besoin d'une clé pour fonctionner : ${vars}. Ajoutez-la maintenant, sinon les outils du plugin échoueront.`,
         verified: 'Vérifié',
         unverified: 'Non vérifié',
-        reviewedByNous: 'Examiné par Nous.',
+        reviewedByCatalog: 'Examiné par les responsables du catalogue.',
         installsAndEnables: profile => `S’installe pour ${profile} et s’active tout de suite.`,
         installsOnly: profile => `S’installe pour ${profile}.`,
         advanced: 'Avancé',
@@ -4040,7 +4036,7 @@ export const frOverrides = {
     localDownloadsHeading: 'Local',
     noAuthenticatedProviders: 'Aucun fournisseur authentifié.',
     pro: 'Pro',
-    proNeedsSubscription: 'Les modèles Pro nécessitent un abonnement payant Nous.',
+    proNeedsSubscription: 'Certains modèles nécessitent un forfait payant chez ce fournisseur.',
     free: 'Gratuit',
     freeTier: 'Gratuit',
     priceTitle: 'Prix entrant / sortant par million de jetons',
@@ -4577,34 +4573,6 @@ export const frOverrides = {
           title: 'Votre disque est plein',
           body: "Meu n'a pas pu enregistrer cette conversation. Libérez de l'espace, puis réessayez."
         },
-        free_tier_disabled: {
-          title: 'Connectez-vous pour continuer',
-          body: 'Connectez-vous avec un compte Nous gratuit pour continuer.'
-        },
-        free_tier_rate_limited: {
-          title: 'Quota gratuit épuisé',
-          body: 'Il sera bientôt renouvelé. Connectez-vous avec un compte Nous gratuit pour obtenir un quota plus élevé.'
-        },
-        free_tier_at_capacity: {
-          title: 'Offre gratuite très sollicitée',
-          body: 'Connectez-vous gratuitement pour éviter la file, ou réessayez un peu plus tard.'
-        },
-        free_tier_model_not_free: {
-          title: 'Ce modèle nécessite une connexion',
-          body: 'Meu utilise le modèle gratuit pour le moment. Connectez-vous avec un compte Nous gratuit pour accéder à plus de modèles.'
-        },
-        free_tier_route: {
-          title: 'Modèle gratuit injoignable',
-          body: 'Connectez-vous avec un compte Nous gratuit ou vérifiez le paramètre NOUS_INFERENCE_BASE_URL.'
-        },
-        free_tier_outage: {
-          title: 'Modèle gratuit en difficulté',
-          body: 'Renvoyez votre message dans une minute.'
-        },
-        free_tier_refused: {
-          title: 'Connectez-vous pour continuer',
-          body: 'La connexion avec un compte Nous est gratuite.'
-        },
         usage_window: {
           title: 'Usage inclus épuisé',
           body: 'L’usage inclus de votre forfait est épuisé jusqu’à la réinitialisation. Ajoutez des crédits dans /topup pour continuer.'
@@ -4654,7 +4622,6 @@ export const frOverrides = {
       errorOpenHermesFolderFailed: "Impossible d'ouvrir le dossier Meu",
       errorUpdateApiKey: 'Mettre à jour la clé API',
       errorSignInAgain: provider => `Se reconnecter à ${provider}`,
-      errorSignInFreeTier: 'Se connecter avec un compte Nous',
       errorOauthExpired: provider =>
         `Votre connexion à ${provider} a expiré ou a été révoquée. Reconnectez-vous pour continuer la conversation.`,
       errorOpenLogs: 'Ouvrir les journaux',

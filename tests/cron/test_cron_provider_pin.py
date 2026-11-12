@@ -209,8 +209,8 @@ class TestPinnedLocksTheMainModel:
         jobs, resolver = self._store(monkeypatch, tmp_path)
 
         job = jobs.create_job(prompt="do a thing", schedule="every 1 hour", model="my-model",
-                              provider="nous", pinned=True)
-        assert (job["model"], job["provider"]) == ("my-model", "nous")
+                              provider="provider-a", pinned=True)
+        assert (job["model"], job["provider"]) == ("my-model", "provider-a")
         resolver.assert_not_called()
 
         still = jobs.update_job(job["id"], {"pinned": True, "model": "other-model"})

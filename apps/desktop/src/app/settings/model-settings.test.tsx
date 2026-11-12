@@ -67,12 +67,12 @@ vi.mock('../hooks/use-on-profile-switch', () => ({
 }))
 
 beforeEach(() => {
-  getGlobalModelInfo.mockResolvedValue({ provider: 'nous', model: 'hermes-4' })
+  getGlobalModelInfo.mockResolvedValue({ provider: 'provider-a', model: 'hermes-4' })
   getGlobalModelOptions.mockResolvedValue({
     providers: [
       {
         name: 'Nous',
-        slug: 'nous',
+        slug: 'provider-a',
         models: ['hermes-4', 'hermes-4-mini'],
         authenticated: true,
         capabilities: { 'hermes-4': { reasoning: true, fast: true } }
@@ -80,12 +80,12 @@ beforeEach(() => {
     ]
   })
   getAuxiliaryModels.mockResolvedValue({
-    main: { provider: 'nous', model: 'hermes-4' },
+    main: { provider: 'provider-a', model: 'hermes-4' },
     tasks: [{ task: 'vision', provider: 'auto', model: '', base_url: '' }]
   })
   getMoaModels.mockResolvedValue(null)
-  setModelAssignment.mockResolvedValue({ ok: true, provider: 'nous', model: 'hermes-4' })
-  getRecommendedDefaultModel.mockResolvedValue({ provider: 'nous', model: 'hermes-4', free_tier: null })
+  setModelAssignment.mockResolvedValue({ ok: true, provider: 'provider-a', model: 'hermes-4' })
+  getRecommendedDefaultModel.mockResolvedValue({ provider: 'provider-a', model: 'hermes-4', free_tier: null })
   setEnvVar.mockResolvedValue({ ok: true })
   getHermesConfigRecord.mockResolvedValue({ agent: { reasoning_effort: 'medium', service_tier: 'normal' } })
   saveHermesConfig.mockResolvedValue({ ok: true })
@@ -219,7 +219,7 @@ describe('ModelSettings', () => {
   it('replaces the selected provider and model when the active profile changes', async () => {
     getGlobalModelInfo
       .mockResolvedValueOnce({ provider: 'custom', model: 'local-a' })
-      .mockResolvedValueOnce({ provider: 'nous', model: 'hermes-4' })
+      .mockResolvedValueOnce({ provider: 'provider-a', model: 'hermes-4' })
     getGlobalModelOptions
       .mockResolvedValueOnce({
         providers: [
@@ -235,7 +235,7 @@ describe('ModelSettings', () => {
         providers: [
           {
             name: 'Nous',
-            slug: 'nous',
+            slug: 'provider-a',
             models: ['hermes-4'],
             authenticated: true,
             capabilities: { 'hermes-4': { reasoning: true, fast: true } }
@@ -260,7 +260,7 @@ describe('ModelSettings', () => {
       providers: [
         {
           name: 'Nous',
-          slug: 'nous',
+          slug: 'provider-a',
           models: ['hermes-4'],
           authenticated: true
         },
@@ -359,7 +359,7 @@ describe('ModelSettings', () => {
       providers: [
         {
           name: 'Nous',
-          slug: 'nous',
+          slug: 'provider-a',
           models: ['hermes-4'],
           authenticated: true,
           capabilities: { 'hermes-4': { reasoning: false, fast: false } }
@@ -375,7 +375,7 @@ describe('ModelSettings', () => {
 
   it('renders plugin-registered auxiliary tasks after the built-ins with the server label (#40880)', async () => {
     getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'nous', model: 'hermes-4' },
+      main: { provider: 'provider-a', model: 'hermes-4' },
       tasks: [
         { task: 'vision', provider: 'auto', model: '', base_url: '' },
         {
@@ -404,7 +404,7 @@ describe('ModelSettings', () => {
 
   it('shows an unpinned inheriting plugin task as following its base, and offers Follow once pinned', async () => {
     getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'nous', model: 'hermes-4' },
+      main: { provider: 'provider-a', model: 'hermes-4' },
       tasks: [
         { task: 'compression', provider: 'openrouter', model: 'vendor/fast', base_url: '' },
         {
@@ -420,14 +420,14 @@ describe('ModelSettings', () => {
         },
         {
           task: 'pinned_task',
-          provider: 'nous',
+          provider: 'provider-a',
           model: 'hermes-4',
           base_url: '',
           label: 'Pinned side',
           hint: 'pinned',
           plugin: 'side',
           inherit_from: 'compression',
-          effective: { provider: 'nous', model: 'hermes-4', base_url: '' }
+          effective: { provider: 'provider-a', model: 'hermes-4', base_url: '' }
         }
       ]
     })
@@ -453,8 +453,8 @@ describe('ModelSettings', () => {
 
   it('edits auxiliary reasoning effort and applies it with the assignment', async () => {
     getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'nous', model: 'hermes-4' },
-      tasks: [{ task: 'vision', provider: 'nous', model: 'hermes-4', base_url: '', reasoning_effort: null }]
+      main: { provider: 'provider-a', model: 'hermes-4' },
+      tasks: [{ task: 'vision', provider: 'provider-a', model: 'hermes-4', base_url: '', reasoning_effort: null }]
     })
 
     renderModelSettings()
@@ -472,7 +472,7 @@ describe('ModelSettings', () => {
     await waitFor(() =>
       expect(setModelAssignment).toHaveBeenCalledWith({
         model: 'hermes-4',
-        provider: 'nous',
+        provider: 'provider-a',
         scope: 'auxiliary',
         task: 'vision',
         reasoning_effort: 'high'
@@ -490,7 +490,7 @@ describe('ModelSettings', () => {
     await waitFor(() =>
       expect(setModelAssignment).toHaveBeenCalledWith({
         model: 'hermes-4',
-        provider: 'nous',
+        provider: 'provider-a',
         scope: 'auxiliary',
         task: 'vision'
       })
@@ -551,7 +551,7 @@ describe('ModelSettings', () => {
     clearNotifications()
     setModelAssignment.mockResolvedValueOnce({
       ok: true,
-      provider: 'nous',
+      provider: 'provider-a',
       model: 'hermes-4',
       stale_aux: []
     })
@@ -577,7 +577,7 @@ describe('ModelSettings', () => {
       ok: true,
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4.7',
-      stale_aux: [{ task: 'compression', provider: 'nous', model: 'hermes-4' }]
+      stale_aux: [{ task: 'compression', provider: 'provider-a', model: 'hermes-4' }]
     })
 
     renderModelSettings()
@@ -588,14 +588,14 @@ describe('ModelSettings', () => {
 
     // The switch-time notice names the pinned provider and offers a reset.
     expect(await screen.findByText(/still run on/)).toBeTruthy()
-    expect(screen.getByText('nous')).toBeTruthy()
+    expect(screen.getByText('provider-a')).toBeTruthy()
   })
 
   it.each(['zh', 'zh-hant'] as const)(
     'localizes stale auxiliary warnings in %s without resetting assignments',
     async locale => {
       getAuxiliaryModels.mockResolvedValueOnce({
-        main: { provider: 'nous', model: 'hermes-4' },
+        main: { provider: 'provider-a', model: 'hermes-4' },
         tasks: [{ task: 'curator', provider: 'openrouter', model: 'fixture-model', base_url: '' }]
       })
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -621,7 +621,7 @@ describe('ModelSettings', () => {
 
   it('shows a persistent banner when a loaded aux slot mismatches the main provider', async () => {
     getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'nous', model: 'hermes-4' },
+      main: { provider: 'provider-a', model: 'hermes-4' },
       tasks: [{ task: 'curator', provider: 'openrouter', model: 'anthropic/claude-opus-4.7', base_url: '' }]
     })
 
@@ -633,7 +633,7 @@ describe('ModelSettings', () => {
 
   it('does not warn when an aux slot uses the main alias', async () => {
     getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'nous', model: 'hermes-4' },
+      main: { provider: 'provider-a', model: 'hermes-4' },
       tasks: [{ task: 'vision', provider: 'main', model: 'kimi-k3', base_url: '' }]
     })
 
@@ -684,7 +684,7 @@ describe('ModelSettings provider switch', () => {
   it('clears the selected model when the user switches provider', async () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
-        { name: 'Nous', slug: 'nous', models: ['hermes-4'], authenticated: true },
+        { name: 'Nous', slug: 'provider-a', models: ['hermes-4'], authenticated: true },
         {
           name: 'Custom endpoint',
           slug: 'custom:lab',
@@ -715,7 +715,7 @@ describe('ModelSettings provider switch', () => {
   it('probes an empty custom provider with a refresh-scoped options fetch on switch', async () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
-        { name: 'Nous', slug: 'nous', models: ['hermes-4'], authenticated: true },
+        { name: 'Nous', slug: 'provider-a', models: ['hermes-4'], authenticated: true },
         {
           name: 'Lab',
           slug: 'custom:lab',
@@ -734,7 +734,7 @@ describe('ModelSettings provider switch', () => {
     // The refresh-scoped fetch repopulates the empty provider's models.
     getGlobalModelOptions.mockResolvedValueOnce({
       providers: [
-        { name: 'Nous', slug: 'nous', models: ['hermes-4'], authenticated: true },
+        { name: 'Nous', slug: 'provider-a', models: ['hermes-4'], authenticated: true },
         {
           name: 'Lab',
           slug: 'custom:lab',
@@ -769,7 +769,7 @@ describe('ModelSettings MoA preset editor', () => {
     presets: {
       default: {
         reference_models: [
-          { provider: 'nous', model: 'hermes-4' },
+          { provider: 'provider-a', model: 'hermes-4' },
           { provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' }
         ],
         aggregator: { provider: 'openrouter', model: 'anthropic/claude-opus-4.8' },
@@ -780,7 +780,7 @@ describe('ModelSettings MoA preset editor', () => {
       }
     },
     reference_models: [
-      { provider: 'nous', model: 'hermes-4' },
+      { provider: 'provider-a', model: 'hermes-4' },
       { provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' }
     ],
     aggregator: { provider: 'openrouter', model: 'anthropic/claude-opus-4.8' },
@@ -795,7 +795,7 @@ describe('ModelSettings MoA preset editor', () => {
       providers: [
         {
           name: 'Nous',
-          slug: 'nous',
+          slug: 'provider-a',
           models: ['hermes-4', 'hermes-4-mini'],
           authenticated: true,
           capabilities: { 'hermes-4': { reasoning: true, fast: true } }
@@ -843,7 +843,7 @@ describe('ModelSettings MoA preset editor', () => {
       const saved = saveMoaModels.mock.calls.at(-1)![0] as ReturnType<typeof moaConfig>
       expect(saved.default_preset).toBe('default')
       expect(saved.presets.default.reference_models[0]).toMatchObject({
-        provider: 'nous',
+        provider: 'provider-a',
         model: 'hermes-4',
         enabled: false
       })
@@ -951,7 +951,7 @@ describe('ModelSettings MoA preset editor', () => {
           presets: expect.objectContaining({
             default: expect.objectContaining({
               reference_models: [
-                expect.objectContaining({ provider: 'nous', model: 'hermes-4', enabled: false }),
+                expect.objectContaining({ provider: 'provider-a', model: 'hermes-4', enabled: false }),
                 expect.objectContaining({ provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' })
               ]
             })
@@ -974,7 +974,7 @@ describe('ModelSettings stale-aux banner dismissal', () => {
   })
 
   const staleAux = {
-    main: { provider: 'nous', model: 'hermes-4' },
+    main: { provider: 'provider-a', model: 'hermes-4' },
     tasks: [{ task: 'vision', provider: 'alibaba', model: 'qwen3.6-flash', base_url: '' }]
   }
 
@@ -1009,7 +1009,7 @@ describe('ModelSettings stale-aux banner dismissal', () => {
       ok: true,
       provider: 'openrouter',
       model: 'anthropic/claude-opus-4.7',
-      stale_aux: [{ task: 'compression', provider: 'nous', model: 'hermes-4' }]
+      stale_aux: [{ task: 'compression', provider: 'provider-a', model: 'hermes-4' }]
     })
 
     renderModelSettings()

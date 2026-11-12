@@ -8,6 +8,7 @@
  */
 
 import type * as HermesSdk from '@hermes/plugin-sdk'
+import { relativeTime } from '@hermes/plugin-sdk'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -158,7 +159,8 @@ describe('the row is reachable', () => {
     // The card and the inspector make the same call: the stored slot sitting
     // hours in the past is the only visible trace of a scheduler that stopped
     // ticking, so it must not be promised as an upcoming run.
-    expect(screen.getByText(/^Overdue since:.*ago$/)).toBeTruthy()
+    // relativeTime follows the OS locale, so compare with its own output instead of English words.
+    expect(screen.getByText(`Overdue since: ${relativeTime(Date.parse(overdue.next_run_at!))}`)).toBeTruthy()
     expect(screen.queryByText(/^Next:/)).toBeNull()
     expect(valueOf(routineDetailRows(overdue), 'Overdue since')).toBeTruthy()
     expect(valueOf(routineDetailRows(overdue), 'Next run')).toBeUndefined()
@@ -166,7 +168,7 @@ describe('the row is reachable', () => {
     cleanup()
     render(<RoutineRow job={upcoming} onOpen={() => undefined} owner={{ name: 'notetaker' }} />)
 
-    expect(screen.getByText(/^Next: in /)).toBeTruthy()
+    expect(screen.getByText(`Next: ${relativeTime(Date.parse(upcoming.next_run_at!))}`)).toBeTruthy()
     expect(valueOf(routineDetailRows(upcoming), 'Next run')).toBeTruthy()
     expect(valueOf(routineDetailRows({ ...overdue, enabled: false, state: 'paused' }), 'Overdue since')).toBeUndefined()
   })

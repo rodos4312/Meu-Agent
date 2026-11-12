@@ -133,14 +133,11 @@ export const en: Translations = {
       showAllMatches: 'Show all matches',
       segmentNoMatch: (segment: string) => `No match in ${segment}, so every match is shown.`,
       freeTierNote: 'Connections stay on this computer until you sign in.',
-      signInLine: 'Sign in to Nous to use managed apps.',
       signIn: 'Sign in',
       managedUnavailable: 'Managed apps are not available for this account yet.',
       writeFailed: 'That change was not saved.',
       refreshFailed: 'The tool list was not refreshed.',
-      disconnectNoAccount: 'Meu has no account to disconnect here. Refresh the page and try again.',
-      disconnectRefused:
-        'Nous could not remove this sign-in right now. Turn the app off with the switch instead, or try again later.'
+      disconnectNoAccount: 'Meu has no account to disconnect here. Refresh the page and try again.'
     },
 
     add: {
@@ -194,7 +191,6 @@ export const en: Translations = {
       providedByPlugin: (plugin: string) => `Provided by plugin ${plugin}`,
       openPlugins: 'Open the Plugins tab',
       // Verbatim, by decision of the design of record.
-      nousLine: 'Nous apps follow your account, not the profile.',
       rulesReadOnly: 'Rules cannot be changed right now.',
       rulesAppOff: (name: string) => `Turn ${name} on to change its tools.`,
       rulesSignIn: 'Sign in to change what Meu may do here.',
@@ -251,7 +247,7 @@ export const en: Translations = {
       remove: 'Remove',
       offTitle: (name: string) => `${name} is off.`,
       offBody: 'Turn it on with the switch above to read the tools it brings.',
-      signedOutTitle: 'Sign in to Nous to read the tool list.',
+      signedOutTitle: 'Sign in to read the tool list.',
       signedOutBody: 'Your servers on this computer are unaffected.',
       conflictTitle: 'Someone changed this rule while you were editing.',
       // Two sentences at most, and the second says the work is still here.
@@ -772,7 +768,7 @@ export const en: Translations = {
         repoLabel: 'Repository',
         verified: 'Verified',
         unverified: 'Unverified',
-        reviewedByNous: 'Reviewed by Nous.',
+        reviewedByCatalog: 'Reviewed by the catalog maintainers.',
         installsAndEnables: profile => `Installs for ${profile} and turns on right away.`,
         installsOnly: profile => `Installs for ${profile}.`,
         advanced: 'Advanced',
@@ -3611,7 +3607,7 @@ export const en: Translations = {
     localDownloadsHeading: 'Local',
     noAuthenticatedProviders: 'No authenticated providers.',
     pro: 'Pro',
-    proNeedsSubscription: 'Pro models need a paid Nous subscription.',
+    proNeedsSubscription: 'Some models need a paid plan with this provider.',
     free: 'Free',
     freeTier: 'Free tier',
     priceTitle: 'Input / Output price per million tokens',
@@ -4092,7 +4088,6 @@ export const en: Translations = {
       errorOpenHermesFolderFailed: 'Could not open the Meu folder',
       errorUpdateApiKey: 'Update API key',
       errorSignInAgain: provider => `Sign in to ${provider} again`,
-      errorSignInFreeTier: 'Sign in with a Nous account',
       errorOauthExpired: provider => `Your ${provider} sign-in expired or was revoked. Sign in again to keep chatting.`,
       errorOpenLogs: 'Open logs',
       errorOpenLogsFailed: 'Could not open the logs folder',

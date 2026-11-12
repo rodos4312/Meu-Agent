@@ -173,7 +173,7 @@ _ATTRIBUTION_HEADERS = {
     "Content-Type": "application/json",
     # OpenRouter attribution headers .
     "HTTP-Referer": "https://github.com/rodos4312/Meu-Agent",
-    "X-Title": "Hermes Agent",
+    "X-Title": "Meu",
 }
 
 

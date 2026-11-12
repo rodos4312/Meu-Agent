@@ -122,8 +122,8 @@ def test_shared_nous_store_writes_0o600_with_0o700_parent(tmp_path, monkeypatch)
         from hermes_cli import auth as auth_mod
 
         state = {
-            "access_token": "nous-access-xxx",
-            "refresh_token": "nous-refresh-xxx",
+            "access_token": "provider-a-access-xxx",
+            "refresh_token": "provider-a-refresh-xxx",
             "token_type": "Bearer",
             "scope": "openid profile",
             "client_id": "test-client",
@@ -147,4 +147,4 @@ def test_shared_nous_store_writes_0o600_with_0o700_parent(tmp_path, monkeypatch)
     )
 
     data = json.loads(path.read_text())
-    assert data["refresh_token"] == "nous-refresh-xxx"
+    assert data["refresh_token"] == "provider-a-refresh-xxx"

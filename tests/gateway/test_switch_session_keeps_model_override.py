@@ -13,7 +13,7 @@ import pytest
 from gateway.config import GatewayConfig, Platform
 from gateway.session import SessionSource, SessionStore
 
-OVERRIDE = {"model": "nous/hermes-4", "provider": "nous"}
+OVERRIDE = {"model": "provider-a/hermes-4", "provider": "provider-a"}
 
 
 @pytest.fixture

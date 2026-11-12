@@ -56,12 +56,12 @@ export interface ThemePresetPalette {
   darkColors?: ThemePresetColors
 }
 
-const NOUS_ALT_BLUE = '#0053FD'
-const NOUS_ALT_NAVY = '#1540B1'
-const NOUS_ALT_CREAM = '#FFE6CB'
+const MEU_ALT_BLUE = '#0053FD'
+const MEU_ALT_NAVY = '#1540B1'
+const MEU_ALT_CREAM = '#FFE6CB'
 
-const nousAltTint = (pct: number) => `color-mix(in srgb, ${NOUS_ALT_BLUE} ${pct}%, #FFFFFF)`
-const nousAltTintTransparent = (pct: number) => `color-mix(in srgb, ${NOUS_ALT_BLUE} ${pct}%, transparent)`
+const meuAltTint = (pct: number) => `color-mix(in srgb, ${MEU_ALT_BLUE} ${pct}%, #FFFFFF)`
+const meuAltTintTransparent = (pct: number) => `color-mix(in srgb, ${MEU_ALT_BLUE} ${pct}%, transparent)`
 
 export const THEME_PRESET_PALETTES = {
   github: {
@@ -122,7 +122,7 @@ export const THEME_PRESET_PALETTES = {
       userBubbleBorder: '#30363d'
     }
   },
-  nous: {
+  meu: {
     colors: {
       background: '#ffffff',
       foreground: '#1f2328',
@@ -354,54 +354,54 @@ export const THEME_PRESET_PALETTES = {
       userBubbleBorder: '#234751'
     }
   },
-  'nous-alt': {
+  'meu-alt': {
     colors: {
       background: '#F8FAFF',
       foreground: '#17171A',
       card: '#FFFFFF',
       cardForeground: '#17171A',
-      muted: nousAltTint(5),
+      muted: meuAltTint(5),
       mutedForeground: '#666678',
       popover: '#FFFFFF',
       popoverForeground: '#17171A',
-      primary: NOUS_ALT_BLUE,
+      primary: MEU_ALT_BLUE,
       primaryForeground: '#FCFCFC',
-      secondary: nousAltTint(7),
+      secondary: meuAltTint(7),
       secondaryForeground: '#242432',
-      accent: nousAltTint(10),
+      accent: meuAltTint(10),
       accentForeground: '#202030',
-      border: nousAltTintTransparent(22),
-      input: nousAltTintTransparent(30),
-      ring: NOUS_ALT_BLUE,
-      midground: NOUS_ALT_BLUE,
-      composerRing: NOUS_ALT_BLUE,
+      border: meuAltTintTransparent(22),
+      input: meuAltTintTransparent(30),
+      ring: MEU_ALT_BLUE,
+      midground: MEU_ALT_BLUE,
+      composerRing: MEU_ALT_BLUE,
       destructive: '#C72E4D',
       destructiveForeground: '#FFFFFF',
       sidebarBackground: '#F3F7FF',
-      sidebarBorder: nousAltTintTransparent(18),
-      userBubble: nousAltTint(6),
-      userBubbleBorder: nousAltTintTransparent(24)
+      sidebarBorder: meuAltTintTransparent(18),
+      userBubble: meuAltTint(6),
+      userBubbleBorder: meuAltTintTransparent(24)
     },
     darkColors: {
       background: '#0D2F86',
-      foreground: NOUS_ALT_CREAM,
+      foreground: MEU_ALT_CREAM,
       card: '#12378F',
-      cardForeground: NOUS_ALT_CREAM,
+      cardForeground: MEU_ALT_CREAM,
       muted: '#183F9A',
       mutedForeground: '#B5C7F3',
       popover: '#123A96',
-      popoverForeground: NOUS_ALT_CREAM,
-      primary: NOUS_ALT_CREAM,
+      popoverForeground: MEU_ALT_CREAM,
+      primary: MEU_ALT_CREAM,
       primaryForeground: '#0D2F86',
       secondary: '#1B45A4',
       secondaryForeground: '#E0E8FF',
-      accent: NOUS_ALT_NAVY,
+      accent: MEU_ALT_NAVY,
       accentForeground: '#F0F4FF',
       border: '#3158AD',
       input: '#0B2566',
-      ring: NOUS_ALT_CREAM,
-      midground: NOUS_ALT_BLUE,
-      composerRing: NOUS_ALT_CREAM,
+      ring: MEU_ALT_CREAM,
+      midground: MEU_ALT_BLUE,
+      composerRing: MEU_ALT_CREAM,
       destructive: '#C0473A',
       destructiveForeground: '#FEF2F2',
       sidebarBackground: '#09286F',

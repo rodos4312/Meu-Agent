@@ -206,7 +206,7 @@ def catalog_install_record(plugin_dir) -> Optional[dict]:
 LOGIN_BACKEND_TIERS = frozenset({"official", "verified"})
 LOGIN_BACKEND_RULE = ("password-manager login backends are accepted only from plugins bundled with Hermes or "
                       "installed from the Hermes plugin catalog at tier verified or official (published by the "
-                      "password-manager vendor itself or by Nous)")
+                      "password-manager vendor itself or by the catalog maintainers)")
 _NON_CATALOG_SOURCES = {"project": "a project .hermes/plugins directory", "entrypoint": "a pip entry point"}
 
 

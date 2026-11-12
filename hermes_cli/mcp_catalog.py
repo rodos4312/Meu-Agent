@@ -1,7 +1,7 @@
-"""MCP catalog — curated, Nous-approved MCP servers shipped with the repo.
+"""MCP catalog — curated, maintainer-approved MCP servers shipped with the repo.
 
-Entries are added only by merging a PR into hermes-agent; presence in ``optional-mcps/`` = Nous
-approval (no community tier, no other trust signals). Manifests pin transport details.
+Entries are added only by merging a PR into this repository; presence in ``optional-mcps/`` =
+maintainer approval (no community tier, no other trust signals). Manifests pin transport details.
 """
 
 from __future__ import annotations

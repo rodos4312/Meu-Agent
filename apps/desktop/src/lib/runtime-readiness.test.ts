@@ -72,7 +72,7 @@ describe('interpretRuntimeReadiness', () => {
         runtime: { error: 'No usable credentials found for nous.', ok: false },
         runtimeError: null
       },
-      { requestedProvider: 'nous' }
+      { requestedProvider: 'provider-a' }
     )
 
     expect(result.reason).toBe('No usable credentials found for nous.')
@@ -110,9 +110,12 @@ describe('fetchRuntimeReadinessSignals', () => {
       throw new Error(`unexpected method: ${method}`)
     }
 
-    await fetchRuntimeReadinessSignals(requestGateway, 'nous')
+    await fetchRuntimeReadinessSignals(requestGateway, 'provider-a')
 
-    expect(calls).toEqual([{ method: 'setup.status' }, { method: 'setup.runtime_check', params: { provider: 'nous' } }])
+    expect(calls).toEqual([
+      { method: 'setup.status' },
+      { method: 'setup.runtime_check', params: { provider: 'provider-a' } }
+    ])
   })
 })
 

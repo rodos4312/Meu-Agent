@@ -171,43 +171,50 @@ test('a repair lock whose holder died is reclaimed instead of bricking launch', 
 // delete the fresh lock a peer created after reclaiming the same dead one (the
 // peer swaps the file between our compare and our unlink). The reclaim must
 // only ever remove the file it judged dead.
-test('reclaiming a dead repair lock never deletes a lock a peer created meanwhile', () =>
-  withTempDir(directory => {
-    const filePath = path.join(directory, 'installation.json')
-    const repairPath = `${filePath}.repair.lock`
-    const gone = spawnSync(process.execPath, ['-p', 'process.pid'], { encoding: 'utf8' })
-    const peerBody = `${process.pid}\nct:${formatCreateTime(processCreateTimeSync(process.pid)!)}\n`
-    fs.writeFileSync(repairPath, `${gone.stdout.trim()}\n`)
+test(
+  'reclaiming a dead repair lock never deletes a lock a peer created meanwhile',
+  () =>
+    withTempDir(directory => {
+      const filePath = path.join(directory, 'installation.json')
+      const repairPath = `${filePath}.repair.lock`
+      const gone = spawnSync(process.execPath, ['-p', 'process.pid'], { encoding: 'utf8' })
+      const peerBody = `${process.pid}\nct:${formatCreateTime(processCreateTimeSync(process.pid)!)}\n`
+      fs.writeFileSync(repairPath, `${gone.stdout.trim()}\n`)
 
-    const realRead = fs.readFileSync
-    let lockReads = 0
+      const realRead = fs.readFileSync
+      let lockReads = 0
 
-    const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((target: any, ...rest: any[]) => {
-      const value = (realRead as any)(target, ...rest)
+      const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((target: any, ...rest: any[]) => {
+        const value = (realRead as any)(target, ...rest)
 
-      // The second read of the lock (the old compare, or the read of our own
-      // rename claim): a peer reclaims the dead lock and takes it, live.
-      if (String(target).startsWith(repairPath) && ++lockReads === 2) {
-        fs.rmSync(repairPath, { force: true })
-        fs.writeFileSync(repairPath, peerBody, { flag: 'wx' })
+        // The second read of the lock (the old compare, or the read of our own
+        // rename claim): a peer reclaims the dead lock and takes it, live.
+        if (String(target).startsWith(repairPath) && ++lockReads === 2) {
+          fs.rmSync(repairPath, { force: true })
+          fs.writeFileSync(repairPath, peerBody, { flag: 'wx' })
+        }
+
+        return value
+      }) as any)
+
+      try {
+        assert.throws(() => loadOrCreateInstallationId(filePath, () => ID_A), /Could not repair/)
+      } finally {
+        spy.mockRestore()
       }
 
-      return value
-    }) as any)
-
-    try {
-      assert.throws(() => loadOrCreateInstallationId(filePath, () => ID_A), /Could not repair/)
-    } finally {
-      spy.mockRestore()
-    }
-
-    assert.equal(fs.readFileSync(repairPath, 'utf8'), peerBody, "the peer's live lock survives")
-    assert.deepEqual(
-      fs.readdirSync(directory).filter(name => name.endsWith('.reclaim')),
-      [],
-      'no rename claim is left behind'
-    )
-  }))
+      assert.equal(fs.readFileSync(repairPath, 'utf8'), peerBody, "the peer's live lock survives")
+      assert.deepEqual(
+        fs.readdirSync(directory).filter(name => name.endsWith('.reclaim')),
+        [],
+        'no rename claim is left behind'
+      )
+    }),
+  // Plain Node has no getCreationTime, so on Windows every process creation-time lookup is a CIM query
+  // (~0.6 s) while the contended loop runs: ~28 s here, against vitest's 30 s default. Electron reads its
+  // own creation time directly, so the app is not affected.
+  90_000
+)
 
 // Review 5411222842: the repair lock judged its holder with a second copy of
 // the marker identity rule that had no own-pid check and no v1 age ceiling, so

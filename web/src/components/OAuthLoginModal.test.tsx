@@ -39,8 +39,8 @@ const provider = {
   disconnectable: true,
   docs_url: "https://example.com/nous",
   flow: "device_code" as const,
-  id: "nous",
-  name: "Nous Portal",
+  id: "provider-a",
+  name: "Provider A",
   status: { logged_in: false },
 };
 

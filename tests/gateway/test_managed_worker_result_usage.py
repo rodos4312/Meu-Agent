@@ -55,7 +55,7 @@ def test_failed_non_billing_turn_with_no_billing_block_is_accepted():
 def test_worker_result_frame_carries_the_billing_block():
     """A billing-blocked managed turn hands the owner the same structured block the in-process turn returns, so a local viewer's message.complete can carry ``billing``."""
     block = {'provider': 'custom', 'provider_label': 'Custom', 'model': 'm', 'billing_url': None,
-             'is_nous': False, 'message': 'Add credits', 'unverified': True, 'internal': object()}
+             'message': 'Add credits', 'unverified': True, 'internal': object()}
     raw = {**_run_conversation_result(), 'failed': True, 'failure_reason': 'billing', 'billing_block': block}
     wire = read_frame(io.BytesIO(encode_frame({'type': 'result', 'result': result_frame(raw)})))
     result, _usage = accept_result(wire['result'])
@@ -155,6 +155,6 @@ def test_worker_result_frame_carries_the_usage_window_refusal():
            'failure_resets_at': 1_900_000_000.0, 'usage_window_message': message, 'error': message}
     wire = read_frame(io.BytesIO(encode_frame({'type': 'result', 'result': result_frame(raw)})))
     result, _usage = accept_result(wire['result'])
-    surface = build_error_surface_from_result(result, 'nous', 'm')
+    surface = build_error_surface_from_result(result, 'openrouter', 'm')
     assert surface['code'] == 'usage_window' and surface['message'] == message
     assert surface['resets_at'] == 1_900_000_000.0

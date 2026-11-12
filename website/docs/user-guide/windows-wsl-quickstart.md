@@ -259,8 +259,6 @@ For webhooks from cloud messaging providers (Telegram `setWebhook`, Slack events
 
 ## Running Hermes services long-term on Windows
 
-The Hermes [Tool Gateway](./features/tool-gateway.md) and the API server are long-lived processes. In WSL2 you have a few options for keeping them up.
-
 ### Desktop shortcut for opening Hermes quickly
 
 If you just want a double-click launcher for an interactive Hermes shell, create
@@ -356,4 +354,3 @@ WSL2 stores its VM disk as a sparse VHDX under `%LOCALAPPDATA%\Packages\...`. It
 - **[Installation](../getting-started/installation.md)** — actual install steps (Linux/WSL2 use the same installer).
 - **[Integrations → Providers → WSL2 Networking](../integrations/providers.md#wsl2-networking-windows-users)** — the canonical networking deep-dive for local model servers.
 - **[MCP guide → WSL → Windows Chrome](../guides/use-mcp-with-hermes.md#wsl2-bridge-hermes-in-wsl-to-windows-chrome)** — controlling your signed-in Windows Chrome from Hermes in WSL.
-- **[Tool Gateway](./features/tool-gateway.md)** and **[Web Dashboard](./features/web-dashboard.md)** — the long-lived services you'll most often want to expose from WSL to the rest of your network.

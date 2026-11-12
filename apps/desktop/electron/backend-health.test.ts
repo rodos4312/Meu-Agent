@@ -449,7 +449,7 @@ test('error-shape predicates', () => {
   assert.equal(isMissingHealthEndpointError(new Error(GATE_401)), false)
 })
 
-test.each(['https://old.agents.nousresearch.com', 'https://gateway.example.com', 'http://127.0.0.1:9000'])(
+test.each(['https://provider-a.example', 'https://gateway.example.com', 'http://127.0.0.1:9000'])(
   'persistent HTTP failure at %s stays bounded and retains its original cause',
   async baseUrl => {
     let clock = 0

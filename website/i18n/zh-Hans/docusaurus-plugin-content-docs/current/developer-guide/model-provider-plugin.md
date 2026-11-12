@@ -306,7 +306,6 @@ register_provider(ProviderProfile(
 |---|---|---|
 | `api_key` | 单个环境变量携带静态 API key | 大多数提供商 |
 | `oauth_device_code` | 设备码 OAuth 流程 | — |
-| `oauth_external` | 用户在其他地方登录，token 存入 `auth.json` | Anthropic OAuth、MiniMax OAuth、Qwen Portal、Nous Portal |
 | *插件自定义* | 其他任意值：登录与刷新由提供商自行负责（`auth_handler`、`refresh_credential` 及凭据 hook）；若认证注册表行不同，用 `registry_auth_type` 指定 | 例如 [`github-copilot` labs 插件](https://github.com/NousResearch/hermes-labs-plugins/tree/main/github-copilot) 中的 `copilot` |
 | `aws_sdk` | AWS SDK 凭据链（IAM role、profile、env） | 仅 `bedrock` 插件 |
 | `external_process` | 认证由 agent 启动的子进程处理 | 树外 ACP 插件（例如 `github-copilot` labs 插件中的 `copilot-acp`） |

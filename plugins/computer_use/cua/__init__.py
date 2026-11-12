@@ -23,7 +23,7 @@ class CuaDriverProvider(ComputerUseProvider):
         if cua_driver_binary_available():
             return True
         # No host driver: the tool is still real when the desktop is placed inside a terminal backend whose image
-        # carries cua-driver (nousresearch/hermes-sandbox:desktop). Placement is config; the binary is probed lazily
+        # carries cua-driver (an image built from docker/sandbox-desktop.Dockerfile). Placement is config; the binary is probed lazily
         # at first use, so this stays a cheap check_fn.
         from tools.bot_desktop import placement
         return placement.resolve().where == placement.TERMINAL

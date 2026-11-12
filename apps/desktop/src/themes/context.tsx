@@ -31,7 +31,14 @@ import {
 import { writeBootPalette } from './boot-palette'
 import { $chatFontFamily, resolveChatFontFamily } from './chat-font'
 import { harmonize, normalizeHex, readableInk } from './color'
-import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, nousTheme, RETIRED_SKINS } from './presets'
+import {
+  BUILTIN_THEME_LIST,
+  DEFAULT_SKIN_NAME,
+  DEFAULT_TYPOGRAPHY,
+  meuTheme,
+  RENAMED_SKINS,
+  RETIRED_SKINS
+} from './presets'
 import { $pendingModeApply } from './request'
 import { retintTheme } from './retint'
 import type { DesktopTheme, DesktopThemeColors, DesktopThemeTypography } from './types'
@@ -57,8 +64,11 @@ const INJECTED_FONT_URLS = new Set<string>()
 const resolveMode = (mode: ThemeMode, systemDark = matchesQuery('(prefers-color-scheme: dark)')): 'light' | 'dark' =>
   mode === 'system' ? (systemDark ? 'dark' : 'light') : mode
 
-const normalizeSkin = (name: string | null): string =>
-  name && resolveTheme(name) && !RETIRED_SKINS.has(name) ? name : DEFAULT_SKIN_NAME
+const normalizeSkin = (stored: string | null): string => {
+  const name = stored ? (RENAMED_SKINS[stored] ?? stored) : stored
+
+  return name && resolveTheme(name) && !RETIRED_SKINS.has(name) ? name : DEFAULT_SKIN_NAME
+}
 
 /**
  * A stored mode, or `system` when there isn't one.
@@ -137,7 +147,7 @@ const storedSkin = (profile: string): string =>
 
 /** The live profile's committed theme: what the ThemeProvider paints without a preview. */
 export const committedTheme = (): DesktopTheme =>
-  resolveTheme(normalizeSkin(storedSkin(normalizeProfileKey($activeGatewayProfile.get())))) ?? nousTheme
+  resolveTheme(normalizeSkin(storedSkin(normalizeProfileKey($activeGatewayProfile.get())))) ?? meuTheme
 
 /** Everything a peer window could change that this one has to repaint for. */
 const APPEARANCE_KEYS = new Set([SKIN_KEY, PROFILE_SKINS_KEY, MODE_KEY, PROFILE_MODES_KEY])
@@ -186,7 +196,7 @@ function synthLightColors(seed: DesktopTheme): DesktopThemeColors {
 
 /** Returns the seed palette for a given skin + mode (no overrides applied). */
 export function getBaseColors(skinName: string, mode: 'light' | 'dark'): DesktopThemeColors {
-  return paletteFor(resolveTheme(skinName) ?? nousTheme, mode)
+  return paletteFor(resolveTheme(skinName) ?? meuTheme, mode)
 }
 
 function paletteFor(seed: DesktopTheme, mode: 'light' | 'dark'): DesktopThemeColors {
@@ -215,7 +225,7 @@ function deriveFrom(seed: DesktopTheme, mode: 'light' | 'dark'): DesktopTheme {
 }
 
 const deriveTheme = (skinName: string, mode: 'light' | 'dark'): DesktopTheme =>
-  deriveFrom({ ...(resolveTheme(skinName) ?? nousTheme), name: skinName }, mode)
+  deriveFrom({ ...(resolveTheme(skinName) ?? meuTheme), name: skinName }, mode)
 
 /** The theme a saved accent was retinted from; any other theme is its own base. */
 export const accentBase = (theme: DesktopTheme): DesktopTheme =>
@@ -318,7 +328,7 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark', chatFontFamily 
 
   const root = document.documentElement
   const c = theme.colors
-  const typo = { ...DEFAULT_TYPOGRAPHY, ...nousTheme.typography, ...theme.typography }
+  const typo = { ...DEFAULT_TYPOGRAPHY, ...meuTheme.typography, ...theme.typography }
   const rendered = renderedModeFor(c, mode)
   const isDark = rendered === 'dark'
   const midground = c.midground ?? c.ring
@@ -497,7 +507,7 @@ interface ThemeContextValue {
 const SKIN_LIST = BUILTIN_THEME_LIST.map(({ name, label, description }) => ({ name, label, description }))
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: nousTheme,
+  theme: meuTheme,
   themeName: DEFAULT_SKIN_NAME,
   mode: 'light',
   resolvedMode: 'light',
@@ -615,7 +625,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     () =>
       accentOverride === null
         ? activeTheme
-        : deriveFrom(accentedTheme(resolveTheme(paintedName) ?? nousTheme, accentOverride), paintedMode),
+        : deriveFrom(accentedTheme(resolveTheme(paintedName) ?? meuTheme, accentOverride), paintedMode),
     [activeTheme, accentOverride, paintedName, paintedMode]
   )
 

@@ -131,10 +131,10 @@ def test_provider_flag_uses_named_custom_default_model(monkeypatch):
     monkeypatch.setitem(
         cli.CLI_CONFIG,
         "model",
-        {"default": "tencent/hy3:free", "provider": "nous"},
+        {"default": "tencent/hy3:free", "provider": "provider-a"},
     )
     config = {
-        "model": {"default": "tencent/hy3:free", "provider": "nous"},
+        "model": {"default": "tencent/hy3:free", "provider": "provider-a"},
         "providers": {
             "gmk-lan": {
                 "name": "GMK Local",
@@ -159,10 +159,10 @@ def test_explicit_model_wins_over_provider_default_model(monkeypatch):
     monkeypatch.setitem(
         cli.CLI_CONFIG,
         "model",
-        {"default": "tencent/hy3:free", "provider": "nous"},
+        {"default": "tencent/hy3:free", "provider": "provider-a"},
     )
     config = {
-        "model": {"default": "tencent/hy3:free", "provider": "nous"},
+        "model": {"default": "tencent/hy3:free", "provider": "provider-a"},
         "providers": {
             "gmk-lan": {
                 "name": "GMK Local",
@@ -240,7 +240,7 @@ def test_provider_flag_logs_when_custom_default_model_cannot_resolve(monkeypatch
     monkeypatch.setitem(
         cli.CLI_CONFIG,
         "model",
-        {"default": "tencent/hy3:free", "provider": "nous"},
+        {"default": "tencent/hy3:free", "provider": "provider-a"},
     )
 
     def _boom(_name):

@@ -40,4 +40,5 @@ def test_extract_only_config_does_not_reroute_search(monkeypatch):
 def test_retired_selection_does_not_autodetect_another_provider(monkeypatch):
     from tools import web_tools
     _ladder_env(monkeypatch, {"use_gateway": True})
-    assert web_tools._get_backend() == "nous"
+    from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION
+    assert web_tools._get_backend() == RETIRED_MANAGED_SELECTION

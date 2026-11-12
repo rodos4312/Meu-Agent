@@ -1110,7 +1110,7 @@ def cmd_mcp_configure(args):
 
 _MCP_USAGE = (
     "hermes mcp                                    Open the catalog picker (default)",
-    "hermes mcp catalog                            List Nous-approved MCPs",
+    "hermes mcp catalog                            List curated catalog MCPs",
     "hermes mcp install <name>                     Install a catalog MCP",
     "hermes mcp add <name> --url <endpoint>        Add a custom MCP server",
     "hermes mcp add <name> --command <cmd>         Add a stdio server",

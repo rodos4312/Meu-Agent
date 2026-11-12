@@ -129,21 +129,6 @@ def test_bearer_refused_before_send_for_forbidden_plane_url(monkeypatch, tmp_pat
     assert nous_bearer == []       # the bearer was never even resolved
 
 
-@pytest.mark.parametrize("url, expect", [
-    ("", "https://config-config.nousresearch.com/v1/config/self?profile=default"),   # D19 default
-    ("https://config.corp.internal:9443/plane/", "https://config.corp.internal:9443/plane/v1/config/self?profile=default"),
-    ("http://localhost:8080", "http://localhost:8080/v1/config/self?profile=default"),
-    ("http://127.0.0.1:9", "http://127.0.0.1:9/v1/config/self?profile=default"),
-    ("http://[::1]:9", "http://[::1]:9/v1/config/self?profile=default"),
-])
-def test_bearer_sent_to_allowed_plane_origin(monkeypatch, tmp_path, nous_bearer, captured, url, expect):
-    monkeypatch.setenv(client.URL_ENV, url)
-    resp = client.request("GET", tmp_path, "default")
-    assert resp.status == 200
-    assert [r.full_url for r in captured] == [expect]
-    assert captured[0].get_header("Authorization") == f"Bearer {PLANE_BEARER}"
-
-
 @pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
 def test_plane_redirect_is_not_followed_with_the_bearer(monkeypatch, tmp_path, nous_bearer, listeners, code):
     """A real cross-origin redirect: the plane answers 3xx to another origin; the target never sees

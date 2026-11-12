@@ -36,10 +36,10 @@ class _Ticks:
 def _profile(home: Path, base_url: str) -> None:
     home.mkdir(parents=True, exist_ok=True)
     (home / "config.yaml").write_text("model:\n  provider: nous\n", encoding="utf-8")
-    (home / ".env").write_text(f"NOUS_INFERENCE_BASE_URL={base_url}\n", encoding="utf-8")
-    (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"nous": {
+    (home / ".env").write_text(f"PROVIDER_A_BASE_URL={base_url}\n", encoding="utf-8")
+    (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"provider-a": {
         "access_token": "x.y.z", "refresh_token": "r", "expires_at": 0,
-        "portal_base_url": "https://portal.nousresearch.com", "client_id": "c"}}}), encoding="utf-8")
+        "portal_base_url": "https://portal.provider-a.example", "client_id": "c"}}}), encoding="utf-8")
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def two_homes(tmp_path, monkeypatch):
     _profile(b, "https://b.example/v1")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
     monkeypatch.setenv("HERMES_HOME", str(a))
-    monkeypatch.delenv("NOUS_INFERENCE_BASE_URL", raising=False)
+    monkeypatch.delenv("PROVIDER_A_BASE_URL", raising=False)
     # The hermetic conftest pins ``hermes_state.DEFAULT_DB_PATH`` at one sandbox store whenever
     # hermes_state is already imported, and that pin WINS over ``get_hermes_home()`` inside
     # ``_default_db_path()`` — exactly the per-profile resolution these tests exist to prove.
@@ -276,17 +276,6 @@ def test_prune_unlinks_transcripts_under_the_configured_sessions_dir(two_homes, 
 
     assert not (override / "old.jsonl").exists(), "launch profile's configured transcript survived"
     assert not (b / "sessions" / "old.jsonl").exists(), "profile b's transcript survived"
-
-
-def test_single_profile_credential_chores_run_once_against_the_process_home(two_homes, monkeypatch):
-    """Control: a single-profile gateway (multiplex off) still runs each chore exactly once against
-    the process home — the named profile directory on disk is not visited."""
-    a, _b = two_homes
-    seen = _record_credential_chores(monkeypatch)
-
-    _run_60_ticks(SimpleNamespace(config=SimpleNamespace(multiplex_profiles=False)))
-
-    assert {k: [h for h, _ in v] for k, v in seen.items()} == {"curator": [a.name]}
 
 
 def test_multiplexed_plugin_update_check_visits_every_served_profiles_plugins(two_homes, monkeypatch):

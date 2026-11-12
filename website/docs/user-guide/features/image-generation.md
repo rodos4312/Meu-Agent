@@ -29,14 +29,6 @@ Prices are FAL's pricing at time of writing; check [fal.ai](https://fal.ai/) for
 
 ## Setup
 
-:::tip Nous Subscribers
-If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, you can use image generation through the **[Tool Gateway](tool-gateway.md)** without a FAL API key. Your model selection persists across both paths. New installs can run `hermes setup --portal` to log in and turn on every gateway tool at once; existing installs can pick **Nous Subscription** as the image-gen backend via `hermes tools`.
-
-The **Nous Subscription** row is the only managed row. Its model picker spans every gateway the subscription runs — the FAL catalog above, native **Krea 3** (`krea-3`) and **Krea 2** (`krea-2-medium`, `krea-2-large`, `krea-2-medium-turbo`) and any Nous Portal image models — each model listed once, and the model you pick decides which gateway serves the request. Free tool-pool accounts see the FAL models only; Krea and Portal models are paid-subscription. With Krea 3 selected, `image_url` is a picture to edit (up to 4 reference images in total; an edit keeps the picture's own framing) and `image_generate` offers `thinking` (`fast` or `high`) and `resolution` (`1K` or `2K`). With a Krea 2 model selected, it offers Krea's `creativity` setting and its `intensity`, `complexity` and `movement` sliders (-100 to 100) instead.
-
-If the managed gateway returns `HTTP 4xx` for a specific model, that model isn't yet proxied on the portal side — the agent will tell you so, with remediation steps (switch to FAL.ai in `hermes tools` with your own `FAL_KEY` for direct access, or pick a different model).
-:::
-
 ### Get a FAL API Key
 
 1. Sign up at [fal.ai](https://fal.ai/)
@@ -49,8 +41,6 @@ Run the tools command:
 ```bash
 hermes tools
 ```
-
-Navigate to **🎨 Image Generation**, pick your backend (Nous Subscription or FAL.ai), then the picker shows all supported models in a column-aligned table — arrow keys to navigate, Enter to select:
 
 ```
   Model                          Speed    Strengths                    Price
@@ -69,25 +59,11 @@ image_gen:
   max_parallel_requests: 4      # concurrent images in one tool-call batch
 ```
 
-`image_gen.provider` is the single selection key: `nous` routes through the managed Tool Gateway; a vendor name (`fal`, `openai`, `xai`, `krea`, ...) goes direct with your own key. The runtime always follows this stored selection — a `FAL_KEY` in `.env` is ignored while `provider: nous`, and `provider: fal` without `FAL_KEY` errors with `image_gen is configured to use fal (set via hermes tools), but FAL_KEY is not set. Run 'hermes tools' to change it.` rather than silently rerouting. Change providers via `hermes tools`, not by adding/removing keys. (The old `use_gateway` boolean is legacy — still read as `nous` when `true`, but never written anymore.)
-
 `max_parallel_requests` defaults to `4`. Hermes clamps it to at least one and
 to the global tool-worker limit, so image providers receive bounded parallel
 requests without allowing an image batch to bypass the agent's concurrency cap.
 
 ### OpenRouter: the full Image API catalog
-
-With `image_gen.provider: openrouter`, the model picker lists OpenRouter's
-entire live image catalog — the dedicated
-[Image API](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)
-models (Seedream, FLUX.2, Recraft, Qwen Image, MAI, Krea, Riverflow, Grok
-Imagine, and more — 40+ ids) merged with the chat-completions image models.
-The catalog is fetched live from `GET /images/models` and `GET /models`, so
-new models appear in the picker as soon as OpenRouter serves them; no Hermes
-update needed. Generation routes each model to the surface that serves it
-(dedicated `POST /images/generations` vs chat-completions) automatically.
-Nous Portal proxies the chat-completions protocol only, so its picker offers
-the chat-served models.
 
 Optional per-request knobs for Image API models go under the scoped config
 section (or `OPENROUTER_IMAGE_API_*` env vars):
@@ -103,8 +79,6 @@ image_gen:
 ```
 
 ### GPT-Image Quality
-
-The `fal-ai/gpt-image-1.5` and `fal-ai/gpt-image-2` request quality is pinned to `medium` (~$0.034–$0.06/image at 1024×1024). We don't expose the `low` / `high` tiers as a user-facing option so that Nous Portal billing stays predictable across all users — the cost spread between tiers is 3–22×. If you want a cheaper option, pick Klein 9B or Z-Image Turbo; if you want higher quality, use Nano Banana Pro or Recraft V4 Pro.
 
 ### Meta Model API: Muse Image
 
@@ -403,7 +377,6 @@ Debug logs go to `./logs/image_tools_debug_<session_id>.json` with per-call deta
 
 ## Limitations
 
-- **Requires credentials** for the active backend (FAL `FAL_KEY` / Nous Subscription, `OPENAI_API_KEY`, xAI OAuth, `KREA_API_KEY`)
 - **Editing is model-dependent** — image-to-image works only on edit-capable models (see the table above); text-to-image-only models reject image inputs with a clear error
 - **Temporary URLs** — backends return hosted URLs that expire after hours/days; Hermes materializes them to the local cache so delivery still works after expiry
 - **Per-model constraints** — some models don't support `seed`, `num_inference_steps`, etc. The `supports` / `edit_supports` filter silently drops unsupported params; this is expected behavior

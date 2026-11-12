@@ -40,7 +40,7 @@ def test_ack_detector_transition_cue_names_only_acp_agents():
 
     agent = SimpleNamespace(_strip_think_blocks=lambda s: s)
     acp = ProviderProfile(name="acme-acp", aliases=("acme",), auth_type="external_process", process_command="acmecli")
-    nous = ProviderProfile(name="nous", aliases=("nous-portal",), base_url="https://api.nous.test/v1")
+    nous = ProviderProfile(name="provider-a", aliases=("provider-a-portal",), base_url="https://api.nous.test/v1")
 
     def ack(text):
         return looks_like_codex_intermediate_ack(agent, "go", text, [], require_workspace=False)

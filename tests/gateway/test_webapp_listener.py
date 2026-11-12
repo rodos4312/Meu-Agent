@@ -274,16 +274,6 @@ def _lan_webapp(monkeypatch, tmp_path, *, registered=None, address=LAN, public_u
     return runner
 
 
-def test_on_the_lan_the_launcher_opens_the_address_web_access_registered_for_sign_in(monkeypatch, tmp_path):
-    """Nous sign-in returns to the callback Web Access Start registered with the Portal, the LAN
-    address's. Opened at the loopback address, sign-in would send a callback the Portal never saw,
-    so the launcher opens the registered address."""
-    runner = _lan_webapp(monkeypatch, tmp_path, registered=f"http://{LAN}:9555/auth/callback")
-    result = _ask(runner, "webapp-launch", params={"profile": "work"})["result"]
-    assert result == {"url": f"http://{LAN}:9555/?profile=work", "private": False,
-                      "expires_in_seconds": None, "sign_in": True}
-
-
 @pytest.mark.parametrize(("registered", "address"), [
     (None, LAN),  # set up by hand: a password provider, or a client registered for this address
     (f"http://{LAN}:9120/auth/callback", LAN),  # registered before webapp.port changed

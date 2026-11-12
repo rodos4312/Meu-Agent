@@ -1,4 +1,4 @@
-"""Direct web requests survive removal of the Nous-hosted search route."""
+"""Direct web requests survive removal of the retired managed search route."""
 
 import asyncio
 import json
@@ -12,7 +12,7 @@ from tests.tools.conftest import register_all_web_providers
 @pytest.fixture
 def web_home(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    monkeypatch.setenv("TOOL_GATEWAY_DOMAIN", "nousresearch.com")
+    monkeypatch.setenv("TOOL_GATEWAY_DOMAIN", "provider-a.example")
     monkeypatch.setenv("TOOL_GATEWAY_USER_TOKEN", "retired-account-token")
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     register_all_web_providers()
@@ -69,4 +69,4 @@ def test_retired_provider_requires_selection_without_network(web_home, monkeypat
     result = json.loads(web_tools.web_search_tool("retired route") if capability == "search"
                         else asyncio.run(web_tools.web_extract_tool(["https://example.com"])))
     assert result["success"] is False
-    assert "nous" in result["error"]
+    assert "retired managed service has been removed" in result["error"]

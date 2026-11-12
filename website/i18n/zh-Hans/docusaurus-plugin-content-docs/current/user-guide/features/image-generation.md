@@ -26,12 +26,6 @@ Hermes Agent 通过 FAL.ai 根据文字提示生成图像。默认内置 8 个�
 
 ## 配置
 
-:::tip Nous 订阅用户
-若你持有付费 [Nous Portal](https://portal.nousresearch.com) 订阅，可通过 **[Tool Gateway](tool-gateway.md)** 使用文生图，**无需** `FAL_KEY`。模型选择在「直连 FAL」与「订阅网关」两条路径下保持一致。
-
-若托管网关对某一模型返回 `HTTP 4xx`，通常表示该模型尚未在 Portal 侧代理——智能体会给出处理建议（例如配置 `FAL_KEY` 直连，或换用其他模型）。
-:::
-
 ### 获取 FAL API Key
 
 1. 在 [fal.ai](https://fal.ai/) 注册  
@@ -44,8 +38,6 @@ Hermes Agent 通过 FAL.ai 根据文字提示生成图像。默认内置 8 个�
 ```bash
 hermes tools
 ```
-
-进入 **🎨 Image Generation**，选择后端（Nous Subscription 或 FAL.ai），随后在表格中用方向键选择模型，回车确认：
 
 ```
   Model                          Speed    Strengths                    Price
@@ -63,11 +55,7 @@ image_gen:
   model: fal-ai/flux-2/klein/9b
 ```
 
-`image_gen.provider` 是唯一的选择键：`nous` 走托管网关，厂商名（如 `fal`）走直连。运行时始终按该选择路由——`provider: nous` 时 `.env` 里的 `FAL_KEY` 会被忽略；`provider: fal` 而缺少 `FAL_KEY` 会直接报错并提示运行 `hermes tools`，不会静默回退。（旧的 `use_gateway` 键已废弃，读取时 `true` 等同于 `nous`。）
-
 ### GPT-Image 画质档位
-
-`fal-ai/gpt-image-1.5` 的请求画质固定为 `medium`（约 1024×1024 下 $0.034/张）。面向用户**不开放** `low` / `high` 档位，以便 Nous Portal 侧计费在全体用户间更可预期（档位价差约 22×）。若需要更便宜的 GPT-Image 路线，请换其他模型；若追求更高画质，可考虑 Klein 9B 或同类 Imagen 系模型。
 
 ## 使用方式
 

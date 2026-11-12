@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { onComposerAttachImagesRequest } from '@/app/chat/composer/focus'
 import { PANE_HIDDEN_ATTR, PaneVisibleContext } from '@/components/pane-shell/pane-visibility'
 import { setTreePaneParked } from '@/components/pane-shell/tree/parked-panes'
+import { en } from '@/i18n/en'
 import { $rightRailActiveTabId } from '@/store/layout'
 import { $previewTabs, closeRightRail, openPreview, previewTabId } from '@/store/preview'
 import { $connection, $selectedStoredSessionId } from '@/store/session'
@@ -932,10 +933,12 @@ describe('PreviewPane console state', () => {
     expect(rendered.container.querySelector('iframe')?.getAttribute('src')).toBe('blob:pdf-preview-1')
   })
 
+  // Meu's shared PdfDocumentFrame (014a0e086e) shows the localized "Preview unavailable" instead of the
+  // raw validation message; what must hold is the refusal itself: no iframe and no object URL.
   it.each([
-    ['a non-PDF MIME type', 'data:text/html;base64,JVBERi0xLjQ=', 'Invalid PDF data URL type'],
-    ['bytes without a PDF header', 'data:application/pdf;base64,PGh0bWw+', 'Invalid PDF file header'],
-    ['a malformed payload', 'data:application/pdf;base64,%', 'Invalid PDF data URL payload']
+    ['a non-PDF MIME type', 'data:text/html;base64,JVBERi0xLjQ=', en.preview.unavailable],
+    ['bytes without a PDF header', 'data:application/pdf;base64,PGh0bWw+', en.preview.unavailable],
+    ['a malformed payload', 'data:application/pdf;base64,%', en.preview.unavailable]
   ])('rejects %s before creating an object URL', async (_case, dataUrl, expectedError) => {
     const readFileDataUrl = vi.fn(async () => dataUrl)
     const { createObjectURL } = stubPdfObjectUrls()

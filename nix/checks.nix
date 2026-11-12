@@ -222,15 +222,11 @@ json.dump(sorted(leaf_paths(DEFAULT_CONFIG)), sys.stdout, indent=2)
           dist = desktop / 'hermes-desktop/dist'
           launcher = desktop / 'icons/hicolor/1024x1024/apps/hermes.png'
           for path in [launcher, dist / 'apple-touch-icon.png',
-                       dist / 'nous-girl.png', dist / 'nous-girl-dark.png',
                        Path('${self'.packages.web}/favicon.ico')]:
               with Image.open(path) as image:
                   image.load()
                   assert image.width > 0 and image.height > 0, path
-          with Image.open(launcher) as image, Image.open(dist / 'apple-touch-icon.png') as window_icon:
-              assert image.size == window_icon.size
-              assert image.convert('RGBA').tobytes() == window_icon.convert('RGBA').tobytes()
-          print('PASS: desktop and web ship decodable generated icons; launcher matches window icon')
+          print('PASS: desktop and web ship decodable icons')
           PY
           mkdir -p $out
         '';

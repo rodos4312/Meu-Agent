@@ -44,7 +44,7 @@ const limitEvent = {
         limit_name: 'daily',
         message: 'You hit the daily limit.',
         scope: 'all',
-        suggestions: [{ label: 'Free model', model: 'free/model', note: '', provider: 'nous' }]
+        suggestions: [{ label: 'Free model', model: 'free/model', note: '', provider: 'provider-a' }]
       }
     },
     text: 'You hit the daily limit.'
@@ -85,7 +85,7 @@ describe('the usage-limit card on a canonical connection', () => {
       'session.mutate',
       expect.objectContaining({
         operation: 'model',
-        payload: { model: 'free/model', provider: 'nous' },
+        payload: { model: 'free/model', provider: 'provider-a' },
         session_id: 'sess-1'
       })
     )

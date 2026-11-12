@@ -14,7 +14,7 @@ from tui_gateway import server
 
 class _Agent:
     def __init__(self):
-        self.model, self.provider, self.base_url, self.api_key, self.api_mode = "old", "nous", "", "", ""
+        self.model, self.provider, self.base_url, self.api_key, self.api_mode = "old", "provider-a", "", "", ""
         self.reasoning_config = {"enabled": True, "effort": "medium"}
 
     def switch_model(self, **_kw):
@@ -24,7 +24,7 @@ class _Agent:
 @pytest.fixture
 def _quiet_switch(monkeypatch):
     result = SimpleNamespace(
-        success=True, new_model="new/model", target_provider="nous", base_url="", api_key="key",
+        success=True, new_model="new/model", target_provider="provider-a", base_url="", api_key="key",
         api_mode="chat_completions", warning_message="", model_info=None, error_message="",
         runtime_capabilities=None)
     monkeypatch.setattr("hermes_cli.model_switch.switch_model", lambda **_kw: result)

@@ -41,7 +41,8 @@ test('a zombie or missing owner is stale; kill(pid,0) alone would say alive', ()
   assert.equal(isStaleSingletonLockOwner(''), false)
 })
 
-test('removeStaleSingletonLock unlinks only a provably-dead owner', () => {
+// Chromium's SingletonLock is a symlink only on Linux/macOS; Windows uses a different lock.
+test.runIf(process.platform !== 'win32')('removeStaleSingletonLock unlinks only a provably-dead owner', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-singleton-lock-'))
 
   try {

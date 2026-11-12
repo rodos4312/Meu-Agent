@@ -159,12 +159,12 @@ def test_a_standalone_owner_is_the_per_profile_topology_not_a_refusal(tmp_path, 
     owner_home = tmp_path / "root" / "profiles" / "tank"
     _publish(owner_pid, owner_home, ("tank",))
     _answer_identify(monkeypatch, owner_pid, owner_home, ["tank"])
-    monkeypatch.setattr(gateway_run, "get_hermes_home", lambda: tmp_path / "root" / "profiles" / "nous")
+    monkeypatch.setattr(gateway_run, "get_hermes_home", lambda: tmp_path / "root" / "profiles" / "provider-a")
     monkeypatch.setattr("gateway.control_socket.rescan_gateway_profiles",
                         lambda home, timeout=8.0: {"multiplex": False, "served_profiles": ["tank"]})
 
     with caplog.at_level("INFO", logger="gateway.host_attach"):
-        assert host_attach.decide(tmp_path / "root" / "profiles" / "nous").outcome == host_attach.START
+        assert host_attach.decide(tmp_path / "root" / "profiles" / "provider-a").outcome == host_attach.START
     assert any("migrate --multiplex" in r.getMessage() for r in caplog.records), "the converge hint is logged"
     assert asyncio.run(gateway_run._host_attach_or_none(replace=False)) is None
 
@@ -177,7 +177,7 @@ def test_replace_starts_beside_a_standalone_owner_it_does_not_belong_to(tmp_path
     owner_home = tmp_path / "root" / "profiles" / "tank"
     _publish(owner_pid, owner_home, ("tank",))
     _answer_identify(monkeypatch, owner_pid, owner_home, ["tank"])
-    monkeypatch.setattr(gateway_run, "get_hermes_home", lambda: tmp_path / "root" / "profiles" / "nous")
+    monkeypatch.setattr(gateway_run, "get_hermes_home", lambda: tmp_path / "root" / "profiles" / "provider-a")
     monkeypatch.setattr("gateway.control_socket.rescan_gateway_profiles",
                         lambda home, timeout=8.0: {"multiplex": False, "served_profiles": ["tank"]})
     signalled: list[int] = []
@@ -188,7 +188,7 @@ def test_replace_starts_beside_a_standalone_owner_it_does_not_belong_to(tmp_path
 
     monkeypatch.setattr(gateway_run, "_start_gateway_replace_existing_instance", _replace)
 
-    assert host_attach.decide(tmp_path / "root" / "profiles" / "nous", replace=True).outcome == host_attach.START
+    assert host_attach.decide(tmp_path / "root" / "profiles" / "provider-a", replace=True).outcome == host_attach.START
     assert asyncio.run(gateway_run._host_attach_or_none(replace=True)) is None
     assert signalled == [], "--replace must not target a standalone owner that does not serve this profile"
 

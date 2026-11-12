@@ -42,7 +42,9 @@ foreach ($asset in @(@('StoreLogo.png',50), @('Square150x150Logo.png',150), @('S
   finally { $image.Dispose() }
 }
 `)
-  run('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', iconsScript, '-Dir', path.join(root, 'icons')], root)
+  run('powershell.exe', ['-NoProfile', '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass', '-File', iconsScript, '-Dir', path.join(root, 'icons')], root)
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
     !/^(AZURE_|CLOUDFLARE_|HERMES_|GITHUB_|GH_|NODE_OPTIONS$)/i.test(key)))
   Object.assign(env, { HERMES_PAYLOAD_TAG: '', CI: '', GIT_CONFIG_GLOBAL: path.join(root, 'git-config'),

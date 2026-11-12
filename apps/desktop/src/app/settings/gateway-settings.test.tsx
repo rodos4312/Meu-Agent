@@ -279,7 +279,7 @@ describe('GatewaySettings', () => {
 
     const oauthProbe = {
       authMode: 'oauth',
-      providers: [{ displayName: 'Nous Research', name: 'nous', supportsPassword: false }],
+      providers: [{ displayName: 'Nous Research', name: 'provider-a', supportsPassword: false }],
       reachable: true
     }
 

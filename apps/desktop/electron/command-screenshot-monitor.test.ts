@@ -19,44 +19,48 @@ class FakeChild extends EventEmitter {
   kill = vi.fn((_signal?: NodeJS.Signals) => true)
 }
 
-test('launches the unpacked helper without prompting and delivers only validated capture messages', () => {
-  const child = new FakeChild()
-  const spawn = vi.fn((_command: string, _args: string[], _options: SpawnOptions) => child)
-  const captures: CommandScreenshotCapture[] = []
-  const statuses: CommandScreenshotStatus[] = []
+// Host-specific: asserts the macOS bundle path layout.
+test.runIf(process.platform !== 'win32')(
+  'launches the unpacked helper without prompting and delivers only validated capture messages',
+  () => {
+    const child = new FakeChild()
+    const spawn = vi.fn((_command: string, _args: string[], _options: SpawnOptions) => child)
+    const captures: CommandScreenshotCapture[] = []
+    const statuses: CommandScreenshotStatus[] = []
 
-  const monitor = new CommandScreenshotMonitor({
-    platform: 'darwin',
-    appPath: '/Applications/Hermes.app/Contents/Resources/app.asar',
-    spawn
-  })
+    const monitor = new CommandScreenshotMonitor({
+      platform: 'darwin',
+      appPath: '/Applications/Hermes.app/Contents/Resources/app.asar',
+      spawn
+    })
 
-  monitor.start(
-    value => captures.push(value),
-    value => statuses.push(value)
-  )
-  assert.equal(spawn.mock.calls.length, 1)
-  assert.deepEqual(spawn.mock.calls[0], [
-    '/Applications/Hermes.app/Contents/Resources/app.asar.unpacked/dist/native/command-screenshot-monitor',
-    [],
-    { stdio: ['pipe', 'pipe', 'ignore'], shell: false, detached: false, windowsHide: true }
-  ])
-  child.stdout.write('{"type":"capture","windowId":2,"width":100,"height":200}\n')
-  assert.deepEqual(captures, []) // No capture until readiness is established.
-  child.stdout.write('{"type":"rea')
-  child.stdout.write('dy"}\nnot json\n{"type":"key","key":"private"}\n')
-  child.stdout.write('{"type":"capture","windowId":0,"width":100,"height":200}\n')
-  child.stdout.write('{"type":"capture","windowId":2,"width":-1,"height":200}\n')
-  child.stdout.write('{"type":"capture","windowId":2,"width":100,"height":200,"private":"discard"}\n')
-  assert.deepEqual(captures, [{ type: 'capture', windowId: 2, width: 100, height: 200 }])
-  assert.deepEqual(statuses, [{ type: 'starting' }, { type: 'ready' }])
-  monitor.stop()
-  child.emit('close', 0, null)
-  assert.equal(child.kill.mock.calls[0]?.[0], 'SIGTERM')
-  assert.equal(child.stdout.listenerCount('data'), 0)
-  assert.deepEqual(statuses.at(-1), { type: 'stopped' })
-  assert.equal(resolveCommandScreenshotMonitorPath('/tmp/dev'), '/tmp/dev/dist/native/command-screenshot-monitor')
-})
+    monitor.start(
+      value => captures.push(value),
+      value => statuses.push(value)
+    )
+    assert.equal(spawn.mock.calls.length, 1)
+    assert.deepEqual(spawn.mock.calls[0], [
+      '/Applications/Hermes.app/Contents/Resources/app.asar.unpacked/dist/native/command-screenshot-monitor',
+      [],
+      { stdio: ['pipe', 'pipe', 'ignore'], shell: false, detached: false, windowsHide: true }
+    ])
+    child.stdout.write('{"type":"capture","windowId":2,"width":100,"height":200}\n')
+    assert.deepEqual(captures, []) // No capture until readiness is established.
+    child.stdout.write('{"type":"rea')
+    child.stdout.write('dy"}\nnot json\n{"type":"key","key":"private"}\n')
+    child.stdout.write('{"type":"capture","windowId":0,"width":100,"height":200}\n')
+    child.stdout.write('{"type":"capture","windowId":2,"width":-1,"height":200}\n')
+    child.stdout.write('{"type":"capture","windowId":2,"width":100,"height":200,"private":"discard"}\n')
+    assert.deepEqual(captures, [{ type: 'capture', windowId: 2, width: 100, height: 200 }])
+    assert.deepEqual(statuses, [{ type: 'starting' }, { type: 'ready' }])
+    monitor.stop()
+    child.emit('close', 0, null)
+    assert.equal(child.kill.mock.calls[0]?.[0], 'SIGTERM')
+    assert.equal(child.stdout.listenerCount('data'), 0)
+    assert.deepEqual(statuses.at(-1), { type: 'stopped' })
+    assert.equal(resolveCommandScreenshotMonitorPath('/tmp/dev'), '/tmp/dev/dist/native/command-screenshot-monitor')
+  }
+)
 
 test('bounds startup and termination, preserves permission failures, and isolates restarts', () => {
   vi.useFakeTimers()

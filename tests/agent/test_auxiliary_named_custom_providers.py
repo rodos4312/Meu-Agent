@@ -192,31 +192,6 @@ class TestResolveProviderClientModelNormalization:
         assert model == "anthropic/claude-sonnet-4.6"
 
 
-class TestResolveVisionProviderClientModelNormalization:
-    """Vision auto-routing should reuse the same provider-specific normalization."""
-
-    def test_vision_auto_strips_matching_main_provider_prefix(self, tmp_path):
-        _write_config(tmp_path, {
-            "model": {"default": "zai/glm-5.1", "provider": "zai"},
-        })
-        with (
-            patch("agent.auxiliary_client._read_nous_auth", return_value=None),
-            patch("hermes_cli.auth.resolve_api_key_provider_credentials", return_value={
-                "api_key": "glm-key",
-                "base_url": "https://api.z.ai/api/paas/v4",
-            }),
-            patch("agent.auxiliary_client.OpenAI") as mock_openai,
-        ):
-            mock_openai.return_value = MagicMock()
-            from agent.auxiliary_client import resolve_vision_provider_client
-
-            provider, client, model = resolve_vision_provider_client()
-
-        assert provider == "zai"
-        assert client is not None
-        assert model == "glm-5.3-flash"  # zai coding endpoints support this vision-capable fallback
-
-
 class TestAutoClientCacheModelCompatibility:
     """Auto client cache should not keep OpenRouter-format model overrides on non-OR clients."""
 

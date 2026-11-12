@@ -68,15 +68,6 @@ def test_every_catalog_row_is_a_full_prompt():
         assert task.goal and task.output and task.quality and task.done and 2 <= len(task.steps) <= 6, task.id
 
 
-def test_how_hermes_works_reads_the_docs_and_builds_three_screens():
-    text = reminder("build_hermes", new_record(MAC), MAC)
-
-    assert text.split("\n")[1] == ("Load these skills with skill_view first: hermes-agent, claude-design, p5js, "
-                                   "humanizer.")
-    assert "https://hermes-agent.nousresearch.com/docs" in text and "web_extract" in text
-    assert all(f"Screen {n}" in text for n in (1, 2, 3)) and "~/hermes-first-task/" in text
-
-
 @pytest.mark.parametrize("facts", [MAC, PC, Facts(os="linux"), Facts(os="linux", facts_source="remote")],
                          ids=["mac", "windows", "linux", "remote"])
 def test_every_host_shows_results_in_the_preview_pane_and_never_opens_a_browser(facts):

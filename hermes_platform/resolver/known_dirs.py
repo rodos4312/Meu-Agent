@@ -36,13 +36,15 @@ def hermes_vendored_dirs() -> tuple[str, ...]:
 def machine_marker_files() -> tuple[str, ...]:
     """Where Hermes records that this OS user has used it. No Hermes data-dir setting moves these.
     The first entry is the one written; the rest are read too (Windows: MSIX builds that ran with
-    filesystem virtualisation wrote under the package's LocalCache)."""
+    filesystem virtualisation wrote under the package's LocalCache). Meu writes under its own
+    folder; the upstream vendor folder an older build wrote is still read, never written."""
     if _WIN:
-        return ("%LOCALAPPDATA%/Nous Research/.machine",
+        return ("%LOCALAPPDATA%/Meu/.machine", "%LOCALAPPDATA%/Nous Research/.machine",
                 "%LOCALAPPDATA%/Packages/NousResearch*_*/LocalCache/Local/Nous Research/.machine")
     if sys.platform == "darwin":
-        return ("~/Library/Application Support/Nous Research/.machine",)
-    return ("$XDG_STATE_HOME/nous-research/.machine", "~/.local/state/nous-research/.machine")
+        return ("~/Library/Application Support/Meu/.machine", "~/Library/Application Support/Nous Research/.machine")
+    return ("$XDG_STATE_HOME/meu/.machine", "~/.local/state/meu/.machine",
+            "$XDG_STATE_HOME/nous-research/.machine", "~/.local/state/nous-research/.machine")
 
 
 def hermes_home_globs() -> tuple[str, ...]:

@@ -61,7 +61,6 @@ Current provider families include (see `plugins/model-providers/` for the comple
 
 - AI Gateway (Vercel)
 - OpenRouter
-- Nous Portal
 - OpenAI Codex
 - Anthropic (native)
 - Google / Gemini (`gemini`)

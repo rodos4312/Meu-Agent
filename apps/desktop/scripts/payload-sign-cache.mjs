@@ -29,7 +29,7 @@ export function peContentHash(file) {
   content.fill(0, entry.offsetInFile, entry.offsetInFile + 8)
   const hash = createHash('sha256').update(content)
   // Signing aligns the certificate table to eight bytes.
-  hash.update(Buffer.alloc((8 - content.length % 8) % 8))
+  hash.update(Buffer.alloc((8 - (content.length % 8)) % 8))
   return hash.digest('hex')
 }
 
@@ -40,7 +40,11 @@ export async function verifySignedPayloads(files, publisher, signtool = '') {
     const manifest = path.join(temp, 'files.json')
     fs.writeFileSync(manifest, JSON.stringify(files.map(file => ({ path: file, publisher }))))
     const { stdout } = await exec('powershell.exe', [
-      '-NoProfile', '-NonInteractive', '-File',
+        // Process-scoped Bypass, as every runtime PowerShell call does: a default Windows
+        // policy (Restricted) would otherwise refuse the script and fail the release build.
+        '-NoProfile', '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass', '-File',
       path.join(import.meta.dirname, 'verify-signed-payloads.ps1'), manifest,
       ...(signtool ? ['-SignTool', signtool] : [])
     ], { windowsHide: true, timeout: 600000, maxBuffer: 4 * 1024 * 1024 })
@@ -72,7 +76,8 @@ export function createPayloadSignCache({ root, env, signtool, dlib, timestampUrl
       const uncached = []
       for (const file of files) {
         const content = peContentHash(file)
-        if (!content) { uncached.push(file); continue }
+        if (!content) { uncached.push(file)
+          continue }
         const key = sha256(fs.readFileSync(file))
         if (groups.has(key)) groups.get(key).files.push(file)
         else groups.set(key, { key, content, files: [file] })

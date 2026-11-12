@@ -91,7 +91,7 @@ async function stampExeIdentity(
       ProductName: identity.displayName,
       FileDescription: identity.displayName,
       CompanyName: meu ? 'Meu Agent' : 'Nous Research',
-      LegalCopyright: 'Copyright (c) 2026 Nous Research'
+      LegalCopyright: meu ? 'Copyright (c) 2026 Meu Agent. MIT License.' : 'Copyright (c) 2026 Nous Research'
     }
   }
 

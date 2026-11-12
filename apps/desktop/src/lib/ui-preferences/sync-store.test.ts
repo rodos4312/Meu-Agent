@@ -69,7 +69,7 @@ it('a store a fresh client created never removes another client’s values: it i
 
   // Native Desktop, another origin, launches with its own preferences.
   window.localStorage.clear()
-  const mine = { [KEYBINDS]: '{"newChat":"mod+n"}', [THEME]: 'nous', [USER_THEMES]: '{"mine":{"name":"Mine"}}' }
+  const mine = { [KEYBINDS]: '{"newChat":"mod+n"}', [THEME]: 'provider-a', [USER_THEMES]: '{"mine":{"name":"Mine"}}' }
   Object.entries(mine).forEach(([key, value]) => window.localStorage.setItem(key, value))
   captureOwnPreferences()
   hydrateFromSnapshot(readUiPreferences(file))

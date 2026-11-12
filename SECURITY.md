@@ -6,10 +6,10 @@ scope for vulnerability reports.
 
 ## 1. Reporting a Vulnerability
 
-Report privately via [GitHub Security Advisories](https://github.com/NousResearch/hermes-agent/security/advisories/new)
-or **security@nousresearch.com**. Do not open public issues for
-security vulnerabilities. **Hermes Agent does not operate a bug
-bounty program.**
+Report privately via [GitHub Security Advisories](https://github.com/rodos4312/Meu-Agent/security/advisories/new) on the Meu
+repository. Do not open public issues for security vulnerabilities. A vulnerability in
+upstream Hermes Agent code goes to the upstream project's own advisory channel.
+**Meu does not operate a bug bounty program.**
 
 A useful report includes:
 
@@ -329,7 +329,6 @@ that:
 
 - **Coordinated disclosure window:** 90 days from report, or until a
   fix is released, whichever comes first.
-- **Channel:** the GHSA thread or email correspondence with
-  security@nousresearch.com.
+- **Channel:** the GHSA thread on the Meu repository.
 - **Credit:** reporters are credited in release notes unless
   anonymity is requested.

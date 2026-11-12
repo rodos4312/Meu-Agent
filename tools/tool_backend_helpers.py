@@ -11,6 +11,17 @@ from utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
 _DEFAULT_BROWSER_PROVIDER = "local"
+# A saved selection of the retired upstream managed service. Configs written before the removal
+# still carry the legacy name (or ``use_gateway: true``); both map here so callers fail closed
+# instead of silently moving the user onto another billed account.
+RETIRED_MANAGED_SELECTION = "retired-managed"
+_LEGACY_MANAGED_NAMES = frozenset({"nous"})
+
+
+def is_retired_selection(value: object | None) -> bool:
+    """True for a saved selection that named the retired managed service."""
+    name = str(value or "").strip().lower()
+    return name == RETIRED_MANAGED_SELECTION or name in _LEGACY_MANAGED_NAMES
 
 
 def normalize_browser_cloud_provider(value: object | None) -> str:
@@ -20,10 +31,10 @@ def normalize_browser_cloud_provider(value: object | None) -> str:
 
 
 def modal_configuration_error(mode: object = None) -> str | None:
-    """Validate the direct account without probing Nous or changing billing on legacy selections."""
+    """Validate the direct account without changing billing on legacy managed selections."""
     requested = str(mode or "direct").strip().lower()
     if requested == "managed":
-        return ("Nous-managed Modal execution has been removed. Run `hermes setup terminal` "
+        return ("Managed Modal execution has been removed. Run `hermes setup terminal` "
                 "to select your own Modal account or another terminal backend.")
     if requested not in {"direct", "auto"}:
         return f"Unsupported Modal mode {requested!r}. Run `hermes setup terminal` to configure Modal."
@@ -172,11 +183,11 @@ def read_selection(section: str) -> str | None:
         return None
     # Migration marker only: no managed transport exists. Callers report the retired selection.
     if is_truthy_value(raw.get("use_gateway")):
-        return "nous"
+        return RETIRED_MANAGED_SELECTION
     for key in _SELECTION_NAME_KEYS.get(section, _DEFAULT_NAME_KEYS):
         text = str(raw.get(key)).strip().lower() if raw.get(key) is not None else ""
         if text:
-            return text
+            return RETIRED_MANAGED_SELECTION if is_retired_selection(text) else text
     # use_gateway: false with no name key is not a usable selection shape;
     # per-capability web keys still count as configured via selection_exists().
     return None
@@ -221,7 +232,10 @@ REMOVED_BACKENDS: dict[str, dict[str, str]] = {}
 def removed_backend_note(section: str, name: str) -> Optional[str]:
     """Explanation for a backend that used to ship in-tree, or None. ``name`` tolerates the
     quoted form callers pass to selection_error()."""
-    return REMOVED_BACKENDS.get(section, {}).get((name or "").strip().strip("'\"").lower())
+    key = (name or "").strip().strip("'\"").lower()
+    if is_retired_selection(key):
+        return "the retired managed service has been removed; select your own provider"
+    return REMOVED_BACKENDS.get(section, {}).get(key)
 
 
 def selection_error(section: str, selection_name: str, failure: str) -> str:
@@ -234,8 +248,8 @@ def selection_error(section: str, selection_name: str, failure: str) -> str:
 def require_direct_provider(section: str) -> str | None:
     """Read a saved provider without migrating a retired account to another billing route."""
     selected = read_selection(section)
-    if selected == "nous":
-        raise ValueError(selection_error(section, selected, "this provider has been removed; select your own provider"))
+    if selected == RETIRED_MANAGED_SELECTION:
+        raise ValueError(selection_error(section, "the retired managed service", "it has been removed; select your own provider"))
     return selected
 
 

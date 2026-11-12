@@ -1,6 +1,6 @@
 # Contributor Quick Reference
 
-For occasional contributors and PR authors. Full developer docs: https://hermes-agent.nousresearch.com/docs/developer-guide/
+For occasional contributors and PR authors. Full developer docs: https://github.com/rodos4312/Meu-Agent/blob/dev/meu-foundation/website/docs/developer-guide.md
 
 ### Project Layout
 

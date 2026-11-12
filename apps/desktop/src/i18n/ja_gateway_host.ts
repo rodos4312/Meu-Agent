@@ -9,7 +9,7 @@ export const jaGatewayHost: GatewayHostTranslations = {
     'Webapp は常に配信元の Hermes ホストを使用します。ゲートウェイの切り替え、Hermes Cloud へのサインイン、保存済み接続の管理は Hermes Desktop アプリで行ってください。',
   webAccess: {
     title: 'Web アクセス',
-    intro: 'スマートフォンや別のコンピューターから、Nous アカウントでサインインしてこのコンピューターの Meu を開きます。サインインした人はこのコンピューターでコマンドを実行できます。',
+    intro: 'スマートフォンや別のコンピューターから、アカウントでサインインしてこのコンピューターの Meu を開きます。サインインした人はこのコンピューターでコマンドを実行できます。',
     failed: 'Web アクセスを変更できませんでした',
     running: '実行中',
     stopped: '停止中',
@@ -18,7 +18,7 @@ export const jaGatewayHost: GatewayHostTranslations = {
     restartNeeded: '再起動が必要',
     unavailable: '利用できません',
     notRunningDetail: '起動すると、別のデバイスから Meu を開けます。',
-    needsSignIn: "先にダッシュボードのサインインプロバイダーを設定してください。",
+    needsSignIn: '先にダッシュボードのサインインプロバイダーを設定してください。',
     runningLan: '同じネットワーク上のデバイスでこのアドレスを開いてください。',
     runningPublic: 'あなたの URL 経由で提供中です。',
     runningLocal: 'このコンピューターからのみ開けます。他のデバイスから開くには、停止してからもう一度起動してください。',

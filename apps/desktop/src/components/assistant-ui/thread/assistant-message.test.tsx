@@ -157,8 +157,8 @@ function oauthExpiredMessage(): ThreadMessage {
           authKind: 'oauth',
           code: 'auth',
           layer: 'auth',
-          provider: 'nous',
-          providerLabel: 'Nous Portal',
+          provider: 'provider-a',
+          providerLabel: 'Provider A',
           retryable: false
         }
       }
@@ -515,14 +515,19 @@ describe('error card layout (Error System Overhaul)', () => {
     expect(requestComposerInsert).toHaveBeenCalledWith('continue', { target: 'main' })
   })
 
-  it('names an out-of-credits turn on its card too: the banner may be off screen', async () => {
+  // Meu removed the Nous billing fallback (0bd21ce6f1): a credits failure offers a billing action
+  // only from the failing provider's own billing wall in this chat, never a generic billing page.
+  it('offers no billing action for an out-of-credits turn without its provider billing wall', async () => {
     render(
       <MemoryRouter>
-        <Harness assistant={failedMessage({ code: 'billing', layer: 'billing', provider: 'nous', retryable: false })} />
+        <Harness
+          assistant={failedMessage({ code: 'billing', layer: 'billing', provider: 'provider-a', retryable: false })}
+        />
       </MemoryRouter>
     )
 
-    expect(await screen.findByRole('button', { name: en.assistant.thread.errorOpenBillingSettings })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: en.assistant.thread.errorSwitchProvider })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.assistant.thread.errorOpenBillingSettings })).toBeNull()
   })
 
   it("opens the failing provider's own billing page from this chat's billing wall", async () => {
@@ -531,7 +536,6 @@ describe('error card layout (Error System Overhaul)', () => {
     $activeSessionId.set('wall-session')
     setBillingBlock('wall-session', {
       billing_url: 'https://platform.openai.com/settings/organization/billing',
-      is_nous: false,
       message: 'out of credits',
       provider: 'openai',
       provider_label: 'OpenAI'
@@ -561,7 +565,6 @@ describe('error card layout (Error System Overhaul)', () => {
     $activeSessionId.set('wall-session')
     setBillingBlock('wall-session', {
       billing_url: 'https://platform.openai.com/settings/organization/billing',
-      is_nous: false,
       message: 'out of credits',
       model: 'gpt-5',
       provider: 'openai',
@@ -572,12 +575,14 @@ describe('error card layout (Error System Overhaul)', () => {
       render(
         <MemoryRouter>
           <Harness
-            assistant={failedMessage({ code: 'billing', layer: 'billing', provider: 'nous', retryable: false })}
+            assistant={failedMessage({ code: 'billing', layer: 'billing', provider: 'provider-a', retryable: false })}
           />
         </MemoryRouter>
       )
 
-      fireEvent.click(await screen.findByRole('button', { name: en.assistant.thread.errorOpenBillingSettings }))
+      await screen.findByRole('button', { name: en.assistant.thread.errorSwitchProvider })
+      // Meu shows no billing action for a card whose provider differs from the wall's.
+      expect(screen.queryByRole('button', { name: en.assistant.thread.errorOpenBillingSettings })).toBeNull()
       expect(openExternalLink).not.toHaveBeenCalled()
     } finally {
       clearBillingBlock()
@@ -666,13 +671,13 @@ describe("a window plan's limit: one-click switch and credits (no silent switch)
         code: 'usage_window',
         layer: 'billing',
         message: "You've hit your daily limit · resets 15:56",
-        provider: 'nous',
+        provider: 'provider-a',
         retryable: true,
         // The parsed surface (lib/error-surface.ts parseUsageLimit), as chat-runtime stores it.
         usageLimit: {
           credits,
           suggestions: suggestions
-            ? [{ label: 'Model Free', model: 'example/model-free:free', note: 'free', provider: 'nous' }]
+            ? [{ label: 'Model Free', model: 'example/model-free:free', note: 'free', provider: 'provider-a' }]
             : []
         }
       },
@@ -698,9 +703,9 @@ describe("a window plan's limit: one-click switch and credits (no silent switch)
     fireEvent.click(await screen.findByRole('button', { name: 'Switch to Model Free (free)' }))
 
     await waitFor(() => expect(onReload).toHaveBeenCalledTimes(1))
-    expect(switchSessionModel).toHaveBeenCalledWith('rt-1', 'example/model-free:free', 'nous')
-    // No balance: the credits way on is Billing, labelled for what it does.
-    expect(screen.getByRole('button', { name: 'Open billing settings' })).toBeTruthy()
+    expect(switchSessionModel).toHaveBeenCalledWith('rt-1', 'example/model-free:free', 'provider-a')
+    // Meu has no Nous plan credits (6b7f49284c): no billing or Keep-going action alongside the switch.
+    expect(screen.queryByRole('button', { name: 'Open billing settings' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Turn on Keep going on credits' })).toBeNull()
     // The generic provider menu is replaced by the one-click switch.
     expect(screen.queryByRole('button', { name: 'Switch provider' })).toBeNull()
@@ -728,15 +733,15 @@ describe("a window plan's limit: one-click switch and credits (no silent switch)
     expect(onReload).not.toHaveBeenCalled()
   })
 
-  it('with a balance and Keep going off, offers to turn on Keep going (a lasting setting)', async () => {
+  it('with a balance , still offers only the model switch: Keep going on credits is not part of Meu', async () => {
     render(
       <MemoryRouter>
         <Harness assistant={limitMessage('use_credits')} />
       </MemoryRouter>
     )
 
-    expect(await screen.findByRole('button', { name: 'Turn on Keep going on credits' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Switch to Model Free (free)' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Switch to Model Free (free)' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Turn on Keep going on credits' })).toBeNull()
   })
 
   it('with no model to offer, still points at choosing one', async () => {
@@ -746,7 +751,8 @@ describe("a window plan's limit: one-click switch and credits (no silent switch)
       </MemoryRouter>
     )
 
-    expect(await screen.findByRole('button', { name: 'Open billing settings' })).toBeTruthy()
+    await screen.findByText("You've hit your daily limit · resets 15:56")
+    expect(screen.queryByRole('button', { name: 'Open billing settings' })).toBeNull()
     expect(screen.queryByRole('button', { name: /^Switch to / })).toBeNull()
   })
 })
@@ -830,12 +836,12 @@ describe('expired OAuth grant recovery', () => {
   it('explains the expiry and re-runs that provider sign-in in one click', async () => {
     render(<Harness assistant={oauthExpiredMessage()} />)
 
-    expect(await screen.findByText(/Nous Portal sign-in expired/)).toBeTruthy()
+    expect(await screen.findByText(/Provider A sign-in expired/)).toBeTruthy()
     // Signing in changes the outcome, so Retry stays as the follow-up click.
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
 
-    screen.getByRole('button', { name: 'Sign in to Nous Portal again' }).click()
-    expect(startManualProviderOAuth).toHaveBeenCalledWith('nous', undefined)
+    screen.getByRole('button', { name: 'Sign in to Provider A again' }).click()
+    expect(startManualProviderOAuth).toHaveBeenCalledWith('provider-a', undefined)
   })
 })
 

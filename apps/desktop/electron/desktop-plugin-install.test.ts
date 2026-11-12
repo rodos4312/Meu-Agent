@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   desktopPluginFolderName,
@@ -17,8 +17,36 @@ import {
   resolveSubdirWithin
 } from './desktop-plugin-install'
 import { PACKAGE_MARKER, reconcileUnifiedDesktopHalves } from './desktop-plugins-root'
+import { canCreateSymlinks } from './test-symlink-capability'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+// Hermetic git: a user's global config (core.autocrlf=true is common on Windows) must not rewrite
+// the bytes these fixtures compare. The installer inherits process.env, so both sides see this.
+const gitEnv = { global: process.env.GIT_CONFIG_GLOBAL, nosystem: process.env.GIT_CONFIG_NOSYSTEM }
+let gitConfigDir = ''
+
+beforeAll(() => {
+  gitConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-plugin-gitconfig-'))
+  fs.writeFileSync(path.join(gitConfigDir, 'gitconfig'), '')
+  process.env.GIT_CONFIG_GLOBAL = path.join(gitConfigDir, 'gitconfig')
+  process.env.GIT_CONFIG_NOSYSTEM = '1'
+})
+
+afterAll(() => {
+  for (const [key, value] of [
+    ['GIT_CONFIG_GLOBAL', gitEnv.global],
+    ['GIT_CONFIG_NOSYSTEM', gitEnv.nosystem]
+  ] as const) {
+    if (value === undefined) {
+      delete process.env[key]
+    } else {
+      process.env[key] = value
+    }
+  }
+
+  fs.rmSync(gitConfigDir, { recursive: true, force: true })
+})
 
 function mkdtemp(prefix: string) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix))
@@ -289,7 +317,7 @@ describe('installDesktopPluginFromGit', () => {
     expect(fs.readFileSync(path.join(appRoot, result.pluginName!, 'panel.js'), 'utf8')).toBe('reviewed\n')
   })
 
-  it.each([
+  it.runIf(canCreateSymlinks).each([
     [
       'a symlinked file inside it',
       (repo: string) => fs.symlinkSync('/etc/hostname', path.join(repo, 'desktop', 'leak.txt'))
@@ -321,7 +349,7 @@ describe('installDesktopPluginFromGit', () => {
     expect(fs.readdirSync(appRoot)).toEqual([])
   })
 
-  it('keeps the installed plugin when a forced reinstall refuses the new tree', async () => {
+  it.runIf(canCreateSymlinks)('keeps the installed plugin when a forced reinstall refuses the new tree', async () => {
     const repo = pluginRepo(null, { 'panel.js': 'working\n' })
     const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' })
     const appRoot = mkdtemp('hermes-plugin-root-')

@@ -57,10 +57,10 @@ def _credential_failures():
     from hermes_cli.auth import AuthError
     from hermes_cli.auth_constants import CODEX_RATE_LIMITED_CODE
     wrapped = RuntimeError("agent init failed")
-    wrapped.__cause__ = AuthError("refresh revoked", provider="nous", relogin_required=True)
+    wrapped.__cause__ = AuthError("refresh revoked", provider="provider-a", relogin_required=True)
     return [
         (AuthError("quota", provider="openai-codex", code=CODEX_RATE_LIMITED_CODE), kb.KANBAN_RATE_LIMIT_EXIT_CODE),
-        (AuthError("relogin", provider="nous", relogin_required=True), kb.KANBAN_TERMINAL_PROVIDER_EXIT_CODE),
+        (AuthError("relogin", provider="provider-a", relogin_required=True), kb.KANBAN_TERMINAL_PROVIDER_EXIT_CODE),
         (wrapped, kb.KANBAN_TERMINAL_PROVIDER_EXIT_CODE),
         (RuntimeError("unknown startup failure"), 1),
     ]

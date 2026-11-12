@@ -71,21 +71,21 @@ describe('Classic Hermes is an explicit Desktop pick, never inferred from stock 
   it.each([
     ['display.skin: default', stockDefaultSkin],
     ['display.skin unset', null]
-  ])('a stock user (%s) with no Desktop pick paints Nous on boot, connect and relaunch', async (_label, local) => {
+  ])('a stock user (%s) with no Desktop pick paints Meu on boot, connect and relaunch', async (_label, local) => {
     let run = await launch(local)
-    expect(run.bootPaint).toBe('nous')
+    expect(run.bootPaint).toBe('meu')
     run.connect()
     run.connect() // reconnect re-seed
-    expect(run.api.theme?.themeName).toBe('nous')
-    expect(paintedSkin()).toBe('nous')
+    expect(run.api.theme?.themeName).toBe('meu')
+    expect(paintedSkin()).toBe('meu')
 
     run = await launch(local)
-    expect(run.bootPaint).toBe('nous')
+    expect(run.bootPaint).toBe('meu')
     run.connect()
-    expect(paintedSkin()).toBe('nous')
+    expect(paintedSkin()).toBe('meu')
   })
 
-  it('a Classic pick paints gold/navy (dark mode) and survives connect, reconnect and relaunch; a later Nous pick sticks', async () => {
+  it('a Classic pick paints gold/navy (dark mode) and survives connect, reconnect and relaunch; a later Meu pick sticks', async () => {
     let run = await launch(stockDefaultSkin)
     expect(run.api.theme?.availableThemes.find(t => t.name === 'classic')?.label).toBe('Classic Hermes')
 
@@ -105,25 +105,33 @@ describe('Classic Hermes is an explicit Desktop pick, never inferred from stock 
     expect(paintedSkin()).toBe('classic')
     expect(cssVar('--theme-background-seed')).toBe('#1a1a2e')
 
-    act(() => run.api.theme?.setTheme('nous'))
+    act(() => run.api.theme?.setTheme('meu'))
     run = await launch(stockDefaultSkin)
     run.connect()
-    expect(run.bootPaint).toBe('nous')
-    expect(paintedSkin()).toBe('nous')
+    expect(run.bootPaint).toBe('meu')
+    expect(paintedSkin()).toBe('meu')
   })
 
-  it('/skin gold and /skin hermes select Classic; /skin default stays the Desktop default (Nous)', async () => {
+  it('/skin nous (the pre-Meu id) selects the Meu skin', async () => {
+    const run = await launch(stockDefaultSkin)
+
+    act(() => void run.api.skin?.('nous'))
+
+    expect(run.api.theme?.themeName).toBe('meu')
+  })
+
+  it('/skin gold and /skin hermes select Classic; /skin default stays the Desktop default (Meu)', async () => {
     const run = await launch(stockDefaultSkin)
 
     act(() => void run.api.skin?.('gold'))
     expect(run.api.theme?.themeName).toBe('classic')
 
-    act(() => void run.api.skin?.('nous'))
+    act(() => void run.api.skin?.('meu'))
     act(() => void run.api.skin?.('hermes'))
     expect(run.api.theme?.themeName).toBe('classic')
 
     act(() => void run.api.skin?.('default'))
-    expect(run.api.theme?.themeName).toBe('nous')
+    expect(run.api.theme?.themeName).toBe('meu')
   })
 
   it('a cache left by the reverted #130015 build (CLI `default` as "Classic Hermes") shows ONE Classic and is purged', async () => {

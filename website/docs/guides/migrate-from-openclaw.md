@@ -14,10 +14,6 @@ The command comes from the official **`agent-importers` plugin** in the [plugin 
 On a fresh install, run `hermes setup`. When it finds `~/.openclaw` it asks **"Import your setup from OpenClaw?"**. Say yes and setup installs the plugin and runs `hermes import-agent openclaw --migrate-secrets`, preview and confirmation included, then continues with the sections the import did not already fill in.
 :::
 
-:::tip
-If your OpenClaw setup was multi-provider, `hermes setup --portal` collapses it to one OAuth — 300+ models plus the Tool Gateway in a single login. See [Nous Portal](../integrations/nous-portal.md).
-:::
-
 ## Quick start
 
 ```bash

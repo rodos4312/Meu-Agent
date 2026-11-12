@@ -1,7 +1,7 @@
 """Rebuild Meu Windows icon assets from the original transparent source image.
 
 Developer-only image pipeline: Pillow is needed to regenerate, not to run Meu.
-Usage: python apps/desktop/scripts/build-meu-icons.py SOURCE.png
+Usage: python apps/desktop/scripts/build-meu-icons.py SOURCE.png   (or --derive: rewrite the shipped copies)
 """
 
 from __future__ import annotations
@@ -29,9 +29,24 @@ def build(source: Path) -> None:
     assets = Path(__file__).resolve().parents[1] / "assets"
     output.save(assets / "meu-icon.png", optimize=True)
     output.save(assets / "meu-icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    derive(assets / "meu-icon.png")
+
+
+def derive(icon: Path) -> None:
+    """Write the Meu-owned copies that ship in the packaged UIs from ``meu-icon.png``: the desktop
+    window-icon fallback (``public/apple-touch-icon.png``, read by electron/app-icon.ts off Windows)
+    and the web dashboard favicon. The upstream icon pipeline (scripts/generate_icons.py) does not
+    write these files."""
+    image = Image.open(icon).convert("RGBA")
+    desktop = Path(__file__).resolve().parents[1]
+    image.save(desktop / "public" / "apple-touch-icon.png", optimize=True)
+    image.save(desktop.parents[1] / "web" / "public" / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: build-meu-icons.py SOURCE.png")
-    build(Path(sys.argv[1]))
+    if len(sys.argv) == 2 and sys.argv[1] == "--derive":
+        derive(Path(__file__).resolve().parents[1] / "assets" / "meu-icon.png")
+    elif len(sys.argv) == 2:
+        build(Path(sys.argv[1]))
+    else:
+        raise SystemExit("Usage: build-meu-icons.py SOURCE.png | --derive")

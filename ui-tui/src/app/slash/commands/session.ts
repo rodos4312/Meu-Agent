@@ -1,4 +1,3 @@
-import { stripAnsi } from '@hermes/shared/ansi'
 import { compactNumber } from '@hermes/shared/format'
 
 import { introMsg, toTranscriptMessages } from '../../../domain/messages.js'
@@ -15,7 +14,6 @@ import type {
 } from '../../../gatewayTypes.js'
 import { t } from '../../../i18n/runtime.js'
 import { formatVoiceRecordKey, parseVoiceRecordKey } from '../../../lib/platform.js'
-import type { PanelSection } from '../../../types.js'
 import { applyConfiguredTuiTheme } from '../../createGatewayEventHandler.js'
 import { DEFAULT_INDICATOR_STYLE, INDICATOR_STYLES, type IndicatorStyle } from '../../interfaces.js'
 import { patchOverlayState } from '../../overlayStore.js'
@@ -819,7 +817,7 @@ export const sessionCommands: SlashCommand[] = [
   },
 
   {
-    help: 'session usage + Nous credits',
+    help: 'session usage',
     name: 'usage',
     run: (_arg, ctx) => {
       if (ctx.sid && ctx.gateway.gw?.isCanonical) {

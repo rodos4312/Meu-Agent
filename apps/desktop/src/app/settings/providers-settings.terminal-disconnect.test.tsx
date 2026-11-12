@@ -56,7 +56,7 @@ function connectedExternal(patch: Partial<OAuthProvider> = {}): OAuthProvider {
 
 beforeEach(() => {
   listOAuthProviders.mockResolvedValue({ providers: [connectedExternal()] })
-  disconnectOAuthProvider.mockResolvedValue({ ok: false, provider: 'nous' })
+  disconnectOAuthProvider.mockResolvedValue({ ok: false, provider: 'example-oauth' })
   Object.defineProperty(window, 'hermesDesktop', {
     configurable: true,
     value: { terminal: {} }
@@ -97,19 +97,20 @@ describe('connected external provider row', () => {
     listOAuthProviders.mockResolvedValue({
       providers: [
         {
-          cli_command: 'hermes auth add nous',
+          // Any OAuth provider; Meu no longer lists the retired Provider A row (onboarding/providers.tsx).
+          cli_command: 'hermes auth add example-oauth',
           disconnectable: true,
           docs_url: '',
           flow: 'device_code',
-          id: 'nous',
-          name: 'Nous Portal',
+          id: 'example-oauth',
+          name: 'Example OAuth',
           status: { logged_in: true }
         }
       ]
     })
 
     await renderAccounts()
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove Nous Portal' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Example OAuth' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Disconnect' }))
 
     await waitFor(() => expect(disconnectOAuthProvider).toHaveBeenCalled())

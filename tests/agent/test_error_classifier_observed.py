@@ -42,27 +42,27 @@ NOT_MULTIMODAL_400 = {"error": {"message": "glm-5.2-fp8 is not a multimodal mode
 # (id, provider, exception, expected reason, retryable, should_fallback)
 OBSERVED = [
     ("connection-error", "custom", openai.APIConnectionError(request=_REQUEST), FailoverReason.timeout, True, False),
-    ("broken-pipe", "nous", httpx.ReadError("[Errno 32] Broken pipe", request=_REQUEST),
+    ("broken-pipe", "provider-a", httpx.ReadError("[Errno 32] Broken pipe", request=_REQUEST),
      FailoverReason.timeout, True, False),
     ("peer-closed-mid-body", "custom", httpx.RemoteProtocolError(
         "peer closed connection without sending complete message body (incomplete chunked read)", request=_REQUEST),
      FailoverReason.timeout, True, False),
-    ("request-timeout", "nous", openai.APITimeoutError(request=_REQUEST), FailoverReason.timeout, True, False),
-    ("nous-404-no-credits", "nous", _status(openai.NotFoundError, 404, {"status": 404, "message": (
+    ("request-timeout", "provider-a", openai.APITimeoutError(request=_REQUEST), FailoverReason.timeout, True, False),
+    ("provider-a-404-no-credits", "provider-a", _status(openai.NotFoundError, 404, {"status": 404, "message": (
         "Model 'anthropic/claude-opus-5' requires available credits. Your account balance is too low to use paid "
-        "models — add credits at https://portal.nousresearch.com or pick a free model.")}),
+        "models — add credits at https://portal.provider-a.example or pick a free model.")}),
      FailoverReason.billing, False, True),
-    ("nous-401-invalid-key", "nous", _status(openai.AuthenticationError, 401, {"status": 401, "message": (
+    ("provider-a-401-invalid-key", "provider-a", _status(openai.AuthenticationError, 401, {"status": 401, "message": (
         "Your API key is invalid, blocked or out of funds. Please go visit the portal to sort that out: "
-        "https://portal.nousresearch.com ")}),
+        "https://portal.provider-a.example ")}),
      FailoverReason.auth, False, True),
-    ("cloudflare-502", "nous", _status(openai.InternalServerError, 502, {
+    ("cloudflare-502", "provider-a", _status(openai.InternalServerError, 502, {
         "type": "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/"
                 "error-502/", "title": "Error 502: Bad gateway", "status": 502,
         "detail": "The origin web server returned an invalid or incomplete response to Cloudflare.",
         "error_code": 502, "error_name": "origin_bad_gateway", "error_category": "origin"}),
      FailoverReason.server_error, True, False),
-    ("nous-500-unexpected", "nous", _status(openai.InternalServerError, 500, {"status": 500, "message": (
+    ("provider-a-500-unexpected", "provider-a", _status(openai.InternalServerError, 500, {"status": 500, "message": (
         "Something unexpected happened while processing your request. Please try again in a moment, or contact us "
         "if the issue persists.")}),
      FailoverReason.server_error, True, False),

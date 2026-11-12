@@ -1185,7 +1185,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
       ]
     })
 
-    // Apply a theme directly from the root search (e.g. "nous" → Nous). Live
+    // Apply a theme directly from the root search (e.g. "meu" → Meu). Live
     // preview via keepOpen, mirroring the nested theme picker. If the theme
     // can't render the current light/dark mode, flip to the one it supports.
     result.push({

@@ -40,16 +40,35 @@ _STATIC_PROVIDER_ENV_BLOCKLIST = frozenset({
     "DAYTONA_API_KEY", "GATEWAY_RELAY_ID", "GATEWAY_RELAY_SECRET",
     "GATEWAY_RELAY_DELIVERY_KEY", "VERCEL_OIDC_TOKEN", "VERCEL_TOKEN",
     "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID",
-    # Keys the OAuth provider profiles (nous, qwen-oauth) also accept when pasted. The auth
-    # registry mirrors env_vars only for api_key profiles, and discovering the provider plugins
-    # from here, at import, would re-mirror them over a plugin's own registry entry.
-    "NOUS_API_KEY", "QWEN_API_KEY",
+    # A key the qwen-oauth profile also accepts when pasted. The auth registry mirrors env_vars only
+    # for api_key profiles, and discovering the provider plugins from here, at import, would
+    # re-mirror them over a plugin's own registry entry.
+    "QWEN_API_KEY",
     # Hermes' own secrets read in code: the anonymous-inference secret, dashboard auth
     # (basic, OIDC, drain) and the Google Meet realtime key.
     "HERMES_ANON_API_SECRET", "HERMES_DASHBOARD_BASIC_AUTH_PASSWORD",
     "HERMES_DASHBOARD_BASIC_AUTH_SECRET", "HERMES_DASHBOARD_DRAIN_SECRET",
     "HERMES_DASHBOARD_OIDC_CLIENT_SECRET", "HERMES_MEET_REALTIME_KEY",
 })
+
+
+# LEGACY KEY BLOCKING — NOT PROVIDER SUPPORT. Meu has no Nous provider and never reads these
+# names. A value left in a user's shell or an old ``.env`` is removed from EVERY child
+# environment, unconditionally: ``inherit_credentials``, ``env_passthrough``, first-party
+# prefixes, caller extras and profile overlays cannot bring it back (``strip_retired_credentials``
+# runs last on each spawn path). Never add a name here to enable a provider.
+RETIRED_CREDENTIAL_ENV = frozenset({
+    "NOUS_API_KEY", "NOUS_PORTAL_BASE_URL", "NOUS_INFERENCE_BASE_URL", "HERMES_PORTAL_BASE_URL",
+})
+_RETIRED_CREDENTIAL_FOLDED = frozenset(name.upper() for name in RETIRED_CREDENTIAL_ENV)
+
+
+def strip_retired_credentials(env: dict) -> dict:
+    """Remove retired upstream credentials in place (case-folded: the Windows env block is
+    case-insensitive). Returns *env*."""
+    for key in [k for k in env if k.upper() in _RETIRED_CREDENTIAL_FOLDED]:
+        del env[key]
+    return env
 
 
 def _left_core_env(*, secrets_only: bool) -> frozenset:

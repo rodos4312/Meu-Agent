@@ -93,28 +93,6 @@ else:
     return repo, upstream, invoke
 
 
-def test_commit_build_cli_dispatches_only_the_resolved_remote_commit(fixture_repo):
-    repo, upstream, invoke = fixture_repo
-    tip = git(repo, 'rev-parse', 'HEAD')
-    before = git(repo, 'show-ref', '--heads', '--tags')
-    for revision in (tip[:8], 'main'):
-        result, calls = invoke('--build-commit', revision)
-        assert result.returncode == 0, result.stderr
-        assert tip in result.stdout
-        assert f'https://hermes-assets.nousresearch.com/releases/commit/{tip}/index.html' in result.stdout
-        assert not any(call[1:3] == ['workflow', 'run'] for call in calls)
-    result, calls = invoke('--build-commit', tip, '--publish')
-    assert result.returncode == 0, result.stderr
-    # Repository identity no longer selects the dispatch: every commit build
-    # is the same direct dispatch (disposable mode is an explicit opt-in).
-    dispatches = [call for call in calls if call[1:3] == ['workflow', 'run']]
-    assert len(dispatches) == 1
-    assert f'build_commit={tip}' in dispatches[0]
-    assert not any(field.startswith('disposable_channel=') for field in dispatches[0])
-    assert git(repo, 'show-ref', '--heads', '--tags') == before
-    assert git(upstream, 'rev-parse', 'refs/heads/main') == tip
-
-
 def test_commit_build_dispatch_is_repository_independent(fixture_repo):
     repo, _, invoke = fixture_repo
     tip = git(repo, 'rev-parse', 'HEAD')

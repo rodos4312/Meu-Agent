@@ -9,7 +9,7 @@ export const deGatewayHost: GatewayHostTranslations = {
     'Die Webapp nutzt immer den Hermes-Host, der sie ausliefert. Um das Gateway zu wechseln, sich bei Hermes Cloud anzumelden oder gespeicherte Verbindungen zu verwalten, verwenden Sie die Hermes-Desktop-App.',
   webAccess: {
     title: 'Webzugriff',
-    intro: 'Öffne Meu auf diesem Computer vom Handy oder einem anderen Computer aus, angemeldet mit deinem Nous-Konto. Wer sich anmeldet, kann Befehle auf diesem Computer ausführen.',
+    intro: 'Öffne Meu auf diesem Computer vom Handy oder einem anderen Computer aus, angemeldet mit deinem Konto. Wer sich anmeldet, kann Befehle auf diesem Computer ausführen.',
     failed: 'Der Webzugriff konnte nicht geändert werden',
     running: 'Läuft',
     stopped: 'Gestoppt',
@@ -18,7 +18,7 @@ export const deGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Neustart nötig',
     unavailable: 'Nicht verfügbar',
     notRunningDetail: 'Starte ihn, um Meu von einem anderen Gerät aus zu öffnen.',
-    needsSignIn: "Konfiguriere zuerst einen Anmeldeanbieter für das Dashboard.",
+    needsSignIn: 'Konfiguriere zuerst einen Anmeldeanbieter für das Dashboard.',
     runningLan: 'Öffne diese Adresse auf einem Gerät im selben Netzwerk.',
     runningPublic: 'Über deine URL bereitgestellt.',
     runningLocal: 'Nur dieser Computer kann die Web-App öffnen. Stoppe sie und starte sie erneut, um sie von anderen Geräten aus zu öffnen.',

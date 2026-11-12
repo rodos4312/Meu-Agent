@@ -245,8 +245,8 @@ class CLIInfoMixin:
                 fix = t("cli.banner.fix_config")
             self._console_print(f"[dim]   {fix}[/]")
 
-        from hermes_cli.model_switch import is_nous_hermes_non_agentic
-        if is_nous_hermes_non_agentic(getattr(self, "model", "") or ""):
+        from hermes_cli.model_switch import is_non_agentic_hermes_chat_model
+        if is_non_agentic_hermes_chat_model(getattr(self, "model", "") or ""):
             self._console_print()
             self._console_print(f"[bold yellow]{t('cli.banner.hermes_models_not_agentic')}[/]")
             self._console_print(f"[dim]   {t('cli.banner.hermes_models_lack_tools')}[/]")

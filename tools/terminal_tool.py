@@ -1593,7 +1593,16 @@ def check_terminal_requirements() -> bool:
     try:
         config = _get_env_config()
         checker = _REQUIREMENT_CHECKERS.get(config["env_type"], _check_plugin_requirements)
-        return checker(config)
+        if not checker(config):
+            return False
+        # Only a backend that is otherwise ready reports the missing image (its own reason wins).
+        from tools.terminal_tool_backends import _IMAGE_BACKENDS
+        image_key = _IMAGE_BACKENDS.get(config["env_type"])
+        if image_key and not str(config.get(image_key) or "").strip():
+            from hermes_cli.config_defaults import SANDBOX_IMAGE_UNSET_REASON
+            _record_unavailable_reason(SANDBOX_IMAGE_UNSET_REASON)
+            return False
+        return True
     except Exception as e:
         logger.error("Terminal requirements check failed: %s", e, exc_info=True)
         _record_unavailable_reason(f"the requirements check failed: {e}")

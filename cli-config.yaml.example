@@ -481,7 +481,7 @@ terminal:
 #   cwd: "/workspace"  # Path INSIDE the container (default: /)
 #   timeout: 180
 #   lifetime_seconds: 300
-#   docker_image: "nousresearch/hermes-sandbox:desktop"
+#   docker_image: "meu-sandbox:desktop"   # required; no default (build: docker/sandbox-desktop.Dockerfile)
 #   docker_mount_cwd_to_workspace: true   # Explicit opt-in: mount your launch cwd into /workspace
 #   # Optional: run the container as your host user's uid:gid so files written
 #   # into bind-mounted dirs are owned by you, not root. Drops SETUID/SETGID
@@ -512,7 +512,7 @@ terminal:
 #   cwd: "/workspace"  # Path INSIDE the container (default: /root)
 #   timeout: 180
 #   lifetime_seconds: 300
-#   singularity_image: "docker://nousresearch/hermes-sandbox:desktop"
+#   singularity_image: "docker://meu-sandbox:desktop"   # required; no default
 
 # -----------------------------------------------------------------------------
 # OPTION 5: Modal cloud execution
@@ -524,7 +524,7 @@ terminal:
 #   cwd: "/workspace"  # Path INSIDE the sandbox (default: /root)
 #   timeout: 180
 #   lifetime_seconds: 300
-#   modal_image: "nousresearch/hermes-sandbox:desktop"
+#   modal_image: "<registry>/<your-sandbox-image>"   # required; no default
 
 # -----------------------------------------------------------------------------
 # OPTION 6: Daytona cloud execution
@@ -537,7 +537,7 @@ terminal:
 #   cwd: "~"
 #   timeout: 180
 #   lifetime_seconds: 300
-#   daytona_image: "nousresearch/hermes-sandbox:desktop"
+#   daytona_image: "<registry>/<your-sandbox-image>"   # required; no default
 #   container_disk: 10240          # Daytona max is 10GB per sandbox
 
 #
@@ -2321,7 +2321,7 @@ updates:
 #     are skipped with a startup warning (never a silent clobber)
 #   - a source's override_existing lets it beat .env/shell values, but
 #     never another secret source's claim
-# Docs: https://hermes-agent.nousresearch.com/docs/user-guide/secrets/
+# Docs: https://github.com/rodos4312/Meu-Agent/blob/dev/meu-foundation/website/docs/user-guide/secrets
 #
 # secrets:
 #   # Optional explicit ordering of enabled sources.

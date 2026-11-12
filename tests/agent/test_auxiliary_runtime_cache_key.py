@@ -150,7 +150,7 @@ def test_client_cache_key_is_scoped_per_profile_home(tmp_path):
     for home in (a, b):
         tok = hermes_constants.set_hermes_home_override(str(home))
         try:
-            keys.append(aux._client_cache_key("nous", async_mode=False, base_url="https://inf.example", model="m"))
+            keys.append(aux._client_cache_key("provider-a", async_mode=False, base_url="https://inf.example", model="m"))
         finally:
             hermes_constants.reset_hermes_home_override(tok)
     assert keys[0] != keys[1]

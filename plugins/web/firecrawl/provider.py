@@ -90,9 +90,9 @@ def _is_explicit_firecrawl_selection() -> bool:
 
 
 def _use_keyless_ring(capability: Optional[str] = None) -> bool:
-    from tools.tool_backend_helpers import read_web_capability_selection
+    from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION, read_web_capability_selection
     from plugins.web.keyless_mcp import use_keyless
-    if read_web_capability_selection(capability) == "nous":
+    if read_web_capability_selection(capability) == RETIRED_MANAGED_SELECTION:
         return False
     return not (_env("FIRECRAWL_API_KEY") or _env("FIRECRAWL_API_URL")) and use_keyless("firecrawl", "")
 
@@ -123,17 +123,17 @@ class _KeylessFirecrawlClient:
 
 
 def check_firecrawl_api_key() -> bool:
-    from tools.tool_backend_helpers import read_web_capability_selection
+    from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION, read_web_capability_selection
     return (_get_direct_firecrawl_config() is not None
-            and any(read_web_capability_selection(cap) != "nous" for cap in ("search", "extract")))
+            and any(read_web_capability_selection(cap) != RETIRED_MANAGED_SELECTION for cap in ("search", "extract")))
 
 
 def _get_firecrawl_client(capability: Optional[str] = None) -> Any:
     """Use the user's Firecrawl instance/key or its explicitly selected keyless service."""
-    from tools.tool_backend_helpers import read_web_capability_selection, selection_error
+    from tools.tool_backend_helpers import RETIRED_MANAGED_SELECTION, read_web_capability_selection, selection_error
     selected = read_web_capability_selection(capability)
-    if selected == "nous":
-        raise ValueError(selection_error("web", selected, "this provider has been removed; select your own provider"))
+    if selected == RETIRED_MANAGED_SELECTION:
+        raise ValueError(selection_error("web", "the retired managed service", "it has been removed; select your own provider"))
     resolved = _get_direct_firecrawl_config()
     if resolved is None:
         raise ValueError("Configure FIRECRAWL_API_KEY or FIRECRAWL_API_URL in Web settings.")

@@ -25,13 +25,13 @@ const snapshot = {
     desktop_protocol: 'hermes-gateway-v1',
     lazy: true,
     mcp_servers: [
-      { connected: true, name: 'nous-support', status: 'connected', tools: 6, transport: 'http' },
+      { connected: true, name: 'provider-a-support', status: 'connected', tools: 6, transport: 'http' },
       { connected: false, disabled: true, name: 'linear', status: 'disabled', tools: 0, transport: 'stdio' }
     ],
     model: 'anthropic/claude-opus-5.5',
     profile_id: '/home/u/.hermes',
     profile_name: 'default',
-    provider: 'nous',
+    provider: 'provider-a',
     reasoning_effort: 'high',
     release_date: '2026.9.24',
     skills: { creative: ['ascii-art'], research: ['arxiv', 'blogwatcher'] },

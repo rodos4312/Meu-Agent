@@ -224,7 +224,8 @@ it.each(['attach', 'disconnect'])('cleans up the %s attempt before retry and ign
     listeners.add(key)
     const unsubscribe = onData(sid, callback)
 
-    return () => { listeners.delete(key); unsubscribe() }
+    return () => { listeners.delete(key)
+      unsubscribe() }
   })
   vi.spyOn(api, 'onExit').mockImplementation((sid, callback) => {
     const key = Symbol()
@@ -232,7 +233,8 @@ it.each(['attach', 'disconnect'])('cleans up the %s attempt before retry and ign
     exits.push(callback)
     const unsubscribe = onExit(sid, callback)
 
-    return () => { listeners.delete(key); unsubscribe() }
+    return () => { listeners.delete(key)
+      unsubscribe() }
   })
   const dispose = vi.spyOn(api, 'dispose')
 
@@ -387,7 +389,7 @@ it('keeps a signed-out tab and says to sign in again instead of reconnecting', a
   act(() => Socket.instances[0].close(4401, 'signed out'))
 
   await waitFor(() => expect(screen.getByText('closed')).toBeTruthy())
-  expect(emulator.output).toMatch(/Signed out of Hermes\. Sign this browser in again/)
+  expect(emulator.output).toMatch(/Signed out of Meu\. Sign this browser in again/)
   expect(emulator.output).not.toMatch(/Reconnecting/)
   expect(Socket.instances).toHaveLength(1)
   expect($terminals.get().some(tab => tab.id === id)).toBe(true)
@@ -397,7 +399,7 @@ it('keeps a signed-out tab and says to sign in again instead of reconnecting', a
 
 // Native Desktop's shell is a local process (node-pty over IPC). A failed spawn prints main's error
 // line and leaves the tab closed: no retry hint, and Enter starts no second shell.
-it('native Desktop: a failed start shows main\'s error and Enter does not start another shell', async () => {
+it("native Desktop: a failed start shows main's error and Enter does not start another shell", async () => {
   const start = vi.fn().mockRejectedValue(new Error('spawn /bin/nope ENOENT'))
 
   delete window.document.documentElement.dataset.hermesDesktopHost

@@ -258,20 +258,25 @@ it('carries each install channel from Python publication checks into the source 
         })
       )
       responses.set(`/${manifestKey(channel)}`, body)
-      responses.set(`/repos/NousResearch/hermes-agent/releases/tags/${tags[channel]}`, {
+      responses.set(`/repos/rodos4312/Meu-Agent/releases/tags/${tags[channel]}`, {
         tag_name: tags[channel],
         draft: false,
         prerelease: channel === 'canary'
       })
-      responses.set(`/repos/NousResearch/hermes-agent/commits/${tags[channel]}`, { sha })
+      responses.set(`/repos/rodos4312/Meu-Agent/commits/${tags[channel]}`, { sha })
     }
 
     // Stable IS the latest published GitHub release; no R2 record is consulted for it.
-    responses.set('/repos/NousResearch/hermes-agent/releases/latest', {
+    responses.set('/repos/rodos4312/Meu-Agent/releases/latest', {
       tag_name: tags.stable,
       draft: false,
       prerelease: false
     })
+    // Meu resolves canary from published GitHub prereleases (hermes_cli/source_releases.py); the
+    // hosted channel records above are retired there.
+    responses.set('/repos/rodos4312/Meu-Agent/releases?per_page=100&page=1', [
+      { tag_name: tags.canary, draft: false, prerelease: true }
+    ])
     git(['tag', 'v99.0.0'])
     git(['worktree', 'add', '-b', 'feature/gui', root])
     git(['remote', 'add', 'origin', origin])
@@ -449,9 +454,9 @@ if not getattr(urllib.request, '_hermes_loopback', False):
       git(['checkout', 'feature/gui'], root)
     }
 
-    // The R2 record, not GitHub metadata, decides availability: retire the
-    // canary object and the resolver must fail closed before any handoff.
-    responses.delete(`/releases/channels/canary.json`)
+    // Meu: the published prerelease decides availability(hosted channel records are retired).
+    // Withdraw the canary prerelease and the resolver must fail closed before any handoff.
+    responses.set('/repos/rodos4312/Meu-Agent/releases?per_page=100&page=1', [])
     vi.mocked(deps.stopBackendsForUpdate).mockClear()
     expect(await strategy.apply()).toMatchObject({ ok: false, error: 'release-unavailable' })
     expect(deps.stopBackendsForUpdate).not.toHaveBeenCalled()
@@ -488,4 +493,5 @@ if not getattr(urllib.request, '_hermes_loopback', False):
     })
     fs.rmSync(temporary, { recursive: true, force: true })
   }
-}, 30000)
+  // Dozens of real git and Python processes: ~25 s on a Windows host, so 30 s left no headroom.
+}, 120_000)

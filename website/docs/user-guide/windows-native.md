@@ -107,10 +107,6 @@ environment before imports. PM can publish a new writable environment without
 replacing libraries already loaded by a running process. There is no tiered
 pip fallback to silently reduce the installed feature set.
 
-:::tip Skip provider hunting on Windows
-On Windows, per-tool API key setup (Firecrawl, FAL, Browser Use, OpenAI TTS) is the highest-friction part of getting a useful agent. A [Nous Portal](./features/tool-gateway.md) subscription covers the model **and** all of those tools through one OAuth login. After the installer finishes, run `hermes setup --portal` to wire everything up.
-:::
-
 ## Feature matrix
 
 Windows support is feature- and architecture-specific. The base interfaces run

@@ -6,7 +6,10 @@
  * the pick. `custom:#rrggbb` names a colour that is not a swatch.
  */
 
-export const NOUS_ACCENT = '#0053fd'
+export const DEFAULT_ACCENT = '#0053fd'
+
+/** Accent id renamed by Meu; a stored or reported pick of it means the theme's own accent. */
+const LEGACY_DEFAULT_ACCENT_ID = 'nous'
 
 export const CUSTOM_ACCENT_PREFIX = 'custom:'
 
@@ -21,7 +24,7 @@ const SWATCHES: readonly Swatch[] = [
   { id: 'mono', name: 'Mono', light: '#000000', dark: '#ffffff' },
   { id: 'green', name: 'GitHub green', light: '#2ea043', dark: '#2ea043' },
   { id: 'cyan', name: 'Cyber cyan', light: '#00d5ff', dark: '#00d5ff' },
-  { id: 'nous', name: 'Nous blue', light: NOUS_ACCENT, dark: NOUS_ACCENT },
+  { id: 'blue', name: 'Blue', light: DEFAULT_ACCENT, dark: DEFAULT_ACCENT },
   { id: 'violet', name: 'Ultraviolet', light: '#8a2be2', dark: '#8a2be2' },
   { id: 'pink', name: 'Barbie pink', light: '#e0218a', dark: '#e0218a' },
   { id: 'red', name: 'Electric red', light: '#ff073a', dark: '#ff073a' },
@@ -46,11 +49,11 @@ export interface ResolvedAccent {
 }
 
 /**
- * Resolve `theme`, a swatch id, `#rrggbb` or `custom:#rrggbb` to what gets painted. Nous blue is the default
+ * Resolve `theme`, a swatch id, `#rrggbb` or `custom:#rrggbb` to what gets painted. Blue is the default
  * skin's accent, so it resolves to the theme's own (`null`), the same as `theme`. Unknown input → `undefined`.
  */
 export function resolveAccentPick(value: string, dark: boolean): ResolvedAccent | undefined {
-  if (value === 'theme' || value === 'nous') {
+  if (value === 'theme' || value === 'blue' || value === LEGACY_DEFAULT_ACCENT_ID) {
     return { hex: null, id: null }
   }
 
@@ -68,7 +71,7 @@ export function resolveAccentPick(value: string, dark: boolean): ResolvedAccent 
 
   const hex = raw.toLowerCase()
 
-  return hex === NOUS_ACCENT ? { hex: null, id: null } : { hex, id: `${CUSTOM_ACCENT_PREFIX}${hex}` }
+  return hex === DEFAULT_ACCENT ? { hex: null, id: null } : { hex, id: `${CUSTOM_ACCENT_PREFIX}${hex}` }
 }
 
 /** The name a settled card shows for a reported accent id. */

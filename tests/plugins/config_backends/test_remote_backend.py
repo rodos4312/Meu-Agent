@@ -66,7 +66,7 @@ def test_selected_from_env_and_file_tooling_off(plane):
 
 def test_reads_come_from_plane_not_local_file(plane):
     from hermes_cli.config import load_config
-    plane.upper = {"model": {"default": "hermes-4", "provider": "nous"}, "terminal": {"timeout": 180}}
+    plane.upper = {"model": {"default": "hermes-4", "provider": "provider-a"}, "terminal": {"timeout": 180}}
     local = plane.home / "config.yaml"
     local.write_text(json.dumps({"model": {"default": "LOCAL"}, "terminal": {"timeout": 1}}))
 
@@ -182,7 +182,7 @@ def test_file_backend_has_no_protected_names(monkeypatch):
 
 def test_config_set_sends_only_the_changed_key(plane):
     from hermes_cli.config import load_config, set_config_value
-    plane.upper = {"model": {"default": "hermes-4", "provider": "nous"}, "terminal": {"timeout": 180}}
+    plane.upper = {"model": {"default": "hermes-4", "provider": "provider-a"}, "terminal": {"timeout": 180}}
 
     set_config_value("display.personality", "pirate")
 
@@ -1239,12 +1239,12 @@ def test_roster_model_follows_the_remote_layer_not_the_local_file(profile_plane)
     named = profile_plane.home / "profiles" / "roster"
     named.mkdir(parents=True)
     (named / "config.yaml").write_text("model:\n  default: ignored-local\n")
-    profile_plane.profile("roster").update(values={"model": {"default": "model-A", "provider": "nous"}}, version=1)
+    profile_plane.profile("roster").update(values={"model": {"default": "model-A", "provider": "provider-a"}}, version=1)
 
     def roster():
         return {p.name: (p.model, p.provider) for p in list_profiles()}["roster"]
 
-    assert roster() == ("model-A", "nous")
+    assert roster() == ("model-A", "provider-a")
     profile_plane.profile("roster").update(values={"model": {"default": "model-B", "provider": "openrouter"}}, version=2)
     backend = get_config_backend()
     assert backend.poll_one(backend._state(named))
@@ -1386,55 +1386,6 @@ def _routed_profile(profile_plane, source_env_line):
         "enabled": True, "override_existing": True,
         "command": f"printf '{source_env_line}\\n'"}}}, version=1)
     return named
-
-
-def test_routed_hydration_refuses_a_source_that_supplies_a_protected_name(profile_plane, monkeypatch):
-    """Round 4 #2: a routed profile's remote secrets: source supplies HERMES_PORTAL_BASE_URL (where
-    auth.json's refresh token is sent). Refused before any snapshot, ownership or scope publication;
-    every retry refuses again; the profile hydrates once the mapping is gone."""
-    import os
-
-    from hermes_cli import env_loader
-    from hermes_cli.web_server_profiles import _config_profile_scope
-    monkeypatch.setattr(env_loader, "_APPLIED_HOMES", set())
-    monkeypatch.setattr(env_loader, "_SOURCE_SUPPLIED_NAMES", set())
-    monkeypatch.delenv("HERMES_PORTAL_BASE_URL", raising=False)
-    named = _routed_profile(profile_plane, "HERMES_PORTAL_BASE_URL=http://127.0.0.1:1")
-
-    for _attempt in range(2):  # nothing is cached by a refusal: a retry refuses again
-        with pytest.raises(ConfigBackendUnavailable, match="HERMES_PORTAL_BASE_URL"):
-            with _config_profile_scope("routed"):
-                pass
-        assert env_loader.get_secret_source_values(named) == {}
-        assert str(named.resolve()) not in env_loader._APPLIED_HOMES
-        assert "HERMES_PORTAL_BASE_URL" not in env_loader._SOURCE_SUPPLIED_NAMES
-        assert "HERMES_PORTAL_BASE_URL" not in os.environ
-
-    profile_plane.profile("routed").update(values={"secrets": {"command": {
-        "enabled": True, "override_existing": True, "command": "printf 'SYNTHETIC_KEY=routed-ok\\n'"}}}, version=2)
-    backend = get_config_backend()
-    assert backend.poll_one(backend._state(named))
-    assert env_loader.hydrate_profile_secret_sources(named) == {"SYNTHETIC_KEY": "routed-ok"}
-
-
-def test_file_mode_routed_hydration_drops_only_the_selector(monkeypatch, tmp_path, capsys):
-    """Control: under the file backend a routed source may not switch the backend either, but its
-    other values (a Portal URL included: file mode has no plane credential) still hydrate."""
-    from hermes_cli import env_loader
-    for name in ("HERMES_CONFIG_BACKEND", "HERMES_CONFIG_REMOTE_URL", "HERMES_CONFIG_INSTANCE_ID"):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(env_loader, "_APPLIED_HOMES", set())
-    home = tmp_path / "routed"
-    home.mkdir()
-    (home / ".env").write_text("# synthetic\n")
-    (home / "config.yaml").write_text(
-        "secrets:\n  command:\n    enabled: true\n    override_existing: true\n"
-        "    command: \"printf 'HERMES_CONFIG_BACKEND=remote\\\\nHERMES_PORTAL_BASE_URL=http://portal.test\\\\n'\"\n")
-
-    values = env_loader.hydrate_profile_secret_sources(home)
-
-    assert values == {"HERMES_PORTAL_BASE_URL": "http://portal.test"}
-    assert "ignored HERMES_CONFIG_BACKEND" in capsys.readouterr().err
 
 
 _LEGACY_SOUL = "# Beta identity\n\n## Messaging other agents\nKEEP THIS PROFILE SECTION\n"

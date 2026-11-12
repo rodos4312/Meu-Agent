@@ -84,7 +84,7 @@ def test_unset_effort_default_keeps_the_field_off_where_it_would_be_wrong():
         ollama._ollama_supports_thinking_cached = lambda: False
         assert _wire_reasoning_config(ollama) is None
         # Profiles that decide inside build_api_kwargs_extras (Nous fills medium itself) get None as before.
-        assert _wire_reasoning_config(_Agent(None, provider="nous")) is None
+        assert _wire_reasoning_config(_Agent(None, provider="provider-a")) is None
         # Not a chat-completions wire: the Anthropic adapter's "unset = no thinking kwargs" stands.
         from agent.reasoning_params import unset_reasoning_default
         assert unset_reasoning_default(_Agent(None, api_mode="anthropic_messages")) is None

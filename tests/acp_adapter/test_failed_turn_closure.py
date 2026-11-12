@@ -327,7 +327,7 @@ def test_failed_turn_after_a_tool_row_is_closed_with_its_error_card(tmp_path, mo
                           display_metadata=last.get("display_metadata"))
 
     agent = SimpleNamespace(_session_db=db, session_id=sid, _flush_messages_to_session_db=flush,
-                            provider="nous", model="m")
+                            provider="provider-a", model="m")
     failed = {"completed": False, "failed": True, "failure_reason": "rate_limit",
               "error": "429 Too Many Requests", "messages": messages, "current_turn_user_idx": 0}
     _close_durable_failed_turn(agent, failed)

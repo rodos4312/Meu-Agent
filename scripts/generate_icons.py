@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Generate every app icon in the repo from the nous-girl art + platform backgrounds.
 
+The icons that ship in Meu's packaged UIs (desktop ``public/apple-touch-icon.png``, the web
+dashboard ``favicon.ico``) are Meu-owned and written by ``apps/desktop/scripts/build-meu-icons.py``;
+this upstream pipeline does not touch them.
+
 Usage (from repo root):
     node scripts/generate-icons.mjs           # write
     node scripts/generate-icons.mjs --check   # verify structure
@@ -68,9 +72,6 @@ Outputs (99 files):
   apps/desktop/assets/appx/<Logo>[.scale-N].png       MSIX logos at 100/125/150/200/400% (wide: squircle centered)
   apps/desktop/assets/appx/Square44x44Logo.targetsize-N[_altform-(light)unplated].png
                                                       taskbar/Start bitmaps 16..256; unplated = dark tile
-  apps/desktop/public/apple-touch-icon.png            1024x1024 squircle
-  apps/desktop/public/nous-girl.png                   256x256 squircle, black girl (light mark)
-  apps/desktop/public/nous-girl-dark.png              256x256 squircle, white girl (dark mark)
   website/static/img/logo.png                     1772x1799 girl alone, transparent (light)
   website/static/img/logo-dark.png                1772x1799 girl alone, transparent (dark)
   website/static/img/nous-logo.png                150x150 on white (opaque)
@@ -80,7 +81,6 @@ Outputs (99 files):
   website/static/img/apple-touch-icon.png         180x180
   website/static/img/favicon.ico                  16,32,48
   website/static/img/favicon.svg                  copy of the light master
-  web/public/favicon.ico                          16,32,48
 """
 
 from __future__ import annotations
@@ -216,9 +216,6 @@ CHECK_SIZES: dict[str, tuple[str, tuple[int, int]]] = {
     "apps/desktop/assets/icon.icon/Assets/mono.png": ("PNG", (1024, 1024)),
     "apps/desktop/assets/icon.icon/Assets/art-light.png": ("PNG", (1024, 1024)),
     "apps/desktop/assets/icon.icon/Assets/art-dark.png": ("PNG", (1024, 1024)),
-    "apps/desktop/public/apple-touch-icon.png": ("PNG", (1024, 1024)),
-    "apps/desktop/public/nous-girl.png": ("PNG", (256, 256)),
-    "apps/desktop/public/nous-girl-dark.png": ("PNG", (256, 256)),
     "website/static/img/logo.png": ("PNG", (1772, 1799)),
     "website/static/img/logo-dark.png": ("PNG", (1772, 1799)),
     "website/static/img/nous-logo.png": ("PNG", (150, 150)),
@@ -248,11 +245,8 @@ TARGETS: list[tuple[str, str, object]] = [
     ("apps/desktop/assets/icon.icon/Assets/art-dark.png", "icon_art", "white"),
     ("apps/desktop/assets/icon.icon/Assets/mono.png", "icon_mono", None),
     *APPX_TARGETS,
-    ("apps/desktop/public/apple-touch-icon.png", "png", 1024),
     # The dev-run Dock icon (app.dock.setIcon): same mac grid as the icns.
     ("apps/desktop/assets/icon-mac.png", "png_mac", 1024),
-    ("apps/desktop/public/nous-girl.png", "girl_light", 256),
-    ("apps/desktop/public/nous-girl-dark.png", "girl_dark", 256),
     # Tauri's bundler compiles an Icon Composer package from `bundle.icon`
     # (actool >= 26) into Assets.car; the unbranded twin of the desktop package.
     ("website/static/img/logo.png", "logo", None),
@@ -264,7 +258,6 @@ TARGETS: list[tuple[str, str, object]] = [
     ("website/static/img/apple-touch-icon.png", "png", 180),
     ("website/static/img/favicon.ico", "ico", [16, 32, 48]),
     ("website/static/img/favicon.svg", "svg_copy", None),
-    ("web/public/favicon.ico", "ico", [16, 32, 48]),
 ]
 
 # ─── girl art extraction ────────────────────────────────────────────────────
@@ -922,9 +915,6 @@ def cmd_check(source: Path, out: Path) -> int:
     for rel in (
         "apps/desktop/assets/icon.png",
         "apps/desktop/assets/icon-dark.png",
-        "apps/desktop/public/nous-girl.png",
-        "apps/desktop/public/nous-girl-dark.png",
-        "apps/desktop/public/apple-touch-icon.png",
     ):
         path = out / rel
         if not path.exists():

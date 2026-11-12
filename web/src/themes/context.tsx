@@ -47,8 +47,9 @@ const FONT_STORAGE_KEY = "hermes-dashboard-font";
  *  Keep entries here until enough release cycles have passed that we can
  *  reasonably assume nobody still has the old value persisted. */
 const THEME_NAME_ALIASES: Record<string, string> = {
-  // Renamed during the LENS_5I port + Nous-blue rebrand.
-  "lens-5i": "nous-blue",
+  // Renamed during the LENS_5I port , then by Meu (the upstream vendor name left the theme id).
+  "lens-5i": "blue-cream",
+  "nous-blue": "blue-cream",
 };
 
 function migrateThemeName(name: string): string {

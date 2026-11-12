@@ -64,8 +64,8 @@ def test_no_state_file_means_no_managed_endpoint(tmp_path, monkeypatch):
 
 
 def test_remote_providers_unaffected(managed_state):
-    assert aux._provider_requires_stream("nous",
-                                         "https://inference-api.nousresearch.com/v1/") is False
+    assert aux._provider_requires_stream("provider-a",
+                                         "https://inference.provider-a.example/v1/") is False
 
 
 # ── 2. explicit caps reach the managed endpoint ──────────────

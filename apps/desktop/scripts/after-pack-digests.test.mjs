@@ -7,6 +7,8 @@ import { pathToFileURL } from 'node:url'
 
 import { test } from 'vitest'
 
+import { resolvePackagedAsarPath } from './backend-ready-artifact.mjs'
+
 const repo = path.resolve(import.meta.dirname, '../../..')
 const hook = pathToFileURL(path.join(import.meta.dirname, 'after-pack.mjs')).href
 const python = process.env.HERMES_PYTHON || 'python'
@@ -36,6 +38,16 @@ function fixture() {
   }
   delete env.PYTHONHOME
   delete env.PYTHONPATH
+  // afterPack asserts the packaged readiness parser before any platform work (#60772); seed the
+  // app.asar mirror the guard reads, as after-pack-toolchain.test.mjs does.
+  const asarPath = resolvePackagedAsarPath({ appOutDir: directory, electronPlatformName: process.platform })
+  fs.mkdirSync(path.dirname(asarPath), { recursive: true })
+  fs.writeFileSync(asarPath, 'stub archive')
+  fs.mkdirSync(path.join(`${asarPath}.unpacked`, 'dist'), { recursive: true })
+  fs.writeFileSync(
+    path.join(`${asarPath}.unpacked`, 'dist', 'electron-main.mjs'),
+    'const re = /HERMES_(?:BACKEND|DASHBOARD)_READY[^\\n]*port=(\\d+)/m\n'
+  )
   // The digest hook only needs the manifest to mark the payload as present.
   fs.writeFileSync(path.join(payload, 'manifest.json'), '{}')
   execFileSync(python, ['-c',

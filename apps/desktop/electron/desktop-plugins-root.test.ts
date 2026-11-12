@@ -11,6 +11,7 @@ import {
   reconcileDesktopHalvesReport,
   reconcileUnifiedDesktopHalves
 } from './desktop-plugins-root'
+import { canCreateSymlinks } from './test-symlink-capability'
 
 const homes: string[] = []
 
@@ -234,7 +235,7 @@ describe('reconcileUnifiedDesktopHalves', () => {
     expect(raw.repo).toBe('file:///srv/raw.git')
   })
 
-  it('copies a root-layout package (plugin.js at the package root) as the installers publish it, minus .git and __pycache__', async () => {
+  it.runIf(canCreateSymlinks)('copies a root-layout package (plugin.js at the package root) as the installers publish it, minus .git and __pycache__', async () => {
     // plugin.yaml + __init__.py + a ROOT plugin.js: the probe reports both halves, so a local-backend
     // install puts the agent half down alone and counts on this pass for the desktop one.
     const home = makeHome()

@@ -222,7 +222,6 @@ _CATEGORY_MERGE: dict[str, str] = {
     # agent tab rather than spawning a one-field orphan category.
     "runtime": "agent",
     "session": "general",
-    "nous": "agent",
     "connections": "agent",
     "auth": "security",
     # `fallback.min_switch_reset_seconds` is the only schema-surfaced fallback field.

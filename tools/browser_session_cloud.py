@@ -14,7 +14,7 @@ from typing import Any, Callable, Optional
 
 from agent.browser_provider import BrowserProvider
 from hermes_constants import get_hermes_home_override, hermes_home_key
-from tools.tool_backend_helpers import normalize_browser_cloud_provider
+from tools.tool_backend_helpers import is_retired_selection, normalize_browser_cloud_provider
 from utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
@@ -223,8 +223,8 @@ def _resolve_provider_uncached() -> tuple[Optional[BrowserProvider], bool]:
             provider_key = normalize_browser_cloud_provider(section.get("cloud_provider"))
     except (OSError, ValueError, TypeError) as exc:
         logger.debug("Could not read cloud_provider from config: %s", exc)
-    if provider_key == "nous" or is_truthy_value(section.get("use_gateway"), default=False):
-        raise ValueError("Nous-managed browsing has been removed. Select a local browser or configure "
+    if is_retired_selection(provider_key) or is_truthy_value(section.get("use_gateway"), default=False):
+        raise ValueError("Managed browsing has been removed. Select a local browser or configure "
                          "your own browser provider in settings.")
     if provider_key in ("local", "camofox"):
         return None, True  # camofox is a plugin with its own tool surface, not a CDP provider

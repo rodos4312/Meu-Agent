@@ -38,20 +38,20 @@ class TestReadChain:
         cfg = {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-                {"provider": "nous", "model": "Hermes-4-Llama-3.1-405B"},
+                {"provider": "provider-a", "model": "Hermes-4-Llama-3.1-405B"},
             ]
         }
         assert _read_chain(cfg) == [
             {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-            {"provider": "nous", "model": "Hermes-4-Llama-3.1-405B"},
+            {"provider": "provider-a", "model": "Hermes-4-Llama-3.1-405B"},
         ]
 
     def test_returns_copies_not_aliases(self):
         from hermes_cli.fallback_cmd import _read_chain
-        cfg = {"fallback_providers": [{"provider": "nous", "model": "foo"}]}
+        cfg = {"fallback_providers": [{"provider": "provider-a", "model": "foo"}]}
         result = _read_chain(cfg)
         result[0]["provider"] = "mutated"
-        assert cfg["fallback_providers"][0]["provider"] == "nous"
+        assert cfg["fallback_providers"][0]["provider"] == "provider-a"
 
 # ---------------------------------------------------------------------------
 # _extract_fallback_from_model_cfg
@@ -81,7 +81,7 @@ class TestListCommand:
             "model": {"provider": "anthropic", "default": "claude-sonnet-4-6"},
             "fallback_providers": [
                 {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "provider-a", "model": "Hermes-4"},
             ],
         })
         from hermes_cli.fallback_cmd import cmd_fallback_list
@@ -275,7 +275,7 @@ class TestRemoveCommand:
         _write_config(isolated_home, {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "gpt-5.4"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "provider-a", "model": "Hermes-4"},
                 {"provider": "anthropic", "model": "claude-sonnet-4-6"},
             ],
         })
@@ -301,7 +301,7 @@ class TestClearCommand:
         _write_config(isolated_home, {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "gpt-5.4"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "provider-a", "model": "Hermes-4"},
             ],
         })
         monkeypatch.setattr("builtins.input", lambda *a, **kw: "y")

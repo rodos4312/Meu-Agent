@@ -286,7 +286,7 @@ describe('BootFailureOverlay', () => {
   })
 
   it('offers gateway recovery for an old cloud address without Nous portal actions', async () => {
-    const restore = stubDesktop({ ...remoteToken, remoteUrl: 'https://old.agents.nousresearch.com' })
+    const restore = stubDesktop({ ...remoteToken, remoteUrl: 'https://provider-a.example' })
     $desktopBoot.set({ ...$desktopBoot.get(), error: '503: Service Unavailable' })
 
     try {

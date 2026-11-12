@@ -188,7 +188,7 @@ export const arSettings = {
         serverNotConnected: (server, reason) => `خادم MCP ${server} غير متصل${reason ? `: ${reason}` : '.'}`,
         verified: 'موثّق',
         unverified: 'غير موثّق',
-        reviewedByNous: 'راجعته Nous.',
+        reviewedByCatalog: 'راجعه مشرفو الكتالوج.',
         installsAndEnables: profile => `يُثبَّت لملف ${profile} ويعمل فورًا.`,
         installsOnly: profile => `يُثبَّت لملف ${profile}.`,
         advanced: 'متقدم',
@@ -725,7 +725,7 @@ export const arSettings = {
       webAccess: {
         title: 'الوصول عبر الويب',
         intro:
-          'افتح Meu الموجود على هذا الحاسوب من هاتفك أو من حاسوب آخر، مع تسجيل الدخول بحساب Nous. من يسجّل الدخول يمكنه تشغيل الأوامر على هذا الحاسوب.',
+          'افتح Meu الموجود على هذا الحاسوب من هاتفك أو من حاسوب آخر، مع تسجيل الدخول بحسابك. من يسجّل الدخول يمكنه تشغيل الأوامر على هذا الحاسوب.',
         failed: 'تعذّر تغيير الوصول عبر الويب',
         running: 'قيد التشغيل',
         stopped: 'متوقف',

@@ -118,12 +118,10 @@ Meu has removed `auth upgrade`, `/login`, the dedicated Nous account-login picke
 and their CLI/gateway workers. Supported providers keep `hermes auth add <provider>`
 and the common `hermes model` setup. The Nous web OAuth routes are also absent.
 
-Legacy identity, account refresh and Tool Gateway compatibility still live in `anon_auth.py`,
-`auth_nous.py` and `nous_subscription.py`. The remaining tool login calls
-`settle_after_upgrade` after saving credentials. `guest_handoff.py` records account
-replacement and supports explicit draining; it has no background retry worker.
-These remaining consumers must be removed together, without changing generic OAuth,
-plugin lifecycle or the user's model selection.
+The legacy identity, account-refresh and Tool Gateway modules are gone too. What remains is
+legacy blocking only: retired credentials are stripped from child processes
+(`RETIRED_CREDENTIAL_ENV` in `tools/environments/local_env_policy.py`) and retired settings are
+removed on load (`hermes_cli/meu_privacy.py`).
 
 ## Process identity: never infer it from argv substrings
 

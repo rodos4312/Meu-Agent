@@ -1117,20 +1117,6 @@ the host gateway with `gateway.standalone: true` (see
 [No new per-profile gateways](#no-new-per-profile-gateways)), which
 `hermes gateway migrate --multiplex` respects.
 
-### Docker / Hermes Cloud (s6-supervised container)
-
-Inside the official image every profile has an s6 slot
-(`/run/service/gateway-<profile>`). The container's boot registers every *named*
-slot down and folds its autostart intent into the root slot, so a fresh boot
-already multiplexes. An **in-place** update no longer needs a container restart
-to converge either: `hermes gateway migrate --multiplex` (and the hook `hermes
-update` runs) parks any named slot that is still up (`s6-svc -d` plus a `down`
-file so a supervisor restart does not revive it), folds its intent into the root
-slot through the same rule the boot uses, and restarts the root slot. A
-registered-down slot is never a blocker — only a slot that is actually up is.
-The one thing the command still cannot do from inside is create a root slot the
-boot never registered; that case names itself and asks for a container restart.
-
 ### What `hermes update` does
 
 After a successful update, when the install has two or more profiles, at least

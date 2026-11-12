@@ -19,9 +19,12 @@ const PROVIDER_ORDER: Record<string, number> = {
 export const providerTitle = (p: OAuthProvider) => PROVIDER_DISPLAY_NAMES[p.id] ?? p.name
 const orderOf = (p: OAuthProvider) => PROVIDER_ORDER[p.id] ?? 99
 
+// Providers Meu retired; an older remote backend may still list them, so onboarding never offers them.
+const RETIRED_PROVIDER_IDS = new Set(['nous'])
+
 export const sortProviders = (providers: OAuthProvider[]) =>
   providers
-    .filter(provider => provider.id !== 'nous')
+    .filter(provider => !RETIRED_PROVIDER_IDS.has(provider.id))
     .sort((a, b) => orderOf(a) - orderOf(b) || a.name.localeCompare(b.name))
 
 function ConnectedTag() {

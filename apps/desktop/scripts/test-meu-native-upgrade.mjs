@@ -218,6 +218,8 @@ try {
     [
       '-NoProfile',
       '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
       '-File',
       fileURLToPath(new URL('./test-meu-registration.ps1', import.meta.url)),
       '-Executable',

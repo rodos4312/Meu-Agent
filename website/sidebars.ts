@@ -723,7 +723,6 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         'integrations/index',
-        'integrations/nous-portal',
         'integrations/providers',
         'integrations/buzz',
         'user-guide/features/mcp',
@@ -739,7 +738,6 @@ const sidebars: SidebarsConfig = {
       collapsed: true,
       items: [
         'guides/run-nemotron-3-ultra-free',
-        'guides/run-hermes-with-nous-portal',
         'guides/tips',
         'guides/secure-hermes-on-a-work-machine',
         'guides/local-llm-on-mac',
@@ -747,7 +745,6 @@ const sidebars: SidebarsConfig = {
         'guides/team-telegram-assistant',
         'guides/python-library',
         'guides/use-mcp-with-hermes',
-        'guides/manage-hermes-cloud-with-mcp',
         'guides/use-soul-with-hermes',
         'guides/use-voice-mode-with-hermes',
         'guides/automate-with-cron',

@@ -33,11 +33,11 @@ describe('custom models', () => {
   })
 
   it('appends each remembered id under its own provider and keeps the input when nothing applies', () => {
-    const providers = [provider('openrouter', ['openai/gpt-5']), provider('nous', ['hermes-4'])]
+    const providers = [provider('openrouter', ['openai/gpt-5']), provider('provider-a', ['hermes-4'])]
 
     const customs = [
       { model: 'acme/model-x', provider: 'openrouter' },
-      { model: 'hermes-4', provider: 'nous' },
+      { model: 'hermes-4', provider: 'provider-a' },
       { model: 'ghost', provider: 'missing' }
     ]
 
@@ -50,11 +50,11 @@ describe('custom models', () => {
 
   it('merges custom models into a usage-window Nous row too (window plans allow any model)', () => {
     const nous: ModelOptionProvider = {
-      ...provider('nous', ['example/model-b']),
+      ...provider('provider-a', ['example/model-b']),
       plan_usage: { kind: 'usage_window', gauges: [] }
     }
 
-    const merged = withCustomModels([nous], [{ model: 'acme/model-x', provider: 'nous' }])
+    const merged = withCustomModels([nous], [{ model: 'acme/model-x', provider: 'provider-a' }])
 
     expect(merged[0]?.models).toEqual(['example/model-b', 'acme/model-x'])
   })

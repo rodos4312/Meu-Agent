@@ -9,7 +9,7 @@ export const enGatewayHost: GatewayHostTranslations = {
     'The Webapp always uses the Meu host that serves it. To switch gateways, sign in to Cloud gateway or manage saved connections, use the Meu Desktop app.',
   webAccess: {
     title: 'Web access',
-    intro: 'Open Meu on this computer from your phone or another computer, signed in with your Nous account. Whoever signs in can run commands on this computer.',
+    intro: 'Open Meu on this computer from your phone or another computer, signed in with your account. Whoever signs in can run commands on this computer.',
     failed: "Couldn't change web access",
     running: 'Running',
     stopped: 'Stopped',
@@ -18,7 +18,7 @@ export const enGatewayHost: GatewayHostTranslations = {
     restartNeeded: 'Restart needed',
     unavailable: 'Unavailable',
     notRunningDetail: 'Start it to open Meu from another device.',
-    needsSignIn: "Configure a dashboard sign-in provider first.",
+    needsSignIn: 'Configure a dashboard sign-in provider first.',
     runningLan: 'Open this address on a device on the same network.',
     runningPublic: 'Served through your URL.',
     runningLocal: 'Only this computer can open it. Stop it, then start it again to open it from other devices.',

@@ -20,7 +20,7 @@ from tests.gateway.fixtures.owner_process import running_owner
 _BROWSER_TOKEN = 'b' * 43
 _OWNER_ENV = {'HERMES_DASHBOARD_SESSION_TOKEN': _BROWSER_TOKEN}
 
-_OLD_CHATS = (('old-desktop', 'desktop', None), ('old-desktop-nous', 'desktop', 'nous:account'),
+_OLD_CHATS = (('old-desktop', 'desktop', None), ('old-desktop-nous', 'desktop', 'provider-a:account'),
               ('old-cli', 'cli', None), ('foreign-desktop', 'desktop', 'telegram:42'),
               ('api-row', 'api_server', None))
 

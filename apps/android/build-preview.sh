@@ -62,3 +62,6 @@ keytool -genkeypair -noprompt -keystore "$work/preview.jks" -storepass android \
   --out "$out/Meu-Android-preview.apk" "$work/aligned.apk"
 "$apksigner" verify --print-certs "$out/Meu-Android-preview.apk"
 (cd "$out" && sha256sum Meu-Android-preview.apk > SHA256SUMS.txt)
+# The work directory holds intermediates and the throwaway preview keystore; keep it only when
+# a step failed (set -e stops before this line), so successful builds do not accumulate.
+rm -rf "$work"

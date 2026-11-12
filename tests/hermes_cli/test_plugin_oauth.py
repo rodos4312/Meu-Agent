@@ -438,7 +438,7 @@ def test_other_auth_store_writes_keep_the_plugin_grant(idp):
 
     _signed_in(idp)
     before = _grant()
-    _save_active_provider_state("nous", {"access_token": "unrelated"})
+    _save_active_provider_state("provider-a", {"access_token": "unrelated"})
     assert _grant() == before
 
 

@@ -28,7 +28,7 @@ from hermes_cli.secret_prompt import masked_secret_prompt
 
 
 # Providers that support OAuth login in addition to API keys.
-_OAUTH_CAPABLE_PROVIDERS = {"anthropic", "nous", "openai-codex", "xai-oauth", "qwen-oauth", "minimax-oauth", "openrouter"}
+_OAUTH_CAPABLE_PROVIDERS = {"anthropic", "openai-codex", "xai-oauth", "qwen-oauth", "minimax-oauth", "openrouter"}
 # ...and default to it when ``--type`` is omitted. OpenRouter stays API-key-first: the documented
 # ``hermes auth add openrouter --api-key sk-or-...`` must keep working with no ``--type``.
 _OAUTH_DEFAULT_PROVIDERS = _OAUTH_CAPABLE_PROVIDERS - {"openrouter"}
@@ -586,12 +586,6 @@ def auth_refresh_command(args) -> None:
         raise SystemExit(
             f"{provider} credential #{index} ({matched.label}) is not a refreshable OAuth "
             f"credential.")
-    # Nous's resolver is singleton-bound, not an independent-account refresher.
-    if provider == "nous" and matched.source != "device_code":
-        raise SystemExit(
-            f"nous credential #{index} ({matched.label}) is not a refreshable OAuth "
-            "credential: only the device_code singleton supports refresh. "
-            "Reauthenticate with `hermes auth add nous --type oauth`.")
     refreshed = pool.try_refresh_matching(credential_id=matched.id)
     if refreshed is None:
         after = next((e for e in pool.entries() if e.id == matched.id), None)
@@ -772,7 +766,7 @@ def _interactive_add() -> None:
         return
     auth_add_command(SimpleNamespace(
         provider=provider, auth_type=auth_type, label=label or None, api_key=None,
-        portal_url=None, inference_url=None, client_id=None, scope=None,
+        client_id=None, scope=None,
         no_browser=False, timeout=None, insecure=False, ca_bundle=None))
 
 

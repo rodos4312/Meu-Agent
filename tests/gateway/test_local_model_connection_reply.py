@@ -285,7 +285,7 @@ def test_turn_runner_host_side_resolution_failure_does_not_send_user_to_login(mo
             return exc
 
     for label, cause in (("oserror", FileNotFoundError(2, "No such file or directory")),
-                         ("auth", AuthError("No usable credentials found for provider 'nous'.")),
+                         ("auth", AuthError("No usable credentials found for provider 'provider-a'.")),
                          ("mixed", _mixed_cause())):
         runner = SimpleNamespace(_resolve_session_agent_runtime=_raising(cause),
                                  _get_system_prompt_for_channel=lambda *a, **k: "",

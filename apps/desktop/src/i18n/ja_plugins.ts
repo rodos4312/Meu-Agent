@@ -30,7 +30,7 @@ export const jaPluginSettings = {
         `MCP サーバー ${server} は接続されていません${reason ? `: ${reason}` : '。'}`,
       verified: '確認済み',
       unverified: '未確認',
-      reviewedByNous: 'Nous がレビュー済み。',
+      reviewedByCatalog: 'カタログ管理者がレビュー済み。',
       installsAndEnables: profile => `${profile} にインストールし、すぐに有効になります。`,
       installsOnly: profile => `${profile} にインストールします。`,
       advanced: '詳細設定',

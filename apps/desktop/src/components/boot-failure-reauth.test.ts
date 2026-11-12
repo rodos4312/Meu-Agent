@@ -151,7 +151,9 @@ describe('deriveProviderShape', () => {
   })
 
   it('OAuth shape when the provider is a redirect IDP', () => {
-    expect(deriveProviderShape([{ name: 'nous', displayName: 'Nous Research', supportsPassword: false }])).toEqual({
+    expect(
+      deriveProviderShape([{ name: 'provider-a', displayName: 'Nous Research', supportsPassword: false }])
+    ).toEqual({
       isPassword: false,
       providerLabel: 'Nous Research'
     })
@@ -160,7 +162,7 @@ describe('deriveProviderShape', () => {
   it('mixed deployment keeps generic OAuth copy (not every provider is password)', () => {
     const shape = deriveProviderShape([
       { name: 'basic', displayName: 'Username & Password', supportsPassword: true },
-      { name: 'nous', displayName: 'Nous Research', supportsPassword: false }
+      { name: 'provider-a', displayName: 'Nous Research', supportsPassword: false }
     ])
 
     expect(shape.isPassword).toBe(false)

@@ -974,9 +974,9 @@ class TestDelegationProviderIntegration(unittest.TestCase):
             "api_mode": "chat_completions",
         }
         parent = _make_mock_parent(depth=0)
-        parent.provider = "nous"
-        parent.base_url = "https://inference-api.nousresearch.com/v1"
-        parent.api_key = "nous-key-abc"
+        parent.provider = "provider-a"
+        parent.base_url = "https://inference.provider-a.example/v1"
+        parent.api_key = "provider-a-key-abc"
 
         with patch("run_agent.AIAgent") as MockAgent:
             mock_child = MagicMock()

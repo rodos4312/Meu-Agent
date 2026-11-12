@@ -518,7 +518,7 @@ def _minimax_state(tmp_path, *, expires_in: int = 30, refresh_token: str = "r1",
         **_minimax_expiry_fields_for_test(expires_in),
     }
     (tmp_path / "auth.json").write_text(json.dumps({
-        "version": 1, "active_provider": "nous",
+        "version": 1, "active_provider": "provider-a",
         "providers": {"minimax-oauth": state},
     }), encoding="utf-8")
     return state
@@ -673,12 +673,12 @@ def test_aux_refresh_preserves_active_provider(tmp_path, monkeypatch):
         store["providers"]["minimax-oauth"]["portal_base_url"] = portal.url
         (tmp_path / "auth.json").write_text(json.dumps(store), encoding="utf-8")
 
-        assert get_active_provider() == "nous"
+        assert get_active_provider() == "provider-a"
         token = build_minimax_oauth_token_provider()()
         assert token == "tok-r2", "the refresh must actually run over the loopback portal"
 
         final = json.loads((tmp_path / "auth.json").read_text(encoding="utf-8"))
-        assert final["active_provider"] == "nous", (
+        assert final["active_provider"] == "provider-a", (
             "an aux-side refresh must not flip the user's active provider"
         )
         assert final["providers"]["minimax-oauth"]["access_token"] == "tok-r2"

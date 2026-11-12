@@ -188,17 +188,35 @@ test('a channel that copies the stable identity packages and runs as the regular
   assert.equal(branded.config.extraMetadata?.name, stable.config.extraMetadata?.name)
   assert.equal(branded.config.artifactName, stable.config.artifactName)
 
-  assert.equal(
-    applyDesktopIdentity(
-      {
-        getPath: (): string => assert.fail('stable userData must not be relocated'),
-        setPath: (): void => assert.fail('stable userData must not be relocated'),
-        setName: (): void => assert.fail('stable name must not change')
-      },
-      branded.identity
-    ),
-    null
-  )
+  // Meu's stable identity has its own userData dir (Roaming/Meu), unlike the upstream stable build,
+  // so the invariant is that a stable-branded channel lands in exactly the same dir and name.
+  const appData: string = fs.mkdtempSync(path.join(os.tmpdir(), 'meu-identity-'))
+
+  try {
+    const applied = (identity: PackagingFacts['identity']) => {
+      const calls: string[] = []
+
+      const name = applyDesktopIdentity(
+        {
+          getPath: (): string => appData,
+          setPath: (_key: 'userData', value: string): void => {
+            calls.push(value)
+          },
+          setName: (value: string): void => {
+            calls.push(`name:${value}`)
+          }
+        },
+        identity,
+        {}
+      )
+
+      return { calls, name }
+    }
+
+    assert.deepEqual(applied(branded.identity), applied(stable.identity))
+  } finally {
+    fs.rmSync(appData, { recursive: true, force: true })
+  }
 })
 
 test('channel stamps verify the real checkout and retain source version and native ownership', async (): Promise<void> => {
@@ -375,6 +393,10 @@ test('actual MSIX manifest writer consumes the channel quad across rollover inst
       'apps/desktop/electron-builder.config.cjs',
       'apps/desktop/package.json',
       'apps/desktop/update-feed.cjs',
+      // Meu's release policy is required by electron-builder.config.cjs.
+      'apps/desktop/meu-release.cjs',
+      'apps/desktop/meu-release-signing.cjs',
+      'apps/desktop/meu-update-key.json',
       'apps/desktop/assets/msix-manifest.xml',
       'apps/desktop/scripts/before-build.mjs',
       'apps/desktop/scripts/mac-icon.cjs',
@@ -470,6 +492,8 @@ with zipfile.ZipFile(package, 'w') as archive:
     archive.writestr('app/resources/install-stamp.json', json.dumps({
         'source': 'channel-build', 'channelBuild': request, 'commit': request['commit'], 'tag': None}))
 out = root / 'metadata.json'
+# On a Windows host record() reads the executable version from this sidecar (or an unpacked exe).
+(root / 'version-info-x64.json').write_text(json.dumps({'productVersion': request['windowsVersion']}), encoding='utf-8')
 record('windows', 'x64', root, '', request['commit'], out, channel_request=request)
 manifest = ET.fromstring((root / 'manifest.xml').read_bytes())
 desktop = desktop_application(manifest, request)

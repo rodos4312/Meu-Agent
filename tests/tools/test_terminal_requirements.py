@@ -73,7 +73,7 @@ def test_retired_modal_mode_logs_setup_guidance(monkeypatch, caplog, tmp_path):
 
     assert ok is False
     assert any(
-        "Nous-managed Modal execution has been removed" in record.getMessage()
+        "Managed Modal execution has been removed" in record.getMessage()
         for record in caplog.records
     )
 

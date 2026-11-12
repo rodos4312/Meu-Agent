@@ -27,8 +27,6 @@ description: "将你的 Nous Portal 订阅（或其他 OAuth 提供商）用作�
 hermes portal
 ```
 
-这会打开浏览器进行 Nous Portal OAuth 流程。Hermes 将刷新令牌存储在 `~/.hermes/auth.json` 中——与所有 Hermes 提供商登录信息存放在同一位置。
-
 ### 2. 启动代理
 
 ```bash
@@ -62,8 +60,6 @@ Model:      Hermes-4-70B    # 或 Hermes-4.3-36B、Hermes-4-405B
 hermes proxy providers
 ```
 
-当前已内置：`nous`（Nous Portal）。更多 OAuth 提供商可通过在 `hermes_cli/proxy/adapters/` 中实现 `UpstreamAdapter` 接口来添加。
-
 ## 检查状态
 
 ```bash
@@ -76,11 +72,7 @@ Hermes proxy upstream adapters
   [nous    ] Nous Portal — ready (bearer expires 2026-05-15T06:43:21Z)
 ```
 
-如果显示 `not logged in`，请运行 `hermes portal`。如果显示 `credentials need attention`，说明你的刷新令牌已被撤销（较少见——通常发生在你从 Portal Web UI 退出登录时）——重新运行 `hermes portal` 即可。
-
 ## 允许的路径
-
-代理仅转发上游实际提供的路径。对于 Nous Portal：
 
 | 路径 | 用途 |
 |------|---------|
@@ -118,8 +110,6 @@ hermes proxy start
 openviking-server
 ```
 
-OpenViking 的 VLM 调用现在将通过你的 Portal 订阅进行。Embedding 模型侧仍需要自己的提供商——Portal 确实提供 `/v1/embeddings`，但模型选择取决于你的套餐所支持的内容；请查看 `portal.nousresearch.com/models`。
-
 ## 配置 Karakeep（或任何书签/摘要应用）
 
 [Karakeep](https://karakeep.app/) 使用 OpenAI 兼容 API 进行书签摘要。在其配置中：
@@ -144,8 +134,6 @@ hermes proxy start --host 0.0.0.0 --port 8645
 ⚠ **注意：** 你网络中的任何人现在都可以使用你的 Portal 订阅。通配符绑定会跳过 `Host` 检查（任何主机名都可以访问），因此它会拒绝网页发出的所有请求（任何 `Origin`，或 `Sec-Fetch-Site` 不是 `none`）：浏览器无法使用以通配符绑定的代理。代理本身没有认证机制——它接受任意 bearer。如果你将其暴露在可信网络之外，请使用防火墙、VPN 或带有适当认证的反向代理。
 
 ## 速率限制
-
-你的 Portal 套餐的 RPM/TPM 限制适用于整个代理。代理不进行扇出或连接池——它是单个 bearer，使用你的完整订阅配额。请在 [portal.nousresearch.com](https://portal.nousresearch.com) 监控使用情况。
 
 ## 架构
 

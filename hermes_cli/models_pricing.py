@@ -151,8 +151,7 @@ def _sale_pct(current: Any, original: Any) -> int | None:
 
 
 def compute_sale_discount(prompt: str, completion: str, original: Any) -> tuple[int, str, str] | None:
-    """Sale chrome from gateway ``pricing.original`` (Nous Portal only; callers gate on the provider
-    and opted in via ``include_sale_original=True``): ``(discount_percent, was_prompt_raw,
+    """Sale chrome from a catalog's ``pricing.original``: ``(discount_percent, was_prompt_raw,
     was_completion_raw)`` when ``original`` is a dict and the current prompt (fallback: completion)
     rate is strictly below the original. Free / $0 models get a flat 100% off, with "was" prices
     only when the gateway served an original (a natively-free stealth model gets bare "-100%")."""
@@ -217,15 +216,11 @@ def fetch_models_with_pricing(
     timeout: float = 8.0,
     *,
     force_refresh: bool = False,
-    include_sale_original: bool = False,
     cache_ttl_seconds: Optional[float] = None,
 ) -> dict[str, dict[str, Any]]:
     """Fetch ``/v1/models`` (any OpenRouter-compatible endpoint) → ``{model_id: {prompt, completion,
     ...}}``, cached per *base_url* and per credential so one caller's catalog never answers
-    another's read. *include_sale_original* (Nous Portal only) copies the gateway's pre-discount
-    ``pricing.original`` rates through as a nested ``original`` dict for sale chrome."""
-    from hermes_cli.chat_catalog import catalog_item_is_generation
-    from hermes_cli.models import _openrouter_model_supports_tools
+    another's read."""
     from hermes_cli.version_info import hermes_user_agent
     url_root = (base_url or "").rstrip("/")
     cache_key = url_root + _pricing_auth_fingerprint(api_key)
@@ -251,34 +246,6 @@ def fetch_models_with_pricing(
         mid, pricing = item.get("id"), item.get("pricing")
         if mid and isinstance(pricing, dict):
             entry = _pricing_entry(pricing)
-            # Sale chrome is Nous Portal-only; never copy pricing.original for other catalogs.
-            original = pricing.get("original") if include_sale_original else None
-            if isinstance(original, dict):
-                orig_entry = {key: str(original[key]) for key in ("prompt", "completion", "input_cache_read", "input_cache_write")
-                              if original.get(key) not in (None, "")}
-                if orig_entry.get("prompt") or orig_entry.get("completion"):
-                    entry["original"] = orig_entry
-            # Nous Portal-only: the gateway bills this row to a subscription the account holds, not to credits.
-            if include_sale_original and item.get("billing_mode") == "subscription":
-                entry["billing_mode"] = "subscription"
-            # Usage-window plans only (only those callers ever see the mark): the gateway marks the
-            # models that count against the plan's monthly large-model limit.
-            if include_sale_original and item.get("top_tier") is True:
-                entry["top_tier"] = True
-            # Same callers: the gateway's per-plan picker label (free / low / medium / top_tier).
-            if include_sale_original and isinstance(item.get("usage_level"), str):
-                entry["usage_level"] = item["usage_level"]
-            # Nous only: the catalog's display name, so a limit line can name a model the way the
-            # picker does ("Model A", not the routed id).
-            if include_sale_original and isinstance(item.get("name"), str) and item["name"].strip() \
-                    and item["name"].strip() != mid:
-                entry["name"] = item["name"].strip()
-            # Nous Portal-only: on-sale rows join the picker, which must not offer a tool-less model.
-            if include_sale_original and not _openrouter_model_supports_tools(item):
-                entry["tools"] = False
-            # ...nor an image/video generation model (the chat-catalog rule, applied to the row itself).
-            if include_sale_original and catalog_item_is_generation(item):
-                entry["generation"] = True
             result[mid] = entry
 
     return _cache_catalog(cache_key, result, cache_ttl_seconds)

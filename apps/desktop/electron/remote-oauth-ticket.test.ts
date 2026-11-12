@@ -38,7 +38,7 @@ describe('resolveRemoteOauthTicket', () => {
   })
 
   it('classifies only confirmed auth rejection as reauth and retains the pre-mint session copy', async () => {
-    for (const baseUrl of ['https://gateway.example.com', 'https://lab.agents.nousresearch.com']) {
+    for (const baseUrl of ['https://gateway.example.com', 'https://provider-a.example']) {
       for (const hadNativeSession of [false, true]) {
         for (const statusCode of [401, 403, 500, 502, 503, 504, undefined]) {
           let nativeSession = hadNativeSession

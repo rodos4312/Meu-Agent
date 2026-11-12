@@ -118,15 +118,11 @@ export const esOverrides = {
       showAllMatches: 'Mostrar todas las coincidencias',
       segmentNoMatch: (segment: string) => `No hay coincidencias en ${segment}, así que se muestran todas.`,
       freeTierNote: 'Las conexiones se quedan en este equipo hasta que inicies sesión.',
-      signInLine: 'Inicia sesión en Nous para usar las apps administradas.',
       signIn: 'Iniciar sesión',
       managedUnavailable: 'Las apps administradas aún no están disponibles para esta cuenta.',
       writeFailed: 'No se guardó ese cambio.',
       refreshFailed: 'No se actualizó la lista de herramientas.',
-      disconnectNoAccount:
-        'Meu no tiene ninguna cuenta que desconectar aquí. Actualiza la página e inténtalo de nuevo.',
-      disconnectRefused:
-        'Nous no pudo quitar este inicio de sesión ahora. Desactiva la app con el interruptor o inténtalo más tarde.'
+      disconnectNoAccount: 'Meu no tiene ninguna cuenta que desconectar aquí. Actualiza la página e inténtalo de nuevo.'
     },
     add: {
       action: 'Añadir el tuyo',
@@ -177,7 +173,6 @@ export const esOverrides = {
       turnOffLocal: 'Desactivar el servidor local',
       providedByPlugin: (plugin: string) => `Proporcionado por el plugin ${plugin}`,
       openPlugins: 'Abrir la pestaña Plugins',
-      nousLine: 'Las apps de Nous siguen a tu cuenta, no al perfil.',
       rulesReadOnly: 'Las reglas no se pueden cambiar ahora.',
       rulesAppOff: (name: string) => `Activa ${name} para cambiar sus herramientas.`,
       rulesSignIn: 'Inicia sesión para cambiar lo que Meu puede hacer aquí.',
@@ -235,7 +230,7 @@ export const esOverrides = {
       remove: 'Quitar',
       offTitle: (name: string) => `${name} está desactivado.`,
       offBody: 'Actívalo con el interruptor de arriba para leer las herramientas que incluye.',
-      signedOutTitle: 'Inicia sesión en Nous para leer la lista de herramientas.',
+      signedOutTitle: 'Inicia sesión para leer la lista de herramientas.',
       signedOutBody: 'Tus servidores en este equipo no se ven afectados.',
       conflictTitle: 'Alguien cambió esta regla mientras la editabas.',
       conflictBody: (theyOff: number, theyOn: number) => {
@@ -819,7 +814,7 @@ export const esOverrides = {
           `${name} está instalado, pero necesita una clave para funcionar: ${vars}. Añádela ahora o las herramientas del plugin fallarán.`,
         verified: 'Verificado',
         unverified: 'Sin verificar',
-        reviewedByNous: 'Revisado por Nous.',
+        reviewedByCatalog: 'Revisado por los responsables del catálogo.',
         installsAndEnables: profile => `Se instala para ${profile} y se activa al momento.`,
         installsOnly: profile => `Se instala para ${profile}.`,
         advanced: 'Avanzado',
@@ -4025,7 +4020,7 @@ export const esOverrides = {
     localDownloadsHeading: 'Local',
     noAuthenticatedProviders: 'No hay proveedores autenticados.',
     pro: 'Pro',
-    proNeedsSubscription: 'Los modelos Pro necesitan una suscripción de Nous de pago.',
+    proNeedsSubscription: 'Algunos modelos necesitan un plan de pago con este proveedor.',
     free: 'Gratis',
     freeTier: 'Nivel gratis',
     priceTitle: 'Precio de entrada / salida por millón de tokens',
@@ -4557,34 +4552,6 @@ export const esOverrides = {
           title: 'Tu disco está lleno',
           body: 'Meu no pudo guardar esta conversación. Libera espacio y reinténtalo.'
         },
-        free_tier_disabled: {
-          title: 'Inicia sesión para seguir chateando',
-          body: 'Inicia sesión con una cuenta de Nous para seguir chateando; es gratis.'
-        },
-        free_tier_rate_limited: {
-          title: 'Cupo gratuito agotado',
-          body: 'Se renueva en breve. Inicia sesión con una cuenta de Nous para tener un cupo mayor; es gratis.'
-        },
-        free_tier_at_capacity: {
-          title: 'El nivel gratuito está ocupado',
-          body: 'Inicia sesión para saltarte la cola (es gratis) o vuelve a intentarlo dentro de un rato.'
-        },
-        free_tier_model_not_free: {
-          title: 'Este modelo requiere iniciar sesión',
-          body: 'Por ahora Meu usa el modelo gratuito. Inicia sesión con una cuenta de Nous para tener más modelos; es gratis.'
-        },
-        free_tier_route: {
-          title: 'Sin acceso al modelo gratuito',
-          body: 'Inicia sesión con una cuenta de Nous (es gratis) o revisa el ajuste NOUS_INFERENCE_BASE_URL.'
-        },
-        free_tier_outage: {
-          title: 'El modelo gratuito tiene problemas',
-          body: 'Vuelve a enviar el mensaje dentro de un minuto.'
-        },
-        free_tier_refused: {
-          title: 'Inicia sesión para seguir chateando',
-          body: 'Iniciar sesión con una cuenta de Nous es gratis.'
-        },
         usage_window: {
           title: 'Uso incluido agotado',
           body: 'El uso incluido de tu plan está agotado hasta el reinicio. Añade créditos en /topup para seguir.'
@@ -4633,7 +4600,6 @@ export const esOverrides = {
       errorOpenHermesFolderFailed: 'No se pudo abrir la carpeta de Meu',
       errorUpdateApiKey: 'Actualizar clave API',
       errorSignInAgain: (provider: string) => `Volver a iniciar sesión en ${provider}`,
-      errorSignInFreeTier: 'Iniciar sesión con una cuenta de Nous',
       errorOauthExpired: (provider: string) =>
         `Tu sesión de ${provider} caducó o se revocó. Vuelve a iniciar sesión para seguir chateando.`,
       errorOpenLogs: 'Abrir registros',

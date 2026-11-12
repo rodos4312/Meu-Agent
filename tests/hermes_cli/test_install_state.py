@@ -41,7 +41,7 @@ USE = {
     Evidence.PROVIDER_CONFIG: lambda r: (r / "config.yaml").write_text("model:\n  provider: openrouter\n", encoding="utf-8"),
     Evidence.PROVIDER_KEY: lambda r: (r / ".env").write_text("OPENROUTER_API_KEY=sk-test\n", encoding="utf-8"),
     Evidence.PROVIDER_LOGIN: lambda r: (r / "auth.json").write_text(json.dumps(
-        {"providers": {"nous": {"auth_method": "anonymous", "anon_token": "anon_x"}}}), encoding="utf-8"),
+        {"providers": {"provider-a": {"auth_method": "anonymous", "anon_token": "anon_x"}}}), encoding="utf-8"),
     Evidence.MESSAGES: lambda r: _messages_db(r / "state.db"),
 }
 

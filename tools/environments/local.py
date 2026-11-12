@@ -27,7 +27,7 @@ from tools.environments.local_env_policy import (
     _is_hermes_internal_secret, _is_provider_env_blocklisted, _is_terminal_first_party_env,
     _home_adapter_secret_env, _matches_terminal_first_party_prefix, _plugin_terminal_env_strip_keys,
     _registered_adapter_secret_env, _registry_adapter_secret_env,
-    strip_profile_gate_env, strip_supervised_process_identity)
+    strip_profile_gate_env, strip_retired_credentials, strip_supervised_process_identity)
 from tools.environments.local_pythonpath import (
     _build_hermes_repo_root_aliases, _strip_hermes_owned_pythonpath_and_runtime_markers)
 
@@ -305,7 +305,7 @@ def _finalize_child_env(env: dict) -> dict:
     strip_supervised_process_identity(env)
     _apply_windows_msys_bash_env_defaults(env)
     from agent.delegation_context import delegated_child_subprocess_env
-    return delegated_child_subprocess_env(env)
+    return strip_retired_credentials(delegated_child_subprocess_env(env))
 
 
 def _scrubbed_env(parts, plugin_strip: frozenset, fix_path) -> dict:
@@ -413,7 +413,7 @@ def build_subprocess_env(
         env.update(extra)
     strip_supervised_process_identity(env)
     from agent.delegation_context import delegated_child_subprocess_env
-    return delegated_child_subprocess_env(env)
+    return strip_retired_credentials(delegated_child_subprocess_env(env))
 
 
 def served_profile_child_env(
@@ -457,7 +457,7 @@ def served_profile_child_env(
                     "no profile secret scope bound while multiplexing is on; the child would inherit the "
                     "launch profile's credentials. Bind the profile scope (or pass target_home) at the spawn site.")
         env.update((k, v) for k, v in (secrets or {}).items() if v is not None)
-    return env
+    return strip_retired_credentials(env)
 
 
 def host_gateway_child_env(

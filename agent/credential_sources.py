@@ -250,11 +250,6 @@ _REGISTRY: list[RemovalStep] = [
         description="~/.hermes/.anthropic_oauth.json",
     ),
     RemovalStep(
-        provider="nous", source_id="device_code",
-        remove_fn=_remove_auth_store_oauth,
-        description="auth.json providers.nous",
-    ),
-    RemovalStep(
         provider="openai-codex", source_id="device_code",
         match_fn=lambda src: src == "device_code" or src.endswith(":device_code"),
         remove_fn=_remove_codex_device_code,

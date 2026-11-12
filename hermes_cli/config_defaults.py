@@ -7,11 +7,11 @@ docs of config.yaml.
 from hermes_cli.config_defaults_auxiliary import _aux
 from hermes_cli.config_defaults_routing import ROUTING_DEFAULTS
 
-#: Image every container terminal backend (docker/modal/daytona, the singularity plugin) uses unless the
-#: user pins one. LEGACY_SANDBOX_IMAGES are the plain defaults that preceded the desktop stack
-#: (the 3.14 pin shipped between the two without a migration); a saved config still holding one
-#: is the template copied, and the config migration unsets it, never a user's own pin.
-DEFAULT_SANDBOX_IMAGE = "nousresearch/hermes-sandbox:desktop"
+#: Container image for docker/modal/daytona unless the user pins one. EMPTY: Meu pulls no vendor image, so
+#: those backends stay unavailable until terminal.<backend>_image is set (docker/sandbox-desktop.Dockerfile).
+DEFAULT_SANDBOX_IMAGE = ""
+SANDBOX_IMAGE_UNSET_REASON = ("no sandbox image is configured. Meu does not pull a default container image; set "
+                              "terminal.docker_image (or modal_image / daytona_image) to an image you trust")
 LEGACY_SANDBOX_IMAGES = ("nikolaik/python-nodejs:python3.11-nodejs20", "nikolaik/python-nodejs:python3.14-nodejs22")
 LEGACY_SANDBOX_IMAGE = LEGACY_SANDBOX_IMAGES[0]
 # Vercel Sandbox managed image (Vercel deprecated its `runtime` presets in Aug 2026).
@@ -2482,7 +2482,7 @@ DEFAULT_CONFIG = {
         #   terminal  always inside the terminal backend (error when it cannot host one).
         #   gateway   always on the gateway host, even with a sandbox terminal: the agent's screen, browser
         #             and computer_use then act OUTSIDE the terminal sandbox. Explicit opt-in.
-        # The sandbox image needs the desktop stack: nousresearch/hermes-sandbox:desktop.
+        # The sandbox image needs the desktop stack (docker/sandbox-desktop.Dockerfile).
         "placement": "auto",
     },
     "computer_use": {

@@ -172,11 +172,11 @@ def test_settled_info_pairs_model_and_provider_from_one_profile_read(monkeypatch
     authority = SimpleNamespace(profile_id="p", sessions={"s": live})
     turn = SimpleNamespace(_ctx=SimpleNamespace(inbound_message_id="adm"), _approval_owner=(authority, "s", 1),
                            _runner=SimpleNamespace(), _publish_execution=lambda kind, payload: published.append(payload))
-    agent = SimpleNamespace(model="once-model", provider="nous", tools=None, _cached_system_prompt="",
+    agent = SimpleNamespace(model="once-model", provider="provider-a", tools=None, _cached_system_prompt="",
                             context_compressor=None)
-    monkeypatch.setattr(session_local, "local_session_info", lambda *_a, **_k: {"model": "once-model", "provider": "nous"})
+    monkeypatch.setattr(session_local, "local_session_info", lambda *_a, **_k: {"model": "once-model", "provider": "provider-a"})
     monkeypatch.setattr(session_policy, "policy_for_source", lambda *_a, **_k: _Policy())
-    with cli_turn_scope("adm", {"model_override": {"model": "once-model", "provider": "nous"}}):
+    with cli_turn_scope("adm", {"model_override": {"model": "once-model", "provider": "provider-a"}}):
         publish_settled_info(turn, agent)
     assert (published[-1]["model"], published[-1]["provider"]) == ("openai/gpt-b", "openrouter")
 

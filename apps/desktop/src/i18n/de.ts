@@ -118,15 +118,12 @@ export const deOverrides = {
       showAllMatches: 'Alle Treffer anzeigen',
       segmentNoMatch: (segment: string) => `Kein Treffer in ${segment}, daher werden alle Treffer angezeigt.`,
       freeTierNote: 'Verbindungen bleiben auf diesem Computer, bis Sie sich anmelden.',
-      signInLine: 'Melden Sie sich bei Nous an, um verwaltete Apps zu nutzen.',
       signIn: 'Anmelden',
       managedUnavailable: 'Verwaltete Apps sind für dieses Konto noch nicht verfügbar.',
       writeFailed: 'Diese Änderung wurde nicht gespeichert.',
       refreshFailed: 'Die Tool-Liste wurde nicht aktualisiert.',
       disconnectNoAccount:
-        'Meu hat hier kein Konto zum Trennen. Aktualisieren Sie die Seite und versuchen Sie es erneut.',
-      disconnectRefused:
-        'Nous kann diese Anmeldung gerade nicht entfernen. Schalten Sie die App stattdessen mit dem Schalter aus oder versuchen Sie es später erneut.'
+        'Meu hat hier kein Konto zum Trennen. Aktualisieren Sie die Seite und versuchen Sie es erneut.'
     },
     add: {
       action: 'Eigenen hinzufügen',
@@ -177,7 +174,6 @@ export const deOverrides = {
       turnOffLocal: 'Lokalen Server ausschalten',
       providedByPlugin: (plugin: string) => `Bereitgestellt vom Plugin ${plugin}`,
       openPlugins: 'Tab „Plugins“ öffnen',
-      nousLine: 'Nous-Apps folgen Ihrem Konto, nicht dem Profil.',
       rulesReadOnly: 'Die Regeln können gerade nicht geändert werden.',
       rulesAppOff: (name: string) => `Schalten Sie ${name} ein, um die Tools zu ändern.`,
       rulesSignIn: 'Melden Sie sich an, um festzulegen, was Meu hier darf.',
@@ -234,7 +230,7 @@ export const deOverrides = {
       remove: 'Entfernen',
       offTitle: (name: string) => `${name} ist aus.`,
       offBody: 'Schalten Sie ihn mit dem Schalter oben ein, um seine Tools zu laden.',
-      signedOutTitle: 'Melden Sie sich bei Nous an, um die Tool-Liste zu laden.',
+      signedOutTitle: 'Melden Sie sich an, um die Tool-Liste zu laden.',
       signedOutBody: 'Ihre Server auf diesem Computer sind nicht betroffen.',
       conflictTitle: 'Jemand hat diese Regel geändert, während Sie sie bearbeitet haben.',
       conflictBody: (theyOff: number, theyOn: number) => {
@@ -815,7 +811,7 @@ export const deOverrides = {
           `${name} ist installiert, benötigt aber einen Schlüssel, um zu funktionieren: ${vars}. Fügen Sie ihn jetzt hinzu, sonst schlagen die Tools des Plugins fehl.`,
         verified: 'Verifiziert',
         unverified: 'Nicht verifiziert',
-        reviewedByNous: 'Von Nous geprüft.',
+        reviewedByCatalog: 'Von den Katalog-Betreuern geprüft.',
         installsAndEnables: profile => `Wird für ${profile} installiert und sofort eingeschaltet.`,
         installsOnly: profile => `Wird für ${profile} installiert.`,
         advanced: 'Erweitert',
@@ -4032,7 +4028,7 @@ export const deOverrides = {
     localDownloadsHeading: 'Lokal',
     noAuthenticatedProviders: 'Keine authentifizierten Anbieter.',
     pro: 'Pro',
-    proNeedsSubscription: 'Pro-Modelle benötigen ein bezahltes Nous-Abo.',
+    proNeedsSubscription: 'Einige Modelle benötigen einen bezahlten Tarif bei diesem Anbieter.',
     free: 'Kostenlos',
     freeTier: 'Kostenlose Stufe',
     priceTitle: 'Eingabe-/Ausgabepreis pro Million Tokens',
@@ -4570,34 +4566,6 @@ export const deOverrides = {
           title: 'Ihre Festplatte ist voll',
           body: 'Meu konnte dieses Gespräch nicht speichern. Geben Sie Speicherplatz frei und versuchen Sie es erneut.'
         },
-        free_tier_disabled: {
-          title: 'Anmelden, um weiterzuchatten',
-          body: 'Melden Sie sich mit einem Nous-Konto an, um weiterzuschreiben – es ist kostenlos.'
-        },
-        free_tier_rate_limited: {
-          title: 'Kostenloses Kontingent aufgebraucht',
-          body: 'Es wird bald wieder aufgefüllt. Melden Sie sich mit einem Nous-Konto an, um ein größeres Kontingent zu erhalten – es ist kostenlos.'
-        },
-        free_tier_at_capacity: {
-          title: 'Kostenloser Zugang ist ausgelastet',
-          body: 'Melden Sie sich an, um die Warteschlange zu überspringen – es ist kostenlos –, oder versuchen Sie es später erneut.'
-        },
-        free_tier_model_not_free: {
-          title: 'Dieses Modell erfordert Anmeldung',
-          body: 'Meu verwendet vorerst das kostenlose Modell. Melden Sie sich mit einem Nous-Konto an, um mehr Modelle zu nutzen – es ist kostenlos.'
-        },
-        free_tier_route: {
-          title: 'Kostenloses Modell nicht erreichbar',
-          body: 'Melden Sie sich mit einem Nous-Konto an – es ist kostenlos – oder prüfen Sie die Einstellung NOUS_INFERENCE_BASE_URL.'
-        },
-        free_tier_outage: {
-          title: 'Kostenloses Modell hat Probleme',
-          body: 'Versuchen Sie in einer Minute, Ihre Nachricht erneut zu senden.'
-        },
-        free_tier_refused: {
-          title: 'Anmelden, um weiterzuchatten',
-          body: 'Eine Anmeldung mit einem Nous-Konto ist kostenlos.'
-        },
         usage_window: {
           title: 'Enthaltene Nutzung aufgebraucht',
           body: 'Die enthaltene Nutzung Ihres Plans ist bis zum Zurücksetzen aufgebraucht. Laden Sie in /topup Credits auf, um weiterzumachen.'
@@ -4647,7 +4615,6 @@ export const deOverrides = {
       errorOpenHermesFolderFailed: 'Der Meu-Ordner konnte nicht geöffnet werden',
       errorUpdateApiKey: 'API-Key aktualisieren',
       errorSignInAgain: provider => `Erneut bei ${provider} anmelden`,
-      errorSignInFreeTier: 'Mit einem Nous-Konto anmelden',
       errorOauthExpired: provider =>
         `Ihre Anmeldung bei ${provider} ist abgelaufen oder wurde widerrufen. Melden Sie sich erneut an, um weiterzuchatten.`,
       errorOpenLogs: 'Logs öffnen',

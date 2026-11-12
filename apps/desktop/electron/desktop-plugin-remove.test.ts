@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { removeDesktopPlugin } from './desktop-plugin-remove'
 import { PACKAGE_MARKER } from './desktop-plugins-root'
+import { canCreateSymlinks } from './test-symlink-capability'
 
 const homes: string[] = []
 
@@ -94,7 +95,7 @@ describe('removeDesktopPlugin', () => {
     expect((await removeDesktopPlugin(root, 'ghost')).ok).toBe(false)
   })
 
-  it('removes a symlinked plugin folder as the link, never following it', async () => {
+  it.runIf(canCreateSymlinks)('removes a symlinked plugin folder as the link, never following it', async () => {
     const { home, root } = makeRoot()
     const real = path.join(home, 'elsewhere')
     write(path.join(real, 'plugin.js'), 'export default {}')

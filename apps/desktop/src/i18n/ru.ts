@@ -3073,7 +3073,7 @@ export const ruOverrides = {
     loadFailed: 'Не удалось загрузить модели',
     noAuthenticatedProviders: 'Нет провайдеров с аутентификацией.',
     pro: 'Pro',
-    proNeedsSubscription: 'Модели Pro требуют платной подписки Nous.',
+    proNeedsSubscription: 'Некоторым моделям нужен платный тариф у этого провайдера.',
     free: 'Free',
     freeTier: 'Бесплатный тариф',
     priceTitle: 'Цена вход / выход за миллион токенов',

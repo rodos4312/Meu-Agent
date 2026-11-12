@@ -183,7 +183,7 @@ class UsageLimitSuggestion(Payload):
     model: str
     label: str
     note: str                    # "free" | "included"
-    provider: str = "nous"
+    provider: str = ""
 
 
 class UsageLimitCredits(Payload):
@@ -229,7 +229,6 @@ class BillingBlock(Payload):
     provider_label: str
     model: str
     billing_url: str | None
-    is_nous: bool
     message: str
     unverified: bool | None = None
 

@@ -15,13 +15,12 @@ from utils import base_url_host_matches
 
 @dataclass
 class BillingBlock:
-    """Provider billing error. ``is_nous`` remains false for older wire consumers."""
+    """Provider billing error: the failing provider and its own billing page, when known."""
 
     provider: str
     provider_label: str
     model: str
     billing_url: Optional[str]
-    is_nous: bool
     message: str
 
     def to_dict(self) -> dict:
@@ -79,4 +78,4 @@ def build_billing_block(*, provider: str, base_url: str, model: str, message: st
     slug = (provider or "").strip().lower()
     model = (model or "").strip()
     label, url = _resolve_provider_link(slug, base_url)
-    return BillingBlock(slug, label, model, url, False, message or "")
+    return BillingBlock(slug, label, model, url, message or "")

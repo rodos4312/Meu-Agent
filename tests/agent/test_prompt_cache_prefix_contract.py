@@ -8,7 +8,7 @@ the same content as the plain string it decorates (production telemetry: plain s
 full previous prefix on 99.5% of consecutive calls). Splitting one string into several parts is a
 content change.
 
-The cells run the OpenAI-wire envelope layout (OpenRouter / Nous Portal / custom relays) and were
+The cells run the OpenAI-wire envelope layout (OpenRouter / Provider A / custom relays) and were
 chosen from per-call cache telemetry (``agent.log`` ``cache=R/T write=W``): consecutive
 calls in one session reuse the whole previous prefix except where these cells say otherwise.
 

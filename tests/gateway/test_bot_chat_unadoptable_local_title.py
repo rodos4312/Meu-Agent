@@ -64,7 +64,7 @@ async def test_an_unadoptable_local_bot_chat_is_moved_aside_and_the_delivery_lan
 
 @pytest.mark.parametrize('source, stamp, route', [
     ('tui', 'github:alice', None),
-    ('tui', 'nous:alice@example.com', None),
+    ('tui', 'provider-a:alice@example.com', None),
     ('cli', 'basic:alice', 'agent:main:tui:dm:stale'),  # owner login, but a stale route prevents adoption
     ('tui', 'github:alice', 'agent:main:tui:dm:stale'),  # a crash's route column, never bound
     ('tui', 'uid:1001', None),                           # another OS user, not this host's identity

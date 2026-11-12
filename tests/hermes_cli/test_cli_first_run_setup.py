@@ -172,21 +172,21 @@ def test_offer_first_run_setup_routes_into_shared_picker(monkeypatch):
     # After the picker "runs", config has a provider and creds resolve.
     monkeypatch.setattr(
         "hermes_cli.config.load_config",
-        lambda: {"model": {"provider": "nous", "default": "hermes-4-405b"}},
+        lambda: {"model": {"provider": "provider-a", "default": "hermes-4-405b"}},
     )
     monkeypatch.setattr(
         "hermes_cli.runtime_provider.resolve_runtime_provider",
         lambda **kw: {
-            "provider": "nous",
+            "provider": "provider-a",
             "api_key": "portal-token",
-            "base_url": "https://inference-api.nousresearch.com/v1",
+            "base_url": "https://inference.provider-a.example/v1",
             "source": "oauth",
         },
     )
 
     assert shell._offer_first_run_setup() is True
     assert picker_calls["count"] == 1
-    assert shell.requested_provider == "nous"
+    assert shell.requested_provider == "provider-a"
     assert shell.model == "hermes-4-405b"
     # Agent must be rebuilt with the new credentials on next use.
     assert shell.agent is None
@@ -204,7 +204,7 @@ def test_offer_first_run_setup_re_resolves_reasoning_for_picked_model(monkeypatc
     monkeypatch.setattr("hermes_cli.main.select_provider_and_model", lambda: None)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "y")
     monkeypatch.setattr("hermes_cli.config.load_config",
-                        lambda: {"model": {"provider": "nous", "default": "hermes-4-405b"}})
+                        lambda: {"model": {"provider": "provider-a", "default": "hermes-4-405b"}})
     monkeypatch.setattr(shell, "_runtime_credentials_ready", lambda: True)
 
     assert shell._offer_first_run_setup() is True
@@ -283,7 +283,7 @@ def _bench_nous_pool(monkeypatch, **entry_fields):
     import time
     from agent.credential_pool import STATUS_EXHAUSTED, CredentialPool, PooledCredential
 
-    benched = PooledCredential(id="e1", provider="nous", auth_type="oauth", access_token="x",
+    benched = PooledCredential(id="e1", provider="provider-a", auth_type="oauth", access_token="x",
                                refresh_token="r", label="portal", source="manual:device_code",
                                priority=0, last_status=STATUS_EXHAUSTED, last_status_at=time.time() - 5,
                                **entry_fields)
@@ -308,10 +308,10 @@ def test_benched_credential_prints_cooldown_instead_of_wizard(monkeypatch, capsy
     user to re-authenticate, and never offers the first-run wizard."""
     cli = _import_cli()
     shell = _make_shell(cli, monkeypatch)
-    shell.requested_provider = "nous"
+    shell.requested_provider = "provider-a"
 
     def _raise(**kwargs):
-        raise AuthError("Hermes is not logged into Nous Portal.", provider="nous",
+        raise AuthError("Hermes is not logged into Provider A.", provider="provider-a",
                         code="nous_auth_missing", relogin_required=True)
 
     monkeypatch.setattr("hermes_cli.runtime_provider.resolve_runtime_provider", _raise)
@@ -324,52 +324,9 @@ def test_benched_credential_prints_cooldown_instead_of_wizard(monkeypatch, capsy
     out = capsys.readouterr().out
     assert t("cli.startup.first_run_no_provider") not in out
     headline = next(line for line in out.splitlines() if line.strip())
-    assert headline.endswith(t("cli.startup.credential_cooling_down", provider="nous",
+    assert headline.endswith(t("cli.startup.credential_cooling_down", provider="provider-a",
                          cause=t("cli.startup.cooldown_cause_rate_limit"), minutes=1))
     assert t("cli.startup.cooldown_cause_token_refresh") not in out
-    assert "not logged into Nous Portal" in out
+    assert "not logged into Provider A" in out
     assert "re-authenticate" not in out and "hermes model" not in out
 
-
-def test_auth_json_only_login_explains_instead_of_wizard(monkeypatch, capsys, tmp_path):
-    """auth.json-only shape: logged into Nous but no ``model.provider`` (requested "auto"). The
-    ladder swallows the AuthError and falls through to a keyless OpenRouter fallback; the gate
-    must still explain the real failure rather than treat the profile as a blank install.
-    Control: the resolver's ``no_provider_configured`` still reaches the wizard."""
-    import dataclasses
-
-    import hermes_cli.runtime_provider as rp
-
-    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    (tmp_path / "config.yaml").write_text("model:\n  default: some-model\n", encoding="utf-8")
-    for key in [k for k in os.environ if k.endswith("_API_KEY")]:
-        monkeypatch.delenv(key, raising=False)
-
-    def _nous_fail():
-        raise AuthError("Hermes is not logged into Nous Portal.", provider="nous",
-                        code="nous_auth_missing", relogin_required=True)
-
-    monkeypatch.setattr(rp, "resolve_provider", lambda *a, **kw: "nous")
-    monkeypatch.setitem(rp._OAUTH_RUNTIME_PROVIDERS, "nous",
-                        dataclasses.replace(rp._OAUTH_RUNTIME_PROVIDERS["nous"], resolve=_nous_fail))
-
-    cli = _import_cli()
-    shell = _make_shell(cli, monkeypatch)
-    shell.requested_provider = "auto"
-    shell._explicit_api_key = None
-    shell._explicit_base_url = None
-    _forbid_wizard(monkeypatch, shell)
-    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
-
-    shell._maybe_offer_first_run_setup()
-    out = capsys.readouterr().out
-    assert "not logged into Nous Portal" in out
-    assert t("cli.startup.first_run_no_provider") not in out
-
-    offered = []
-    monkeypatch.setattr(shell, "_offer_first_run_setup", lambda: offered.append(True) or True)
-    monkeypatch.setattr("hermes_cli.runtime_provider.resolve_runtime_provider", lambda **kw: (_ for _ in ()).throw(
-        AuthError("Hermes is not connected to any AI provider yet.", code="no_provider_configured")))
-    shell._maybe_offer_first_run_setup()
-    assert offered == [True]
-    assert "not logged into" not in capsys.readouterr().out

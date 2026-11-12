@@ -3,7 +3,7 @@
 A browser tab's ``/api/ws`` reaches the gateway through the dashboard mount (``chat_ws.gateway_ws``),
 not the native ticket path (``gateway/run_api.py``) that wraps the socket in ``owner_scope``. The
 authority answers ``-32601`` for ``billing.state``, so the frame falls back to the legacy handler,
-which reads the Nous Portal override through the socket's scope: unbound, a multiplexed gateway
+which reads the Provider A override through the socket's scope: unbound, a multiplexed gateway
 refused the read (``UnscopedSecretError`` -> "no profile secret scope on a multiplexed call") and the
 token went to the default Portal. ``dispatch_legacy`` binds a non-launch ticket's profile; a
 launch-profile socket relies on ``gateway_ws``'s own scope.
@@ -37,11 +37,11 @@ def _home(home, label):
     home.mkdir(parents=True, exist_ok=True)
     (home / "config.yaml").write_text("model:\n  provider: nous\n  default: fixture-model\n")
     (home / ".env").write_text(f"HERMES_PORTAL_BASE_URL=https://{label}-portal.invalid\n")
-    (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"nous": {
+    (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"provider-a": {
         "access_token": _jwt(label), "refresh_token": f"{label}-refresh",
         "expires_at": "2999-01-01T00:00:00+00:00", "scope": "inference:invoke", "client_id": "fixture-client",
-        "portal_base_url": "https://portal.nousresearch.com",
-        "inference_base_url": "https://inference-api.nousresearch.com/v1",
+        "portal_base_url": "https://portal.provider-a.example",
+        "inference_base_url": "https://inference.provider-a.example/v1",
     }}}))
 
 
@@ -62,7 +62,7 @@ def gateway(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(launch))
     monkeypatch.setenv("HERMES_SHARED_AUTH_DIR", str(tmp_path / "shared-auth"))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    for key in ("HERMES_PORTAL_BASE_URL", "NOUS_PORTAL_BASE_URL", "NOUS_INFERENCE_BASE_URL",
+    for key in ("HERMES_PORTAL_BASE_URL", "PROVIDER_A_PORTAL_URL", "PROVIDER_A_BASE_URL",
                 "HERMES_DEV_BILLING_FIXTURE", "HERMES_DEV_SUBSCRIPTION_FIXTURE", "HERMES_DEV_CREDITS_FIXTURE"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(launch_profile_policy, "_snapshot", None)

@@ -521,17 +521,17 @@ class TestTryRecoverPrimaryTransport:
     def test_allowed_for_nous_anthropic_messages(self):
         """Portal Claude holds a local Anthropic SDK client — rebuild it."""
         agent = _make_agent(
-            provider="nous",
-            base_url="https://inference-api.nousresearch.com/v1",
+            provider="provider-a",
+            base_url="https://inference.provider-a.example/v1",
         )
         agent.api_mode = "anthropic_messages"
         agent.model = "anthropic/claude-opus-4.8"
         agent._primary_runtime.update({
             "api_mode": "anthropic_messages",
             "model": "anthropic/claude-opus-4.8",
-            "provider": "nous",
+            "provider": "provider-a",
             "anthropic_api_key": "portal-jwt",
-            "anthropic_base_url": "https://inference-api.nousresearch.com/v1",
+            "anthropic_base_url": "https://inference.provider-a.example/v1",
             "is_anthropic_oauth": False,
         })
         error = _make_transport_error("ReadTimeout")

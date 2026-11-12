@@ -380,7 +380,7 @@ def test_repeated_startup_failures_back_off_exponentially(tmp_path, monkeypatch)
     ('{"providers": {"spotify": {"access_token": "a"}}}', "", True),
     ("", "platform_toolsets:\n  cli: [hermes-cli, spotify]\n", True),
     ('{"providers": {"spotify": {"client_id": "only-the-app"}}}', "", False),
-    ('{"providers": {"nous": {"access_token": "a"}}}', "platform_toolsets:\n  cli: [hermes-cli]\n", False),
+    ('{"providers": {"provider-a": {"access_token": "a"}}}', "platform_toolsets:\n  cli: [hermes-cli]\n", False),
 ])
 def test_spotify_in_use_is_a_stored_login_or_the_toolset(tmp_path, auth_json, config, in_use):
     """Core's Spotify tools were opt-in and login-gated: a login in auth.json or the toolset selected is

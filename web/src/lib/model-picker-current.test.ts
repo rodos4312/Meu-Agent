@@ -8,11 +8,11 @@ import {
 } from "./model-picker-current";
 
 const MAIN = { model: "glm-5.3", provider: "zxl" };
-const VISION = { model: "qwen/qwen2.5-flash", provider: "nous" };
+const VISION = { model: "qwen/qwen2.5-flash", provider: "provider-a" };
 
 const PROVIDERS = [
   { slug: "zxl", is_current: true },
-  { slug: "nous", is_current: false },
+  { slug: "provider-a", is_current: false },
   { slug: "openrouter", is_current: false },
 ];
 
@@ -71,7 +71,7 @@ describe("formatPickerCurrentLabel", () => {
 
 describe("resolveInitialProviderSlug", () => {
   it("opens the auxiliary provider, not the main-model provider", () => {
-    expect(resolveInitialProviderSlug(PROVIDERS, "nous")).toBe("nous");
+    expect(resolveInitialProviderSlug(PROVIDERS, "provider-a")).toBe("provider-a");
   });
 
   it("falls back to the catalog's current provider when the slot is auto", () => {

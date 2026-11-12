@@ -53,12 +53,16 @@ exit $LASTEXITCODE
       )
 
       try {
-        const result = spawnSync(POWERSHELL_PATH, ['-NoProfile', '-NonInteractive', '-File', wrapper], {
-          cwd: root,
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 30_000
-        })
+        const result = spawnSync(
+          POWERSHELL_PATH,
+          ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', wrapper],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            windowsHide: true,
+            timeout: 30_000
+          }
+        )
 
         expect(result.status, result.stdout + result.stderr).toBe(unavailable ? 2 : 0)
         expect(fs.existsSync(ready)).toBe(false)
@@ -89,13 +93,17 @@ exit $LASTEXITCODE
     )
 
     try {
-      const result = spawnSync(POWERSHELL_PATH, ['-NoProfile', '-NonInteractive', '-File', wrapper], {
-        cwd: root,
-        encoding: 'utf8',
-        env: { ...process.env, TEMP: root, TMP: root },
-        windowsHide: true,
-        timeout: 30_000
-      })
+      const result = spawnSync(
+        POWERSHELL_PATH,
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', wrapper],
+        {
+          cwd: root,
+          encoding: 'utf8',
+          env: { ...process.env, TEMP: root, TMP: root },
+          windowsHide: true,
+          timeout: 30_000
+        }
+      )
 
       expect(result.status, result.stdout + result.stderr).toBe(1)
 

@@ -1,7 +1,6 @@
 """The plane credential (design §4.4 step 2, D26, D31, D32).
 
-Cloud: the Nous access token from the profile's ``auth.json`` (``resolve_nous_access_token``).
-On-prem: an IdP workload token from the OAuth2 client-credentials grant, configured by
+Only an IdP workload token from the OAuth2 client-credentials grant, configured by
 ``GATEWAY_RELAY_IDP_*`` values in ``.env``. Never from config.yaml (the config is what this token
 fetches) and never from a secret source: :data:`PLANE_CREDENTIAL_ENV_NAMES` lists every env name
 that decides which token is sent where, and boot refuses a secret source that supplies one.
@@ -26,8 +25,6 @@ PLANE_CREDENTIAL_ENV_NAMES = frozenset({
     "HERMES_CONFIG_BACKEND", "HERMES_CONFIG_REMOTE_URL", "HERMES_CONFIG_INSTANCE_ID",
     # on-prem workload identity
     *(IDP_ENV_PREFIX + k.upper() for k in _IDP_KEYS),
-    # Cloud: where auth.json lives and where its refresh token is sent
-    "HERMES_SHARED_AUTH_DIR", "HERMES_PORTAL_BASE_URL", "NOUS_PORTAL_BASE_URL",
 })
 
 _HTTP_TIMEOUT_S = 15.0

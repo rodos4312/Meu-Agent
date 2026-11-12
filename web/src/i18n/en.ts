@@ -60,7 +60,7 @@ export const en: Translations = {
     closeNavigation: "Close navigation",
     closeModelTools: "Close model and tools",
     footer: {
-      org: "Nous Research",
+      org: "Meu",
     },
     activeSessionsLabel: "Active Sessions:",
     gatewayStatusLabel: "Gateway Status:",
@@ -458,7 +458,7 @@ export const en: Translations = {
     hideFromSidebar: "Hide from sidebar",
     catalogHeading: "Plugin catalog",
     catalogHint:
-      "Curated, Nous-reviewed plugins pinned to exact commits. Install from here for supply-chain-safe versions.",
+      "Curated, maintainer-reviewed plugins pinned to exact commits. Install from here for supply-chain-safe versions.",
     catalogSearchPlaceholder: "Search catalog...",
     catalogEmpty: "No catalog entries match.",
     catalogEmptyDocsLink: "Learn about Hermes plugins",

@@ -159,26 +159,6 @@ class TestNousCatalogExpiry:
     """A Nous catalog reflects the org's policy, which an admin can change while
     a long-lived process holds the entry."""
 
-    def test_entry_expires_so_a_policy_change_is_picked_up(self, catalog, monkeypatch):
-        from hermes_cli.models_pricing import _NOUS_CATALOG_TTL_SECONDS
-
-        fetch_models_with_pricing(
-            api_key="sk-test", base_url=BASE,
-            cache_ttl_seconds=_NOUS_CATALOG_TTL_SECONDS,
-        )
-        assert len(catalog) == 1
-
-        now = models_mod.time.monotonic()
-        monkeypatch.setattr(
-            models_mod.time, "monotonic",
-            lambda: now + _NOUS_CATALOG_TTL_SECONDS + 1,
-        )
-        fetch_models_with_pricing(
-            api_key="sk-test", base_url=BASE,
-            cache_ttl_seconds=_NOUS_CATALOG_TTL_SECONDS,
-        )
-        assert len(catalog) == 2, "expired entry should be re-read"
-
     def test_no_ttl_keeps_the_entry_indefinitely(self, catalog, monkeypatch):
         """Other providers' catalogs carry no policy and must not start
         re-fetching."""
@@ -194,18 +174,3 @@ class TestNousCatalogExpiry:
         fetch_models_with_pricing(api_key="tok-a", base_url=BASE, cache_ttl_seconds=300)
         fetch_models_with_pricing(api_key="tok-b", base_url=BASE, cache_ttl_seconds=300)
         assert list(peek_cached_pricing(BASE)) == ["org-b/only"]
-
-    def test_peek_skips_an_expired_entry(self, catalog, monkeypatch):
-        """Reading _pricing_cache directly walked straight past the TTL."""
-        from hermes_cli.models_pricing import _NOUS_CATALOG_TTL_SECONDS
-
-        fetch_models_with_pricing(
-            api_key="sk-test", base_url=BASE,
-            cache_ttl_seconds=_NOUS_CATALOG_TTL_SECONDS,
-        )
-        now = models_mod.time.monotonic()
-        monkeypatch.setattr(
-            models_mod.time, "monotonic",
-            lambda: now + _NOUS_CATALOG_TTL_SECONDS + 1,
-        )
-        assert peek_cached_pricing(BASE) == {}

@@ -767,7 +767,7 @@ export default function McpPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Browse Nous-approved MCP servers and install them with one click.
+          Browse curated catalog MCP servers and install them with one click.
         </p>
 
         {catalog.length === 0 && (

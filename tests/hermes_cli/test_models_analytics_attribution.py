@@ -52,12 +52,12 @@ def test_session_switching_providers_yields_separated_rows(db, models):
     """One session, two routes: both pairs appear with their own tokens (#71778)."""
     db.create_session("s1", source="cli", model="gpt-5.6-sol")
     _touch(db, "s1", "gpt-5.6-sol", "openai-codex", input_tokens=30_000, output_tokens=1_000)
-    _touch(db, "s1", "anthropic/claude-opus-5", "nous", input_tokens=31_000, output_tokens=2_000)
+    _touch(db, "s1", "anthropic/claude-opus-5", "provider-a", input_tokens=31_000, output_tokens=2_000)
     # The sessions row keeps only the final pair — the old misattribution source.
     with db._lock:
         db._conn.execute(
             "UPDATE sessions SET model = ?, billing_provider = ? WHERE id = ?",
-            ("anthropic/claude-opus-5", "nous", "s1"),
+            ("anthropic/claude-opus-5", "provider-a", "s1"),
         )
         db._conn.commit()
 
@@ -65,13 +65,13 @@ def test_session_switching_providers_yields_separated_rows(db, models):
     pairs = _by_pair(result)
 
     assert ("gpt-5.6-sol", "openai-codex") in pairs, "first-phase route must stay visible"
-    assert ("anthropic/claude-opus-5", "nous") in pairs, "second-phase route must stay visible"
+    assert ("anthropic/claude-opus-5", "provider-a") in pairs, "second-phase route must stay visible"
     # Tokens split per route, not all lumped on the final pair.
     assert pairs[("gpt-5.6-sol", "openai-codex")]["input_tokens"] == 30_000
-    assert pairs[("anthropic/claude-opus-5", "nous")]["input_tokens"] == 31_000
+    assert pairs[("anthropic/claude-opus-5", "provider-a")]["input_tokens"] == 31_000
     # A session counted once per pair it actually used, never COUNT(*)-inflated.
     assert pairs[("gpt-5.6-sol", "openai-codex")]["sessions"] == 1
-    assert pairs[("anthropic/claude-opus-5", "nous")]["sessions"] == 1
+    assert pairs[("anthropic/claude-opus-5", "provider-a")]["sessions"] == 1
 
 
 def test_usage_splits_auto_routes_and_keeps_older_session_totals(db, monkeypatch):
