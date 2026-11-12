@@ -1,8 +1,9 @@
-"""A local pull-request preview: data only, nothing is sent anywhere.
+"""The local pull-request draft: data only, nothing is sent anywhere.
 
-The user can edit the text, cancel it, or mark it "approved for creation later". Creating a
-remote branch or PR is not available in this phase, whether or not a remote exists; when no
-remote is configured the preview says so plainly and invents none.
+The user can edit the text, cancel it, or mark it "approved for creation later". The draft is
+the text the remote flow (``meu_coding.task_remote``) offers when the PR is created there, after
+its own push and PR approvals; this module never contacts a remote. When no remote is
+configured the draft says so plainly and invents none.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import time
 from typing import Any
 
 NO_REMOTE = "No git remote is configured for this repository — PR creation is unavailable."
-NOT_YET = "Creating a remote PR is not available yet; this preview is saved locally only."
+NOT_YET = "This draft is saved locally; creating the PR needs the push and PR approvals."
 
 
 def remote_names(repo_root: str) -> list[str]:

@@ -6,7 +6,7 @@ from dataclasses import replace
 import pytest
 
 from meu_coding.coding_interfaces import EditAction, EditOperation, EditStrategy, TaskConstraints
-from meu_coding.execution import ApprovalError
+from meu_coding.safe_execution import ApprovalError
 from meu_coding.safe_execution import (
     ApprovedExecution,
     ExecutionBlocked,

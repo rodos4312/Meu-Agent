@@ -160,14 +160,6 @@ def decide_coder_workload(signals: RoutingSignals) -> RouteDecision:
     return RouteDecision("coding.simple", c.reasons)
 
 
-def review_workload(signals: RoutingSignals | None = None) -> RouteDecision:
-    """The Reviewer is never downgraded: always the strong coding.review route."""
-    reasons = ("independent strong reviewer",)
-    if signals is not None and signals.classification.complexity == Complexity.HIGH_RISK:
-        reasons += ("high-risk change: strong review required",)
-    return RouteDecision("coding.review", reasons)
-
-
 def resolve_workloads(config: Mapping[str, Any]) -> dict[str, RoleRoute]:
     """Every coding workload's route from existing settings, with its source."""
     slots = _slot_routes(config)

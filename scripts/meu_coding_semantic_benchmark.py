@@ -29,7 +29,7 @@ BENCHMARK = [
     ("Where is Android reconnect handled?",
      {"apps/android/src/io/meuagent/preview/MainActivity.java", "apps/android/src/io/meuagent/preview/MeuClient.java"}),
     ("Where is coding approval fingerprint validated?",
-     {"meu_coding/execution.py", "meu_coding/safe_execution.py"}),
+     {"meu_coding/safe_execution.py"}),
     ("Where is worktree cleanup decided?", {"meu_coding/workspace.py", "tools/subagent_worktree.py"}),
     ("Where is DeepSeek workload routing selected?", {"agent/workload_routes.py", "meu_coding/routing_policy.py"}),
     ("Where is mobile PC status synchronized?",

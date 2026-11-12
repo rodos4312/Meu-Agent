@@ -4,7 +4,7 @@ The orchestrator coordinates and never edits. It prepares the task context ONCE 
 (cached) RepositoryIntelligence instance, so every stage and every repair attempt reads
 the same context without rescanning. Its successful end state is
 ``AWAITING_APPROVAL`` with an :class:`ApprovalRequest`; applying the change belongs to
-MEU's safe execution layer after an explicit approval (``meu_coding.execution``).
+MEU's safe execution layer after an explicit approval (``meu_coding.safe_execution``).
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from meu_coding.coding_interfaces import (
     StageLog,
     TaskContext,
 )
-from meu_coding.execution import ApprovalRequest
+from meu_coding.safe_execution import ApprovalRequest
 from meu_coding.impact import ImpactAnalyzer
 from meu_coding.intelligence import RepositoryIntelligence
 from meu_coding.repair_loop import DEFAULT_MAX_REPAIRS, Attempt, RepairLoop, RepairOutcome

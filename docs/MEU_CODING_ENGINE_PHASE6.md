@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 6: controlled remote GitHub operations
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 6 takes a validated integration (Phase 5) to GitHub, under explicit control:
 
 - detect the remote and whether it can be used;

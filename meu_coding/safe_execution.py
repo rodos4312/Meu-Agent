@@ -1,6 +1,11 @@
-"""Approval binding (fingerprint v2) and the SafeExecutionAdapter.
+"""The approval boundary (proposal fingerprint + execution binding) and the SafeExecutionAdapter.
 
-Phase 2 approval binds a reviewed proposal. Execution approval additionally binds the task,
+PLAN -> PROPOSAL -> REVIEW -> **approval** -> safe execution. Nothing else in ``meu_coding``
+mutates a repository. A reviewed proposal becomes an :class:`ApprovalRequest`; only
+:func:`approve`, given an explicit positive :class:`ApprovalDecision` whose fingerprint
+matches that exact request, produces an :class:`ApprovedChange`.
+
+Proposal approval binds a reviewed proposal. Execution approval additionally binds the task,
 the exact edit payload, the target files with their current content hashes, the exact
 expected result (previewed with MEU's own patch engine before anyone approves), and the
 repository identity (root, branch, HEAD). Each approval has a single-use id issued by the
@@ -22,7 +27,7 @@ import json
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -34,20 +39,80 @@ from meu_coding.coding_interfaces import (
     EditAction,
     EditStrategy,
     ImplementationPlan,
+    ReviewResult,
+    ReviewStatus,
 )
 from meu_coding.edit_strategy import touched_paths
-from meu_coding.execution import (
-    ApprovalDecision,
-    ApprovalError,
-    ApprovalRequest,
-    ApprovedChange,
-    approve,
-    proposal_fingerprint,
-)
 from meu_coding.relevance import is_test_path
 from meu_coding.schemas import safe_path_problem
 from meu_coding.scope import is_protected
 from meu_coding.test_executor import ExecutedCheck, TestExecutor
+
+
+class ApprovalError(Exception):
+    pass
+
+
+def proposal_fingerprint(proposal: CodeChangeProposal) -> str:
+    """SHA-256 over the canonical operations: any change to any edit changes it."""
+    canonical = json.dumps([asdict(op) for op in proposal.operations], sort_keys=True, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class ApprovalRequest:
+    plan: ImplementationPlan
+    proposal: CodeChangeProposal
+    review: ReviewResult
+    fingerprint: str
+
+    @classmethod
+    def for_review(cls, plan: ImplementationPlan, proposal: CodeChangeProposal,
+                   review: ReviewResult) -> ApprovalRequest:
+        if review.status != ReviewStatus.PASS:
+            raise ApprovalError(f"only a passed review can ask for approval (got {review.status.value})")
+        return cls(plan, proposal, review, proposal_fingerprint(proposal))
+
+    def summary(self) -> str:
+        lines = [self.plan.summary, f"risk: {self.plan.risk.value}", "changes:"]
+        lines += [f"  {d}" for d in self.proposal.change_descriptions]
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class ApprovalDecision:
+    """Recorded by the user / MEU approval UI, never by a Coding Engine component."""
+
+    approved: bool
+    approver: str
+    fingerprint: str
+    note: str = ""
+
+
+_APPROVAL_SEAL = object()
+
+
+@dataclass(frozen=True)
+class ApprovedChange:
+    request: ApprovalRequest
+    decision: ApprovalDecision
+    _seal: object = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self._seal is not _APPROVAL_SEAL:
+            raise ApprovalError("an ApprovedChange can only be created by approve()")
+
+
+def approve(request: ApprovalRequest, decision: ApprovalDecision) -> ApprovedChange:
+    if not decision.approved:
+        raise ApprovalError(f"change was not approved by {decision.approver or 'anyone'}")
+    if not decision.approver:
+        raise ApprovalError("an approval must name its approver")
+    if decision.fingerprint != request.fingerprint or proposal_fingerprint(request.proposal) != request.fingerprint:
+        raise ApprovalError("approval does not match the reviewed proposal")
+    if request.review.status != ReviewStatus.PASS:
+        raise ApprovalError("only a passed review can be approved")
+    return ApprovedChange(request, decision, _APPROVAL_SEAL)
 from meu_coding.workspace import (
     MemoryFileOps,
     MeuWorktreeWorkspace,

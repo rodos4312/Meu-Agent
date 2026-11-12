@@ -211,7 +211,7 @@ class IntegrationMixin:
                 record.pr["body"] = body[:20_000]
             if status is not None:
                 record.pr["status"] = status
-            record.pr["remote_available"] = False  # never flips in this phase
+            record.pr["remote_available"] = False  # the local draft never creates a remote PR
             record.pr["updated_at"] = round(time.time(), 3)
             record.audit.pr = dict(record.pr)
             self._save(record)

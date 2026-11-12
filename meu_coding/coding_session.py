@@ -30,13 +30,14 @@ from meu_coding.coding_interfaces import (
     ReviewStatus,
     TaskContext,
 )
-from meu_coding.execution import ApprovalError, ApprovalRequest
 from meu_coding.execution_review import impact_of, refresh_changed, review_execution
 from meu_coding.intelligence import RepositoryIntelligence
 from meu_coding.orchestrator import CodingOrchestrator, CodingResult, OutcomeStatus
 from meu_coding.repair_loop import DEFAULT_MAX_REPAIRS, Attempt, RepairOutcome
 from meu_coding.reviewer import Reviewer
 from meu_coding.safe_execution import (
+    ApprovalError,
+    ApprovalRequest,
     ExecutionApprovalRequest,
     ExecutionBlocked,
     ExecutionDecision,

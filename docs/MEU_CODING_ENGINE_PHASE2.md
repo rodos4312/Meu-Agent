@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 2: Architect → Coder → Reviewer
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 2 adds orchestration and planning on top of the Phase 1 repository intelligence
 (`docs/MEU_CODING_ENGINE_PHASE1.md`). It plans a change, collects a proposed edit, reviews
 it, repairs it a bounded number of times, and stops at an explicit **approval boundary**.

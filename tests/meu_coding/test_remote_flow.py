@@ -1,7 +1,6 @@
 """Phase 6 remote workflow against a LOCAL bare remote and a fake GitHub: push, PR, monitoring,
 merge — each with its own preview, fingerprint and single-use approval."""
 
-from pathlib import Path
 
 import pytest
 

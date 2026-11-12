@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 4: desktop approval, diffs, keep/reject, local commit
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 4 brings the Phase 1–3 engine into the desktop app as a user-facing workflow: approval
 cards, diff views, keep/reject decisions and an optional local commit. Integrity rules carried
 over from Phase 3 stay in force, and one is added: a decision is single-use and exact.

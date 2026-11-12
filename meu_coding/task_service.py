@@ -37,12 +37,11 @@ from meu_coding.coding_interfaces import CodingTask, ReviewStatus, TaskConstrain
 from meu_coding.coding_session import CodingSession, SessionState
 from meu_coding.coding_result import ResultRecord, ResultState, result_from_attempt
 from meu_coding.commit_flow import CommitPlan, CommitRefused, confirm_commit, prepare_commit
-from meu_coding.execution import ApprovalError
 from meu_coding.coding_memory import CodingMemory
 from meu_coding.impact import ImpactAnalyzer
 from meu_coding.intelligence import RepositoryIntelligence
 from meu_coding.reviewer import Reviewer
-from meu_coding.safe_execution import ExecutionDecision, SafeExecutionAdapter
+from meu_coding.safe_execution import ApprovalError, ExecutionDecision, SafeExecutionAdapter
 from meu_coding.github_adapter import default_github
 from meu_coding.remote_refs import github_auth_available, parse_github
 from meu_coding.planner_provider import meu_planner

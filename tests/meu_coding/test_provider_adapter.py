@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from meu_coding.architect import Architect, PlanningError
+from meu_coding.architect import Architect
 from meu_coding.coder import Coder
 from meu_coding.coding_interfaces import (
     CodingTask,
@@ -19,7 +19,6 @@ from meu_coding.provider_adapter import (
     ProviderSession,
     Route,
     provider_models,
-    routes_from_workload_policy,
 )
 from meu_coding.reviewer import Reviewer
 from meu_coding.schemas import SchemaError, parse_json_object, validate_architect, validate_coder
@@ -154,17 +153,6 @@ def test_coder_route_uses_flash_only_for_simple_low_risk_changes(make_repo):
     expected = FLASH if result.plan.risk.value == "low" else PRO
     assert models.coding.last_route == expected
     assert [c[1] for c in client.calls if c[0] == "Architect"] == [PRO]
-
-
-def test_routes_come_from_the_existing_workload_policy():
-    policy = {"enabled": True, "provider": "deepseek", "routes": {
-        "routine": {"provider": "deepseek", "model": "deepseek-flash-x"},
-        "complex": {"provider": "deepseek", "model": "deepseek-pro-x"}}}
-    routes = routes_from_workload_policy(policy)
-    assert routes.architect == routes.reviewer == Route("deepseek", "deepseek-pro-x")
-    assert routes.coder_simple == Route("deepseek", "deepseek-flash-x")
-    with pytest.raises(ProviderError):
-        routes_from_workload_policy({"routes": {"routine": {"provider": "deepseek", "model": "m-1"}}})
 
 
 def test_session_records_metadata_without_content():

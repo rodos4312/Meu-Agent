@@ -2,7 +2,7 @@
 
 This is a format chooser, not four editing engines. Every strategy maps onto an existing
 MEU executor (``patch`` replace mode, ``patch`` V4A mode, ``write_file``); see
-``meu_coding.execution``. Profiles are plain data, matched by model-id pattern, so new
+``meu_coding.safe_execution``. Profiles are plain data, matched by model-id pattern, so new
 models are a registry entry rather than code.
 """
 

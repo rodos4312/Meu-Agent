@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 7: intelligence and controlled autonomy
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 7 makes the Coding Engine better at finding the right code and at planning larger goals, without
 giving it any new authority.
 

@@ -4,7 +4,7 @@ The Coder never touches the repository. It picks the output format with the
 EditStrategyRouter, hands the model the prepared context and plan (and, on a repair, the
 Reviewer's instructions), then records the model's operations together with any
 structural format errors. Applying a proposal is the execution layer's job, after review
-and approval (``meu_coding.execution``).
+and approval (``meu_coding.safe_execution``).
 """
 
 from __future__ import annotations

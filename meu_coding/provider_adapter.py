@@ -34,7 +34,6 @@ from meu_coding.coding_interfaces import (
     ReviewFinding,
     ReviewRequest,
     ReviewStatus,
-    RiskLevel,
     TaskContext,
     TestPlan,
     max_risk,
@@ -69,20 +68,6 @@ class CodingRoutes:
     sources: dict[str, str] = field(default_factory=dict, compare=False)
 
 
-def routes_from_workload_policy(policy: Mapping[str, Any]) -> CodingRoutes:
-    """Map the existing "models by workload" policy onto coding roles."""
-    from agent.workload_routes import explicit_routes
-
-    routes = explicit_routes(dict(policy))
-    complex_route = routes.get("complex")
-    if complex_route is None:
-        raise ProviderError("Choose a complex-workload provider and model for the Coding Engine.")
-    strong = Route(complex_route["provider"], complex_route["model"])
-    routine = routes.get("routine")
-    simple = Route(routine["provider"], routine["model"]) if routine else None
-    return CodingRoutes(architect=strong, coder=strong, reviewer=strong, coder_simple=simple)
-
-
 @dataclass(frozen=True)
 class RouteResolution:
     routes: CodingRoutes
@@ -112,17 +97,6 @@ def resolve_coding_routes(config: Mapping[str, Any]) -> RouteResolution:
                          coder_simple=Route(simple.provider, simple.model) if simple else None, sources=sources)
     source = "models_by_workload" if any(v.startswith("models_by_workload") for v in sources.values())         else "main_model_fallback"
     return RouteResolution(routes, source)
-
-
-def routes_from_meu_config() -> CodingRoutes:
-    """Routes from the active profile's config (see :func:`resolve_coding_routes`)."""
-    from hermes_cli.config import load_config_readonly
-
-    config = load_config_readonly()
-    policy = config.get("smart_model_routing")
-    if not isinstance(policy, dict) or not policy.get("routes"):
-        raise ProviderError("Models by workload are not configured; choose coding routes explicitly.")
-    return resolve_coding_routes(config).routes
 
 
 def provider_has_credentials(provider: str) -> bool:

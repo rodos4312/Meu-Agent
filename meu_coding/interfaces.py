@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import Protocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,11 +185,3 @@ class RepositoryAnalysis:
     @property
     def symbols(self) -> tuple[Symbol, ...]:
         return tuple(s for path in sorted(self.extractions) for s in self.extractions[path].symbols)
-
-
-class SymbolExtractorBackend(Protocol):
-    name: str
-
-    def supports(self, language: str) -> bool: ...
-
-    def extract(self, path: str, source: str, language: str) -> ExtractionResult: ...

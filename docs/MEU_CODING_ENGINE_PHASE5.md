@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 5: integration, PR preview, workload routing, phone approvals
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 5 completes the local lifecycle of a coding result and makes it work across devices:
 
 - a durable result record and recovery after a restart;

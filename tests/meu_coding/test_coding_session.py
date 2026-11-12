@@ -6,7 +6,7 @@ import pytest
 
 from meu_coding.coding_interfaces import ReviewStatus
 from meu_coding.coding_session import SessionState
-from meu_coding.execution import ApprovalError
+from meu_coding.safe_execution import ApprovalError
 from meu_coding.safe_execution import SafeExecutionAdapter
 from tests.meu_coding.phase3_support import (
     TASK,

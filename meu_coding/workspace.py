@@ -23,9 +23,62 @@ from pathlib import Path
 from typing import Any
 
 from meu_coding.coding_interfaces import EditAction, EditOperation, EditStrategy
-from meu_coding.execution import unified_to_v4a
 
 GIT_TIMEOUT = 20.0
+
+
+_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@")
+
+
+def _diff_path(header: str) -> str | None:
+    path = header[4:].split("\t", 1)[0].strip()
+    if path == "/dev/null":
+        return None
+    return path[2:] if path[:2] in ("a/", "b/") else path
+
+
+def _file_header(old: str | None, new: str | None) -> tuple[str, str]:
+    if new is None:
+        return "delete", f"*** Delete File: {old}"
+    if old is None:
+        return "add", f"*** Add File: {new}"
+    return "update", f"*** Update File: {new}"
+
+
+def _hunk_line(mode: str | None, line: str) -> str | None:
+    if mode == "update" and _HUNK.match(line):
+        return "@@"
+    if mode == "update" and line[:1] in ("+", "-", " "):
+        return line
+    if mode == "add" and line.startswith("+"):
+        return line
+    return None
+
+
+def unified_to_v4a(diff: str) -> str:
+    """Convert a unified diff into the V4A format MEU's ``patch`` tool applies.
+
+    Hunk line numbers are dropped (V4A anchors on context), ``/dev/null`` sides become
+    Add / Delete operations. Malformed input yields a patch MEU's parser will reject.
+    """
+    out = ["*** Begin Patch"]
+    lines = diff.splitlines()
+    mode: str | None = None
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line.startswith("--- ") and i + 1 < len(lines) and lines[i + 1].startswith("+++ "):
+            mode, header = _file_header(_diff_path(line), _diff_path(lines[i + 1]))
+            out.append(header)
+            i += 2
+            continue
+        converted = _hunk_line(mode, line)
+        if converted is not None:
+            out.append(converted)
+        i += 1
+    out.append("*** End Patch")
+    return "\n".join(out) + "\n"
+
 
 
 class WorkspaceError(Exception):
@@ -257,7 +310,7 @@ class Worktree:
 
 
 class MeuWorktreeWorkspace:
-    """``IsolatedWorkspace`` over ``tools/subagent_worktree.py`` (create, inspect, finalize)."""
+    """An isolated workspace over ``tools/subagent_worktree.py`` (create, inspect, finalize)."""
 
     def open(self, repo_root: str, task_id: str | None = None) -> Worktree:
         from tools.subagent_worktree import create_subagent_worktree

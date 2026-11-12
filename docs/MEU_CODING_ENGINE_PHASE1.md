@@ -1,5 +1,9 @@
 # Meu coding engine — Phase 1: repository intelligence
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 1 gives Meu a read-only understanding of a code repository: which files exist, what
 they define, how they depend on each other, which of them matter for a request, and a
 compact, budgeted context to hand to a model. It is **not** connected to the agent loop

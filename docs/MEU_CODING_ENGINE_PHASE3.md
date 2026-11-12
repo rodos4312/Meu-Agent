@@ -1,5 +1,9 @@
 # Meu Coding Engine — Phase 3: providers, safe execution, isolated worktrees
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Phase 3 connects the Phase 2 pipeline (`docs/MEU_CODING_ENGINE_PHASE2.md`) to:
 
 - MEU's real model providers;

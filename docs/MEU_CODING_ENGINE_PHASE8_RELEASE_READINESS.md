@@ -1,5 +1,9 @@
 # MEU Coding Engine — Phase 8: Release Readiness (MEU vNext RC1)
 
+> **Historical implementation notes.** This records how the phase was built and why. The current
+> system is described in [MEU_CODING_ENGINE.md](MEU_CODING_ENGINE.md); names here may have moved or
+> been removed since.
+
 Date: 2026-11-12. Branch `dev/meu-foundation`, base commit
 `ab387d15c87888a212431b59e62fbcaf171df427` (Phase 7). Phase 8 is hardening, cleanup and
 validation only: no feature work. Nothing in this phase is committed, pushed or merged.
