@@ -28,11 +28,12 @@ def _coding_method(name: str):
         @method(name)
         @_registry.profile_scoped
         def handler(rid, params: dict) -> dict:
+            from meu_coding.autonomous_planner import PlannerError
             from meu_coding.task_service import TaskError
 
             try:
                 return _ok(rid, fn(_coding_service(), params))
-            except TaskError as exc:
+            except (TaskError, PlannerError) as exc:
                 return _err(rid, _E_CODING_REFUSED, str(exc))
             except Exception as exc:
                 logger.warning("coding RPC %s failed", name, exc_info=True)
@@ -163,6 +164,73 @@ def _coding_remote_feedback(service, params: dict) -> dict:
 @_coding_method("coding.remote.repair")
 def _coding_remote_repair(service, params: dict) -> dict:
     return {"task": service.remote_repair_task(str(params["task_id"]), [int(i) for i in params["comment_ids"]])}
+
+
+@_coding_method("coding.memory.candidates")
+def _coding_memory_candidates(service, params: dict) -> dict:
+    return {"candidates": service.memory_candidates(str(params["task_id"]))}
+
+
+@_coding_method("coding.memory.decide")
+def _coding_memory_decide(service, params: dict) -> dict:
+    return {"task": service.memory_decide(str(params["task_id"]), str(params["candidate_id"]),
+                                          accept=params["decision"] == "accept", source="desktop")}
+
+
+@_coding_method("coding.semantic.status")
+def _coding_semantic_status(service, params: dict) -> dict:
+    return {"semantic": service.semantic_status(str(params["project_root"]))}
+
+
+@_coding_method("coding.roadmap.create")
+def _coding_roadmap_create(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_create(str(params["goal"]), str(params["project_root"]))}
+
+
+@_coding_method("coding.roadmap.get")
+def _coding_roadmap_get(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_get(str(params["roadmap_id"]))}
+
+
+@_coding_method("coding.roadmap.list")
+def _coding_roadmap_list(service, params: dict) -> dict:
+    return {"roadmaps": service.roadmap_list()}
+
+
+@_coding_method("coding.roadmap.approve")
+def _coding_roadmap_approve(service, params: dict) -> dict:
+    return {"roadmap": service.milestone_approve(str(params["roadmap_id"]), str(params["milestone_id"]),
+                                                 fingerprint=str(params["fingerprint"]),
+                                                 revision=int(params["revision"]),
+                                                 confirmed=params["confirmed"] is True, source="desktop")}
+
+
+@_coding_method("coding.roadmap.reject")
+def _coding_roadmap_reject(service, params: dict) -> dict:
+    return {"roadmap": service.milestone_reject(str(params["roadmap_id"]), str(params["milestone_id"]),
+                                                source="desktop")}
+
+
+@_coding_method("coding.roadmap.edit")
+def _coding_roadmap_edit(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_edit(str(params["roadmap_id"]), list(params["milestones"]),
+                                            revision=int(params["revision"]), source="desktop")}
+
+
+@_coding_method("coding.roadmap.revision")
+def _coding_roadmap_revision(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_revision_decide(str(params["roadmap_id"]), str(params["revision_id"]),
+                                                       accept=params["decision"] == "accept", source="desktop")}
+
+
+@_coding_method("coding.roadmap.pause")
+def _coding_roadmap_pause(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_pause(str(params["roadmap_id"]), params["paused"] is True, source="desktop")}
+
+
+@_coding_method("coding.roadmap.replan")
+def _coding_roadmap_replan(service, params: dict) -> dict:
+    return {"roadmap": service.roadmap_replan(str(params["roadmap_id"]))}
 
 
 def register(server) -> None:

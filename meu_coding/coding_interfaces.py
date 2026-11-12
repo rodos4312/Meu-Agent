@@ -77,6 +77,9 @@ class CodingTask:
     explicit_files: tuple[str, ...] = ()
     recent_diff: str | None = None
     model_id: str = ""
+    # (path, note) from current, non-stale project memory: a discovery hint, never an edit target
+    context_hints: tuple[tuple[str, str], ...] = ()
+    milestone_kind: str = ""  # set when the task runs an approved roadmap milestone (routing signal)
 
 
 @dataclass(frozen=True)

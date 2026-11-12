@@ -97,12 +97,29 @@ class DependencyEdge:
     kind: EdgeKind
 
 
+DISCOVERY_COMPONENTS = frozenset({"semantic_embedding", "memory"})
+
+
 @dataclass(frozen=True)
 class RankedItem:
     path: str
     score: float
     reasons: tuple[str, ...]
     symbols: tuple[str, ...] = ()
+    # (component, points) per signal: structural_graph, symbol_match, path_file_match,
+    # dependency_proximity, test_relation, recent_change, semantic_embedding, memory
+    components: tuple[tuple[str, float], ...] = ()
+
+    @property
+    def discovery_only(self) -> bool:
+        """Found only by semantic similarity or memory: may inform, never selects an edit target."""
+        return bool(self.components) and all(name in DISCOVERY_COMPONENTS for name, _ in self.components)
+
+    def component_totals(self) -> dict[str, float]:
+        totals: dict[str, float] = {}
+        for name, points in self.components:
+            totals[name] = round(totals.get(name, 0.0) + points, 2)
+        return totals
 
 
 @dataclass(frozen=True)

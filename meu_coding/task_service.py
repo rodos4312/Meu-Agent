@@ -38,15 +38,20 @@ from meu_coding.coding_session import CodingSession, SessionState
 from meu_coding.coding_result import ResultRecord, ResultState, result_from_attempt
 from meu_coding.commit_flow import CommitPlan, CommitRefused, confirm_commit, prepare_commit
 from meu_coding.execution import ApprovalError
+from meu_coding.coding_memory import CodingMemory
 from meu_coding.impact import ImpactAnalyzer
-from meu_coding.intelligence import RepositoryIntelligence, analyze_repository
+from meu_coding.intelligence import RepositoryIntelligence
 from meu_coding.reviewer import Reviewer
 from meu_coding.safe_execution import ExecutionDecision, SafeExecutionAdapter
 from meu_coding.github_adapter import default_github
 from meu_coding.remote_refs import github_auth_available, parse_github
+from meu_coding.planner_provider import meu_planner
+from meu_coding.semantic_setup import build_intelligence
 from meu_coding.task_integration import IntegrationMixin
+from meu_coding.task_memory import MemoryMixin
 from meu_coding.task_recovery import restore_record
 from meu_coding.task_remote import RemoteMixin
+from meu_coding.task_roadmap import RoadmapMixin
 from meu_coding.task_views import friendly_error, snapshot
 from meu_coding.workspace import Worktree, WorkspaceError, read_identity
 
@@ -175,16 +180,22 @@ class TaskRecord:
     integration_final_diff: str = ""
     pr: dict[str, Any] | None = None
     remote: dict[str, Any] | None = None
+    memory: dict[str, Any] | None = None
+    intelligence: dict[str, Any] | None = None
+    roadmap: dict[str, Any] | None = None
 
 
-class CodingTaskService(IntegrationMixin, RemoteMixin):
+class CodingTaskService(IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin):
     def __init__(self, *, models_factory: Callable[[], ModelBundle] = meu_models,
                  adapter_factory: Callable[..., SafeExecutionAdapter] = SafeExecutionAdapter,
                  spawn: Callable[[Callable[[], None], str], None] = spawn_in_context,
-                 intelligence_factory: Callable[[str], RepositoryIntelligence] = analyze_repository,
+                 intelligence_factory: Callable[[str], RepositoryIntelligence] = build_intelligence,
                  audit_directory: Path | None = None, github_factory: Callable[[], Any] = default_github,
                  remote_identity: Callable[[str], tuple[str, str] | None] = parse_github,
-                 remote_auth: Callable[[], bool] = github_auth_available) -> None:
+                 remote_auth: Callable[[], bool] = github_auth_available,
+                 planner_factory: Callable[[], Any] = meu_planner, memory: CodingMemory | None = None) -> None:
+        self.planner_factory = planner_factory
+        self.memory = memory or CodingMemory()
         self.github_factory = github_factory
         self.remote_identity = remote_identity
         self.remote_auth = remote_auth
@@ -231,7 +242,8 @@ class CodingTaskService(IntegrationMixin, RemoteMixin):
     # ── start: analyze → plan → code → review → approval ────────────────────
 
     def start(self, description: str, project_root: str, explicit_files: tuple[str, ...] = (),
-              protected_paths: tuple[str, ...] = ()) -> dict[str, Any]:
+              protected_paths: tuple[str, ...] = (), *, context_hints: tuple[tuple[str, str], ...] = (),
+              milestone_kind: str = "", roadmap: dict[str, Any] | None = None) -> dict[str, Any]:
         text = (description or "").strip()
         if not text:
             raise TaskError("Describe the coding task first.")
@@ -246,10 +258,13 @@ class CodingTaskService(IntegrationMixin, RemoteMixin):
             raise TaskError(friendly_error(str(exc)) or "No coding model is configured.") from None
         task_id = uuid.uuid4().hex
         task = CodingTask(text, TaskConstraints(protected_paths=tuple(protected_paths)),
-                          explicit_files=tuple(explicit_files))
+                          explicit_files=tuple(explicit_files), context_hints=tuple(context_hints),
+                          milestone_kind=milestone_kind)
         audit = task_audit.AuditRecord(task_id, identity.root, text[:200], models=dict(models.routes),
                                        route_source=models.source)
-        record = TaskRecord(task_id, identity.root, task, audit, models=models, history=[S.ANALYZING.value])
+        record = TaskRecord(task_id, identity.root, task, audit, models=models, history=[S.ANALYZING.value],
+                            roadmap=dict(roadmap) if roadmap else None)
+        audit.roadmap = dict(roadmap or {})
         audit.stage(S.ANALYZING.value)
         self.tasks[task_id] = record
         self._save(record)
@@ -275,9 +290,11 @@ class CodingTaskService(IntegrationMixin, RemoteMixin):
                 started = time.perf_counter()
                 intel = self._intelligence(record.project_root)
                 record.timings["analyze"] = round(time.perf_counter() - started, 3)
+                self._apply_memory(record, intel)
                 session = self._session(record, intel)
                 record.session = session
                 state = session.start(record.task)
+                self._record_intelligence(record, intel)
             self._after_session(record, state)
         except TaskError as exc:
             self._fail(record, str(exc))

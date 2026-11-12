@@ -6,6 +6,7 @@
 
 import { host } from '@hermes/plugin-sdk'
 
+import type { MemoryCandidate, MilestoneApproveParams, Roadmap, RoadmapRow } from './insight-model'
 import type { CodingTask, CodingTaskRow, DecisionParams } from './model'
 import { remoteApproveParams, type RemoteKind } from './remote-model'
 
@@ -49,7 +50,31 @@ export const codingApi = {
     (await host.request<{ comments: ReviewComment[] }>('coding.remote.feedback', { task_id: taskId }, TIMEOUT_MS))
       .comments,
   remoteRepair: (taskId: string, commentIds: number[]) =>
-    call('coding.remote.repair', { comment_ids: commentIds, task_id: taskId })
+    call('coding.remote.repair', { comment_ids: commentIds, task_id: taskId }),
+  memoryCandidates: async (taskId: string) =>
+    (await host.request<{ candidates: MemoryCandidate[] }>('coding.memory.candidates', { task_id: taskId }, TIMEOUT_MS))
+      .candidates,
+  memoryDecide: (taskId: string, candidateId: string, decision: 'accept' | 'dismiss') =>
+    call('coding.memory.decide', { candidate_id: candidateId, decision, task_id: taskId })
+}
+
+const roadmapCall = async (method: string, params: Record<string, unknown>) =>
+  (await host.request<{ roadmap: Roadmap }>(method, params, TIMEOUT_MS)).roadmap
+
+export const roadmapApi = {
+  create: (goal: string, projectRoot: string) =>
+    roadmapCall('coding.roadmap.create', { goal, project_root: projectRoot }),
+  get: (roadmapId: string) => roadmapCall('coding.roadmap.get', { roadmap_id: roadmapId }),
+  list: async () => (await host.request<{ roadmaps: RoadmapRow[] }>('coding.roadmap.list', {}, TIMEOUT_MS)).roadmaps,
+  approve: (params: MilestoneApproveParams) => roadmapCall('coding.roadmap.approve', params),
+  reject: (roadmapId: string, milestoneId: string) =>
+    roadmapCall('coding.roadmap.reject', { milestone_id: milestoneId, roadmap_id: roadmapId }),
+  edit: (roadmapId: string, revision: number, milestones: Record<string, unknown>[]) =>
+    roadmapCall('coding.roadmap.edit', { milestones, revision, roadmap_id: roadmapId }),
+  revision: (roadmapId: string, revisionId: string, decision: 'accept' | 'decline') =>
+    roadmapCall('coding.roadmap.revision', { decision, revision_id: revisionId, roadmap_id: roadmapId }),
+  pause: (roadmapId: string, paused: boolean) => roadmapCall('coding.roadmap.pause', { paused, roadmap_id: roadmapId }),
+  replan: (roadmapId: string) => roadmapCall('coding.roadmap.replan', { roadmap_id: roadmapId })
 }
 
 export interface ReviewComment {

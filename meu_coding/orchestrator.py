@@ -74,7 +74,7 @@ def context_query(task: CodingTask) -> str:
 def prepare_context(intelligence: RepositoryIntelligence, task: CodingTask, budget: int) -> TaskContext:
     """One context query against the cached index; no scan unless nothing is indexed yet."""
     query = context_query(task)
-    bundle, ranked = intelligence.context_with_ranking(query, budget)
+    bundle, ranked = intelligence.context_with_ranking(query, budget, tuple(task.context_hints))
     graph = intelligence.graph
     files_by_path = intelligence.analysis.files_by_path
     focus = tuple(dict.fromkeys((*task.explicit_files, *(i.path for i in bundle.items), *(r.path for r in ranked))))

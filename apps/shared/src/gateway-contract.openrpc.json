@@ -421,6 +421,42 @@
       }
     },
     {
+      "name": "coding.memory.candidates",
+      "summary": "Memory notes the finished task proposes (nothing is saved without an explicit accept).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingTaskParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingMemoryCandidatesResult"
+        }
+      }
+    },
+    {
+      "name": "coding.memory.decide",
+      "summary": "Accept a proposed note into the project's existing memory, or dismiss it.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingMemoryDecideParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
       "name": "coding.pr.prepare",
       "summary": "Build a local PR preview from the integrated result. Nothing is sent to a remote.",
       "params": [
@@ -615,6 +651,186 @@
         "name": "result",
         "schema": {
           "$ref": "#/components/schemas/CodingTaskResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.approve",
+      "summary": "Approve ONE ready milestone (exact fingerprint and revision); it starts as a normal coding task.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingMilestoneApproveParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.create",
+      "summary": "Plan a broad goal into milestones (read-only). Nothing runs until a milestone is approved.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapCreateParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.edit",
+      "summary": "The user's edit of the roadmap; approved, running and finished milestones cannot change.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapEditParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.get",
+      "summary": "A roadmap with milestone states, dependencies, risks and any pending revision proposal.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.list",
+      "summary": "Roadmaps of the profile, newest first.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/ProfileParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapListResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.pause",
+      "summary": "Pause or resume a roadmap (a paused roadmap approves no milestone).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapPauseParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.reject",
+      "summary": "Reject a planned, ready or blocked milestone.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingMilestoneParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.replan",
+      "summary": "Plan an interrupted or failed roadmap again (read-only).",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.roadmap.revision",
+      "summary": "Accept or decline the planner's proposed roadmap revision.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingRoadmapRevisionParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingRoadmapResult"
+        }
+      }
+    },
+    {
+      "name": "coding.semantic.status",
+      "summary": "Semantic layer status for a project: provider, chunks, last update and query latency.",
+      "params": [
+        {
+          "name": "params",
+          "schema": {
+            "$ref": "#/components/schemas/CodingSemanticParams"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/CodingSemanticResult"
         }
       }
     },
@@ -10340,6 +10556,155 @@
         "title": "CodingIntegrationApproveParams",
         "type": "object"
       },
+      "CodingMemoryCandidatesResult": {
+        "additionalProperties": true,
+        "properties": {
+          "candidates": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Candidates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "title": "CodingMemoryCandidatesResult",
+        "type": "object"
+      },
+      "CodingMemoryDecideParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "task_id": {
+            "minLength": 1,
+            "title": "Task Id",
+            "type": "string"
+          },
+          "candidate_id": {
+            "maxLength": 16,
+            "minLength": 16,
+            "title": "Candidate Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "dismiss"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "candidate_id",
+          "decision"
+        ],
+        "title": "CodingMemoryDecideParams",
+        "type": "object"
+      },
+      "CodingMilestoneApproveParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          },
+          "milestone_id": {
+            "maxLength": 24,
+            "minLength": 1,
+            "title": "Milestone Id",
+            "type": "string"
+          },
+          "fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "roadmap_id",
+          "milestone_id",
+          "fingerprint",
+          "revision",
+          "confirmed"
+        ],
+        "title": "CodingMilestoneApproveParams",
+        "type": "object"
+      },
+      "CodingMilestoneParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          },
+          "milestone_id": {
+            "maxLength": 24,
+            "minLength": 1,
+            "title": "Milestone Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "roadmap_id",
+          "milestone_id"
+        ],
+        "title": "CodingMilestoneParams",
+        "type": "object"
+      },
       "CodingPrUpdateParams": {
         "additionalProperties": false,
         "properties": {
@@ -10669,6 +11034,265 @@
         "title": "CodingReviewComment",
         "type": "object"
       },
+      "CodingRoadmapCreateParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "goal": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Goal",
+            "type": "string"
+          },
+          "project_root": {
+            "minLength": 1,
+            "title": "Project Root",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "project_root"
+        ],
+        "title": "CodingRoadmapCreateParams",
+        "type": "object"
+      },
+      "CodingRoadmapEditParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          },
+          "milestones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Milestones",
+            "type": "array"
+          },
+          "revision": {
+            "minimum": 1,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "roadmap_id",
+          "milestones",
+          "revision"
+        ],
+        "title": "CodingRoadmapEditParams",
+        "type": "object"
+      },
+      "CodingRoadmapListResult": {
+        "additionalProperties": true,
+        "properties": {
+          "roadmaps": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Roadmaps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roadmaps"
+        ],
+        "title": "CodingRoadmapListResult",
+        "type": "object"
+      },
+      "CodingRoadmapParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "roadmap_id"
+        ],
+        "title": "CodingRoadmapParams",
+        "type": "object"
+      },
+      "CodingRoadmapPauseParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          },
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "roadmap_id",
+          "paused"
+        ],
+        "title": "CodingRoadmapPauseParams",
+        "type": "object"
+      },
+      "CodingRoadmapResult": {
+        "additionalProperties": true,
+        "properties": {
+          "roadmap": {
+            "additionalProperties": true,
+            "title": "Roadmap",
+            "type": "object"
+          }
+        },
+        "required": [
+          "roadmap"
+        ],
+        "title": "CodingRoadmapResult",
+        "type": "object"
+      },
+      "CodingRoadmapRevisionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "roadmap_id": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Roadmap Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "maxLength": 16,
+            "minLength": 16,
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "decline"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "roadmap_id",
+          "revision_id",
+          "decision"
+        ],
+        "title": "CodingRoadmapRevisionParams",
+        "type": "object"
+      },
+      "CodingSemanticParams": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Profile"
+          },
+          "project_root": {
+            "minLength": 1,
+            "title": "Project Root",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_root"
+        ],
+        "title": "CodingSemanticParams",
+        "type": "object"
+      },
+      "CodingSemanticResult": {
+        "additionalProperties": true,
+        "properties": {
+          "semantic": {
+            "additionalProperties": true,
+            "title": "Semantic",
+            "type": "object"
+          }
+        },
+        "required": [
+          "semantic"
+        ],
+        "title": "CodingSemanticResult",
+        "type": "object"
+      },
       "CodingStartParams": {
         "additionalProperties": false,
         "properties": {
@@ -10910,6 +11534,61 @@
             ],
             "default": null,
             "title": "Remote"
+          },
+          "relevance": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Relevance"
+          },
+          "memory": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Memory"
+          },
+          "intelligence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intelligence"
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Roadmap"
           }
         },
         "required": [

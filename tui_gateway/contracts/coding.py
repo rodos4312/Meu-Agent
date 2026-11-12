@@ -33,6 +33,10 @@ class CodingTaskView(OpenModel):
     execution: dict[str, JsonValue] | None = None
     commit: dict[str, JsonValue] | None = None
     remote: dict[str, JsonValue] | None = None
+    relevance: list[dict[str, JsonValue]] | None = None
+    memory: dict[str, JsonValue] | None = None
+    intelligence: dict[str, JsonValue] | None = None
+    roadmap: dict[str, JsonValue] | None = None
 
 
 class CodingTaskResult(OpenModel):
@@ -120,6 +124,65 @@ class CodingRemoteFeedbackResult(OpenModel):
     comments: list[CodingReviewComment]
 
 
+
+class CodingMemoryDecideParams(CodingTaskParams):
+    candidate_id: str = Field(min_length=16, max_length=16)
+    decision: Literal["accept", "dismiss"]
+
+
+class CodingMemoryCandidatesResult(OpenModel):
+    candidates: list[dict[str, JsonValue]]
+
+
+class CodingSemanticParams(ProfileParams):
+    project_root: str = Field(min_length=1)
+
+
+class CodingSemanticResult(OpenModel):
+    semantic: dict[str, JsonValue]
+
+
+class CodingRoadmapCreateParams(ProfileParams):
+    goal: str = Field(min_length=1, max_length=2_000)
+    project_root: str = Field(min_length=1)
+
+
+class CodingRoadmapParams(ProfileParams):
+    roadmap_id: str = Field(min_length=32, max_length=32)
+
+
+class CodingMilestoneParams(CodingRoadmapParams):
+    milestone_id: str = Field(min_length=1, max_length=24)
+
+
+class CodingMilestoneApproveParams(CodingMilestoneParams):
+    fingerprint: str = Field(min_length=64, max_length=64)
+    revision: int = Field(ge=1)
+    confirmed: bool
+
+
+class CodingRoadmapEditParams(CodingRoadmapParams):
+    milestones: list[dict[str, JsonValue]] = Field(min_length=1, max_length=12)
+    revision: int = Field(ge=1)
+
+
+class CodingRoadmapRevisionParams(CodingRoadmapParams):
+    revision_id: str = Field(min_length=16, max_length=16)
+    decision: Literal["accept", "decline"]
+
+
+class CodingRoadmapPauseParams(CodingRoadmapParams):
+    paused: bool
+
+
+class CodingRoadmapResult(OpenModel):
+    roadmap: dict[str, JsonValue]
+
+
+class CodingRoadmapListResult(OpenModel):
+    roadmaps: list[dict[str, JsonValue]]
+
+
 method("coding.start", params=CodingStartParams, result=CodingTaskResult,
        doc="Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval.")
 method("coding.get", params=CodingTaskParams, result=CodingTaskResult,
@@ -162,3 +225,27 @@ method("coding.remote.feedback", params=CodingTaskParams, result=CodingRemoteFee
        doc="Read the PR's review comments (no code is edited).")
 method("coding.remote.repair", params=CodingRemoteRepairParams, result=CodingTaskResult,
        doc="Start a NEW coding task from selected review comments; it needs its own approval.")
+method("coding.memory.candidates", params=CodingTaskParams, result=CodingMemoryCandidatesResult,
+       doc="Memory notes the finished task proposes (nothing is saved without an explicit accept).")
+method("coding.memory.decide", params=CodingMemoryDecideParams, result=CodingTaskResult,
+       doc="Accept a proposed note into the project's existing memory, or dismiss it.")
+method("coding.semantic.status", params=CodingSemanticParams, result=CodingSemanticResult,
+       doc="Semantic layer status for a project: provider, chunks, last update and query latency.")
+method("coding.roadmap.create", params=CodingRoadmapCreateParams, result=CodingRoadmapResult,
+       doc="Plan a broad goal into milestones (read-only). Nothing runs until a milestone is approved.")
+method("coding.roadmap.get", params=CodingRoadmapParams, result=CodingRoadmapResult,
+       doc="A roadmap with milestone states, dependencies, risks and any pending revision proposal.")
+method("coding.roadmap.list", params=ProfileParams, result=CodingRoadmapListResult,
+       doc="Roadmaps of the profile, newest first.")
+method("coding.roadmap.approve", params=CodingMilestoneApproveParams, result=CodingRoadmapResult,
+       doc="Approve ONE ready milestone (exact fingerprint and revision); it starts as a normal coding task.")
+method("coding.roadmap.reject", params=CodingMilestoneParams, result=CodingRoadmapResult,
+       doc="Reject a planned, ready or blocked milestone.")
+method("coding.roadmap.edit", params=CodingRoadmapEditParams, result=CodingRoadmapResult,
+       doc="The user's edit of the roadmap; approved, running and finished milestones cannot change.")
+method("coding.roadmap.revision", params=CodingRoadmapRevisionParams, result=CodingRoadmapResult,
+       doc="Accept or decline the planner's proposed roadmap revision.")
+method("coding.roadmap.pause", params=CodingRoadmapPauseParams, result=CodingRoadmapResult,
+       doc="Pause or resume a roadmap (a paused roadmap approves no milestone).")
+method("coding.roadmap.replan", params=CodingRoadmapParams, result=CodingRoadmapResult,
+       doc="Plan an interrupted or failed roadmap again (read-only).")

@@ -51,5 +51,7 @@ def restore_record(audit, record_type, stage_type):
     record.commit_hash = audit.commit_hash
     record.pr = dict(audit.pr) if audit.pr else None
     record.remote = {**audit.remote, "events": list(audit.remote.get("events") or [])} if audit.remote else None
+    record.intelligence = dict(audit.intelligence) if audit.intelligence else None
+    record.roadmap = dict(audit.roadmap) if audit.roadmap else None
     record.error = message or audit.error
     return record

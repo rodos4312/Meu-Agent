@@ -22,7 +22,14 @@ CODING_WORKLOADS: dict[str, str] = {
     "coding.simple": "routine",
     "coding.complex": "complex",
     "coding.review": "complex",
+    "coding.planner": "complex",
 }
+# coding.semantic is not a chat slot: it is the embedding provider of coding_engine.semantic
+# (meu_coding.embeddings), shown next to the chat routes for one complete picture.
+
+LARGE_CONTEXT_CHARS = 48_000
+SIMPLE_FAILURES_BEFORE_ESCALATION = 2
+STRONG_MILESTONE_KINDS = frozenset({"analysis", "architecture", "design", "migration", "security"})
 
 SIMPLE_MAX_FILES = 1
 COMPLEX_MIN_FILES = 3
@@ -108,6 +115,57 @@ def _slot_routes(config: Mapping[str, Any]) -> dict[str, dict[str, str]]:
     from agent.workload_routes import explicit_routes
 
     return explicit_routes(dict(policy))
+
+
+@dataclass(frozen=True)
+class RoutingSignals:
+    classification: Classification
+    context_chars: int = 0
+    files: int = 0
+    repair_attempt: int = 0
+    simple_failures: int = 0
+    milestone_kind: str = ""
+
+
+@dataclass(frozen=True)
+class RouteDecision:
+    workload: str
+    reasons: tuple[str, ...]
+    escalated: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"workload": self.workload, "reasons": list(self.reasons), "escalated": self.escalated}
+
+
+def decide_coder_workload(signals: RoutingSignals) -> RouteDecision:
+    """Deterministic. Risk and correctness first: anything that makes a weak model risky starts
+    (or continues) on the strong coding.complex route. Cost never overrides this."""
+    c = signals.classification
+    if c.complexity == Complexity.HIGH_RISK:
+        return RouteDecision("coding.complex", ("high risk: strong model from the start", *c.reasons))
+    strong = []
+    if c.complexity == Complexity.COMPLEX:
+        strong += list(c.reasons)
+    if signals.context_chars > LARGE_CONTEXT_CHARS:
+        strong.append(f"large context ({signals.context_chars:,} chars)")
+    if signals.repair_attempt:
+        strong.append(f"repair attempt {signals.repair_attempt}")
+    if signals.milestone_kind in STRONG_MILESTONE_KINDS:
+        strong.append(f"{signals.milestone_kind} milestone")
+    if strong:
+        return RouteDecision("coding.complex", tuple(strong))
+    if signals.simple_failures >= SIMPLE_FAILURES_BEFORE_ESCALATION:
+        return RouteDecision("coding.complex",
+                             (f"the simple route failed {signals.simple_failures} times — escalated",), escalated=True)
+    return RouteDecision("coding.simple", c.reasons)
+
+
+def review_workload(signals: RoutingSignals | None = None) -> RouteDecision:
+    """The Reviewer is never downgraded: always the strong coding.review route."""
+    reasons = ("independent strong reviewer",)
+    if signals is not None and signals.classification.complexity == Complexity.HIGH_RISK:
+        reasons += ("high-risk change: strong review required",)
+    return RouteDecision("coding.review", reasons)
 
 
 def resolve_workloads(config: Mapping[str, Any]) -> dict[str, RoleRoute]:

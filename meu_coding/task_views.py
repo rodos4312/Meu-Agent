@@ -264,6 +264,29 @@ def _integration(record) -> dict[str, Any] | None:
     return view
 
 
+RELEVANCE_ITEMS = 15
+
+
+def _relevance(record) -> list[dict[str, Any]] | None:
+    """"Why these files?": every ranked file with its score components and reasons."""
+    context = record.session.context if record.session else None
+    if context is None:
+        return None
+    plan = record.session.planning.plan if record.session.planning else None
+    targets = {*plan.files_to_change, *plan.new_files} if plan else set()
+    return [{"path": r.path, "score": r.score, "components": r.component_totals(), "reasons": list(r.reasons[:6]),
+             "discovery_only": r.discovery_only, "edit_target": r.path in targets}
+            for r in context.ranked[:RELEVANCE_ITEMS]]
+
+
+def _memory(record) -> dict[str, Any] | None:
+    if not record.memory and not (record.audit.memory or {}).get("accepted"):
+        return None
+    view = dict(record.memory or {})
+    view["accepted"] = len((record.audit.memory or {}).get("accepted", []))
+    return view
+
+
 def snapshot(record) -> dict[str, Any]:
     stage = record.stage.value
     return {
@@ -275,6 +298,9 @@ def snapshot(record) -> dict[str, Any]:
         "plan": _plan(record), "approval": _approval(record), "execution": _execution(record),
         "result": _result(record), "integration": _integration(record), "pr": dict(record.pr) if record.pr else None,
         "remote": _remote(record),
+        "relevance": _relevance(record), "memory": _memory(record),
+        "intelligence": dict(record.intelligence) if record.intelligence else None,
+        "roadmap": dict(record.roadmap) if record.roadmap else None,
         "decisions": [{k: d.get(k) for k in ("decision", "source", "device", "at")} for d in record.audit.decisions],
         "attempts": [{"number": a.number, "approval_id": a.approval_id, "verdict": a.review.status.value,
                       "status": a.result.status} for a in (record.session.attempts if record.session else [])],

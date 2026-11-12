@@ -299,23 +299,42 @@ class ProviderCodingModel:
         self.session = session
         self.last_route: Route | None = None
         self.last_routing: dict[str, Any] = {}
+        self.simple_failures = 0
 
     def route_for(self, request: CodingRequest) -> Route:
-        """coding.simple for SIMPLE first attempts, coding.complex otherwise (repairs included).
-        The class only picks a model; approvals are unchanged."""
-        from meu_coding.routing_policy import Complexity, classify
+        """``routing_policy.decide_coder_workload``: coding.simple only for small, low-risk first
+        attempts with a modest context; strong otherwise, and after repeated simple failures.
+        The decision only picks a model; approvals and review are unchanged."""
+        from meu_coding.routing_policy import RoutingSignals, classify, decide_coder_workload
 
         routes = self.session.routes
         classification = classify(request.plan)
-        simple = classification.complexity == Complexity.SIMPLE and request.repair is None
-        route = routes.coder_simple if simple and routes.coder_simple else routes.coder
-        workload = "coding.simple" if route is routes.coder_simple and simple else "coding.complex"
+        bundle = getattr(request.context, "bundle", None)
+        context_chars = sum(len(i.excerpt) for i in bundle.items) if bundle is not None else 0
+        signals = RoutingSignals(classification, context_chars,
+                                 len(request.plan.files_to_change) + len(request.plan.new_files),
+                                 request.repair.attempt if request.repair is not None else 0, self.simple_failures,
+                                 getattr(request.task, "milestone_kind", ""))
+        decision = decide_coder_workload(signals)
+        simple = decision.workload == "coding.simple" and routes.coder_simple is not None
+        route = routes.coder_simple if simple else routes.coder
+        workload = "coding.simple" if simple else "coding.complex"
         self.last_routing = {"complexity": classification.complexity.value, "workload": workload,
-                             "route": str(route), "reasons": list(classification.reasons),
-                             "repair": request.repair is not None}
+                             "route": str(route), "reasons": list(decision.reasons),
+                             "repair": request.repair is not None, "escalated": decision.escalated,
+                             "context_chars": context_chars, "simple_failures": self.simple_failures}
         return route
 
     def propose(self, request: CodingRequest) -> CoderOutput:
+        output = self._propose_once(request)
+        # Controlled escalation: a failing simple route is retried once, then the strong route takes over.
+        while (not output.operations and output.notes.startswith("coder model failed")
+               and self.last_routing.get("workload") == "coding.simple"):
+            self.simple_failures += 1
+            output = self._propose_once(request)
+        return output
+
+    def _propose_once(self, request: CodingRequest) -> CoderOutput:
         route = self.route_for(request)
         self.last_route = route
         payload = {"task": _task_payload(request.context), "plan": _plan_payload(request.plan),

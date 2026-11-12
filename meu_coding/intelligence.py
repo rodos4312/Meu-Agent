@@ -10,7 +10,9 @@ Two-stage indexing:
   any set of paths explicitly.
 
 ``refresh_changed_files`` touches only added, modified and removed files; the graph and the
-relevance index are updated per file, never rebuilt.
+relevance index are updated per file, never rebuilt. It is the ONE change path: the optional
+semantic index (Phase 7) is updated from it too (changed chunks only), so there is no second
+watcher and no second notion of "what changed".
 
 Not wired into the Meu agent loop yet. Everything here reads; persisting the optional
 extraction cache is the only write, and only to the location the caller gives the cache.
@@ -38,7 +40,11 @@ from meu_coding.interfaces import (
 )
 from meu_coding.relevance import RelevanceEngine
 from meu_coding.repo_index import IndexConfig, RepositoryIndexer, language_for
+from meu_coding.semantic_index import SemanticLayer
+from meu_coding.semantic_search import layer_search
 from meu_coding.symbols import SymbolExtractor
+
+SEMANTIC_TOP_K = 12
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +76,8 @@ class ScanStats:
 class RepositoryIntelligence:
     def __init__(self, root: str | Path, config: IndexConfig | None = None,
                  extractor: SymbolExtractor | None = None, cache: MemoryCache | None = None,
-                 limits: ContextLimits | None = None, deep_budget: int = 20) -> None:
+                 limits: ContextLimits | None = None, deep_budget: int = 20,
+                 semantic: SemanticLayer | None = None) -> None:
         self.indexer = RepositoryIndexer(root, config)
         self.root = self.indexer.root
         self.extractor = extractor or SymbolExtractor()
@@ -82,6 +89,8 @@ class RepositoryIntelligence:
         self._analysis: RepositoryAnalysis | None = None
         self._graph: RepositoryGraph | None = None
         self._engine: RelevanceEngine | None = None
+        self.semantic = semantic
+        self.last_ranking: dict = {}
 
     # ── fast index ──────────────────────────────────────────────────────────
 
@@ -101,6 +110,8 @@ class RepositoryIntelligence:
         self._analysis = RepositoryAnalysis.build(str(self.root), files, extractions)
         self._graph = RepositoryGraph(files, extractions)
         self._engine = RelevanceEngine(self._analysis, self._graph)
+        if self.semantic is not None:
+            self.semantic.sync(self.root, files, extractions)
         return self._analysis
 
     def _known_files(self) -> dict[str, RepositoryFile]:
@@ -136,6 +147,10 @@ class RepositoryIntelligence:
             self._remove(path)
         for path in changes.changed:
             self._apply(current[path], self._extract(current[path], DEEP))
+        if self.semantic is not None:
+            for path in changes.removed:
+                self.semantic.remove_file(path)
+            self.semantic.update_files(self.root, [current[p] for p in changes.changed], analysis.extractions)
         self.recently_changed = (self.recently_changed - set(changes.removed)) | set(changes.changed)
         self.stats.files = len(analysis.files_by_path)
         self._cache_call("prune", set(analysis.files_by_path))
@@ -248,19 +263,24 @@ class RepositoryIntelligence:
 
     # ── queries ─────────────────────────────────────────────────────────────
 
-    def rank(self, query: str, limit: int | None = 50) -> tuple[RankedItem, ...]:
+    def rank(self, query: str, limit: int | None = 50,
+             memory_paths: tuple[tuple[str, str], ...] = ()) -> tuple[RankedItem, ...]:
         self._require()
-        return self._engine.rank(query, limit, self.recently_changed)
+        hits = layer_search(self.semantic, query, SEMANTIC_TOP_K)
+        ranked = self._engine.rank(query, limit, self.recently_changed, hits, memory_paths)
+        self.last_ranking = ranking_sources(ranked, hits, self.semantic)
+        return ranked
 
     def find_relevant_context(self, query: str, budget: int = 12_000) -> ContextBundle:
         return self.context_with_ranking(query, budget)[0]
 
-    def context_with_ranking(self, query: str, budget: int = 12_000) -> tuple[ContextBundle, tuple[RankedItem, ...]]:
+    def context_with_ranking(self, query: str, budget: int = 12_000,
+                             memory_paths: tuple[tuple[str, str], ...] = ()) -> tuple[ContextBundle, tuple[RankedItem, ...]]:
         """The context bundle plus the ranking it was built from, so callers that need both
         do not rank twice."""
-        ranked = self.rank(query)
+        ranked = self.rank(query, memory_paths=memory_paths)
         if self.deep_analyze(self._deep_targets(ranked)):
-            ranked = self.rank(query)
+            ranked = self.rank(query, memory_paths=memory_paths)
         return ContextBuilder(self.analysis, self.graph, self.limits).build(query, ranked, budget), ranked
 
     def lookup_symbol(self, name: str) -> tuple[Symbol, ...]:
@@ -271,6 +291,18 @@ class RepositoryIntelligence:
 
     def get_reverse_dependencies(self, target: str) -> tuple[str, ...]:
         return self.graph.get_reverse_dependencies(target)
+
+
+def ranking_sources(ranked: tuple[RankedItem, ...], hits, semantic: SemanticLayer | None) -> dict:
+    """Observability: which evidence produced the ranking (counts only, no file contents)."""
+    counts: dict[str, int] = {}
+    for item in ranked:
+        for component in item.component_totals():
+            counts[component] = counts.get(component, 0) + 1
+    return {"items": len(ranked), "components": counts, "semantic_hits": len(hits),
+            "discovery_only": sum(1 for item in ranked if item.discovery_only),
+            "semantic_status": semantic.status if semantic is not None else "off",
+            "semantic_query_ms": semantic.last_query_ms if semantic is not None else 0.0}
 
 
 def _diff(previous: dict[str, RepositoryFile], current: dict[str, RepositoryFile],

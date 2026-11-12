@@ -6,6 +6,7 @@
  * approval the user is LOOKING AT (its exact id + fingerprint), never from a vague "allow".
  */
 
+import type { RelevanceRow } from './insight-model'
 import type { CodingRemote } from './remote-model'
 
 export type CodingStage =
@@ -244,6 +245,20 @@ export interface CodingTask {
   plan: CodingPlan | null
   project: string
   remote?: CodingRemote | null
+  relevance?: null | RelevanceRow[]
+  memory?: null | {
+    accepted?: number
+    stale_ignored?: { note: string; why: string }[]
+    used?: { category: string; files: string[]; note: string; origin: string }[]
+  }
+  intelligence?: null | {
+    context_chars?: number
+    context_items?: number
+    ranking?: Record<string, unknown>
+    repairs?: number
+    semantic?: Record<string, unknown>
+  }
+  roadmap?: null | { milestone: string; roadmap_id: string }
   restored: boolean
   route_source: string
   stage: CodingStage

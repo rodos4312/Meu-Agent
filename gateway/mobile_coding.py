@@ -26,6 +26,7 @@ MAX_LINES_PER_FILE = 40
 MAX_SUMMARY_LINES = 200
 MAX_EXPANDED_LINES = 2_000
 _TASK_ID = re.compile(r"^[0-9a-f]{32}$")
+_MILESTONE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,24}$")
 _FINGERPRINT = re.compile(r"^[0-9a-f]{64}$")
 
 MOBILE_LABELS = {
@@ -160,6 +161,8 @@ def mobile_view(view: dict[str, Any]) -> dict[str, Any]:
         "pc": {"online": True, "busy": bool(view.get("busy")), "worktree_branch": worktree_branch},
         "decisions": [{"decision": d.get("decision"), "source": d.get("source")} for d in view.get("decisions", [])],
     }
+    if view.get("roadmap"):
+        out["roadmap"] = {k: view["roadmap"].get(k) for k in ("roadmap_id", "milestone")}
     remote = _remote_view(view.get("remote"), actions)
     if remote:
         out["remote"] = remote
@@ -195,6 +198,44 @@ def _expanded(view: dict[str, Any], which: str, path: str) -> dict[str, Any]:
     raise LookupError("no such file in this diff")
 
 
+def mobile_roadmap(view: dict[str, Any]) -> dict[str, Any]:
+    """Goal, milestones (status, dependencies, risk, fingerprint), pending revision — no host paths."""
+    keep = ("id", "title", "objective", "depends_on", "acceptance_criteria", "tests", "risk", "complexity", "kind",
+            "status", "note", "outcome", "fingerprint")
+    pending = view.get("pending_revision")
+    return {"roadmap_id": view["roadmap_id"], "goal": view["goal"], "project": _project_name(view["project_root"]),
+            "status": view["status"], "error": view.get("error", ""), "revision": view["revision"],
+            "milestones": [{k: m.get(k) for k in keep} for m in view.get("milestones", [])],
+            "pending_revision": {"reason": pending["reason"], "changes": pending["scope_expansion"],
+                                 "material": pending["material"]} if pending else None,
+            "approve": list((view.get("actions") or {}).get("approve", []))}
+
+
+def _roadmap_op(service, op: str, payload: dict[str, Any], source: str) -> dict[str, Any]:
+    if op == "roadmap_list":
+        return {"roadmaps": [{**{k: r[k] for k in ("roadmap_id", "goal", "status", "milestones", "counts")},
+                              "project": _project_name(r["project"])} for r in service.roadmap_list()]}
+    roadmap_id = payload.get("roadmap_id")
+    if not isinstance(roadmap_id, str) or not _TASK_ID.match(roadmap_id):
+        raise ValueError("invalid_roadmap")
+    if op == "roadmap_get":
+        return {"roadmap": mobile_roadmap(service.roadmap_get(roadmap_id))}
+    milestone_id = payload.get("milestone_id")
+    if not isinstance(milestone_id, str) or not _MILESTONE_ID.match(milestone_id):
+        raise ValueError("invalid_milestone")
+    if op == "milestone_reject":
+        return {"roadmap": mobile_roadmap(service.milestone_reject(roadmap_id, milestone_id, source=source))}
+    fingerprint, revision = payload.get("fingerprint"), payload.get("revision")
+    if not isinstance(fingerprint, str) or not _FINGERPRINT.match(fingerprint) or not isinstance(revision, int) \
+            or payload.get("confirmed") is not True:
+        raise ValueError("invalid_milestone_approval")
+    return {"roadmap": mobile_roadmap(service.milestone_approve(roadmap_id, milestone_id, fingerprint=fingerprint,
+                                                                revision=revision, confirmed=True, source=source))}
+
+
+_ROADMAP_OPS = frozenset({"roadmap_list", "roadmap_get", "milestone_approve", "milestone_reject"})
+
+
 def _task_id(payload: dict[str, Any]) -> str:
     task_id = payload.get("task_id")
     if not isinstance(task_id, str) or not _TASK_ID.match(task_id):
@@ -211,6 +252,8 @@ def operate(service, device_id: str | None, payload: dict[str, Any]) -> dict[str
                            "description": r["description"], "stage": r["stage"],
                            "label": MOBILE_LABELS.get(r["stage"], r["stage"]), "created_at": r["created_at"]}
                           for r in service.list()], "pc": {"online": True}}
+    if op in _ROADMAP_OPS:
+        return _roadmap_op(service, op, payload, source)
     task_id = _task_id(payload)
     if op == "get":
         return {"task": mobile_view(service.get(task_id))}
@@ -254,6 +297,7 @@ def run_in_profile(home: str, device_id: str | None, payload: dict[str, Any]) ->
 
 def mount(app, preview):
     async def handle(request):
+        from meu_coding.autonomous_planner import PlannerError
         from meu_coding.task_service import TaskError
 
         try:
@@ -261,7 +305,7 @@ def mount(app, preview):
             result = await asyncio.to_thread(run_in_profile, str(preview.authority.profile_id), preview.device_id,
                                              payload)
             return web.json_response(result, headers={"Cache-Control": "no-store"})
-        except TaskError as error:
+        except (TaskError, PlannerError) as error:
             return web.json_response({"status": "refused", "reason": str(error)[:300]}, status=409)
         except LookupError:
             raise web.HTTPNotFound() from None

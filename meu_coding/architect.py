@@ -69,12 +69,14 @@ def _choose_files(context: TaskContext) -> tuple[list[str], list[str], list[str]
     assumptions = []
     # Files the user named are never swapped for ranked guesses, even when all are protected.
     if not task.explicit_files:
-        strong = [r.path for r in context.ranked
+        # Semantic/memory-only hits inform the context; they never become edit targets.
+        candidates = [r for r in context.ranked if not r.discovery_only]
+        strong = [r.path for r in candidates
                   if r.score >= STRONG_SCORE and not is_test_path(r.path)
                   and not is_protected(r.path, protected)]
         existing = strong[: task.constraints.max_files]
         if not existing:
-            weak = [r.path for r in context.ranked
+            weak = [r.path for r in candidates
                     if not is_test_path(r.path) and not is_protected(r.path, protected)]
             existing = weak[:1]
             if existing:
@@ -147,6 +149,10 @@ def validate_plan(plan: ImplementationPlan, context: TaskContext) -> PlanValidat
         errors.append(f"plan changes {len(targets)} files; the limit is {task.constraints.max_files}")
     if plan.new_files and not task.constraints.allow_new_files:
         errors.append("plan creates files but the task does not allow new files")
+    discovery = {r.path for r in context.ranked if r.discovery_only} - set(task.explicit_files)
+    guessed = sorted(set(plan.files_to_change) & discovery)
+    if guessed:
+        errors.append(f"files found only by semantic similarity or memory cannot be edited unless named: {guessed}")
     missing = [p for p in plan.files_to_change if not context.exists(p)]
     if missing:
         errors.append(f"planned files do not exist (list them as new files): {missing}")

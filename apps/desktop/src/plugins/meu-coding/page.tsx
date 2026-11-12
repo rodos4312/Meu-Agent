@@ -22,6 +22,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import { codingApi } from './api'
+import { IntelligenceDetails, MemoryCandidates, WhyTheseFiles } from './insight'
 import {
   approvalFacts,
   type CodingIntegration,
@@ -42,6 +43,7 @@ import {
 } from './model'
 import { FactList, InlineError, LIST_KEY, Section, TASK_KEY, useTaskAction } from './parts'
 import { RemoteSection } from './remote'
+import { $selectedRoadmap, RoadmapDetail, RoadmapList } from './roadmap'
 
 // The selected task survives navigation (module state) and a window reload (remembered id).
 // Selecting never restarts anything: the backend owns the task; an id this backend does not
@@ -621,6 +623,8 @@ function TaskDetail({ taskId }: { taskId: string }) {
               { label: 'Steps', value: task.plan.steps.join('; ') }
             ]}
           />
+          <WhyTheseFiles task={task} />
+          <IntelligenceDetails task={task} />
         </Section>
       )}
       <ApprovalCard task={task} />
@@ -629,6 +633,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
       <IntegrationSection task={task} />
       <PrSection task={task} />
       <RemoteSection task={task} />
+      <MemoryCandidates task={task} />
       {task.cleanup.worktrees?.length ? (
         <Section title="Cleanup">
           {task.cleanup.worktrees.map((entry, index) => (
@@ -693,7 +698,54 @@ function NewTask() {
   )
 }
 
+const $codingView = atom<'roadmaps' | 'tasks'>('tasks')
+
+function ViewSwitch() {
+  const view = useValue($codingView)
+
+  return (
+    <div className="flex gap-1">
+      {(['tasks', 'roadmaps'] as const).map(name => (
+        <Button
+          key={name}
+          onClick={() => $codingView.set(name)}
+          size="xs"
+          variant={view === name ? 'default' : 'ghost'}
+        >
+          {name === 'tasks' ? 'Tasks' : 'Roadmaps'}
+        </Button>
+      ))}
+    </div>
+  )
+}
+
 export function CodingPage() {
+  const view = useValue($codingView)
+  const roadmap = useValue($selectedRoadmap)
+
+  if (view === 'roadmaps') {
+    return (
+      <div className="grid h-full grid-cols-[18rem_1fr] gap-4 overflow-hidden p-4">
+        <aside className="flex flex-col gap-4 overflow-auto">
+          <h2 className="text-sm font-semibold">Coding</h2>
+          <ViewSwitch />
+          <RoadmapList />
+        </aside>
+        <main className="overflow-auto">
+          {roadmap ? (
+            <RoadmapDetail roadmapId={roadmap} />
+          ) : (
+            <p className="text-xs text-muted-foreground">Plan a roadmap or select one.</p>
+          )}
+        </main>
+      </div>
+    )
+  }
+
+  return <TasksView />
+}
+
+function TasksView() {
   const selected = useValue($selectedCodingTask)
   const { data: tasks = [] } = useQuery({ queryFn: codingApi.list, queryKey: LIST_KEY, refetchInterval: 10_000 })
 
@@ -701,6 +753,7 @@ export function CodingPage() {
     <div className="grid h-full grid-cols-[18rem_1fr] gap-4 overflow-hidden p-4">
       <aside className="flex flex-col gap-4 overflow-auto">
         <h2 className="text-sm font-semibold">Coding</h2>
+        <ViewSwitch />
         <NewTask />
         <ul className="flex flex-col gap-1">
           {tasks.map(row => (

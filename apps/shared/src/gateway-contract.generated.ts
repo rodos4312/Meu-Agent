@@ -29,6 +29,10 @@ export interface CodingTaskView {
   execution?: Record<string, unknown> | null
   commit?: Record<string, unknown> | null
   remote?: Record<string, unknown> | null
+  relevance?: Record<string, unknown>[] | null
+  memory?: Record<string, unknown> | null
+  intelligence?: Record<string, unknown> | null
+  roadmap?: Record<string, unknown> | null
   [key: string]: unknown
 }
 export interface CodingTaskParams {
@@ -114,6 +118,71 @@ export interface CodingRemoteRepairParams {
   profile?: string | null
   task_id: string
   comment_ids: number[]
+}
+export interface CodingMemoryCandidatesResult {
+  candidates: Record<string, unknown>[]
+  [key: string]: unknown
+}
+export interface CodingMemoryDecideParams {
+  profile?: string | null
+  task_id: string
+  candidate_id: string
+  decision: 'accept' | 'dismiss'
+}
+export interface CodingSemanticParams {
+  profile?: string | null
+  project_root: string
+}
+export interface CodingSemanticResult {
+  semantic: Record<string, unknown>
+  [key: string]: unknown
+}
+export interface CodingRoadmapCreateParams {
+  profile?: string | null
+  goal: string
+  project_root: string
+}
+export interface CodingRoadmapResult {
+  roadmap: Record<string, unknown>
+  [key: string]: unknown
+}
+export interface CodingRoadmapParams {
+  profile?: string | null
+  roadmap_id: string
+}
+export interface CodingRoadmapListResult {
+  roadmaps: Record<string, unknown>[]
+  [key: string]: unknown
+}
+export interface CodingMilestoneApproveParams {
+  profile?: string | null
+  roadmap_id: string
+  milestone_id: string
+  fingerprint: string
+  revision: number
+  confirmed: boolean
+}
+export interface CodingMilestoneParams {
+  profile?: string | null
+  roadmap_id: string
+  milestone_id: string
+}
+export interface CodingRoadmapEditParams {
+  profile?: string | null
+  roadmap_id: string
+  milestones: Record<string, unknown>[]
+  revision: number
+}
+export interface CodingRoadmapRevisionParams {
+  profile?: string | null
+  roadmap_id: string
+  revision_id: string
+  decision: 'accept' | 'decline'
+}
+export interface CodingRoadmapPauseParams {
+  profile?: string | null
+  roadmap_id: string
+  paused: boolean
 }
 export interface DelegationStatusResult {
   active: ActiveSubagent[]
@@ -5623,6 +5692,10 @@ export interface RpcMethods {
   'coding.keep': { params: CodingTaskParams; result: CodingTaskResult }
   /** Recent coding tasks of the profile, newest first (restored ones never resume). */
   'coding.list': { params: ProfileParams; result: CodingTaskListResult }
+  /** Memory notes the finished task proposes (nothing is saved without an explicit accept). */
+  'coding.memory.candidates': { params: CodingTaskParams; result: CodingMemoryCandidatesResult }
+  /** Accept a proposed note into the project's existing memory, or dismiss it. */
+  'coding.memory.decide': { params: CodingMemoryDecideParams; result: CodingTaskResult }
   /** Build a local PR preview from the integrated result. Nothing is sent to a remote. */
   'coding.pr.prepare': { params: CodingTaskParams; result: CodingTaskResult }
   /** Edit, cancel or mark the local PR preview as approved for creation later. */
@@ -5645,6 +5718,26 @@ export interface RpcMethods {
   'coding.remote.repair': { params: CodingRemoteRepairParams; result: CodingTaskResult }
   /** Ask for a repair after a FIX review; the new proposal needs a new approval. */
   'coding.repair': { params: CodingTaskParams; result: CodingTaskResult }
+  /** Approve ONE ready milestone (exact fingerprint and revision); it starts as a normal coding task. */
+  'coding.roadmap.approve': { params: CodingMilestoneApproveParams; result: CodingRoadmapResult }
+  /** Plan a broad goal into milestones (read-only). Nothing runs until a milestone is approved. */
+  'coding.roadmap.create': { params: CodingRoadmapCreateParams; result: CodingRoadmapResult }
+  /** The user's edit of the roadmap; approved, running and finished milestones cannot change. */
+  'coding.roadmap.edit': { params: CodingRoadmapEditParams; result: CodingRoadmapResult }
+  /** A roadmap with milestone states, dependencies, risks and any pending revision proposal. */
+  'coding.roadmap.get': { params: CodingRoadmapParams; result: CodingRoadmapResult }
+  /** Roadmaps of the profile, newest first. */
+  'coding.roadmap.list': { params: ProfileParams; result: CodingRoadmapListResult }
+  /** Pause or resume a roadmap (a paused roadmap approves no milestone). */
+  'coding.roadmap.pause': { params: CodingRoadmapPauseParams; result: CodingRoadmapResult }
+  /** Reject a planned, ready or blocked milestone. */
+  'coding.roadmap.reject': { params: CodingMilestoneParams; result: CodingRoadmapResult }
+  /** Plan an interrupted or failed roadmap again (read-only). */
+  'coding.roadmap.replan': { params: CodingRoadmapParams; result: CodingRoadmapResult }
+  /** Accept or decline the planner's proposed roadmap revision. */
+  'coding.roadmap.revision': { params: CodingRoadmapRevisionParams; result: CodingRoadmapResult }
+  /** Semantic layer status for a project: provider, chunks, last update and query latency. */
+  'coding.semantic.status': { params: CodingSemanticParams; result: CodingSemanticResult }
   /** Start a coding task in a git project: analyze, plan, propose and review; ends awaiting approval. */
   'coding.start': { params: CodingStartParams; result: CodingTaskResult }
   /** Run a quick/plugin/bundle/skill/built-in slash command and answer a structured directive. */
@@ -6095,6 +6188,8 @@ export const RPC_METHODS = [
   'coding.integration.preview',
   'coding.keep',
   'coding.list',
+  'coding.memory.candidates',
+  'coding.memory.decide',
   'coding.pr.prepare',
   'coding.pr.update',
   'coding.reject',
@@ -6106,6 +6201,16 @@ export const RPC_METHODS = [
   'coding.remote.refresh',
   'coding.remote.repair',
   'coding.repair',
+  'coding.roadmap.approve',
+  'coding.roadmap.create',
+  'coding.roadmap.edit',
+  'coding.roadmap.get',
+  'coding.roadmap.list',
+  'coding.roadmap.pause',
+  'coding.roadmap.reject',
+  'coding.roadmap.replan',
+  'coding.roadmap.revision',
+  'coding.semantic.status',
   'coding.start',
   'command.dispatch',
   'command.resolve',

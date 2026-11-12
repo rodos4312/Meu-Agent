@@ -50,6 +50,9 @@ class AuditRecord:
     integration: dict[str, Any] = field(default_factory=dict)
     pr: dict[str, Any] = field(default_factory=dict)
     remote: dict[str, Any] = field(default_factory=dict)
+    intelligence: dict[str, Any] = field(default_factory=dict)
+    memory: dict[str, Any] = field(default_factory=dict)
+    roadmap: dict[str, Any] = field(default_factory=dict)
 
     def stage(self, name: str) -> None:
         self.stages.append({"stage": name, "at": round(time.time(), 3)})
