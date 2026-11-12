@@ -945,3 +945,4 @@ jobs:
           test "$commit" = "$MEU_COMMIT"
           tag="meu-v$version"
           gh release create "$tag" candidate/* --draft --prerelease --target "$MEU_COMMIT" --title "Meu $version" --notes 'Meu Windows candidate verified with our free update key. All required CI checks and package scans passed. Awaiting upgrade/recovery rehearsal before publication. No commercial Windows certificate.'
+# rc-sandbox: touched so GitHub registers this workflow in the private RC sandbox (no behaviour change).

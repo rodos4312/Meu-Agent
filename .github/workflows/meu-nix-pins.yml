@@ -24,3 +24,4 @@ jobs:
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
       - name: Check Nix uses the pinned URLs and SHA-256
         run: nix-instantiate --eval --strict --json nix/check-locked-sources.nix
+# rc-sandbox: touched so GitHub registers this workflow in the private RC sandbox (no behaviour change).

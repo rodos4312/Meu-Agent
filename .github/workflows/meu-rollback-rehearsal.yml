@@ -69,3 +69,4 @@ jobs:
             ${{ runner.temp }}/meu-rollback/*.log
           if-no-files-found: ignore
           retention-days: 30
+# rc-sandbox: touched so GitHub registers this workflow in the private RC sandbox (no behaviour change).

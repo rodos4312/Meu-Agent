@@ -50,3 +50,4 @@ jobs:
           args=()
           if [ "$MEU_RETENTION_APPLY" = 'true' ]; then args+=(--apply); fi
           node apps/desktop/scripts/meu-release-maintenance.mjs prune "${args[@]}"
+# rc-sandbox: touched so GitHub registers this workflow in the private RC sandbox (no behaviour change).

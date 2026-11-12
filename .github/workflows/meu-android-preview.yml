@@ -59,3 +59,4 @@ jobs:
       # This is the legacy Java companion, not the current private Flutter app.
       # Compile for compatibility only; a normal source push must not distribute
       # another APK or be mistaken for Meu Mobile acceptance/release evidence.
+# rc-sandbox: touched so GitHub registers this workflow in the private RC sandbox (no behaviour change).
