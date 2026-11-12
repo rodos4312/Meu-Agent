@@ -39,7 +39,7 @@ class TestTerminalRequirements:
         monkeypatch.setenv("MODAL_TOKEN_ID", "test-modal-id")
         monkeypatch.setenv("MODAL_TOKEN_SECRET", "test-modal-secret")
         monkeypatch.setattr(terminal_tool_module, "_get_env_config",
-                            lambda: {"env_type": "modal", "modal_mode": "direct"})
+                            lambda: {"env_type": "modal", "modal_mode": "direct", "modal_image": "python:3.11"})
         monkeypatch.setattr(importlib.util, "find_spec", lambda name: object())
         tools = get_tool_definitions(enabled_toolsets=["terminal", "code_execution"], quiet_mode=True)
         names = {tool["function"]["name"] for tool in tools}
