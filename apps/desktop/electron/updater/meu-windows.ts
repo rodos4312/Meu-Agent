@@ -1,13 +1,16 @@
 import type { UpdateCheckResult, UpdateInfo } from 'electron-updater'
 
 import { verifyPinnedArtifact } from './artifact'
-import type { UpdaterApplyResultWire, UpdaterStatusWire, UpdaterStrategy } from './index'
+import type { MeuUpdateChannel } from './meu-channel'
 import type { MeuRelease } from './meu-release-feed'
 import { applyPackagedHandoff } from './packaged-handoff'
+
+import type { UpdaterApplyResultWire, UpdaterStatusWire, UpdaterStrategy } from './index'
 
 export interface MeuWindowsDeps {
   currentVersion: string
   publisher: string | null
+  channel: () => { build: MeuUpdateChannel; preference: MeuUpdateChannel; rcReleasesUrl: string | null }
   findRelease: () => Promise<MeuRelease | null>
   native: (release: MeuRelease) => {
     checkForUpdates: () => Promise<UpdateCheckResult | null>
@@ -54,10 +57,15 @@ export class MeuWindowsStrategy implements UpdaterStrategy {
       }
     }
     const release = await this.deps.findRelease()
+    const channel = this.deps.channel()
     return {
       supported: true,
       mechanism: this.mechanism,
+      // The feed this status describes: only the stable feed is ever installed from.
       channel: 'meu-preview',
+      meuChannel: channel.build,
+      meuChannelPreference: channel.preference,
+      rcReleasesUrl: channel.rcReleasesUrl,
       currentVersion: this.deps.currentVersion,
       updateAvailable: Boolean(release),
       latestTag: release ? `meu-v${release.version}` : null,

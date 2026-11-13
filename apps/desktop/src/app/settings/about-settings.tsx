@@ -8,6 +8,7 @@ import { RefreshCw } from '@/lib/icons'
 import { $connection } from '@/store/session'
 import { $desktopVersion, checkBackendUpdates, refreshDesktopVersion } from '@/store/updates'
 
+import { MeuUpdateChannelRow } from './meu-update-channel-row'
 import { SectionHeading, SettingsContent } from './primitives'
 import { SETTING_IDS, settingElementId } from './settings-manifest'
 import { UninstallSection } from './uninstall-section'
@@ -59,6 +60,7 @@ function AppUpdatesSettings({ includeUninstall }: AppUpdatesSettingsProps): Reac
         <div className="grid gap-3" id={settingElementId(SETTING_IDS.about.updates)}>
           <UpdateStatusCard target="client" version={version} />
           <UpdateChannelRow />
+          <MeuUpdateChannelRow />
           {/* Client and remote backend updates are independent. Only the client has release notes. */}
           {remote && <UpdateStatusCard showReleaseNotes={false} target="backend" version={version} />}
         </div>

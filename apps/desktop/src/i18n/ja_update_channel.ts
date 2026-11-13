@@ -19,5 +19,13 @@ export const jaUpdateChannel = {
   heldBody: (v: string) =>
     `このビルドは安定版 ${v} より新しく、セッションはすでに ${v} では開けないゲートウェイ ランタイムを使っています。新しい安定版が出るまで、Meu はこのビルドのままです。`,
   rollbackAction: (v: string) => `${v} に戻す`,
-  allChanges: 'すべての変更を見る'
+  allChanges: 'すべての変更を見る',
+  meuDescription: '安定版は署名済みの公開 Meu リリースをインストールします。RC はプレリリース版のテスト用です。',
+  meuStable: '安定版',
+  meuRc: 'RC',
+  rcConfirmTitle: 'RC ビルドに切り替えますか？',
+  rcWarning: 'RC ビルドはテスト用のプレリリース版です。',
+  rcConfirm: 'RC に切り替える',
+  rcManual: 'Meu が RC を自動でインストールすることはありません。手動でダウンロードしてください。',
+  rcReleases: 'RC リリース'
 }

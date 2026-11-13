@@ -89,6 +89,7 @@ it('keeps local preparation inside the recoverable handoff and never stops local
       findPython: vi.fn(),
       log: vi.fn(),
       isRemote: () => remote,
+      channelPreference: () => undefined,
       teardown,
       restore: vi.fn(async () => undefined),
       emitProgress: vi.fn()

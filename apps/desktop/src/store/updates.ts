@@ -15,7 +15,8 @@ import type {
   DesktopUpdateStage,
   DesktopUpdateStatus,
   DesktopVersionInfo,
-  HermesConnection
+  HermesConnection,
+  MeuUpdateChannel
 } from '@/global'
 import { checkHermesUpdate, getActionStatus, updateHermes } from '@/hermes'
 import { translateNow } from '@/i18n'
@@ -714,6 +715,26 @@ export async function setUpdateChannel(channel: SourceUpdateChannel): Promise<De
     const status = await setChannel(channel)
     $updateStatus.set(status)
     maybeNotifyUpdateAvailable(status, 'client')
+
+    return status
+  } finally {
+    $updateChecking.set(false)
+  }
+}
+
+/** Save the Meu stable/RC preference. Choosing RC only shows where RC builds are published. */
+export async function setMeuUpdateChannel(channel: MeuUpdateChannel): Promise<DesktopUpdateStatus> {
+  const setMeuChannel = window.hermesDesktop?.updates?.setMeuChannel
+
+  if (!setMeuChannel) {
+    throw new Error('This installation cannot change its update channel.')
+  }
+
+  $updateChecking.set(true)
+
+  try {
+    const status = await setMeuChannel(channel)
+    $updateStatus.set(status)
 
     return status
   } finally {

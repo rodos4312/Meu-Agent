@@ -2,6 +2,7 @@ import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 
 import { applyBootstrapEvent, EMPTY_BOOTSTRAP_STATE } from '../../shared/src/desktop-bootstrap'
 
+import { readDesktopUpdateBranch, readMeuChannelPreference, writeMeuChannelPreference } from './desktop-update-config'
 import type { GatewayEndpoint } from './local-gateway'
 import { configurePythonGatewayTicketClient, createLocalGatewayDials, createStaleGatewayRestarter, ensureLocalGateway, gatewayOwnerProfile, localGatewayDial, nativeGatewayHttpHeaders, redialLocalGateway, runGatewayEnsure, runGatewayOwnerRestart } from './local-gateway'
 import { closeGatewayTicketBridges, createGatewayTicketResolver } from './local-gateway-python'
@@ -3237,16 +3238,7 @@ function recentHermesLog() {
 
 // ─── Self-update (git-pull against the running backend's hermes root) ──────
 
-function readDesktopUpdateConfig(): { branch: string; branchExplicit: boolean } {
-  try {
-    const parsed: { branch?: unknown } | null = JSON.parse(fs.readFileSync(DESKTOP_UPDATE_CONFIG_PATH, 'utf8'))
-    const branch: string = typeof parsed?.branch === 'string' ? parsed.branch.trim() : ''
-
-    return { branch: branch || DEFAULT_UPDATE_BRANCH, branchExplicit: branch.length > 0 }
-  } catch {
-    return { branch: DEFAULT_UPDATE_BRANCH, branchExplicit: false }
-  }
-}
+const readDesktopUpdateConfig = () => readDesktopUpdateBranch(DESKTOP_UPDATE_CONFIG_PATH, DEFAULT_UPDATE_BRANCH)
 
 // Atomic file write: temp + rename (atomic on all platforms). Prevents
 // partial writes on crash/power loss that corrupt JSON config files.
@@ -3390,7 +3382,8 @@ async function createPackagedUpdateStrategy(): Promise<UpdaterStrategy | null> {
       isRemote: primaryBackendIsRemote,
       teardown: teardownBundledBackend,
       restore: () => updateOperation.restoreAfterFailure(restoreBundledBackend),
-      emitProgress: emitUpdateProgress
+      emitProgress: emitUpdateProgress,
+      channelPreference: () => readMeuChannelPreference(DESKTOP_UPDATE_CONFIG_PATH)
     })
   }
 
@@ -16685,6 +16678,13 @@ ipcMain.handle('hermes:updates:apply', async (_event, payload) =>
     message: error?.message || String(error)
   }))
 )
+
+// About ▸ Updates: the Meu stable/RC preference. Choosing RC never installs anything by itself.
+ipcMain.handle('hermes:updates:meu-channel:set', async (_event, name: unknown): Promise<UpdaterStatusWire> => {
+  if (name !== 'stable' && name !== 'rc') { throw new Error('Unknown Meu update channel.') }
+  writeMeuChannelPreference(DESKTOP_UPDATE_CONFIG_PATH, name)
+  return checkUpdates({ force: true })
+})
 
 // About ▸ Updates channel selector; source checkouts only (packages bake their channel).
 ipcMain.handle('hermes:updates:channel:set', async (_event, name: unknown): Promise<UpdaterStatusWire> => {

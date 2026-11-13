@@ -1,9 +1,9 @@
 import electronUpdater from 'electron-updater'
 
-import releasePolicy from '../../meu-release.cjs'
 import signing from '../../meu-release-signing.cjs'
 import type { InstallStamp } from '../install-stamp'
 import { verifyPinnedArtifact } from './artifact'
+import { meuChannelOf, meuChannelPreference, meuRcReleasesUrl, STABLE_CHANNEL } from './meu-channel'
 import { ensureMeuRecoveryBaseline, retainMeuInstaller } from './meu-recovery'
 import { findMeuRelease, meuReleaseDirectory, validateMeuRelease, type MeuRelease } from './meu-release-feed'
 import { verifyMeuSignature } from './meu-signature'
@@ -15,16 +15,14 @@ interface MeuClientDeps extends Pick<MeuWindowsDeps, 'prepare' | 'teardown' | 'r
   executable: string
   recoveryDirectory: string
   log: (message: string) => void
+  /** The saved `updates.json` channel; read at every check so a change applies without restart. */
+  channelPreference: () => unknown
 }
 
 export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<MeuWindowsStrategy> {
   const policy = deps.stamp?.meuUpdates
-  if (
-    policy &&
-    (policy.repository !== releasePolicy.REPOSITORY ||
-      policy.branch !== releasePolicy.BRANCH ||
-      policy.channel !== releasePolicy.CHANNEL)
-  ) {
+  const build = policy ? meuChannelOf(policy) : STABLE_CHANNEL
+  if (!build) {
     throw new Error('This artifact has an invalid Meu update authority.')
   }
   const publisher = policy?.publisherName ?? null
@@ -34,19 +32,32 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
   }
   if (policy?.publicKey) signing.publicKey(policy.publicKey)
   if (publisher) await verifyMeuSignature(deps.executable, publisher, deps.currentVersion)
+  // Only the public stable feed installs automatically; an RC build moves to a newer stable release.
   const verifyInstaller = async (file: string, release: MeuRelease): Promise<void> => {
-    validateMeuRelease(release, release.version, authority!)
+    validateMeuRelease(release, release.version, authority!, STABLE_CHANNEL)
     await verifyPinnedArtifact(file, { url: '', sha256: release.sha256, size: release.size, format: 'exe' })
     if (publisher) await verifyMeuSignature(file, publisher, release.version)
   }
   return new MeuWindowsStrategy({
     ...deps,
     publisher: authority,
-    findRelease: () => findMeuRelease(deps.currentVersion, authority!),
+    channel: () => {
+      const preference = meuChannelPreference(deps.channelPreference(), build.id)
+      return { build: build.id, preference, rcReleasesUrl: meuRcReleasesUrl(preference) }
+    },
+    findRelease: () => findMeuRelease(deps.currentVersion, authority!, undefined, STABLE_CHANNEL, build.id),
     verifySignature: verifyInstaller,
     retain: async (file, release) => {
-      if (policy?.publicKey) await ensureMeuRecoveryBaseline(deps.recoveryDirectory, deps.currentVersion, authority!)
+      // A stable build keeps its own published installer as the rollback baseline. An RC build was
+      // installed manually from a private repository, so there is no baseline to fetch.
+      if (policy?.publicKey && build.id === 'stable') {
+        await ensureMeuRecoveryBaseline(deps.recoveryDirectory, deps.currentVersion, authority!)
+      }
       await retainMeuInstaller(deps.recoveryDirectory, file, release, deps.currentVersion, authority!)
+      deps.log(
+        `Meu update prepared: ${deps.currentVersion} (${build.id}) -> ${release.version} (stable), ` +
+          `source ${release.repository}, build ${release.commit.slice(0, 12)}`
+      )
     },
     native: release => {
       let handedOff = false
@@ -55,7 +66,7 @@ export async function createMeuWindowsStrategy(deps: MeuClientDeps): Promise<Meu
       const updater = new electronUpdater.NsisUpdater({
         provider: 'generic',
         url: meuReleaseDirectory(release.version),
-        channel: releasePolicy.CHANNEL
+        channel: STABLE_CHANNEL.channel
       })
       updater.autoDownload = false
       updater.autoInstallOnAppQuit = false

@@ -53,6 +53,7 @@ function fixture() {
   const deps = {
     currentVersion: '0.1.0-dev.7',
     publisher: release.publisherName,
+    channel: () => ({ build: 'stable' as const, preference: 'stable' as const, rcReleasesUrl: null }),
     findRelease: vi.fn(async () => release),
     native: vi.fn(() => native),
     verifySignature: vi.fn(async () => {

@@ -682,6 +682,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     check: opts => ipcRenderer.invoke('hermes:updates:check', opts),
     apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),
     setChannel: name => ipcRenderer.invoke('hermes:updates:channel:set', name),
+    setMeuChannel: name => ipcRenderer.invoke('hermes:updates:meu-channel:set', name),
     onProgress: callback => {
       const listener = (_event, payload) => callback(payload)
       ipcRenderer.on('hermes:updates:progress', listener)

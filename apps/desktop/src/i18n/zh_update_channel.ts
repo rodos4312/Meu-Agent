@@ -17,5 +17,13 @@ export const zhUpdateChannel = {
   heldBody: (v: string) =>
     `此版本比稳定版 ${v} 更新，且你的会话已在使用 ${v} 无法打开的网关运行时。在更新的稳定版发布前，Meu 将保持当前版本。`,
   rollbackAction: (v: string) => `回退到 ${v}`,
-  allChanges: '查看全部更改'
+  allChanges: '查看全部更改',
+  meuDescription: '稳定版安装已签名的公开 Meu 版本。RC 用于测试预发布版本。',
+  meuStable: '稳定版',
+  meuRc: 'RC',
+  rcConfirmTitle: '切换到 RC 版本？',
+  rcWarning: 'RC 版本是用于测试的预发布版本。',
+  rcConfirm: '切换到 RC',
+  rcManual: 'Meu 不会自动安装 RC：请手动下载。',
+  rcReleases: 'RC 版本'
 }

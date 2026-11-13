@@ -88,6 +88,7 @@ it('offers free-key updates without initializing downloads and rejects tampering
       teardown,
       restore: vi.fn(),
       emitProgress: vi.fn(),
+      channelPreference: () => undefined,
       log: vi.fn()
     })
     await expect(strategy.check()).resolves.toMatchObject({ supported: true, updateAvailable: true })
@@ -125,6 +126,7 @@ it('unsigned builds never initialize a native updater or check a remote feed', a
     currentVersion: '0.1.0-dev.7',
     executable: 'Meu.exe',
     recoveryDirectory: 'unused',
+    channelPreference: () => undefined,
     log: vi.fn(),
     prepare: vi.fn(),
     teardown: vi.fn(),
@@ -184,6 +186,7 @@ it.each(['later', 'immediate', 'failed recovery'] as const)(
         currentVersion: '0.1.0-dev.7',
         executable: path.join(root, 'current.exe'),
         recoveryDirectory: path.join(root, 'retained'),
+        channelPreference: () => undefined,
         log: vi.fn(),
         prepare: vi.fn(),
         teardown: vi.fn(),
@@ -251,6 +254,54 @@ it('a foreign update authority is refused before inspecting any executable', asy
       currentVersion: '0.1.0-dev.7',
       executable: 'Meu.exe',
       recoveryDirectory: 'unused',
+      channelPreference: () => undefined,
+      log: vi.fn(),
+      prepare: vi.fn(),
+      teardown: vi.fn(),
+      restore: vi.fn(),
+      emitProgress: vi.fn()
+    })
+  ).rejects.toThrow('invalid Meu update authority')
+})
+
+it.each([
+  ['an RC build', { repository: 'rodos4312/Meu-Agent-RC-private', branch: 'rc/meu-vnext-rc1', channel: 'meu-rc' }, '0.1.0-rc.1', undefined, 'rc', 'rc'],
+  ['a stable build that prefers RC', { repository: 'rodos4312/Meu-Agent', branch: 'dev/meu-foundation', channel: 'meu-preview' }, '0.1.0-dev.34', 'rc', 'stable', 'rc'],
+  ['a stable build without a saved channel', { repository: 'rodos4312/Meu-Agent', branch: 'dev/meu-foundation', channel: 'meu-preview' }, '0.1.0-dev.34', undefined, 'stable', 'stable']
+] as const)('%s checks only the public stable feed and reports its channel', async (_name, identity, version, saved, build, preference) => {
+  const publicKey = generateKeyPairSync('ed25519').publicKey.export({ format: 'der', type: 'spki' }).toString('base64')
+  const log = vi.fn()
+  findRelease.mockResolvedValue(null)
+  const strategy = await createMeuWindowsStrategy({
+    stamp: { meuUpdates: { ...identity, publicKey } } as InstallStamp,
+    currentVersion: version,
+    executable: 'unused.exe',
+    recoveryDirectory: 'unused',
+    channelPreference: () => saved,
+    log,
+    prepare: vi.fn(),
+    teardown: vi.fn(),
+    restore: vi.fn(),
+    emitProgress: vi.fn()
+  })
+  const status = await strategy.check()
+  expect(status).toMatchObject({ supported: true, updateAvailable: false, meuChannel: build, meuChannelPreference: preference })
+  expect(status.rcReleasesUrl ?? null).toBe(preference === 'rc' ? 'https://github.com/rodos4312/Meu-Agent-RC-private/releases' : null)
+  const [current, , , spec, installed] = findRelease.mock.calls[0]
+  expect([current, spec.id, installed]).toEqual([version, 'stable', build])
+  expect(JSON.stringify(status)).not.toContain(publicKey.slice(20))
+  expect(construct).not.toHaveBeenCalled()
+})
+
+it('refuses an install stamp whose update identity mixes channels', async () => {
+  await expect(
+    createMeuWindowsStrategy({
+      stamp: { meuUpdates: { repository: 'rodos4312/Meu-Agent-RC-private', branch: 'dev/meu-foundation', channel: 'meu-preview',
+        publicKey: 'unused' } } as InstallStamp,
+      currentVersion: '0.1.0-rc.1',
+      executable: 'unused.exe',
+      recoveryDirectory: 'unused',
+      channelPreference: () => undefined,
       log: vi.fn(),
       prepare: vi.fn(),
       teardown: vi.fn(),

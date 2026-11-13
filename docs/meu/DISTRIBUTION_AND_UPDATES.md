@@ -503,3 +503,39 @@ run περιέχουν `result.json` με `realNsis`, `realGateway`,
 snapshot ρυθμίσεων ενός worker. Η αρχική δοκιμή απέτυχε πριν τη διόρθωση·
 μετά πέρασαν 32 δοκιμές, μαζί με αντικατάσταση ίδιου μεγέθους και διατηρημένο
 παλιό mtime. Αφαιρέθηκε από το test probe η αναφορά στο καταργημένο free tier.
+
+## Κανάλια ενημέρωσης: stable και RC
+
+Η μοναδική πηγή ταυτοτήτων είναι το `apps/desktop/meu-release.cjs` (`UPDATE_CHANNELS`) και η λογική ζει στο
+`electron/updater/meu-channel.ts`. Το κανάλι ενός build ψήνεται στο install stamp (`MEU_UPDATE_CHANNEL=rc` στο
+build, αλλιώς stable). Η προτίμηση του χρήστη είναι το `channel` στο `<userData>/updates.json`. Χωρίς αποθηκευμένη
+τιμή, ή με άγνωστη τιμή, ισχύει το κανάλι του build, οπότε καμία υπάρχουσα εγκατάσταση δεν περνά σε RC.
+
+| | Stable | RC |
+|---|---|---|
+| Repository | `rodos4312/Meu-Agent` (δημόσιο) | `rodos4312/Meu-Agent-RC-private` (ιδιωτικό) |
+| Branch build | μόνο `dev/meu-foundation` | μόνο `rc/*` |
+| Κανάλι manifest/feed | `meu-preview` (το υπάρχον όνομα: οι εγκαταστημένοι Meu συνεχίζουν να επαληθεύουν) | `meu-rc` |
+| Tag | `meu-vVERSION` | `meu-rc-vVERSION` |
+| Εκδόσεις | `X.Y.Z` ή `X.Y.Z-dev.N` | μόνο `X.Y.Z-rc.N` |
+| Κλειδί | το ίδιο Ed25519 κλειδί Meu | το ίδιο κλειδί (το manifest δεσμεύει repository, branch και κανάλι) |
+
+Κανόνες:
+- **stable → stable:** αυτόματος έλεγχος και εγκατάσταση με επιλογή του χρήστη, ακριβώς όπως πριν.
+- **stable → rc:** μπλοκαρισμένο. Ένα stable build δεν βλέπει ούτε εγκαθιστά ποτέ RC. Με προτίμηση RC
+  εμφανίζεται μόνο η σελίδα των RC releases για χειροκίνητη λήψη.
+- **rc → rc:** χειροκίνητο. Ο ιδιωτικός feed δεν διαβάζεται ποτέ και δεν χρειάζεται ούτε στέλνεται credential.
+- **rc → stable:** αυτόματο, μόνο προς αυστηρά νεότερη stable.
+- **Downgrade και εκδόσεις με λάθος μορφή:** ποτέ.
+
+Η σειρά των εκδόσεων είναι το semver, το ίδιο που χρησιμοποιούν ο NSIS και ο electron-updater:
+`0.1.0-dev.N < 0.1.0-rc.1 < 0.1.0-rc.2 < 0.1.0`. Η μορφή `X.Y.Z-dev.N-rcM` απορρίπτεται, γιατί σε semver θα
+ταξινομούνταν πάνω από την `-dev.N` που υποτίθεται ότι προηγείται.
+
+Rollback και ανάκτηση επαληθεύουν μόνο stable manifests. Ένα RC δεν γίνεται ποτέ στόχος stable rollback.
+Ένα RC build δεν κατεβάζει baseline, γιατί εγκαταστάθηκε χειροκίνητα από ιδιωτικό repository.
+
+Τεχνικό χρέος:
+- Δεν υπάρχει αυτόματη αυθεντικοποιημένη ενημέρωση από το ιδιωτικό RC repository.
+- Το `prepare-meu-release.mjs` και το `meu-release-maintenance.mjs` προετοιμάζουν μόνο stable releases.
+- Το rollback ενός RC build σε προηγούμενο RC γίνεται μόνο με επανεγκατάσταση του προηγούμενου installer.

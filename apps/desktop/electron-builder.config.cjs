@@ -70,6 +70,13 @@ if (!/^\d+\.\d+\.\d+$/.test(electronVersion)) {
 const macFeed = channelRequest ? null : feedContract.darwinFeed(channel === 'canary' || channel === 'light-canary' ? 'canary' : 'stable', light)
 const publicUrl = feedContract.feedBaseUrl(process.env.CLOUDFLARE_R2_PUBLIC_URL)
 
+/** The draft GitHub release target of this build's Meu update channel (stable or RC); never auto-published. */
+function meuPublishTarget() {
+  const spec = meuRelease.UPDATE_CHANNELS[meuRelease.buildUpdateChannel()]
+  const [owner, repo] = spec.repository.split('/')
+  return { provider: 'github', owner, repo, channel: spec.channel, releaseType: 'draft' }
+}
+
 /** @satisfies {Configuration} */
 module.exports = {
   electronVersion,
@@ -240,7 +247,7 @@ module.exports = {
   },
   win: {
     ...(appId === 'com.meuagent.desktop' && meuRelease.meuReleasePolicy()
-      ? { publish: [{ provider: 'github', owner: 'rodos4312', repo: 'Meu-Agent', channel: 'meu-preview', releaseType: 'draft' }] }
+      ? { publish: [meuPublishTarget()] }
       : {}),
     icon: appId === 'com.meuagent.desktop' ? 'assets/meu-icon.ico' : 'assets/icon.ico',
     executableName: windowsExecutableName,

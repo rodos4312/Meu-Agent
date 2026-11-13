@@ -19,5 +19,13 @@ export const deUpdateChannel = {
   heldBody: (v: string) =>
     `Dieser Build ist neuer als das stabile Release ${v}, und deine Sitzungen nutzen bereits seine Gateway-Laufzeit, die ${v} nicht öffnen kann. Meu bleibt bei diesem Build, bis ein neueres stabiles Release erscheint.`,
   rollbackAction: (v: string) => `Zurück auf ${v}`,
-  allChanges: 'Alle Änderungen ansehen'
+  allChanges: 'Alle Änderungen ansehen',
+  meuDescription: 'Stabil installiert signierte öffentliche Meu-Releases. RC dient zum Testen von Vorabversionen.',
+  meuStable: 'Stabil',
+  meuRc: 'RC',
+  rcConfirmTitle: 'Zu RC-Builds wechseln?',
+  rcWarning: 'RC-Builds sind Vorabversionen zum Testen.',
+  rcConfirm: 'Zu RC wechseln',
+  rcManual: 'Meu installiert nie selbst einen RC: Lade ihn manuell herunter.',
+  rcReleases: 'RC-Releases'
 }

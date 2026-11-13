@@ -17,5 +17,13 @@ export const zhHantUpdateChannel = {
   heldBody: (v: string) =>
     `此版本比穩定版 ${v} 更新，且你的工作階段已在使用 ${v} 無法開啟的閘道執行環境。在更新的穩定版發布前，Meu 會維持目前版本。`,
   rollbackAction: (v: string) => `回退到 ${v}`,
-  allChanges: '查看全部變更'
+  allChanges: '查看全部變更',
+  meuDescription: '穩定版安裝已簽署的公開 Meu 版本。RC 用於測試預先發行版本。',
+  meuStable: '穩定版',
+  meuRc: 'RC',
+  rcConfirmTitle: '切換到 RC 版本？',
+  rcWarning: 'RC 版本是用於測試的預先發行版本。',
+  rcConfirm: '切換到 RC',
+  rcManual: 'Meu 不會自動安裝 RC：請手動下載。',
+  rcReleases: 'RC 版本'
 }

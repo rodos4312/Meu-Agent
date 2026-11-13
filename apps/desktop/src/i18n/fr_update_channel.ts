@@ -19,5 +19,13 @@ export const frUpdateChannel = {
   heldBody: (v: string) =>
     `Cette version est plus récente que la version stable ${v}, et vos sessions utilisent déjà son environnement de passerelle, que ${v} ne peut pas ouvrir. Meu reste sur cette version jusqu’à la prochaine version stable.`,
   rollbackAction: (v: string) => `Revenir à ${v}`,
-  allChanges: 'Voir toutes les modifications'
+  allChanges: 'Voir toutes les modifications',
+  meuDescription: 'Stable installe les versions publiques signées de Meu. RC sert à tester des préversions.',
+  meuStable: 'Stable',
+  meuRc: 'RC',
+  rcConfirmTitle: 'Passer aux versions RC ?',
+  rcWarning: 'Les versions RC sont des préversions destinées aux tests.',
+  rcConfirm: 'Passer à RC',
+  rcManual: 'Meu n’installe jamais une RC de lui-même : téléchargez-la manuellement.',
+  rcReleases: 'Versions RC'
 }

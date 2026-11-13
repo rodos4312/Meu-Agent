@@ -1,7 +1,16 @@
-import { gt, valid } from 'semver'
+import { gt } from 'semver'
 
 import signing from '../../meu-release-signing.cjs'
-import releasePolicy from '../../meu-release.cjs'
+
+import {
+  isMeuChannelVersion,
+  meuChannelOf,
+  meuChannelSpec,
+  type MeuChannelSpec,
+  meuTransition,
+  type MeuUpdateChannel,
+  STABLE_CHANNEL
+} from './meu-channel'
 
 export interface MeuRelease {
   schema: 1 | 2
@@ -30,23 +39,28 @@ class MeuReleaseLookupError extends Error {
   }
 }
 
-export function meuReleaseDirectory(version: string): string {
-  if (!valid(version)) {
+export function meuReleaseDirectory(version: string, spec: MeuChannelSpec = STABLE_CHANNEL): string {
+  if (!isMeuChannelVersion(version, spec)) {
     throw new Error('Invalid Meu release version.')
   }
 
-  return `https://github.com/${releasePolicy.REPOSITORY}/releases/download/meu-v${version}/`
+  return `https://github.com/${spec.repository}/releases/download/${spec.tagPrefix}${version}/`
 }
 
-export function validateMeuRelease(value: unknown, version: string, publisher: string): MeuRelease {
+/** A manifest valid only for `spec`: repository, branch, channel and version grammar all belong to it. */
+export function validateMeuRelease(
+  value: unknown,
+  version: string,
+  publisher: string,
+  spec: MeuChannelSpec = STABLE_CHANNEL
+): MeuRelease {
   const r = value as MeuRelease
 
   if (
     !r ||
     ![1, 2].includes(r.schema) ||
-    r.repository !== releasePolicy.REPOSITORY ||
-    r.branch !== releasePolicy.BRANCH ||
-    r.channel !== releasePolicy.CHANNEL ||
+    meuChannelOf(r)?.id !== spec.id ||
+    !isMeuChannelVersion(version, spec) ||
     r.version !== version ||
     (publisher.startsWith('CN=')
       ? r.schema !== 1 || r.publisherName !== publisher
@@ -70,9 +84,13 @@ export function validateMeuRelease(value: unknown, version: string, publisher: s
 }
 
 /** Public release metadata only: no user identifiers, API keys or chat data. */
-export async function fetchMeuJson(url: string): Promise<unknown> {
-  const allowed = `https://api.github.com/repos/${releasePolicy.REPOSITORY}/releases`
-  const assetPrefix = `https://github.com/${releasePolicy.REPOSITORY}/releases/download/meu-v`
+export async function fetchMeuJson(url: string, spec: MeuChannelSpec = STABLE_CHANNEL): Promise<unknown> {
+  if (spec.private) {
+    throw new Error('Private Meu RC releases are installed manually; they are never fetched.')
+  }
+
+  const allowed = `https://api.github.com/repos/${spec.repository}/releases`
+  const assetPrefix = `https://github.com/${spec.repository}/releases/download/${spec.tagPrefix}`
 
   if (!url.startsWith(allowed) && !url.startsWith(assetPrefix)) {
     throw new Error('Foreign Meu update origin.')
@@ -137,48 +155,56 @@ export async function fetchMeuResponse(url: string, timeoutMs = 30_000): Promise
   throw new Error('Too many Meu release redirects.')
 }
 
+/**
+ * The newest release of `spec` that an installed `installed` build may move to (see meuTransition):
+ * a stable build never sees RC tags, and nothing older or malformed is ever selected.
+ */
 export async function findMeuRelease(
   current: string,
   publisher: string,
-  readJson: (url: string) => Promise<unknown> = fetchMeuJson
+  readJson?: (url: string) => Promise<unknown>,
+  spec: MeuChannelSpec = STABLE_CHANNEL,
+  installed: MeuUpdateChannel = spec.id
 ): Promise<MeuRelease | null> {
-  if (!valid(current)) {
+  if (!isMeuChannelVersion(current, meuChannelSpec(installed))) {
     throw new Error('Current Meu version is invalid.')
   }
 
-  const response = await readJson(`https://api.github.com/repos/${releasePolicy.REPOSITORY}/releases?per_page=50`)
+  const read = readJson ?? (url => fetchMeuJson(url, spec))
+  const response = await read(`https://api.github.com/repos/${spec.repository}/releases?per_page=50`)
 
   if (!Array.isArray(response)) {
     throw new Error('Invalid GitHub releases response.')
   }
 
+  const versionOf = (r: GitHubRelease) => r.tag_name.slice(spec.tagPrefix.length)
   const candidates = (response as GitHubRelease[])
     .filter(
       r =>
         !r.draft &&
         typeof r.tag_name === 'string' &&
-        r.tag_name.startsWith('meu-v') &&
-        valid(r.tag_name.slice(5)) &&
-        gt(r.tag_name.slice(5), current)
+        r.tag_name.startsWith(spec.tagPrefix) &&
+        meuTransition({ channel: installed, version: current }, { channel: spec.id, version: versionOf(r) }).allowed
     )
-    .sort((a, b) => (gt(a.tag_name.slice(5), b.tag_name.slice(5)) ? -1 : 1))
+    .sort((a, b) => (gt(versionOf(a), versionOf(b)) ? -1 : 1))
 
   if (!candidates.length) {
     return null
   }
 
-  return verifyPublishedMeuRelease(candidates[0], publisher, readJson)
+  return verifyPublishedMeuRelease(candidates[0], publisher, read, spec)
 }
 
 async function verifyPublishedMeuRelease(
   release: GitHubRelease,
   publisher: string,
-  readJson: (url: string) => Promise<unknown>
+  readJson: (url: string) => Promise<unknown>,
+  spec: MeuChannelSpec = STABLE_CHANNEL
 ): Promise<MeuRelease> {
-  const version = release.tag_name.slice(5)
-  const directory = meuReleaseDirectory(version)
+  const version = release.tag_name.slice(spec.tagPrefix.length)
+  const directory = meuReleaseDirectory(version, spec)
 
-  for (const name of ['meu-release.json', 'meu-preview.yml', `Meu-${version}-win-x64.exe`]) {
+  for (const name of ['meu-release.json', `${spec.channel}.yml`, `Meu-${version}-win-x64.exe`]) {
     const assets = release.assets.filter(asset => asset.name === name)
 
     if (assets.length !== 1 || assets[0].browser_download_url !== directory + name) {
@@ -186,7 +212,7 @@ async function verifyPublishedMeuRelease(
     }
   }
 
-  const manifest = validateMeuRelease(await readJson(directory + 'meu-release.json'), version, publisher)
+  const manifest = validateMeuRelease(await readJson(directory + 'meu-release.json'), version, publisher, spec)
 
   if (release.assets.find(a => a.name === manifest.file)?.size !== manifest.size) {
     throw new Error('Meu release asset size differs from its manifest.')
@@ -195,7 +221,7 @@ async function verifyPublishedMeuRelease(
   return manifest
 }
 
-/** The installed version is a recovery pin, never a request for a newer release. */
+/** The installed version is a recovery pin, never a request for a newer release. Stable only: RC installers are private. */
 export async function readMeuRelease(
   version: string,
   publisher: string,
@@ -205,11 +231,11 @@ export async function readMeuRelease(
   let response: unknown
 
   try {
-    response = await readJson(`https://api.github.com/repos/${releasePolicy.REPOSITORY}/releases/tags/meu-v${version}`)
+    response = await readJson(`https://api.github.com/repos/${STABLE_CHANNEL.repository}/releases/tags/${STABLE_CHANNEL.tagPrefix}${version}`)
   } catch (error) {
     if (error instanceof MeuReleaseLookupError && error.status === 404) {
       throw new Error(
-        `This installed Meu release is no longer available for automatic recovery. Download and run the latest Meu installer from https://github.com/${releasePolicy.REPOSITORY}/releases.`
+        `This installed Meu release is no longer available for automatic recovery. Download and run the latest Meu installer from https://github.com/${STABLE_CHANNEL.repository}/releases.`
       )
     }
 

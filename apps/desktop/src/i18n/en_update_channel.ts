@@ -20,5 +20,13 @@ export const enUpdateChannel: UpdateChannelCopy = {
   heldBody: (v: string) =>
     `This build is newer than stable release ${v}. Your sessions already use a gateway runtime that ${v} cannot open, so Meu stays on this build until a newer stable release ships.`,
   rollbackAction: (v: string) => `Roll back to ${v}`,
-  allChanges: 'See all changes'
+  allChanges: 'See all changes',
+  meuDescription: 'Stable installs signed public Meu releases. RC is for testing pre-release builds.',
+  meuStable: 'Stable',
+  meuRc: 'RC',
+  rcConfirmTitle: 'Switch to RC builds?',
+  rcWarning: 'RC builds are pre-release versions intended for testing.',
+  rcConfirm: 'Switch to RC',
+  rcManual: 'Meu never installs an RC by itself: download it manually.',
+  rcReleases: 'RC releases'
 }

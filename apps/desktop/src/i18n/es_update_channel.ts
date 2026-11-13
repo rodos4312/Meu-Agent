@@ -18,5 +18,13 @@ export const esUpdateChannel = {
   heldBody: (v: string) =>
     `Esta versión es más reciente que la versión estable ${v}, y tus sesiones ya usan su entorno de gateway, que ${v} no puede abrir. Meu se queda en esta versión hasta que salga una versión estable más reciente.`,
   rollbackAction: (v: string) => `Volver a ${v}`,
-  allChanges: 'Ver todos los cambios'
+  allChanges: 'Ver todos los cambios',
+  meuDescription: 'Estable instala versiones públicas firmadas de Meu. RC es para probar versiones preliminares.',
+  meuStable: 'Estable',
+  meuRc: 'RC',
+  rcConfirmTitle: '¿Cambiar a versiones RC?',
+  rcWarning: 'Las versiones RC son preliminares y están pensadas para pruebas.',
+  rcConfirm: 'Cambiar a RC',
+  rcManual: 'Meu nunca instala un RC por sí solo: descárgalo manualmente.',
+  rcReleases: 'Versiones RC'
 }

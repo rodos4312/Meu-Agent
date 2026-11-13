@@ -34,6 +34,8 @@ interface ManagedMeuOptions
   extends MeuRollbackOptions, Pick<MeuWindowsDeps, 'currentVersion' | 'teardown' | 'restore' | 'emitProgress'> {
   findPython: (root: string) => Promise<string | null>
   isRemote: () => boolean
+  /** The saved updates.json channel preference (see meu-channel). */
+  channelPreference: () => unknown
 }
 
 /** Native lifecycle composition stays here; main supplies installation-owned capabilities. */

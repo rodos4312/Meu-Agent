@@ -209,9 +209,11 @@ function main() {
  * The PM bundle builder supplies launch paths only for bundled artifacts.
  */
 export function buildStampPayload(stamp, env = process.env, platform = process.platform, payload = null) {
-  const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' && !env.HERMES_BUILD_COMMIT && !channelBuildRequest(env) ? meuRelease.meuReleasePolicy(env) : null
-  if (meuPolicy && stamp.branch !== meuPolicy.branch &&
-    !(stamp.source === 'ci' && env.GITHUB_REPOSITORY === meuPolicy.repository && env.GITHUB_SHA === stamp.commit && env.GITHUB_REF_NAME?.startsWith('meu-release-request-'))) {
+  const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' && !env.HERMES_BUILD_COMMIT && !channelBuildRequest(env) ? meuRelease.meuReleasePolicy(env, stamp.branch) : null
+  // Stable: the admitted development branch or a verified release request. RC (MEU_UPDATE_CHANNEL=rc): only an rc/* branch.
+  const meuChannel = meuPolicy ? meuRelease.buildUpdateChannel(env) : null
+  if (meuPolicy && !meuRelease.branchAdmitted(meuRelease.UPDATE_CHANNELS[meuChannel], stamp.branch) &&
+    !(meuChannel === 'stable' && stamp.source === 'ci' && env.GITHUB_REPOSITORY === meuPolicy.repository && env.GITHUB_SHA === stamp.commit && env.GITHUB_REF_NAME?.startsWith('meu-release-request-'))) {
     throw new Error('Meu update-enabled artifacts must be built from the admitted development branch or a verified release request.')
   }
   const variant = (env.HERMES_DESKTOP_VARIANT || "").trim()

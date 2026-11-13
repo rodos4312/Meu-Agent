@@ -60,6 +60,11 @@ export interface UpdaterStatusWire {
   currentSha?: string
   currentVersion?: string
   channel?: string
+  /** Meu builds: the installed build's update channel and the saved preference (updates.json `channel`). */
+  meuChannel?: 'stable' | 'rc'
+  meuChannelPreference?: 'stable' | 'rc'
+  /** Meu RC preference: where RC builds are published for MANUAL install (never fetched automatically). */
+  rcReleasesUrl?: string | null
   /** source_check can persist a channel; runtimes older than the selector cannot. */
   channelSelectable?: boolean
   retirement?: ChannelRetirementStatus

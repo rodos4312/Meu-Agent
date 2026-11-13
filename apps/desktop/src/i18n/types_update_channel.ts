@@ -26,4 +26,16 @@ export interface UpdateChannelCopy {
   rollbackAction: (version: string) => string
   /** Update dialog link to every change in a commit-line update. */
   allChanges: string
+  /** Meu builds: the stable/RC preference row. */
+  meuDescription: string
+  meuStable: string
+  meuRc: string
+  rcConfirmTitle: string
+  /** Shown before choosing RC and while RC is selected. */
+  rcWarning: string
+  rcConfirm: string
+  /** RC builds are never installed automatically. */
+  rcManual: string
+  /** Opens the page where RC builds are published. */
+  rcReleases: string
 }

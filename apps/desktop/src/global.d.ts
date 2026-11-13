@@ -708,6 +708,8 @@ declare global {
         apply: (opts?: DesktopUpdateApplyOptions) => Promise<DesktopUpdateApplyResult>
         /** Persist this source install's update channel and return the fresh check. */
         setChannel?: (name: 'main' | 'stable') => Promise<DesktopUpdateStatus>
+        /** Persist the Meu stable/RC preference (updates.json) and return the fresh check. */
+        setMeuChannel?: (name: MeuUpdateChannel) => Promise<DesktopUpdateStatus>
         onProgress: (callback: (payload: DesktopUpdateProgress) => void) => () => void
       }
       uninstall: {
@@ -924,8 +926,14 @@ export interface DesktopUpdateCommit {
 export type UpdaterMechanismClient =
   'app-installer' | 'electron-updater' | 'external' | 'microsoft-store' | 'windows-handoff' | 'posix-handoff' | 'manual'
 
+export type MeuUpdateChannel = 'stable' | 'rc'
+
 export interface DesktopUpdateStatus {
   supported: boolean
+  /** Meu builds: the installed build's channel, the saved preference, and the manual RC release page. */
+  meuChannel?: MeuUpdateChannel
+  meuChannelPreference?: MeuUpdateChannel
+  rcReleasesUrl?: string | null
   retirement?: {
     state: 'discontinued'
     destination: string
