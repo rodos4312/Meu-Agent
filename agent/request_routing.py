@@ -35,6 +35,8 @@ def prepare_routed_request(agent, profile, messages):
     if getattr(agent, "_last_request_route", None) != model:
         if isinstance(policy, dict) and policy.get("enabled") is True:
             logger.info("Automatic request route: provider=%s model=%s", agent.provider, model)
+        else:
+            logger.info("Selected request route: provider=%s model=%s", agent.provider, model)
         agent._last_request_route = model
     agent._request_route_identity = (agent.provider, agent.model, model)
     return model, prepared

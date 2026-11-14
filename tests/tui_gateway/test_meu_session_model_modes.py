@@ -51,7 +51,7 @@ def build(monkeypatch, tmp_path):
     ("deepseek-v4-pro", "Καλημέρα"),
     ("deepseek-flash", "Analyze this complex architecture and prove correctness"),
 ])
-def test_explicit_model_is_not_overridden_by_auto(build, model, text):
+def test_explicit_model_is_not_overridden_by_auto(build, model, text, caplog):
     from tui_gateway.methods_session_model_guard import create_overrides
     from agent.request_routing import prepare_routed_request
     from providers import get_provider_profile
@@ -59,8 +59,11 @@ def test_explicit_model_is_not_overridden_by_auto(build, model, text):
     pick, _, _ = create_overrides({"provider": "deepseek", "model": model})
     agent = make(pick)
     assert agent._model_routing_config.get("enabled") is False
-    chosen, _ = prepare_routed_request(agent, get_provider_profile("deepseek"), [{"role": "user", "content": text}])
+    with caplog.at_level('INFO', logger='agent.request_routing'):
+        chosen, _ = prepare_routed_request(agent, get_provider_profile("deepseek"), [{"role": "user", "content": text}])
     assert chosen == model
+    assert f'Selected request route: provider=deepseek model={model}' in caplog.text
+    assert text not in caplog.text
 
 
 def test_auto_pick_resolves_virtual_id_and_survives_persisted_resume(build):
@@ -152,3 +155,20 @@ def test_writing_a_page_or_search_function_is_not_a_web_lookup(build, text):
     _, config, _ = build
     route = choose_workload_route(config['smart_model_routing'], 'deepseek', [{'role': 'user', 'content': text}])
     assert route['provider'] == 'deepseek'
+
+
+def test_manual_chat_still_advertises_its_configured_auto_roles(build, monkeypatch):
+    from tui_gateway.methods_session_model_guard import create_overrides
+    server, _config, make = build
+    pick, _, _ = create_overrides({'provider': 'deepseek', 'model': 'deepseek-flash'})
+    agent = make(pick)
+    monkeypatch.setattr(server, '_session_agent', lambda params: agent)
+    monkeypatch.setattr(server, '_model_skew_err', lambda rid: None)
+    monkeypatch.setattr(server, '_model_picker_context', lambda current: None)
+    monkeypatch.setattr('hermes_cli.inventory.build_model_options_payload', lambda *a, **kw: {
+        'model': 'deepseek-flash', 'provider': 'deepseek',
+        'providers': [{'slug': 'deepseek', 'automatic_routing': True, 'models': ['deepseek-flash', 'deepseek-v4-pro']}]})
+    payload = server._methods['model.options'](1, {})['result']
+    assert payload['model'] == 'deepseek-flash'
+    assert payload['providers'][0]['models'][0] == 'meu-auto'
+    assert agent._model_routing_config['enabled'] is False

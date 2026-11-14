@@ -28,7 +28,7 @@ def prepare_mode(config, override, *, explicit=False):
     if not (explicit or (isinstance(pick, dict) and pick.get('selection_explicit')) or is_auto):
         return pick, safe_policy(config.get('smart_model_routing'))
     if not is_auto:
-        return pick, {'enabled': False}
+        return pick, {**safe_policy(config.get('smart_model_routing')), 'enabled': False}
     from gateway.session_model_mode import apply_selection
     selected = copy.deepcopy(config)
     model_config = selected.get('model')
