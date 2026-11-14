@@ -995,6 +995,20 @@ def resolve_runtime_provider(*, requested: Optional[str] = None, explicit_api_ke
          api_mode to ``codex_app_server``; the rung's credential/endpoint is then not used
     target_model overrides model_cfg["default"] when computing provider-specific api_mode (e.g.
     OpenCode Zen/Go where different models route through different API surfaces)."""
+    # Refuse malformed routing metadata here, before a name reaches a config
+    # lookup or an endpoint reaches a request. A provider name is an
+    # identifier, so a control character in it is never a typo worth carrying;
+    # and a base URL with no host ("https://") would otherwise be resolved and
+    # dialled. Both come from the user's own config, so the point is to say
+    # which field is wrong rather than to fail somewhere unrecognisable.
+    if requested and any(character < " " or character == "\x7f" for character in requested):
+        raise ValueError("provider name contains a control character")
+    if explicit_base_url:
+        endpoint = explicit_base_url.strip()
+        scheme, separator, remainder = endpoint.partition("://")
+        host = remainder.split("/", 1)[0].split("?", 1)[0] if separator else ""
+        if not separator or not scheme or not host:
+            raise ValueError(f"endpoint is not a usable URL: {endpoint!r}")
     requested_provider = resolve_requested_provider(requested)
     from hermes_cli.left_core_migration import recover_for_provider
     recover_for_provider(requested_provider)  # a provider whose plugin left core: install it before resolving

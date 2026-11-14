@@ -19,7 +19,7 @@ from pydantic import Field
 
 from .base import JsonValue, Payload, WireEnum
 from .common import MessageReaction, PlanGauge, SessionLiveInfo, SubagentStatus, ToolLabel, ToolLabelKind, Usage
-from .config_free_tier_control import SessionControlSnapshot
+from .config_model_control import SessionControlSnapshot
 from .registry import event
 
 

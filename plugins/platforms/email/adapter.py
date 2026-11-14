@@ -196,7 +196,7 @@ def _send_imap_id(imap: imaplib.IMAP4) -> None:
             version = get_version_info().base_version
         except Exception:
             version = "0"
-        imap.xatom("ID", f'("name" "meu" "version" "{version}")')
+        imap.xatom("ID", f'("name" "Meu Agent" "version" "{version}")')
     except Exception as e:
         logger.debug("[Email] IMAP ID command not accepted: %s", e)
 

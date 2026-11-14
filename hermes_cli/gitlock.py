@@ -716,8 +716,30 @@ _TAG_REFRESH_TIMEOUT_SECONDS = 30
 _HISTORY_FETCH_TIMEOUT_SECONDS = 900
 
 
+def is_pinned_seed_checkout(repo_root: Path) -> bool:
+    """Whether this checkout is the engine a seed unpacked, still at its pin.
+
+    The Android runtime restores its engine from ``core-seed.bin`` and records
+    the revision it was pinned to in ``meu.seedRevision``. While HEAD is still
+    that revision the checkout is a sealed copy of one commit: there is no
+    upstream to fill history from, the phone may be on mobile data, and the
+    whole point of the seed is that it works offline. Once HEAD moves away the
+    checkout is an ordinary clone again and the normal paths apply.
+    """
+    pinned = _git_stdout_lines(repo_root, ["config", "--local", "--get", "meu.seedRevision"])
+    if not pinned:
+        return False
+    head = _git_stdout_lines(repo_root, ["rev-parse", "HEAD"])
+    return bool(head) and pinned[0].strip() == head[0].strip()
+
+
 def fetch_full_commit_graph(repo_root: Path, *extra_refspecs: str, **run_kwargs) -> bool:
     """Refresh release tags and fill shallow history before publishing identity.
+
+    A checkout still pinned to its seed revision has no history to fill and
+    nowhere to fetch from, so an implicit refresh returns without touching the
+    network. A caller that names its own refspecs has asked for something
+    specific and is served as usual.
 
     A full commit graph does not imply current tags, especially after a --no-tags
     clone. Fetch version tags explicitly without fetching every remote branch or
@@ -731,6 +753,8 @@ def fetch_full_commit_graph(repo_root: Path, *extra_refspecs: str, **run_kwargs)
     It converts to ``blob:none``, the layout installers make (see ``convert_treeless_checkout``).
     Returns whether the checkout was unshallowed; fetch failures raise subprocess errors.
     """
+    if not extra_refspecs and is_pinned_seed_checkout(repo_root):
+        return False
     shallow_path = _shallow_file_path(repo_root)
     shallow = shallow_path is not None
     # Callers already inject creationflags via no_prompt_git_kwargs(); OR the

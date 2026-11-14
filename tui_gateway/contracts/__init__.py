@@ -5,7 +5,7 @@ from . import (
     coding,
     delegation_pets,
     common,
-    config_free_tier_control,
+    config_model_control,
     connectors,
     connectors_operation,
     display,
