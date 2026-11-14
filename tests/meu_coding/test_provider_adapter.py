@@ -161,3 +161,30 @@ def test_session_records_metadata_without_content():
     record = session.calls[0]
     assert (record.role, record.route, record.ok, record.attempts) == ("architect", "deepseek:deepseek-pro-test",
                                                                       True, 1)
+
+
+def test_refined_plan_can_promote_context_test_to_an_edit_target(make_repo):
+    from meu_coding.architect import draft_plan
+    intel = make_intel(make_repo)
+    context = prepare_context(intel, CodingTask(TASK), 16_000)
+    impact = ImpactAnalyzer(intel.graph)
+    draft = draft_plan(context, impact)
+    assert "tests/test_pricing.py" in draft.files_untouched
+    client = FakeClient(architect={**ARCHITECT_OK, "files_to_change": ["app/pricing.py", "tests/test_pricing.py"]})
+    model = provider_models(ROUTES, client=client).planning
+    plan = Architect(impact, model).plan(context)
+    assert "tests/test_pricing.py" in plan.files_to_change
+    assert set(plan.files_untouched) == set(draft.files_untouched) - {"tests/test_pricing.py"}
+
+
+def test_refined_plan_never_promotes_a_protected_test(make_repo):
+    from meu_coding.architect import PlanningError
+    from meu_coding.coding_interfaces import TaskConstraints
+    intel = make_intel(make_repo)
+    task = CodingTask(TASK, constraints=TaskConstraints(protected_paths=("tests/test_pricing.py",)))
+    context = prepare_context(intel, task, 16_000)
+    client = FakeClient(architect={**ARCHITECT_OK, "files_to_change": ["app/pricing.py", "tests/test_pricing.py"]})
+    model = provider_models(ROUTES, client=client).planning
+    with pytest.raises(PlanningError) as failure:
+        Architect(ImpactAnalyzer(intel.graph), model).plan(context)
+    assert any("protected" in error for error in failure.value.errors)
