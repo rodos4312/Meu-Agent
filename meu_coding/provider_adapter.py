@@ -259,7 +259,7 @@ class ProviderPlanningModel:
                 checks.append(spec)
                 known.add(spec.key)
         from meu_coding.scope import is_protected
-        targets = set((*response.files_to_change, *response.new_files))
+        targets = {*response.files_to_change, *response.new_files}
         untouched = tuple(path for path in request.draft.files_untouched
                           if path not in targets or is_protected(path, request.task.constraints.protected_paths))
         return replace(
