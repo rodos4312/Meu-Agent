@@ -812,7 +812,8 @@ def _execute_tool(function_name: str, function_args: dict[str, Any], original_ar
                   parent_agent: Any = None) -> Any:
     """Run the registry handler (through tool-execution middleware unless skipped)
     with the approval observability context bound for the duration."""
-    dispatch_kwargs: dict[str, Any] = {"task_id": ids.task_id, "session_id": ids.session_id}
+    dispatch_kwargs: dict[str, Any] = {"task_id": ids.task_id, "session_id": ids.session_id,
+                                      "turn_id": ids.turn_id, "tool_call_id": ids.tool_call_id}
     from tools.registry import local_agent_kwargs
     entry = registry.get_entry(function_name)
     if entry is not None:

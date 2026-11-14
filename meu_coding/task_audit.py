@@ -53,6 +53,8 @@ class AuditRecord:
     intelligence: dict[str, Any] = field(default_factory=dict)
     memory: dict[str, Any] = field(default_factory=dict)
     roadmap: dict[str, Any] = field(default_factory=dict)
+    chat_session_id: str = ""
+    chat_request_id: str = ""
 
     def stage(self, name: str) -> None:
         self.stages.append({"stage": name, "at": round(time.time(), 3)})

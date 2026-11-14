@@ -46,6 +46,7 @@ from meu_coding.github_adapter import default_github
 from meu_coding.remote_refs import github_auth_available, parse_github
 from meu_coding.planner_provider import meu_planner
 from meu_coding.semantic_setup import build_intelligence
+from meu_coding.chat_tasks import ChatTasksMixin
 from meu_coding.task_integration import IntegrationMixin
 from meu_coding.task_memory import MemoryMixin
 from meu_coding.task_recovery import restore_record
@@ -184,7 +185,7 @@ class TaskRecord:
     roadmap: dict[str, Any] | None = None
 
 
-class CodingTaskService(IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin):
+class CodingTaskService(ChatTasksMixin, IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin):
     def __init__(self, *, models_factory: Callable[[], ModelBundle] = meu_models,
                  adapter_factory: Callable[..., SafeExecutionAdapter] = SafeExecutionAdapter,
                  spawn: Callable[[Callable[[], None], str], None] = spawn_in_context,
@@ -207,6 +208,7 @@ class CodingTaskService(IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin
         self._intel: dict[str, RepositoryIntelligence] = {}
         self._root_locks: dict[str, threading.Lock] = {}
         self._lock = threading.Lock()
+        self._chat_lock = threading.RLock()
         self._restore()
 
     # ── stage machine ────────────────────────────────────────────────────────
@@ -242,7 +244,8 @@ class CodingTaskService(IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin
 
     def start(self, description: str, project_root: str, explicit_files: tuple[str, ...] = (),
               protected_paths: tuple[str, ...] = (), *, context_hints: tuple[tuple[str, str], ...] = (),
-              milestone_kind: str = "", roadmap: dict[str, Any] | None = None) -> dict[str, Any]:
+              milestone_kind: str = "", roadmap: dict[str, Any] | None = None,
+              chat_binding: tuple[str, str] | None = None) -> dict[str, Any]:
         text = (description or "").strip()
         if not text:
             raise TaskError("Describe the coding task first.")
@@ -265,6 +268,10 @@ class CodingTaskService(IntegrationMixin, RemoteMixin, MemoryMixin, RoadmapMixin
                             roadmap=dict(roadmap) if roadmap else None)
         audit.roadmap = dict(roadmap or {})
         audit.stage(S.ANALYZING.value)
+        if chat_binding is not None:
+            audit.chat_session_id, audit.chat_request_id = chat_binding
+            # A chat retry must be recoverable before any worker can execute.
+            task_audit.save(audit, self.audit_directory)
         self.tasks[task_id] = record
         self._save(record)
         self.spawn(lambda: self._plan(record), f"coding-plan-{task_id[:8]}")
