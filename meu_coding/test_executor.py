@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from meu_coding.coding_interfaces import CheckKind, CheckResult, CheckSpec, CheckStatus
 from meu_coding.command_policy import CommandBlocked, CommandPolicy
+from meu_coding.validation_environment import pytest_python
 
 DEFAULT_TIMEOUT = 600.0
 MAX_OUTPUT = 8_000
@@ -68,6 +69,7 @@ class TestExecutor:
     policy: CommandPolicy = field(default_factory=CommandPolicy)
     runner: Runner = meu_bounded_runner
     env_factory: Callable[[], dict[str, str]] = child_environment
+    python_resolver: Callable[[dict[str, str]], str] = pytest_python
     timeout: float = DEFAULT_TIMEOUT
     extra_test_targets: tuple[str, ...] = ()
     executed: list[ExecutedCheck] = field(default_factory=list)
@@ -91,7 +93,15 @@ class TestExecutor:
         if planned is None:
             return self._record(check, (), CheckResult(check.key, CheckStatus.NOT_RUN, "nothing to run"), 0.0)
         started = time.perf_counter()
-        outcome = self.runner(planned.argv, str(self.workspace), self.env_factory(), self.timeout)
+        environment = self.env_factory()
+        if effective.kind == CheckKind.UNIT_TEST:
+            try:
+                policy = replace(self.policy, python=self.python_resolver(environment))
+                planned = policy.plan(effective, self._exists)
+            except (OSError, RuntimeError, ValueError, CommandBlocked) as exc:
+                return self._record(check, (), CheckResult(check.key, CheckStatus.FAILED,
+                                    f"pytest environment unavailable: {exc}"), time.perf_counter() - started)
+        outcome = self.runner(planned.argv, str(self.workspace), environment, self.timeout)
         seconds = time.perf_counter() - started
         output = (outcome.stdout + outcome.stderr)[-MAX_OUTPUT:]
         if outcome.returncode is None:

@@ -289,7 +289,10 @@ def _tool_guidance_block(agent: Any) -> Optional[str]:
     _kanban_guidance = getattr(agent, "_kanban_worker_guidance", None)
     if _kanban_guidance is None and "kanban_show" in names and owned_kanban_task():
         _kanban_guidance = KANBAN_GUIDANCE
+    from agent.coding_engine_guidance import CODING_ENGINE_GUIDANCE
+
     tool_guidance = [
+        CODING_ENGINE_GUIDANCE if "coding_task" in names else None,
         memory_guidance,
         SESSION_SEARCH_GUIDANCE if "session_search" in names else None,
         SKILLS_GUIDANCE if "skill_manage" in names else None,
