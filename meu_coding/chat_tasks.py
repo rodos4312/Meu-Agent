@@ -37,3 +37,30 @@ class ChatTasksMixin:
                     raise TaskError("No coding task is associated with this conversation.")
                 record = max(records, key=lambda r: r.audit.created_at)
             return self.get(record.task_id)
+
+
+    def decide_chat_result(self, session_id: str, task_id: str, choice: str, fingerprint: str) -> dict:
+        """Bind a human choice to this chat's exact reviewed result, under the task lock."""
+        from meu_coding.task_service import TaskError
+        from meu_coding.commit_flow import diff_digest
+        from meu_coding.workspace import changed_files
+        from tools.working_diff import collect_working_diff
+        from tools.coding_result_choice import result_fingerprint
+
+        view = self.chat_task(session_id, task_id)
+        record = self._require(view["task_id"])
+        with record.lock:
+            view = self.get(view["task_id"])
+            if view["stage"] in {"ready_to_commit", "kept", "rejected"}:
+                return view
+            if view["stage"] != "awaiting_keep_reject" or choice not in {"keep", "reject"}:
+                raise TaskError("A result awaiting review and an explicit human choice are required.")
+            if fingerprint != result_fingerprint(view):
+                raise TaskError("The result changed while the question was open; review it again.")
+            result = record.result
+            diff = collect_working_diff(result.worktree_path, mode="all")
+            files = changed_files(diff)
+            if (not diff.get("success") or files != tuple(sorted(result.changed_files))
+                    or diff_digest(diff.get("diff", ""), files) != result.reviewed_diff_digest):
+                raise TaskError("The files changed after review; no result decision was applied.")
+            return self.keep(task_id, source="chat") if choice == "keep" else self.reject(task_id, source="chat")

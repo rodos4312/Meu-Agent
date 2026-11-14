@@ -35,9 +35,9 @@ def _project(task_id: str, project_name: str = "") -> str:
 def _result(view: dict, *, notice: str = "") -> dict:
     # Commit preview secrets and unrelated remote operations never enter model context.
     keys = ("task_id", "project", "description", "stage", "history", "error", "restored",
-            "plan", "approval", "execution", "result")
+            "plan", "approval", "execution", "result", "cleanup", "decisions")
     result = {key: view[key] for key in keys if key in view}
-    result["notice"] = notice or ("Review the result; changes remain in the isolated worktree. No commit, push or merge."
+    result["notice"] = notice or ("Present the actual tests and call review_result for the human Keep/Reject choice. Do not use a separate clarify call. Keep preserves the safe copy; the parent remains unchanged. No commit, push or merge."
                                   if view["stage"] == "awaiting_keep_reject" else "")
     return result
 
@@ -81,13 +81,13 @@ def _follow(service, view: dict, session_id: str, *, wait_seconds: float = 90) -
         view = service.chat_task(session_id, view["task_id"])
 
 
-def _handle_coding(args, *, task_id=None, session_id=None, turn_id=None, tool_call_id=None):
+def _handle_coding(args, *, task_id=None, session_id=None, turn_id=None, tool_call_id=None, parent_agent=None):
     from meu_coding.service_registry import current_service
     from meu_coding.task_service import TaskError
 
     action = args.get("action")
-    if action not in {"start", "status", "continue"}:
-        return json.dumps({"error": "action must be start, status or continue"})
+    if action not in {"start", "status", "continue", "review_result"}:
+        return json.dumps({"error": "action must be start, status, continue or review_result"})
     if not session_id or (action == "start" and not task_id):
         return json.dumps({"error": "Trusted conversation identity is unavailable; no task started."})
     try:
@@ -104,6 +104,16 @@ def _handle_coding(args, *, task_id=None, session_id=None, turn_id=None, tool_ca
                                       turn_id or tool_call_id or "", tuple(args.get("files") or ()))
         else:
             view = service.chat_task(session_id, args.get("coding_task_id", ""))
+        if action == "review_result":
+            from tools.coding_result_choice import ask_result_choice, result_fingerprint
+            if view["stage"] != "awaiting_keep_reject":
+                return json.dumps(_result(view, notice="This result is not awaiting a new decision."), ensure_ascii=False)
+            fingerprint = result_fingerprint(view)
+            choice = ask_result_choice(view, getattr(parent_agent, "clarify_callback", None))
+            if choice == "unanswered":
+                return json.dumps(_result(view, notice="No explicit result choice received; result preserved for review."), ensure_ascii=False)
+            view = service.decide_chat_result(session_id, view["task_id"], choice, fingerprint)
+            return json.dumps(_result(view, notice="Result decision recorded. The parent project remains unchanged. No commit, push or merge."), ensure_ascii=False)
         result = _result(view) if action == "status" else _follow(service, view, session_id)
         return json.dumps(result, ensure_ascii=False)
     except (TaskError, OSError, ValueError) as exc:
@@ -117,11 +127,11 @@ registry.register(
         "in this chat's selected project. For a development request call start FIRST, before terminal, file discovery or repository repair. Choose it automatically; the user "
         "does not choose Architect/Coder/Reviewer. start creates or resumes the same task for a turn; "
         "continue follows this chat's latest task (or coding_task_id), requests exact human approval "
-        "and returns real progress/tests/results. status only reads. Never claim completion from a "
+        "and returns real progress/tests/results. After presenting results, call review_result: it asks the human and applies the actual Keep/Reject through the Engine. Keep preserves the safe copy; it never copies changes to the parent. Never ask a separate clarify question for this decision. status only reads. Never claim completion from a "
         "pending/interrupted stage. Requires an existing local git project; GitHub and a PC connection "
         "are not required. Read-only analysis can use ordinary read tools. No commit/push/merge actions."),
         "parameters": {"type": "object", "properties": {
-            "action": {"type": "string", "enum": ["start", "status", "continue"]},
+            "action": {"type": "string", "enum": ["start", "status", "continue", "review_result"]},
             "project_name": {"type": "string", "description": "Exact existing project name explicitly named by the user; omit to use this chat's selection. Never guess a path."},
             "description": {"type": "string", "description": "Development goal for start."},
             "files": {"type": "array", "items": {"type": "string"}, "description": "Optional project-relative focus files."},

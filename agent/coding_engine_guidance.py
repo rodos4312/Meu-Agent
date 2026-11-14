@@ -14,7 +14,7 @@ CODING_ENGINE_GUIDANCE = (
     "isolated worktree, runs checks and reviews the result. Follow a pending task with "
     "coding_task(action='continue'); use status to inspect it. Report actual stage, test "
     "results and failures; awaiting_keep_reject means the parent project is still unchanged. "
-    "Never claim that pending work is finished. Never commit, push or merge implicitly."
+    "After showing test results, call coding_task(action='review_result') for the actual human Keep/Reject decision. Never substitute a separate clarify question. Keep preserves the safe copy and does not apply it to the parent. Never claim that pending work is finished. Never commit, push or merge implicitly."
 )
 
 

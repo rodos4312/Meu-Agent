@@ -471,7 +471,8 @@ def noninteractive_git_env(base: Mapping[str, str] | None = None) -> dict[str, s
     env["GIT_PAGER"] = "cat"
     env["PAGER"] = "cat"
     env["GIT_EDITOR"] = "true"
-    overrides = list(_GIT_CONFIG_OVERRIDES.items())
+    from hermes_cli.git_storage import git_storage_overrides
+    overrides = list(_GIT_CONFIG_OVERRIDES.items()) + git_storage_overrides()
     # safe.directory is honoured ONLY from global/system config (git rejects it from repo-level
     # config so a hostile repo cannot self-authorise), and both are blanked just above. Without
     # re-injection every internal git call fails "detected dubious ownership" on any repo whose
