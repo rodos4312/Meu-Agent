@@ -13,11 +13,19 @@ _STAGES = {"analyzing": "Ανάλυση έργου", "planning": "Σχεδιασ
            "awaiting_approval": "Αναμονή έγκρισης", "awaiting_keep_reject": "Αποτελέσματα έτοιμα για αξιολόγηση"}
 
 
-def _project(task_id: str) -> str:
-    from tools.project_tools import project_list
+def _project(task_id: str, project_name: str = "") -> str:
+    from tools.project_tools import project_list, project_switch
     from meu_coding.task_service import TaskError
 
     projects = json.loads(project_list(task_id=task_id))
+    if project_name:
+        matches = [p for p in projects["projects"] if p["name"].casefold() == project_name.strip().casefold()]
+        if len(matches) != 1 or not matches[0].get("primary_path"):
+            raise TaskError("The named project must match one existing project exactly; no path was guessed.")
+        selected = json.loads(project_switch(matches[0]["id"], task_id=task_id))
+        if not selected.get("success"):
+            raise TaskError(selected.get("error", "Could not select the existing project."))
+        return selected["primary_path"]
     active = [p for p in projects["projects"] if p["id"] == projects["active_id"]]
     if not active or not active[0].get("primary_path"):
         raise TaskError("Choose an existing project in this conversation first. Do not guess a folder.")
@@ -92,7 +100,7 @@ def _handle_coding(args, *, task_id=None, session_id=None, turn_id=None, tool_ca
                                 "The selected execution backend is not local; nothing was started.")
         service = current_service()
         if action == "start":
-            view = service.start_chat(args.get("description", ""), _project(task_id), session_id,
+            view = service.start_chat(args.get("description", ""), _project(task_id, args.get("project_name", "")), session_id,
                                       turn_id or tool_call_id or "", tuple(args.get("files") or ()))
         else:
             view = service.chat_task(session_id, args.get("coding_task_id", ""))
@@ -106,7 +114,7 @@ registry.register(
     name="coding_task", toolset="project", handler=_handle_coding,
     schema={"name": "coding_task", "description": (
         "Use the existing Coding Engine for software development, bug fixes, features and code review "
-        "in this chat's selected project. Choose it automatically for development requests; the user "
+        "in this chat's selected project. For a development request call start FIRST, before terminal, file discovery or repository repair. Choose it automatically; the user "
         "does not choose Architect/Coder/Reviewer. start creates or resumes the same task for a turn; "
         "continue follows this chat's latest task (or coding_task_id), requests exact human approval "
         "and returns real progress/tests/results. status only reads. Never claim completion from a "
@@ -114,6 +122,7 @@ registry.register(
         "are not required. Read-only analysis can use ordinary read tools. No commit/push/merge actions."),
         "parameters": {"type": "object", "properties": {
             "action": {"type": "string", "enum": ["start", "status", "continue"]},
+            "project_name": {"type": "string", "description": "Exact existing project name explicitly named by the user; omit to use this chat's selection. Never guess a path."},
             "description": {"type": "string", "description": "Development goal for start."},
             "files": {"type": "array", "items": {"type": "string"}, "description": "Optional project-relative focus files."},
             "coding_task_id": {"type": "string", "description": "Optional existing task from this conversation."}},

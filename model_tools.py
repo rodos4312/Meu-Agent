@@ -456,7 +456,12 @@ def _compose_rewriters(*fns):
     return run
 
 
+from agent.coding_engine_guidance import rewrite_development_tool
+
+
 _DYNAMIC_SCHEMA_REWRITERS = {
+    **dict.fromkeys(("terminal", "read_file", "search_files", "write_file", "patch", "clarify"),
+                    rewrite_development_tool),
     "execute_code": _rewrite_execute_code,
     "discord": _discord_rewriter("get_dynamic_schema_core"),
     "discord_admin": _discord_rewriter("get_dynamic_schema_admin"),

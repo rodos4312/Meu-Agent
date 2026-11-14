@@ -284,3 +284,29 @@ def test_natural_chat_turn_reaches_real_engine_and_returns_tool_result(setup_cha
     assert task.task_id in result["final_response"]
     assert any(t["function"]["name"] == "coding_task" for t in requests[0]["tools"])
     assert task.audit.chat_session_id == "chat-1"
+
+
+def test_named_existing_project_uses_existing_session_workspace_switch(setup_chat, monkeypatch):
+    repo, _engine, calls, _ = setup_chat
+    switches = []
+    from tools import project_tools
+    monkeypatch.setattr(project_tools, "_workspace_callback", lambda tid, path, name: switches.append((tid, path, name)))
+    monkeypatch.setattr("tools.coding_task_approval.ask_coding_approval", lambda view: "reject")
+    result = call(description="Add add with tests", project_name="Το έργο μου", files=["calc/ops.py", "tests/test_ops.py"])
+    assert result["stage"] == "rejected", result
+    assert Path(result["project"]) == repo
+    assert len(switches) == 1
+    assert switches[0][0] == "chat-runtime" and Path(switches[0][1]) == repo
+    assert switches[0][2] == "Το έργο μου"
+    assert not calls
+    from hermes_cli import projects_db
+    with projects_db.connect_closing() as conn:
+        active = projects_db.get_active_id(conn)
+        assert projects_db.get_project(conn, active).name == "Άλλη συνομιλία"
+
+
+def test_unknown_project_never_guesses_a_folder_or_starts_work(setup_chat):
+    repo, engine, calls, _ = setup_chat
+    result = call(description="Implement feature", project_name="Not registered")
+    assert "existing project exactly" in result["error"]
+    assert not engine.tasks and not calls and not (repo / ".worktrees").exists()
