@@ -123,6 +123,13 @@ def busy_ledger() -> Optional[str]:
             busy_sessions = [sid for sid, s in gateway._sessions.items() if _session_work_in_flight(s)]
         if busy_sessions:
             return "session:" + ",".join(str(sid) for sid in busy_sessions)
+        from meu_coding.service_registry import live_task_count
+
+        coding = live_task_count()
+        if coding is None:
+            return None
+        if coding:
+            return "coding"
         from tools.async_delegation import active_count
         from cron.scheduler import get_running_job_ids
         if active_count():

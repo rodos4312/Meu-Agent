@@ -153,8 +153,22 @@ def meu_models() -> ModelBundle:
 
 def spawn_in_context(target: Callable[[], None], name: str) -> None:
     from agent.memory_provider import spawn_context_thread
+    from hermes_cli.backend_retirement import retirement
 
-    spawn_context_thread(target, name=name).start()
+    if not retirement.acquire():
+        raise TaskError("The backend is restarting; reconnect before starting coding work.")
+
+    def run():
+        try:
+            target()
+        finally:
+            retirement.release()
+
+    try:
+        spawn_context_thread(run, name=name).start()
+    except BaseException:
+        retirement.release()
+        raise
 
 
 @dataclass
