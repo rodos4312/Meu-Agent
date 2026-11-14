@@ -1476,8 +1476,10 @@ def _session_info(agent, session: dict | None = None) -> dict:
     if reasoning_effort and reasoning_effort != "none":
         reasoning_effort_wire = str(clamp_effort(reasoning_effort, route_supported_efforts(
             pending_provider or provider, model, getattr(agent, "api_mode", None))) or "")
+    from tui_gateway.model_routing_mode import shown_model
+    displayed_model = model if pending_model else shown_model(model, provider, getattr(agent, "_model_routing_config", {}))
     info: dict = {
-        "model": model,
+        "model": displayed_model,
         "provider": pending_provider or provider,
         "reasoning_effort": reasoning_effort, "reasoning_effort_wire": reasoning_effort_wire,
         "service_tier": service_tier,

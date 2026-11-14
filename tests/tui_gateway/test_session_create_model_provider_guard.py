@@ -56,7 +56,10 @@ def test_session_create_keeps_coherent_unlisted_and_custom_pairs(_create, params
 
     assert "error" not in response, response
     session = sessions[response["result"]["session_id"]]
-    assert session["model_override"] == {"model": params["model"], "provider": params["provider"]}
+    # Internal mode metadata may accompany the pair; it must not alter the
+    # coherent provider/model the client actually chose.
+    assert session["model_override"]["model"] == params["model"]
+    assert session["model_override"]["provider"] == params["provider"]
 
 
 def test_session_create_logs_when_a_client_override_beats_the_profile_default(_create, caplog, monkeypatch):

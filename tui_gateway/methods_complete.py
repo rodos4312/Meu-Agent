@@ -324,9 +324,15 @@ def _(rid, params: dict) -> dict:
     from hermes_cli.inventory import build_model_options_payload
     # A spawned agent owns the live provider/model/base_url; empty attributes must
     # NOT clobber disk config (with_overrides is truthy-only).
-    return _ok(rid, build_model_options_payload(
+    payload = build_model_options_payload(
         _model_picker_context(_session_agent(params)), explicit_only=bool(params.get("explicit_only")),
-        include_unconfigured=bool(params.get("include_unconfigured")), refresh=bool(params.get("refresh"))))
+        include_unconfigured=bool(params.get("include_unconfigured")), refresh=bool(params.get("refresh")))
+    from gateway.session_model_mode import decorate_options
+    cfg = _load_cfg()
+    agent = _session_agent(params)
+    if agent is not None:
+        cfg = {**cfg, "smart_model_routing": getattr(agent, "_model_routing_config", {})}
+    return _ok(rid, decorate_options(payload, cfg))
 
 
 @method("model.save_key")

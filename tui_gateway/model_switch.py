@@ -19,13 +19,16 @@ def _snapshot_agent_model_runtime(agent) -> dict:
     """Capture the current agent model runtime for a one-turn restore."""
     return {**{k: getattr(agent, k, "") for k in _RUNTIME_KEYS},
             "reasoning_config": copy.deepcopy(getattr(agent, "reasoning_config", None)),
-            "primary_runtime": copy.deepcopy(getattr(agent, "_primary_runtime", None))}
+            "primary_runtime": copy.deepcopy(getattr(agent, "_primary_runtime", None)),
+            "routing_policy": copy.deepcopy(getattr(agent, "_model_routing_config", None))}
 
 
 def _restore_agent_model_runtime(agent, snapshot: dict | None) -> None:
     """Restore an agent model runtime captured before a one-turn override."""
     if not snapshot or agent is None:
         return
+    if isinstance(snapshot.get("routing_policy"), dict):
+        agent._model_routing_config = copy.deepcopy(snapshot["routing_policy"])
     # `/model X --reasoning high --once`: the effort leaves with the model. Set before the
     # runtime restore paths below (primary_runtime may predate a session /reasoning change).
     if "reasoning_config" in snapshot:
@@ -151,7 +154,14 @@ def _lazy_info_route(session: dict, override: dict) -> dict:
     """``session.info``'s model and provider for a not-yet-built session: the client's sticky pick when it
     sent one (so the client does not clobber it), else the profile's default route."""
     model, provider = (override.get("model"), override.get("provider")) if override else _session_default_route(session)
-    return {"model": model, **({"provider": provider} if provider else {})}
+    from tui_gateway.model_routing_mode import prepare_mode, shown_model
+    with _session_profile_runtime_scope(session, hydrate_secrets=False):
+        cfg = _load_cfg()
+    picked, policy = prepare_mode(cfg, override)
+    configured_model = cfg.get("model")
+    provider = provider or (configured_model.get("provider", "") if isinstance(configured_model, dict) else "")
+    model = picked.get("model", model) if isinstance(picked, dict) else model
+    return {"model": shown_model(model, provider, policy), **({"provider": provider} if provider else {})}
 
 
 def _restart_completed_failed_agent_build(sid: str, session: dict, failed_ready: threading.Event | None) -> bool:
@@ -268,7 +278,8 @@ def _expensive_model_confirm(result, current_base_url: str, current_api_key, age
     return {"value": result.new_model, "warning": msg, "confirm_required": True, "confirm_message": msg}
 
 
-def _commit_agent_switch(sid: str, session: dict, agent, result, current_model: str, snapshot):
+def _commit_agent_switch(sid: str, session: dict, agent, result, current_model: str, snapshot,
+                         routing_policy=None):
     """Swap the live agent in place, then restart/persist/mark/announce; a failed swap aborts."""
     try:
         agent.switch_model(
@@ -285,6 +296,8 @@ def _commit_agent_switch(sid: str, session: dict, agent, result, current_model: 
         logger.warning("In-place model switch failed for TUI agent: %s", exc)
         raise ValueError(f"Model switch to {result.new_model} failed ({exc}); "
                          f"staying on {getattr(agent, 'model', current_model)}.") from exc
+    if routing_policy is not None:
+        agent._model_routing_config = copy.deepcopy(routing_policy)
     _restart_slash_worker(sid, session)
     _persist_live_session_runtime(session)
     _persist_live_session_system_prompt(session)
@@ -324,6 +337,11 @@ def _apply_model_switch(
         cfg = load_config()
         user_provs = cfg.get("providers")
         custom_provs = get_compatible_custom_providers(cfg)
+    from tui_gateway.model_routing_mode import prepare_mode
+    selected, routing_policy = prepare_mode(cfg or {},
+        {"model": model_input, "provider": explicit_provider or current_provider},
+        explicit=pin_session_override or one_turn or persist_global)
+    model_input = selected["model"]
     result = switch_model(
         raw_input=model_input, current_provider=current_provider, current_model=current_model,
         current_base_url=current_base_url, current_api_key=current_api_key, is_global=persist_global,
@@ -350,7 +368,7 @@ def _apply_model_switch(
     try:
         if agent:
             # Provenance must exist before this transaction persists the switched runtime.
-            _commit_agent_switch(sid, session, agent, result, current_model, restore_snapshot)
+            _commit_agent_switch(sid, session, agent, result, current_model, restore_snapshot, routing_policy)
     except Exception:
         if records_composer_override:
             if had_composer_profile:
@@ -364,7 +382,8 @@ def _apply_model_switch(
     if pin_session_override and isinstance(session, dict) and not one_turn:
         session["model_override"] = {
             "model": result.new_model, "provider": result.target_provider,
-            "base_url": result.base_url, "api_key": result.api_key, "api_mode": result.api_mode}
+            "base_url": result.base_url, "api_key": result.api_key, "api_mode": result.api_mode,
+            "smart_model_routing": routing_policy}
     if persist_global:
         from hermes_cli.model_switch import persist_model_selection
         persist_model_selection(result)
@@ -376,8 +395,10 @@ def _apply_model_switch(
         _emit("notification.show", sid, {
             "text": f"⚠ {notice}", "level": "warn", "kind": "ttl", "ttl_ms": 8000,
             "key": LARGE_MODEL_NOTICE_KEY, "id": LARGE_MODEL_NOTICE_KEY})
+    from tui_gateway.model_routing_mode import shown_model
     return {
-        "value": result.new_model, "warning": result.warning_message or "",
+        "value": shown_model(result.new_model, result.target_provider, routing_policy),
+        "warning": result.warning_message or "",
         "confirm_required": False,
         "scope": "once" if one_turn else ("global" if persist_global else "session")}
 
@@ -402,6 +423,9 @@ def _reset_session_model_override(sid: str, session: dict) -> dict:
             sid, session, f"{model} --provider {provider}" if provider else model,
             confirm_expensive_model=True, pin_session_override=False, persist_override=False,
             )
+    if agent is not None:
+        from tui_gateway.model_routing_mode import safe_policy
+        agent._model_routing_config = safe_policy(_load_cfg().get("smart_model_routing"))
     _persist_live_session_runtime(session)
     _emit_session_info(sid, session)
     shown = model or getattr(agent, "model", "") or t("gateway.shared.unknown_value")

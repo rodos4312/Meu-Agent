@@ -1276,6 +1276,8 @@ def _on_server_started(
         # Auth-gated JSON-RPC/WS only — announce the bind, not a URL. flush:
         # a piped stdout otherwise surfaces this minutes after the sentinel.
         print(f"  Hermes backend listening on {host}:{actual_port}", flush=True)
+        from hermes_cli.web_server_chat_warmup import schedule_chat_import_warmup
+        schedule_chat_import_warmup()
     else:
         from hermes_cli.url_utils import format_url_host
 

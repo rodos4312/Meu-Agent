@@ -172,6 +172,9 @@ def _stored_session_runtime_overrides(row: dict | None) -> dict:
         # metadata across resume and rebuilds (/new). Raw api_key is never persisted/restored.
         overrides["model_override"] = {
             "model": model, "provider": provider or None, "base_url": base_url or None, "api_mode": api_mode or None}
+    if model and isinstance(model_config.get("smart_model_routing"), dict):
+        from tui_gateway.model_routing_mode import safe_policy
+        overrides["model_override"]["smart_model_routing"] = safe_policy(model_config["smart_model_routing"])
     if provider:
         overrides["provider_override"] = provider
     if isinstance(reasoning_config, dict):
@@ -200,7 +203,10 @@ def _runtime_model_config(agent, existing: dict | None = None) -> dict:
     from hermes_cli.runtime_provider_custom import session_provider_identity
     provider = session_provider_identity(attr("provider"), attr("requested_provider"), base_url, model)
     reasoning_config = getattr(agent, "reasoning_config", None)
+    from tui_gateway.model_routing_mode import safe_policy
+    policy = getattr(agent, "_model_routing_config", None)
     live = {
+        "smart_model_routing": safe_policy(policy) if isinstance(policy, dict) else None,
         "model": model, "provider": provider, "base_url": base_url, "api_mode": attr("api_mode"),
         # An empty dict is still a real (present) reasoning config.
         "reasoning_config": reasoning_config if isinstance(reasoning_config, dict) else None,
@@ -648,6 +654,8 @@ def _make_agent(
     from agent.shell_hooks import register_from_config
     register_from_config(cfg)
     system_prompt = _startup_system_prompt(cfg, session_id or key)
+    from tui_gateway.model_routing_mode import prepare_mode
+    model_override, routing_policy = prepare_mode(cfg, model_override)
     model, runtime = _resolve_agent_model_runtime(model_override, provider_override)
     fallback_notice = runtime.pop("_fallback_notice", None)
     _pr = _load_provider_routing()
@@ -685,6 +693,7 @@ def _make_agent(
         prefill_messages=_load_prefill_messages() or None, **_agent_cbs(sid))
     if context_cwd_is_launch_artifact is None:
         context_cwd_is_launch_artifact = _context_cwd_is_launch_artifact(session)
+    agent._model_routing_config = routing_policy
     agent._context_cwd_is_launch_artifact = bool(context_cwd_is_launch_artifact)
     if fallback_notice:
         # Emitted once on the first successful reply via _emit_pending_fallback_notice -> status_callback.

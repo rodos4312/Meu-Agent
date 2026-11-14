@@ -36,7 +36,8 @@ def create_overrides(params: dict) -> tuple:
     from utils import is_truthy_value
 
     model = str(params.get("model") or "").strip()
-    model_override = {"model": model, "provider": str(params.get("provider") or "").strip() or None} if model else None
+    model_override = {"model": model, "provider": str(params.get("provider") or "").strip() or None,
+                      "selection_explicit": True} if model else None
     reasoning_override = None
     if effort := str(params.get("reasoning_effort") or "").strip():
         with contextlib.suppress(Exception):

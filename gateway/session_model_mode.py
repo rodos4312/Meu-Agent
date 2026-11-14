@@ -66,5 +66,6 @@ def decorate_options(payload, config):
             if selected_pair(config.get('smart_model_routing'), row['slug']):
                 row['automatic_routing'] = True
                 row['models'] = [GENERAL_AUTO_MODEL, *[m for m in row['models'] if m != GENERAL_AUTO_MODEL]]
-    payload['model'] = display_model(payload.get('model'), payload.get('provider'), config)
+    if 'model' in payload:
+        payload['model'] = display_model(payload.get('model'), payload.get('provider'), config)
     return payload

@@ -3,7 +3,8 @@ import re
 
 SLOTS = ("routine", "complex", "web", "vision")
 _MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{1,199}")
-_WEB = re.compile(r"\b(search (?:the )?(?:web|internet)|browse|look up|lookup|online research|web research|weather|news|"
+_WEB = re.compile(r"https?://|\b((?:διαβασε|ανοιξε|επισκεψου|διαβαζ\w*|read|open|visit)\b.{0,50}"
+                  r"(?:ιστοσελιδ\w*|σελιδ\w*|website|web ?page)|search (?:the )?(?:web|internet)|browse|look up|lookup|online research|web research|weather|news|"
                   r"αναζητ\w*|ψαξε|βρες.*(?:πηγ|διαδικτυ|ιστοσελ)|καιρο\w*|"
                   r"psakse|anazit\w*)\b", re.IGNORECASE)
 
