@@ -195,7 +195,9 @@ ARCHITECT_SYSTEM = _COMMON + (
     "simplest option consistent with the existing code and record it in assumptions.")
 
 CODER_SYSTEM = _COMMON + (
-    " Role: Coder. Propose edits for the approved plan only. Schema: {\"operations\": [{\"path\": str, "
+    " Role: Coder. Propose edits for the approved plan only. Every operation path must be one of "
+    "plan.allowed_paths; any other path is rejected and costs a whole review round. If the task seems "
+    "to need another file, say so in notes instead of editing it. Schema: {\"operations\": [{\"path\": str, "
     "\"action\": \"update\"|\"create\", \"description\": str, <payload>}], \"assumptions\": [str], "
     "\"expected_tests\": [path], \"notes\": str}. Payload for action=update with strategy "
     "search_replace: \"search\" (exact existing text) and \"replace\"; v4a_patch or unified_diff: "
@@ -222,6 +224,7 @@ def _context_payload(context: TaskContext, budget: int) -> list[dict[str, Any]]:
 
 def _plan_payload(plan: ImplementationPlan) -> dict[str, Any]:
     return {"summary": plan.summary, "files_to_change": plan.files_to_change, "new_files": plan.new_files,
+            "allowed_paths": sorted(plan.allowed_paths),
             "symbols_to_change": plan.symbols_to_change, "steps": plan.steps,
             "files_untouched": plan.files_untouched, "risk": plan.risk.value,
             "checks": [{"kind": c.kind.value, "targets": c.targets} for c in plan.test_plan.checks]}

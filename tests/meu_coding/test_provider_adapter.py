@@ -142,8 +142,10 @@ def test_review_model_can_block_but_never_approve(make_repo):
     review = Reviewer(models.review).review(ReviewRequest(task, plan, proposal, context))
     assert review.status == ReviewStatus.FIX  # rules still apply; the model's "pass" grants nothing
 
+    # Blocking is judged on an in-plan proposal: an out-of-plan one is redone before the model sees it.
+    in_plan = Coder(provider_models(ROUTES, FakeClient(coder=CODER_OK)).coding).propose(task, plan, context)
     blocking = provider_models(ROUTES, FakeClient(reviewer={"verdict": "block", "findings": []}))
-    review = Reviewer(blocking.review).review(ReviewRequest(task, plan, proposal, context))
+    review = Reviewer(blocking.review).review(ReviewRequest(task, plan, in_plan, context))
     assert review.status == ReviewStatus.BLOCK
 
 

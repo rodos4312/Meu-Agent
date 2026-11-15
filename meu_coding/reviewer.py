@@ -64,7 +64,8 @@ def _check_paths(r: ReviewRequest) -> list[ReviewFinding]:
                                 repair=f"do not edit {path}; keep the change inside the planned files"))
         elif path not in allowed:
             out.append(_finding(C.UNEXPECTED_FILE, ReviewStatus.FIX, f"{path} is not in the plan", path,
-                                repair=f"remove the edit to {path} or keep the change inside the planned files"))
+                                repair=f"remove the edit to {path}; only these files may change: "
+                                       + ", ".join(sorted(allowed))))
     if len(r.proposal.affected_files) > constraints.max_files:
         out.append(_finding(C.SCOPE_VIOLATION, ReviewStatus.BLOCK,
                             f"touches {len(r.proposal.affected_files)} files; the limit is {constraints.max_files}"))
@@ -150,6 +151,8 @@ def _check_risk(r: ReviewRequest) -> list[ReviewFinding]:
     return out
 
 
+_SCOPE = frozenset({C.SCOPE_VIOLATION, C.UNEXPECTED_FILE})
+
 RULES: tuple[Callable[[ReviewRequest], list[ReviewFinding]], ...] = (
     _check_empty, _check_format, _check_paths, _check_actions, _check_missing,
     _check_tests, _check_syntax, _check_risk,
@@ -162,7 +165,9 @@ class Reviewer:
 
     def review(self, request: ReviewRequest) -> ReviewResult:
         findings = [f for rule in RULES for f in rule(request)]
-        if self.model is not None:
+        # A scope finding means the Coder must redo this proposal anyway: reviewing a proposal that
+        # will be discarded costs a full model call; the replacement gets the model review instead.
+        if self.model is not None and not any(f.category in _SCOPE for f in findings):
             findings += list(self.model.review(request))
         return _verdict(findings, bool(request.test_results))
 
