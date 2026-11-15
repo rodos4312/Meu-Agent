@@ -282,9 +282,19 @@ def prefetch_update_check():
 
     def _run():
         global _update_result
-        _update_result = source_check.check_for_updates(passive=True).get("behind")
+        if not _pinned_seed_checkout():
+            _update_result = source_check.check_for_updates(passive=True).get("behind")
         _update_check_done.set()
     _daemon(None, _run)
+
+
+def _pinned_seed_checkout() -> bool:
+    """A phone engine still at its seed pin has no release to look up: it is updated
+    by the app reseeding it, and the lookup is a network call on every start."""
+    from hermes_cli.config import get_project_root
+    from hermes_cli.gitlock import is_pinned_seed_checkout
+
+    return is_pinned_seed_checkout(get_project_root())
 
 
 _banner_data_prefetch_started = False
