@@ -2,16 +2,21 @@
 import asyncio
 import importlib
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 
 def _import_chat_modules():
-    for module in ('run_agent', 'tui_gateway.agent_factory', 'agent.workload_turn_route'):
+    started = time.monotonic()
+    for module in ('openai', 'run_agent', 'tui_gateway.agent_factory',
+                   'agent.workload_turn_route', 'gateway.run'):
         try:
             importlib.import_module(module)
         except Exception:  # health: allow BLE001 -- speculative import; the actual request reports errors
             logger.debug("Chat import warm-up unavailable for %s", module, exc_info=True)
+
+    logger.info("Chat imports ready in %.2fs", time.monotonic() - started)
 
 
 def schedule_chat_import_warmup(*, delay=2.0):

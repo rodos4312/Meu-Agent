@@ -19,6 +19,8 @@ def test_warmup_is_deferred_off_loop_with_the_owner_context(monkeypatch):
             profile.reset(token)
     asyncio.run(scenario())
     assert ('run_agent', 'owned-profile') in imported
+    assert ('openai', 'owned-profile') in imported
+    assert ('gateway.run', 'owned-profile') in imported
     assert all(owner == 'owned-profile' for _, owner in imported)
 
 
