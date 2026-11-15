@@ -8,7 +8,7 @@ permissions:
   contents: read
 concurrency:
   group: meu-private-rc-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   core:
     if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private
@@ -56,12 +56,13 @@ jobs:
     env:
       MEU_UPDATE_CHANNEL: rc
       HERMES_DESKTOP_VARIANT: bundled
+      HERMES_PAYLOAD_VERSION: '0.1.0-rc.1'
       PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 50
       - name: Enforce private source and RC identity
         shell: pwsh
         run: |

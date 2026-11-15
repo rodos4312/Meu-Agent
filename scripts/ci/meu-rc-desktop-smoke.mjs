@@ -37,11 +37,13 @@ async function main() {
   let app
   try {
     const version = run(['--version'])
-    assert.ok(version.includes(commit.slice(0,7)), 'CLI must identify the packaged commit')
+    const directory = /^Install directory: (.+)$/m.exec(version)?.[1]?.trim()
+    assert.equal(directory && path.resolve(directory).toLowerCase(),path.join(payload,stamp.runtime.repoDir).toLowerCase(), 'CLI must execute the embedded source')
     const output = run(['gateway','ensure','--json'])
     const records = output.split(/\r?\n/).flatMap(line => {try{return [JSON.parse(line)]}catch{return []}})
     const ready = records.find(record => record.state==='ready')
     assert.ok(ready?.endpoint, 'Actual embedded gateway must become ready')
+    assert.equal(ready.endpoint.code_sha,commit,'Running core must match the packaged commit')
     const { _electron } = await import('@playwright/test')
     app = await _electron.launch({executablePath:executable,args:['--disable-gpu'],env,timeout:90000})
     const page = await app.firstWindow()
