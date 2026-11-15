@@ -13,12 +13,6 @@ def _history_sources():
     return LEGACY_LOCAL_SOURCES | {'import'}
 
 
-def _owner_user(row):
-    """The row's owner identity; main's Desktop Nous-account label is not one (see validate_legacy_row)."""
-    from hermes_state_local_migration import legacy_account_label
-    return None if legacy_account_label(dict(row)) else row['user_id']
-
-
 def _login_label(subject):
     """The ``<provider>:<user>`` label Desktop stamps on its rows (tui_gateway/session_transports.py) when it
     names exactly the dashboard subject ``auth:v1:[provider, "", user]`` (gateway/session_identity.py).
@@ -88,7 +82,7 @@ def authorize_history(conn, actor, session_id, *, claim=False):
     if row['source'] not in _history_sources():
         return False
     from gateway.owner_identity import same_owner
-    if _owner_user(row) and not same_owner(row['user_id'], actor.subject):
+    if row['user_id'] and not same_owner(row['user_id'], actor.subject):
         raise RuntimeStoreError('permission_denied')
     if 'session:create' not in actor.capabilities:
         raise RuntimeStoreError('permission_denied')
@@ -126,4 +120,4 @@ def same_history_owner(conn, anchor_id, session_id):
     from gateway.owner_identity import owners_agree
     return binding is not None or (
         (row['source'] in _history_sources() or routeless_peer)
-        and (_owner_user(row) in (None, '') or owners_agree(_owner_user(row), anchor['user_id'])))
+        and (row['user_id'] in (None, '') or owners_agree(row['user_id'], anchor['user_id'])))

@@ -285,12 +285,12 @@ def _kept_local_history(db, row, subject=None):
     turn enters the chat."""
     from gateway.owner_identity import host_owner_subject, same_owner
     from gateway.session_identity import parse_authenticated_subject
-    from hermes_state_local_migration import LEGACY_LOCAL_SOURCES, legacy_account_label, validate_legacy_row
+    from hermes_state_local_migration import LEGACY_LOCAL_SOURCES, validate_legacy_row
     if row.get('source') not in LEGACY_LOCAL_SOURCES:
         return False
     user_id = row.get('user_id')
     owner = host_owner_subject()
-    if (user_id and not legacy_account_label(row) and not same_owner(user_id, owner)
+    if (user_id and not same_owner(user_id, owner)
             and not (subject and same_owner(user_id, subject))
             and parse_authenticated_subject(user_id) is None):
         # A label neither adopter owns: Desktop keeps it (#140183); elsewhere no open adopts it.

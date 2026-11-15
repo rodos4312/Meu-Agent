@@ -194,8 +194,7 @@ async def test_upgraded_desktop_history_resumes_by_id(tmp_path, monkeypatch):
     monkeypatch.setattr(run, '_load_gateway_config', lambda: {'platform_toolsets': {'gui': []}})
     store = SessionStore(tmp_path / 'sessions', GatewayConfig())
     db = store._db
-    for sid, user_id in (('old-desktop', None), ('old-desktop-account', 'nous:account'),
-                         ('old-desktop-remote', 'basic:hermes')):
+    for sid, user_id in (('old-desktop', None), ('old-desktop-remote', 'basic:hermes')):
         db.create_session(sid, source='desktop', model='old-model', cwd=str(tmp_path), user_id=user_id)
         db.append_message(sid, role='user', content=sid.upper())
         db.end_session(sid, 'session_switch')
@@ -210,9 +209,6 @@ async def test_upgraded_desktop_history_resumes_by_id(tmp_path, monkeypatch):
     assert [m['content'] for m in resumed['result']['messages']] == ['OLD-DESKTOP']
     from gateway.config import Platform
     assert runner.adapters[Platform.LOCAL].policies['old-desktop'].platform == 'desktop'
-    stamped = await native.dispatch({'id': 2, 'method': 'session.resume', 'params': {'session_id': 'old-desktop-account'}})
-    assert stamped.get('result', {}).get('session_id') == 'old-desktop-account', stamped
-    assert [m['content'] for m in stamped['result']['messages']] == ['OLD-DESKTOP-ACCOUNT']
     # A served remote backend stamped its basic-auth login on the row at creation (#139818). Hermes
     # is single-user and sign-in is owner-only, so that login is the machine owner: the owner's own
     # native ticket (native Desktop, the TUI) adopts it once its serve is gone (gateway.owner_identity).
@@ -225,9 +221,8 @@ async def test_upgraded_desktop_history_resumes_by_id(tmp_path, monkeypatch):
                                    'params': {'session_id': 'old-desktop-remote'}})
     assert remote.get('result', {}).get('session_id') == 'old-desktop-remote', remote
     assert [m['content'] for m in remote['result']['messages']] == ['OLD-DESKTOP-REMOTE']
-    # Any other identity, or a Nous stamp on a non-Desktop row, still needs its own authority.
-    for sid, source, user_id in (('old-desktop-foreign', 'desktop', 'telegram:42'),
-                                 ('old-cli-account', 'cli', 'nous:account')):
+    # Any other identity still needs its own authority.
+    for sid, source, user_id in (('old-desktop-foreign', 'desktop', 'telegram:42'),):
         db.create_session(sid, source=source, model='old-model', cwd=str(tmp_path), user_id=user_id)
         db.append_message(sid, role='user', content=sid.upper())
         db.end_session(sid, 'session_switch')

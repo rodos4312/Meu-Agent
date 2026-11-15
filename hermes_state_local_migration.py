@@ -17,13 +17,6 @@ LEGACY_LOCAL_SOURCES = frozenset({'cli', 'tui', 'gui', 'desktop', 'oneshot', 'to
 LEGACY_CREATION_SOURCES = {'desktop': 'gui'}
 
 
-def legacy_account_label(row):
-    # main's Desktop stamped the signed-in Nous account on its chats. That is a label, not a route or
-    # an authenticated owner, so it does not block adoption of an otherwise unrouted Desktop row.
-    user_id = row.get('user_id')
-    return row['source'] == 'desktop' and isinstance(user_id, str) and user_id.startswith('nous:')
-
-
 def login_owned_by(row, subject):
     """Whether *subject* owns the login stamp a served dashboard put on this row.
 
@@ -48,7 +41,7 @@ def validate_legacy_row(db, row, *, subject=None):
     user_id = row.get('user_id')
     if (row['source'] not in LEGACY_LOCAL_SOURCES
             or any(row.get(k) for k in ('session_key', 'chat_id', 'origin_json'))
-            or (user_id and not legacy_account_label(row) and not login_owned_by(row, subject))
+            or (user_id and not login_owned_by(row, subject))
             or row.get('profile_name') not in (None, '', db._own_profile_name() or 'default')):
         raise RuntimeStoreError('not_found')
 

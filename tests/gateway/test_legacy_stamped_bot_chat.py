@@ -23,8 +23,8 @@ class _Transport:
 
 _OWN = 'uid:desk'
 # A stamp naming any other principal: another local user, a dashboard login as v0.22 stamped it, an
-# authenticated gateway subject, and a Nous label on a non-Desktop row.
-_FOREIGN = ('uid:4242', 'basic:alice', 'auth:v1:["dashboard","","alice"]', 'nous:acct-1')
+# authenticated gateway subject.
+_FOREIGN = ('uid:4242', 'basic:alice', 'auth:v1:["dashboard","","alice"]')
 
 
 async def _bot_chat_lookup(tmp_path, monkeypatch, source, user_id):
