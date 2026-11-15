@@ -1,7 +1,7 @@
 """User-facing copy for assistant-start failures must match the failure's actual cause.
 
-When init dies waiting for a cross-process auth lock — the profile auth-store lock or the shared
-Nous store lock, both on the ``resolve_nous_access_token`` init path (#124533) — the cause is
+When init dies waiting for a cross-process auth lock — the profile auth-store lock on the
+assistant init path (#124533) — the cause is
 contention with another hermes process (a dashboard or a slow credential refresh), so the generic
 /model / `hermes setup` hints would send the user re-checking credentials that are fine.
 """

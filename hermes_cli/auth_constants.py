@@ -50,12 +50,6 @@ else:
 AUTH_STORE_VERSION = 1
 AUTH_LOCK_TIMEOUT_SECONDS = 15.0
 
-# Nous Portal defaults
-# The free tier's (anonymous account) inference host. NAS hands it to the client on every token
-# exchange (``inference_base_url``); this literal is the fallback when that field is absent or fails
-# the host allowlist, because the paid host cross-refuses an anonymous JWT with a 400.
-# On every guest minted since the welcome trial: True when the desktop's first install claimed it
-# (``hermes_cli.welcome_trial``), False for a connector mint. Absent = minted before the trial existed.
 ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120       # refresh 2 min before expiry
 DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS = 1     # poll at most every 1s
 DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"

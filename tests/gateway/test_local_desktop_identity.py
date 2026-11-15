@@ -76,6 +76,7 @@ async def _request(conn, rid, method, params):
 
 @pytest.mark.asyncio
 async def test_a_fresh_install_is_offered_onboarding_once_the_desktop_says_it_is_local(tmp_path, monkeypatch):
+    monkeypatch.setattr("hermes_cli.main._has_any_provider_configured", lambda **_kw: True)
     conn = await _connect(tmp_path, monkeypatch)
     try:
         before = await _request(conn, 1, "onboarding.state", {"assume_fresh": True})
@@ -113,7 +114,7 @@ async def test_a_desktop_chat_runs_its_turns_as_work_for_the_local_desktop(tmp_p
     from contextlib import nullcontext
     from gateway.session_local_recovery import local_source
     from gateway.session_policy import local_desktop_turn
-    from hermes_cli.anon_auth import on_local_desktop_backend
+    from hermes_cli.process_identity import serves_local_desktop_now as on_local_desktop_backend
 
     conn = await _connect(tmp_path, monkeypatch,
                           config="model:\n  provider: openrouter\n  default: anthropic/claude-sonnet-4\n")
@@ -144,7 +145,7 @@ async def test_an_exact_create_retry_from_a_socket_not_yet_declared_local_resume
     from contextlib import nullcontext
     from gateway.session_local_recovery import local_source
     from gateway.session_policy import local_desktop_turn
-    from hermes_cli.anon_auth import on_local_desktop_backend
+    from hermes_cli.process_identity import serves_local_desktop_now as on_local_desktop_backend
 
     conn = await _connect(tmp_path, monkeypatch,
                           config="model:\n  provider: openrouter\n  default: anthropic/claude-sonnet-4\n")
@@ -180,7 +181,7 @@ async def test_a_desktop_chat_saved_before_the_mark_moved_still_resumes_and_runs
     from gateway.session_local import publish_local_policy
     from gateway.session_local_recovery import local_source
     from gateway.session_policy import local_desktop_turn
-    from hermes_cli.anon_auth import on_local_desktop_backend
+    from hermes_cli.process_identity import serves_local_desktop_now as on_local_desktop_backend
     from hermes_state_local import POLICY_PREFIX
 
     conn = await _connect(tmp_path, monkeypatch,

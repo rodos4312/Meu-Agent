@@ -58,17 +58,6 @@ def _stub_post(captured: dict):
     return _fake
 
 
-def _arm(monkeypatch, *, url="wss://connector.example/relay", token="nas-token"):
-    """Arm the real trigger: a relay URL + a resolvable NAS token.
-
-    Note there is intentionally no `managed` knob — self-provision no longer
-    consults is_managed(). A test that wants the "no NAS identity" branch
-    monkeypatches resolve_nous_access_token to raise instead.
-    """
-    monkeypatch.setattr(relay, "relay_url", lambda: url)
-    monkeypatch.setattr("hermes_cli.auth.resolve_nous_access_token", lambda: token)
-
-
 # ─────────────────────────── config readers ───────────────────────────
 
 

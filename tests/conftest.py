@@ -1402,9 +1402,7 @@ def _audio_playback_guard(request, monkeypatch):
 # provider and every other client built on a Nous URL. Refusing the name lookup
 # covers all of them at once (httpx, urllib, aiohttp and asyncio all resolve
 # through socket.getaddrinfo), and fails exactly like an offline host, which is
-# the path production already handles. Tests of these clients stub the
-# transport (tests/hermes_cli/anon_portal.py routes httpx at a fake Portal), so
-# they never reach the lookup. Live canaries opt in with ``@pytest.mark.live``.
+# the path production already handles. Live canaries opt in with ``@pytest.mark.live``.
 _NOUS_SERVICE_DOMAINS = ("nousresearch.com", "staging-nousresearch.com")
 
 
@@ -1426,7 +1424,7 @@ def _no_live_nous_services(request, monkeypatch):
             raise socket.gaierror(
                 socket.EAI_NONAME,
                 f"test fence: {host!r} is a live Nous service; stub the HTTP layer "
-                "(tests/hermes_cli/anon_portal.py) or mark the test live")
+                "or mark the test live")
         return real_getaddrinfo(host, *args, **kwargs)
 
     monkeypatch.setattr(socket, "getaddrinfo", fenced_getaddrinfo)

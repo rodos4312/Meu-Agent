@@ -283,7 +283,6 @@ class GatewayAgentCacheMixin:
             from hermes_cli.model_normalize import _AGGREGATOR_PROVIDERS, normalize_model_for_provider
             if provider and provider not in _AGGREGATOR_PROVIDERS:
                 model = normalize_model_for_provider(model, provider)
-        # The Nous welcome host runs its one model whatever the chat configured (pin_model_for_route).
         return model
 
     def _release_running_agent_state(

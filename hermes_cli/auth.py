@@ -6,7 +6,7 @@
   only I/O primitives (cross-process flock, atomic 0o600 writes).
 - ``resolve_provider()`` picks the active provider via the documented priority chain.
 - ``OAUTH_PROVIDER_FLOWS`` maps each OAuth provider to its resolver/status builder; the flows live in
-  ``auth_nous``/``auth_codex``/``auth_xai``/``auth_qwen``/``auth_minimax``/``auth_openrouter`` and are
+  ``auth_codex``/``auth_xai``/``auth_qwen``/``auth_minimax``/``auth_openrouter`` and are
   re-imported here so ``hermes_cli.auth.<name>`` stays the public/patchable surface."""
 
 from __future__ import annotations
@@ -404,8 +404,8 @@ def primary_failure_wording(error: Exception) -> tuple[str, str]:
     return "auth failed", "Primary auth failed"
 
 
-# Entitlement failures: Nous gets a Portal-aware message; other providers a fixed generic one (or
-# the raw error when no generic text exists for the code).
+# Entitlement failures: a fixed generic message per code (or the raw error when no generic text
+# exists for the code).
 _GENERIC_ENTITLEMENT_MESSAGES = {
     "subscription_required": "No active paid subscription found. Please purchase/activate a subscription, then retry.",
     "insufficient_credits": "Subscription credits are exhausted. Top up/renew credits, then retry."}
@@ -610,8 +610,8 @@ def _file_lock(
     """Cross-process advisory flock helper, reentrant per-thread via ``holder.depth``.
 
     Falls back to a depth-only guard when neither ``fcntl`` nor ``msvcrt`` is available. Callers
-    supply their own ``threading.local`` so independent locks (profile store vs global root vs the
-    shared Nous store) track reentrancy separately."""
+    supply their own ``threading.local`` so independent locks (profile store vs global root)
+    track reentrancy separately."""
     if getattr(holder, "depth", 0) > 0:
         holder.depth += 1
         try:
@@ -671,8 +671,7 @@ def _auth_store_lock(
     """Cross-process advisory lock for one auth.json read/write transaction.
 
     ``target_path`` is required for profile-to-global write-throughs: each path has its own
-    reentrancy tracker and kernel lock. Lock ordering invariant: ``_auth_store_lock`` FIRST (outer),
-    ``_nous_shared_store_lock`` SECOND (inner), else deadlock against a concurrent shared import."""
+    reentrancy tracker and kernel lock."""
     auth_path = target_path if target_path is not None else _auth_file_path()
     lock_path = auth_path.with_suffix(".lock")
     with _file_lock(
@@ -838,7 +837,7 @@ def _save_provider_state_to_source(
     """Persist provider state back to the auth store it was read from.
 
     A token refresh rewrites credentials, not the user's choice of provider: ``active_provider`` is
-    left as it is (a Nous free-tier identity refreshed for a connector call must not become the
+    left as it is (a refreshed identity must not become the
     inference provider of an install that has its own key)."""
     if source_path is None or _same_path(source_path, _auth_file_path()):
         _store_provider_state(auth_store, provider_id, state, set_active=False)
@@ -919,7 +918,7 @@ _POOL_TOKEN_GENERATION_FIELDS = (
     "access_token", "refresh_token", "expires_at", "expires_at_ms", "expires_in", "obtained_at",
     "last_refresh", "agent_key", "agent_key_expires_at", "agent_key_expires_in", "agent_key_id",
     "agent_key_obtained_at", "agent_key_reused",
-    # Refresh-coupled metadata: a Nous refresh rewrites scope and the validated
+    # Refresh-coupled metadata: a refresh rewrites scope and the validated
     # inference route together with the new pair, so they travel with it.
     "scope", "inference_base_url",
 )
@@ -1550,12 +1549,7 @@ def resolve_provider(
     "auto" priority (explicit intent beats a stale OAuth login): 1. CLI api_key/base_url ->
     "openrouter"; 2. config.yaml ``model.provider``; 3. OPENROUTER_API_KEY (or an sk-or- key in
     OPENAI_API_KEY) -> "openrouter"; 4. OpenRouter pool; 5. provider env keys; 6. auth.json ``active_provider``;
-    7. Nous free tier when a claimed guest exists on the desktop's local backend (never created here);
-    8. AWS Bedrock chain; 9. AuthError(no_provider_configured).
-
-    ``skip_free_tier`` hides rungs 6-for-a-free-tier-identity and 7: the boot bootstrap asks
-    "what would carry inference if the free tier did not exist?" to decide whether a fresh identity
-    may become ``active_provider``.
+    7. AWS Bedrock chain; 8. AuthError(no_provider_configured).
 
     1. 3. 4. 5. Provider-specific API keys (GLM, Kimi, MiniMax, ...) -> that provider 7. 8. Error (no
     provider configured) See #29285.
@@ -1604,14 +1598,8 @@ def resolve_provider(
                 _oauth_active)
         return _oauth_active
 
-    # Nous free tier, when this guest claimed the welcome trial and this is the desktop's local
-    # backend (``anon_auth.free_inference_active``). This rung sits ABOVE the Bedrock
-    # chain on purpose: every rung above this line is explicit user intent (CLI creds, config, env
-    # keys, a sign-in); the boto chain below is implicit host state, and a leftover ~/.aws profile
-    # used to win the first turn of a fresh install (NS-829). The rung never CREATES the identity:
-    # only the desktop's trial claim does (welcome_trial), so provider resolution stays free of network.
     # AWS Bedrock via the boto3 credential chain (IAM roles, SSO, env vars): implicit host state,
-    # below explicit keys and below the free tier.
+    # below every explicit key and login above.
     try:
         from agent.bedrock_adapter import has_aws_credentials
         from hermes_cli.process_identity import serves_local_desktop_now
@@ -1674,7 +1662,7 @@ _FLAT_OAUTH_TOKEN_KEYS = ("access_token", "refresh_token", "expires_at", "expire
 
 def _quarantine_flat_oauth_state(state: dict[str, Any], provider: str, exc: AuthError) -> None:
     """Strip dead tokens from a flat OAuth state after a terminal runtime refresh failure so
-    subsequent calls fail fast without a network retry (mirrors the Nous / xAI / Codex pattern)."""
+    subsequent calls fail fast without a network retry (mirrors the xAI / Codex pattern)."""
     for _k in _FLAT_OAUTH_TOKEN_KEYS:
         state.pop(_k, None)
     state["last_auth_error"] = _last_auth_error_marker(

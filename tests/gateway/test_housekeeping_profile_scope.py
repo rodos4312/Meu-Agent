@@ -35,7 +35,7 @@ class _Ticks:
 
 def _profile(home: Path, base_url: str) -> None:
     home.mkdir(parents=True, exist_ok=True)
-    (home / "config.yaml").write_text("model:\n  provider: nous\n", encoding="utf-8")
+    (home / "config.yaml").write_text("model:\n  provider: provider-a\n", encoding="utf-8")
     (home / ".env").write_text(f"PROVIDER_A_BASE_URL={base_url}\n", encoding="utf-8")
     (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"provider-a": {
         "access_token": "x.y.z", "refresh_token": "r", "expires_at": 0,
@@ -67,15 +67,15 @@ def two_homes(tmp_path, monkeypatch):
 
 
 def _record_credential_chores(monkeypatch):
-    """Replace the credential-reading chores with recorders of (home, Nous override) they see."""
+    """Replace the credential-reading chores with recorders of (home, profile base-url override) they see."""
     from agent import curator
-    from hermes_cli.auth_nous import _nous_inference_env_override
+    from agent.secret_scope import get_secret
     from hermes_constants import get_hermes_home
 
     seen: dict = {"curator": []}
 
     def _rec(key):
-        return lambda *a, **k: seen[key].append((get_hermes_home().name, _nous_inference_env_override()))
+        return lambda *a, **k: seen[key].append((get_hermes_home().name, get_secret("PROVIDER_A_BASE_URL")))
 
     monkeypatch.setattr(curator, "maybe_run_curator", _rec("curator"))
     return seen
@@ -148,7 +148,7 @@ def test_multiplexed_maintenance_tick_prunes_every_served_profile_store(two_home
     homes = two_homes
     for home in homes:
         (home / "config.yaml").write_text(
-            "model:\n  provider: nous\n"
+            "model:\n  provider: provider-a\n"
             "sessions:\n"
             "  auto_prune: true\n"
             "  retention_days: 0\n"
@@ -253,7 +253,7 @@ def test_prune_unlinks_transcripts_under_the_configured_sessions_dir(two_homes, 
     override.mkdir()
     for home, transcripts in ((a, override), (b, b / "sessions")):
         (home / "config.yaml").write_text(
-            "model:\n  provider: nous\n"
+            "model:\n  provider: provider-a\n"
             "sessions:\n"
             "  auto_prune: true\n"
             "  retention_days: 0\n"

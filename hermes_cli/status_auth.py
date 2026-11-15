@@ -76,8 +76,6 @@ _APIKEY_PROVIDERS = {
     "StepFun Step Plan": ("STEPFUN_API_KEY",), "MiniMax": ("MINIMAX_API_KEY",),
     "MiniMax (China)": ("MINIMAX_CN_API_KEY",), "DeepInfra": ("DEEPINFRA_API_KEY",)}
 
-# Nous Tool Gateway per-feature state: first matching (predicate(feature, nous_auth), text(feature)).
-
 
 def _render_api_keys(ctx):
     _status._section("API Keys")

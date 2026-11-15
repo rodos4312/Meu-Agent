@@ -63,13 +63,6 @@ def test_bot_ids_malformed_json_degrades_to_empty(monkeypatch):
     assert relay.relay_platform_identities() == [("discord", "")]
 
 
-# ─────────────────────────── provision loop ───────────────────────────
-
-def _arm(monkeypatch, *, url="wss://connector.example/relay", token="nas-token"):
-    monkeypatch.setattr(relay, "relay_url", lambda: url)
-    monkeypatch.setattr("hermes_cli.auth.resolve_nous_access_token", lambda: token)
-
-
 # ─────────────────────────── per-frame egress (adapter) ───────────────────────────
 
 @pytest.mark.asyncio

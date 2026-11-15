@@ -108,7 +108,7 @@ def set_session_cookies(
     ``refresh_token`` means "don't persist the RT cookie" — a literal empty cookie would be dead
     state at best, attack surface at worst.
 
-    Nous Portal issues a 24h rotating refresh token (hermes #37247); a provider that omits it returns
+    A provider that issues a rotating refresh token persists it; one that omits it returns
     ``Session.refresh_token == ""`` and we simply don't persist the RT cookie — the session then behaves as
     access-token-only until the AT expires. No other branch changes between the two cases.
     """
