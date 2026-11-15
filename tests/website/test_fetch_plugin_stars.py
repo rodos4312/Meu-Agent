@@ -114,3 +114,31 @@ def test_probe_batches_large_catalogs_and_every_repo_gets_a_count(mod, monkeypat
     assert probed and len(stars) == len(slugs)
     assert seen == [mod._BATCH, mod._BATCH, 5]
     assert stars[f"o/r{mod._BATCH}"] == 0 and stars[f"o/r{mod._BATCH + 1}"] == 1
+
+
+
+def test_default_reuse_never_contacts_a_hosted_feed(mod,tmp_path,monkeypatch):
+    out=tmp_path / "plugin-stars.json"
+    out.write_text(json.dumps({"fetched_at":"2026-01-01", "stars":{"a/one":7}}),encoding="utf-8")
+    def refuse(*args,**kwargs):
+        pytest.fail("Default reuse must be entirely local")
+    monkeypatch.setattr(mod,"_http_json",refuse)
+    assert mod.main(output=out,probe=False) == 0
+    assert json.loads(out.read_text())["stars"] == {"a/one":7}
+
+
+def test_retired_explicit_feed_is_not_requested(mod,tmp_path,monkeypatch):
+    def refuse(*args,**kwargs):
+        pytest.fail("Retired hosted feed must not be requested")
+    monkeypatch.setattr(mod,"_http_json",refuse)
+    assert mod.load_previous(tmp_path / "missing.json","https://hermes-agent.nousresearch.com/docs/api/plugin-stars.json") == {}
+
+
+def test_independent_explicit_feed_remains_available(mod,tmp_path,monkeypatch):
+    calls=[]
+    def fetch(url,headers):
+        calls.append(url)
+        return {"fetched_at":"2026-01-01", "stars":{"a/one":9}}
+    monkeypatch.setattr(mod,"_http_json",fetch)
+    assert mod.load_previous(tmp_path / "missing.json","https://catalog.example.test/stars.json")["stars"]["a/one"] == 9
+    assert calls == ["https://catalog.example.test/stars.json"]

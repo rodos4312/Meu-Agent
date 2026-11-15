@@ -29,7 +29,7 @@ printf '{"wrapper":true}\n'          > "$H/plugins/mnemosyne-wrapper/mnemosyne-w
 printf 'witness\n'                   > "$ROOT/external-mnemosyne/witness.txt"
 ln -sfn "$ROOT/external-mnemosyne"   "$H/plugins/mnemosyne-wrapper/runtime"
 printf 'timezone: utc\n'             > "$H/config.yaml"
-printf 'NOUS_API_KEY=xxx\n'          > "$H/.env"
+printf 'DEEPSEEK_API_KEY=test-only\n'          > "$H/.env"
 printf '{"tokens":{}}\n'             > "$H/auth.json"
 printf 'recall\n'                    > "$H/memories/note.md"
 printf 'jobs\n'                      > "$H/cron/jobs.json"

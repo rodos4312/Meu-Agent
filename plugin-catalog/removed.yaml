@@ -10,3 +10,11 @@ removed:
 - name: or-picker
   reason: "Folded into openrouter-picker. Installing the provider alone left the picker broken. Install openrouter-picker."
   date: "2026-09-28"
+- name: kfchow-llm-value-router
+  repo: https://github.com/kfchow-ai/kfchow-llm-value-router
+  reason: "This pin can use a retired Nous inference account. MEU supports independent providers and routing instead."
+  date: "2026-11-15"
+- name: catalogo-it
+  # Name-only: the repository also contains unrelated language plugins.
+  reason: "This pin fetches a retired Nous-hosted feed. Use MEU's independent plugin catalog."
+  date: "2026-11-15"

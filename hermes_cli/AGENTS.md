@@ -209,8 +209,8 @@ change to install/restart/status regenerates and diffs every kind; both user and
 recorded when both exist. Process liveness is `(pid, start_time)` or the canonical matchers
 (`gateway.status.live_gateway_pid_for_home`), never bare PID existence.
 
-## Legacy Nous compatibility
+## Service independence
 
-Meu has removed the CLI/chat Nous sign-in and Portal setup. Do not restore those routes.
-The remaining `anon_auth.py` identity and settlement helpers serve legacy tool-gateway
-compatibility and are scheduled for removal; supported providers use their own OAuth/API keys.
+Meu has removed Nous services and rejects their obsolete configuration without automatic migration.
+Do not restore retired sign-in, Portal, billing or tool-gateway routes. Preserve legal attribution
+and secret scrubbing; supported providers use their own OAuth/API keys.

@@ -285,6 +285,8 @@ def build_keepalive_http_client(base_url: str = "", *, async_mode: bool = False,
     See #12952, #54049.
     See #10933.
     """
+    from hermes_cli.meu_privacy import require_independent_endpoint
+    require_independent_endpoint(base_url)
     try:
         import httpx
         proxy = _get_proxy_for_base_url(base_url)

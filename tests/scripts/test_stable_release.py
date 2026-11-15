@@ -833,8 +833,8 @@ def test_publish_attempt_writes_the_receipt_retargets_and_copies_no_bytes(tmp_pa
         if argv[:3] == ["docker", "buildx", "imagetools"]:
             inspected_images.append(argv[4])
             assert argv[4] in {
-                "nousresearch/hermes-agent:rc.2-v1.2.3",
-                "nousresearch/hermes-agent:rc.2-v1.2.3-desktop",
+                "exampleorg/meu-agent:rc.2-v1.2.3",
+                "exampleorg/meu-agent:rc.2-v1.2.3-desktop",
             }
             return json.dumps(docker_desktop_digest if argv[4].endswith("-desktop") else docker_digest)
         if argv[:3] == ["gh", "api", "--method"]:
@@ -873,8 +873,8 @@ def test_publish_attempt_writes_the_receipt_retargets_and_copies_no_bytes(tmp_pa
     assert receipt["candidateManifestSha256"] == manifest_digest
     assert receipt["dockerManifestDigest"] == docker_digest
     assert inspected_images == [
-        "nousresearch/hermes-agent:rc.2-v1.2.3",
-        "nousresearch/hermes-agent:rc.2-v1.2.3-desktop",
+        "exampleorg/meu-agent:rc.2-v1.2.3",
+        "exampleorg/meu-agent:rc.2-v1.2.3-desktop",
     ]
     assert receipt["releaseId"] == 42
     remote = subprocess.check_output(
@@ -1412,3 +1412,8 @@ def test_the_final_tag_push_authenticates_with_gh_token_without_persisted_creden
     assert argv[1:5] == ["-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential"]
     assert "token" not in " ".join(argv)
     assert authenticated_push(ref, {}) == ["git", "push", "origin", ref]
+
+
+@pytest.fixture(autouse=True)
+def independent_docker_image(monkeypatch):
+    monkeypatch.setenv("IMAGE_NAME", "exampleorg/meu-agent")

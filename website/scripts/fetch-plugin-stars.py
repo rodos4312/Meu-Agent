@@ -11,8 +11,8 @@ entries by stars.
 Rate-limit discipline follows the skills-index rule: GitHub is only ever consulted from the
 scheduled ``skills-index.yml`` run (twice daily, ``--probe``), which uploads the result as an
 artifact. Docs deploys run with ``--reuse-only`` and NEVER touch the API: they take the
-scheduled artifact when given one, else the live site's copy (one CDN GET), else whatever is
-on disk, else an empty map (the page then ranks alphabetically).
+scheduled artifact when given one, else the on-disk copy, else an empty map. A remote cache is
+consulted only when an independent URL is explicitly supplied (``--cache-url``).
 
 The probe itself is ONE GraphQL request for every catalog repo (aliased ``repository``
 fields), not one REST call per repo. Any failure (rate limit, network, bad token) keeps the
@@ -39,7 +39,6 @@ import hermes_yaml as yaml
 
 DEFAULT_CATALOG_DIR = REPO_ROOT / "plugin-catalog"
 DEFAULT_OUTPUT = REPO_ROOT / "website" / "static" / "api" / "plugin-stars.json"
-LIVE_URL = "https://hermes-agent.nousresearch.com/docs/api/plugin-stars.json"
 _GITHUB_REPO_RE = re.compile(r"^https://github\.com/([^/\s]+)/([^/\s#?]+?)(?:\.git)?/?$")
 
 
@@ -75,9 +74,10 @@ def _http_json(url: str, headers: dict[str, str], timeout: float = 15.0):
 
 
 def load_previous(output: Path, live_url: str | None) -> dict:
-    """Newest of {live site copy, on-disk copy}; ``{}`` when neither exists."""
+    """Newest independent explicit cache or on-disk copy; never a retired service."""
+    from hermes_cli.meu_privacy import is_retired_service_url
     candidates: list[dict] = []
-    if live_url:
+    if live_url and not is_retired_service_url(live_url):
         try:
             data = _http_json(live_url, {})
             if isinstance(data, dict) and isinstance(data.get("stars"), dict):
@@ -148,7 +148,7 @@ def probe_stars(slugs: list[str], previous: dict[str, int], token: str | None) -
 
 
 def main(catalog_dir: Path = DEFAULT_CATALOG_DIR, output: Path = DEFAULT_OUTPUT,
-         probe: bool = False, live_url: str | None = LIVE_URL, token: str | None = None) -> int:
+         probe: bool = False, live_url: str | None = None, token: str | None = None) -> int:
     previous = load_previous(output, live_url)
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -182,7 +182,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--probe", action="store_true",
                         help="call GitHub (batched GraphQL requests); only the scheduled skills-index run does this")
-    parser.add_argument("--no-live", action="store_true", help="do not consult the live site's cache")
+    parser.add_argument("--cache-url", help="explicit independent cache URL; default is local reuse only")
+    parser.add_argument("--no-live", action="store_true", help="do not consult an explicit remote cache")
     args = parser.parse_args()
     sys.exit(main(catalog_dir=args.catalog_dir, output=args.output, probe=args.probe,
-                  live_url=None if args.no_live else LIVE_URL))
+                  live_url=None if args.no_live else args.cache_url))

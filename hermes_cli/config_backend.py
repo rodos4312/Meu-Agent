@@ -246,22 +246,7 @@ class FileBackend:
         return True
 
     def boot(self, home: Path) -> None:
-        # Migrate existing profiles once at boot; read-only config normalization also strips the retired settings.
-        from hermes_cli.meu_privacy import strip_retired_settings
-
-        if not self.exists(home):
-            return
-        try:
-            raw = self.read_user_doc(home)
-            if isinstance(raw, dict):
-                private = strip_retired_settings(raw)
-                if private != raw:
-                    write_config_document(self.config_path(home), private)
-        except Exception:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "Could not remove retired usage settings from this profile", exc_info=True)
+        pass  # Config reads validate retired settings; boot never rewrites a profile.
 
     def protected_env_names(self) -> frozenset:
         return frozenset()
@@ -415,13 +400,19 @@ def local_file_layer(config_path: PathLike) -> tuple[ConfigBackend, Path]:
 def read_config_doc(config_path: PathLike) -> Any:
     """Parsed root of a config file (None when empty); raises like ``open`` + ``fast_safe_load``."""
     backend, home = _route(config_path)
-    return backend.read_user_doc(home)
+    from hermes_cli.meu_privacy import validate_independent_config
+
+    document = backend.read_user_doc(home)
+    return validate_independent_config(document) if isinstance(document, dict) else document
 
 
 def read_config_doc_readonly(config_path: PathLike) -> Any:
     """Signature-cached :func:`read_config_doc`; the result is shared — never mutate it."""
     backend, home = _route(config_path)
-    return backend.read_user_doc_readonly(home)
+    from hermes_cli.meu_privacy import validate_independent_config
+
+    document = backend.read_user_doc_readonly(home)
+    return validate_independent_config(document) if isinstance(document, dict) else document
 
 
 def config_version(config_path: PathLike) -> tuple[Any, ...]:
@@ -561,10 +552,11 @@ def write_changes(config_path: PathLike, changes: Changes) -> None:
     """One :class:`Changes` write. Unlike :func:`write_config_keys`, a ``None`` in ``set`` stores
     an explicit null (Remote Config: "no value", masking an inherited scalar); the file backend
     writes it as YAML null."""
-    from hermes_cli.meu_privacy import private_config_changes
+    from hermes_cli.meu_privacy import validate_independent_changes
 
+    validate_independent_changes(changes)
     backend, home = _route(config_path)
-    backend.write_changes(home, private_config_changes(changes))
+    backend.write_changes(home, changes)
 
 
 def deployment_env_names() -> frozenset:

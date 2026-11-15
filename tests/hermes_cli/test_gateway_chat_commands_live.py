@@ -41,9 +41,7 @@ def classic_session(tmp_path):
         "gateway": {"multiplex_profiles": False},
         "model": {"provider": "custom", "default": "view-model", "base_url": url},
         "auxiliary": {"title_generation": {"enabled": False}},
-        # Answered at the current offer version, as tests/fakes/fake_llm_provider.write_hermes_home
-        # does: main's interactive chat asks it first on a home that never answered.
-        "telemetry": {"shared_metrics": {"enabled": False, "send": False, "offer_version": 2}}}))
+    }))
     env = {k: os.environ[k] for k in ("PATH", "LANG", "TZ") if k in os.environ}
     env.update(HOME=str(user), USERPROFILE=str(user), HERMES_HOME=str(home), PYTHONPATH=str(root),
                PYTHONUNBUFFERED="1", OPENAI_API_KEY="loopback-only", OPENAI_BASE_URL=url)

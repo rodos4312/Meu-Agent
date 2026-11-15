@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -15,10 +16,21 @@ GIT_SHA = re.compile(r"[a-f0-9]{40}")
 from hermes_cli.update_channel import STABLE_TAG_RE
 from scripts.releases.versioning import parse_attempt_ref
 ARCHES = ("amd64", "arm64")
-IMAGE = "nousresearch/hermes-agent"
 
 class DockerReleaseError(ValueError):
     """Raised when a phase/manifest violates the staged-release contract."""
+
+
+def _image() -> str:
+    """Publishing is explicit; an inherited upstream account is never a default."""
+    image = (os.environ.get("IMAGE_NAME") or "").strip()
+    if (not re.fullmatch(r"[a-z0-9][a-z0-9._:/-]*", image) or "/" not in image
+            or ":" in image.rsplit("/", 1)[-1]):
+        raise DockerReleaseError("Set IMAGE_NAME to your independent, untagged container repository.")
+    from hermes_cli.meu_privacy import is_retired_service_url
+    if "nousresearch" in image.split("/")[:-1] or is_retired_service_url("https://" + image.split("/")[0]):
+        raise DockerReleaseError("Retired Nous container accounts are not supported by MEU.")
+    return image
 
 
 def require_stable_tag(tag: str) -> str:
@@ -105,7 +117,7 @@ def _inspect(reference: str, run) -> str:
 
 
 def _version_digest(tag: str, suffix: str, run) -> str:
-    reference = f"{IMAGE}:{tag}{suffix}"
+    reference = f"{_image()}:{tag}{suffix}"
     try:
         digest = _inspect(reference, run)
     except subprocess.CalledProcessError as exc:
@@ -132,9 +144,9 @@ def promote_stable(tag: str, digest: str, release_tag: str, *, run=output, sleep
     variants = (("", digest), ("-desktop", _version_digest(tag, "-desktop", run)))
     for suffix, version_digest in variants:
         command = [
-            "docker", "buildx", "imagetools", "create", "-t", f"{IMAGE}:{release_tag}{suffix}",
-            "-t", f"{IMAGE}:stable{suffix}", "-t", f"{IMAGE}:latest{suffix}",
-            f"{IMAGE}@{version_digest}",
+            "docker", "buildx", "imagetools", "create", "-t", f"{_image()}:{release_tag}{suffix}",
+            "-t", f"{_image()}:stable{suffix}", "-t", f"{_image()}:latest{suffix}",
+            f"{_image()}@{version_digest}",
         ]
         for attempt in range(3):
             try:
@@ -146,7 +158,7 @@ def promote_stable(tag: str, digest: str, release_tag: str, *, run=output, sleep
                 sleep(20)
         for alias in (release_tag, "stable", "latest"):
             for attempt in range(3):
-                if _inspect(f"{IMAGE}:{alias}{suffix}", run) == version_digest:
+                if _inspect(f"{_image()}:{alias}{suffix}", run) == version_digest:
                     break
                 if attempt < 2:
                     sleep(20)
@@ -157,7 +169,7 @@ def promote_stable(tag: str, digest: str, release_tag: str, *, run=output, sleep
 def stable_alias_digest(run=output) -> str | None:
     """The slim ``stable`` alias digest, or None when the alias does not exist yet."""
     try:
-        digest = _inspect(f"{IMAGE}:stable", run)
+        digest = _inspect(f"{_image()}:stable", run)
     except subprocess.CalledProcessError:
         return None
     if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):

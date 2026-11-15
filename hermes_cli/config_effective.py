@@ -31,12 +31,13 @@ _EFFECTIVE_CACHE: dict[str, tuple[Any, ...]] = {}
 
 
 def _effective(raw: dict[str, Any]) -> dict[str, Any]:
+    from hermes_cli.meu_privacy import validate_independent_config
+
+    validate_independent_config(raw)
     expanded = _config._expand_env_vars(raw)
     merged = managed_scope.apply_managed_overlay(expanded if isinstance(expanded, dict) else {})
     result = _config._normalize_root_model_keys(merged if isinstance(merged, dict) else {})
-    from hermes_cli.meu_privacy import strip_retired_settings
-
-    return strip_retired_settings(result)
+    return validate_independent_config(result)
 
 
 def _recover_user_raw(config_path: Path, path_key: str, exc: Exception) -> dict[str, Any]:

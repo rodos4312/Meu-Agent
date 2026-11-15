@@ -93,9 +93,6 @@ def make_home(root: Path, model: dict[str, Any], *, env_file: dict[str, str] | N
         "updates": {"check": False},
         "auxiliary": {"title_generation": {"enabled": False}},
         "memory": {"memory_enabled": False, "user_profile_enabled": False},
-        # Answered at the current offer version (as write_hermes_home does), so an interactive
-        # chat never stops on the shared-metrics offer before the UI takes the terminal.
-        "telemetry": {"shared_metrics": {"enabled": False, "send": False, "offer_version": 2}},
     }
     for key, value in (extra_config or {}).items():
         if isinstance(value, dict) and isinstance(cfg.get(key), dict):

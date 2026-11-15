@@ -163,7 +163,7 @@ function New-Fixture {
   Set-Content -LiteralPath (Join-Path $H 'plugins\mnemosyne-wrapper\mnemosyne-wrapper.json') -Value '{"wrapper":true}'
   Set-Content -LiteralPath (Join-Path $Root 'external-mnemosyne\witness.txt') -Value 'witness'
   Set-Content -LiteralPath (Join-Path $H 'config.yaml') -Value 'timezone: utc'
-  Set-Content -LiteralPath (Join-Path $H '.env') -Value 'NOUS_API_KEY=xxx'
+  Set-Content -LiteralPath (Join-Path $H '.env') -Value 'DEEPSEEK_API_KEY=test-only'
   Set-Content -LiteralPath (Join-Path $H 'auth.json') -Value '{"tokens":{}}'
   Set-Content -LiteralPath (Join-Path $H 'memories\note.md') -Value 'recall'
   Set-Content -LiteralPath (Join-Path $H 'cron\jobs.json') -Value 'jobs'

@@ -987,7 +987,7 @@ def resolve_runtime_provider(*, requested: Optional[str] = None, explicit_api_ke
       4. local-endpoint bypass (no explicit creds, config base_url at a non-cloud host)
       5. ``auth.resolve_provider`` → explicit --api-key/--base-url path
       6. credential pool (OpenRouter pool only without custom endpoint/override)
-      7. OAuth specs (nous/codex/xai/qwen; "auto" swallows AuthError, logs, and stamps it on a
+      7. OAuth specs (codex/xai/qwen; "auto" swallows AuthError, logs, and stamps it on a
          keyless fallback as ``auth_error``) → minimax-oauth
          → external-process → anthropic env → bedrock → registry api_key providers
       8. OpenRouter / bare-custom fallback
@@ -1001,6 +1001,8 @@ def resolve_runtime_provider(*, requested: Optional[str] = None, explicit_api_ke
     # and a base URL with no host ("https://") would otherwise be resolved and
     # dialled. Both come from the user's own config, so the point is to say
     # which field is wrong rather than to fail somewhere unrecognisable.
+    from hermes_cli.meu_privacy import require_independent_endpoint
+    require_independent_endpoint(explicit_base_url)
     if requested and any(character < " " or character == "\x7f" for character in requested):
         raise ValueError("provider name contains a control character")
     if explicit_base_url:
@@ -1021,6 +1023,7 @@ def resolve_runtime_provider(*, requested: Optional[str] = None, explicit_api_ke
     requested_provider, explicit_base_url = expand_direct_api_alias(requested_provider, explicit_base_url)
     _raise_if_local_alias_missing_endpoint(requested_provider, explicit_base_url)
     runtime = next(r for r in _ladder_rungs(requested_provider, explicit_api_key, explicit_base_url, target_model) if r)
+    require_independent_endpoint(runtime.get("base_url"))
     _raise_for_credentialless_bare_custom(requested_provider, runtime)
     # model.openai_runtime is applied ONCE, after the ladder: every rung (pool, OAuth store,
     # explicit --api-key/--base-url, env key) hardcodes the wire api_mode for openai/openai-codex,

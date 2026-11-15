@@ -42,7 +42,7 @@ from typing import Callable
 
 import pytest
 
-from tests.fakes.fake_llm_provider import MODEL_ID, OFFER_VERSION
+from tests.fakes.fake_llm_provider import MODEL_ID
 
 
 def require_tmux() -> None:
@@ -116,11 +116,6 @@ BASE_CONFIG = f"""model:
   context_length: 128000
 agent:
   api_max_retries: 1
-telemetry:
-  shared_metrics:
-    enabled: false
-    send: false
-    offer_version: {OFFER_VERSION}
 display:
   interface: cli
 approvals:

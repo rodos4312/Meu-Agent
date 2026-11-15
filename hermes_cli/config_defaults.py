@@ -1790,7 +1790,7 @@ DEFAULT_CONFIG = {
         "model_provider": "",
         # Cron SCHEDULER provider (WHEN a due job fires). "" = built-in in-process 60s ticker. Name
         # an installed provider (plugins/cron_providers/<name>/ or $HERMES_HOME/plugins/ <name>/),
-        # e.g. "chronos" (NAS-mediated managed cron for scale-to-zero). An unknown or unavailable
+        # e.g. a plugin-provided scheduler for scale-to-zero. An unknown or unavailable
         # provider falls back to the built-in so cron never loses its trigger.
         "provider": "",
         # Wrap delivered cron responses with a task-name header and "The agent cannot see this

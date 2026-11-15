@@ -53,7 +53,6 @@ _CHILD = textwrap.dedent('''
     ensure_hermes_home()
     (home / "config.yaml").write_text(yaml.safe_dump({
         "_config_version": DEFAULT_CONFIG["_config_version"] - 1,
-        "telemetry": {"shared_metrics": {"enabled": False}},
         "updates": {"refresh_cua_driver": False}}))
     # Service boundaries: record instead of touching the host's gateways/dashboards.
     from hermes_cli import gateway_migrate, update_cmd, update_cmd_fleet as fleet

@@ -62,7 +62,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  IMAGE_NAME: nousresearch/hermes-agent
+  IMAGE_NAME: ${{ vars.MEU_DOCKER_IMAGE || 'meu-agent-test' }}
   # A stable run is on the default branch, so GITHUB_SHA is not the candidate.
   CANDIDATE_COMMIT: ${{ inputs.commit || github.sha }}
 
@@ -80,8 +80,16 @@ jobs:
       - id: resolve
         env:
           PHASE: ${{ inputs.release-phase }}
+          CONFIGURED_IMAGE: ${{ vars.MEU_DOCKER_IMAGE }}
         run: |
           set -euo pipefail
+          case "${IMAGE_NAME,,}" in
+            nousresearch/*|*/nousresearch/*|nousresearch.com/*|*.nousresearch.com/*|nousresearch.com:*/*|*.nousresearch.com:*/*|staging-nousresearch.com/*|*.staging-nousresearch.com/*|staging-nousresearch.com:*/*|*.staging-nousresearch.com:*/*)
+              echo "::error::Retired Nous container accounts are not supported"; exit 1 ;;
+          esac
+          if [[ "$PHASE" == publish && -z "$CONFIGURED_IMAGE" ]]; then
+            echo "::error::Set MEU_DOCKER_IMAGE before publishing"; exit 1
+          fi
           case "$PHASE" in
             '')   echo "phase=standalone" >> "$GITHUB_OUTPUT"; echo "release=false" >> "$GITHUB_OUTPUT" ;;
             test) echo "phase=test"        >> "$GITHUB_OUTPUT"; echo "release=true"  >> "$GITHUB_OUTPUT" ;;
@@ -145,7 +153,7 @@ jobs:
     needs: [mode, detect]
     if: >-
       !cancelled() && needs.mode.result == 'success' &&
-      ((needs.mode.outputs.release != 'true' && github.repository == 'NousResearch/hermes-agent' && needs.detect.outputs.build == 'true') || needs.mode.outputs.phase == 'test')
+      ((needs.mode.outputs.release != 'true' && github.repository == vars.MEU_RELEASE_REPOSITORY && vars.MEU_DOCKER_IMAGE != '' && needs.detect.outputs.build == 'true') || needs.mode.outputs.phase == 'test')
     strategy:
       fail-fast: false
       matrix:
@@ -337,7 +345,7 @@ jobs:
   publish:
     if: >-
       needs.mode.outputs.release != 'true' &&
-      github.repository == 'NousResearch/hermes-agent' &&
+      github.repository == vars.MEU_RELEASE_REPOSITORY && vars.MEU_DOCKER_IMAGE != '' &&
       github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [mode, build]
     environment: container-publish
@@ -442,7 +450,7 @@ jobs:
   merge:
     # `needs` is the whole 4-leg matrix: only publish both :main variants
     # after every arch and variant publisher succeeds.
-    if: ${{ !cancelled() && needs.mode.outputs.release != 'true' && github.repository == 'NousResearch/hermes-agent' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ !cancelled() && needs.mode.outputs.release != 'true' && github.repository == vars.MEU_RELEASE_REPOSITORY && vars.MEU_DOCKER_IMAGE != '' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     # GitHub-hosted with docker/setup-buildx-action, as before the runner migration: on
     # Blacksmith `imagetools create` cannot commit a manifest list to Docker Hub (404 on the
     # index commit, any buildx version): v0.22.3 rc.1-rc.4 died on it in the versioned manifest.
@@ -735,10 +743,10 @@ jobs:
             --digest-arm64 "$(sed 's/^sha256://' /tmp/digests/docker-publish-digest-slim-arm64-${RELEASE_TAG}/arm64.digest)" \
             > /tmp/manifest/manifest.json
           python3 - "$RELEASE_TAG" "${{ steps.list.outputs.digest }}" <<'EOF'
-          import json, sys
+          import json, os, sys
           manifest = json.load(open("/tmp/manifest/manifest.json"))
           manifest["list-digest"] = sys.argv[2]
-          manifest["image"] = "nousresearch/hermes-agent"
+          manifest["image"] = os.environ["IMAGE_NAME"]
           manifest["tags"] = [sys.argv[1]]
           json.dump(manifest, open("/tmp/manifest/manifest.json", "w"), indent=2)
           EOF

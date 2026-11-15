@@ -118,7 +118,10 @@ def _cache_path() -> Path:
 
 
 def _fetch_manifest(url: str, timeout: float) -> dict[str, Any] | None:
-    """HTTP GET the manifest URL and return a validated dict, or None on failure."""
+    """HTTP GET an independent manifest URL, or return None without reviving retired services."""
+    from hermes_cli.meu_privacy import is_retired_service_url
+    if is_retired_service_url(url):
+        return None
     try:
         req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": hermes_user_agent()})
         with urllib.request.urlopen(req, timeout=timeout) as resp:

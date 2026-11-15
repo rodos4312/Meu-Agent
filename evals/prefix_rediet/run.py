@@ -4,8 +4,8 @@
     PRD_BASE_TREE=<checkout of the base SHA> PRD_PR_TREE=<checkout of the PR SHA> PRD_PYTHON=<hermes env python> \\
     python3 run.py <model> <reps> [--parallel=N] [--only=task1,task2]
 
-Inference: PRD_INFERENCE_URL + PRD_INFERENCE_KEY, or (default) the Nous Portal agent key read fresh from
-$HERMES_HOME/auth.json for every cell. Read-only: the harness never refreshes or copies the OAuth grant.
+Inference requires explicit PRD_INFERENCE_URL + PRD_INFERENCE_KEY for an independent provider.
+The harness never reads, refreshes or copies an account's auth.json.
     python3 run.py --report
 
 Resume-safe per (model, task, arm, rep); errored cells score 0 and stay in the denominator.
@@ -26,10 +26,12 @@ TIMEOUT = {"term_slow_tests": 600}
 
 def _inference_env():
     env = dict(os.environ)
-    if not env.get("PRD_INFERENCE_KEY"):
-        home = Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes")
-        nous = json.loads((home / "auth.json").read_text())["providers"]["nous"]
-        env["PRD_INFERENCE_URL"], env["PRD_INFERENCE_KEY"] = nous["inference_base_url"], nous["agent_key"]
+    if not env.get("PRD_INFERENCE_URL") or not env.get("PRD_INFERENCE_KEY"):
+        raise ValueError("Set both PRD_INFERENCE_URL and PRD_INFERENCE_KEY for an independent provider.")
+    from hermes_cli.meu_privacy import is_retired_service_url
+    if is_retired_service_url(env["PRD_INFERENCE_URL"]):
+        raise ValueError("Retired Nous service endpoints are not supported.")
+    env.pop("NOUS_API_KEY", None)  # Never forward a retired credential to an evaluation worker.
     return env
 
 

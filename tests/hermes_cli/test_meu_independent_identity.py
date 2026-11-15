@@ -41,23 +41,20 @@ def test_stale_identity_does_not_override_direct_model(offline_home, monkeypatch
     assert "api.deepseek.com" in route["base_url"]
 
 
-def test_saved_hosted_settings_are_removed_and_catalog_is_offline(offline_home):
-    from hermes_cli import config, model_catalog
+def test_saved_hosted_settings_are_rejected_without_migration(offline_home):
+    import hermes_yaml as yaml
+    from hermes_cli import config
+    from hermes_cli.config_backend import ConfigBackendUnavailable
 
     path = offline_home / "config.yaml"
-    write_config_document(path, {
-        "model": {"provider": "deepseek", "default": "deepseek-v4-pro"},
-        "nous": {"anthropic_wire": "auto", "keepalive_interval_seconds": 10},
-        "cron": {"provider": "chronos", "chronos": {"portal_url": "https://portal.nousresearch.com"}},
-        "model_catalog": {"enabled": True, "url": "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json"},
-    })
-    saved = config.load_config()
-    assert "nous" not in saved
-    assert "chronos" not in saved["cron"]
-    assert saved["cron"]["provider"] == ""
-    assert saved["model"]["provider"] == "deepseek"
-    assert model_catalog.get_catalog(force_refresh=True) == {}
-    assert "portal.nousresearch.com" not in path.read_text(encoding="utf-8")
+    document = {"model": {"provider": "deepseek", "default": "deepseek-v4-pro"},
+                "nous": {"anthropic_wire": "auto", "keepalive_interval_seconds": 10},
+                "cron": {"provider": "chronos"}}
+    path.write_text(yaml.safe_dump(document), encoding="utf-8")
+    before = path.read_bytes()
+    with pytest.raises(ConfigBackendUnavailable, match="not supported"):
+        config.load_config()
+    assert path.read_bytes() == before
 
 
 def test_custom_catalog_is_preserved(offline_home):

@@ -1,58 +1,80 @@
-"""Remove settings belonging to retired Nous services."""
+"""Reject retired service configuration; never migrate or reuse old accounts."""
 
 from __future__ import annotations
 
-import copy
+from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
-_RETIRED = (
-    ("telemetry", "shared_metrics"), ("nous", "keepalive_interval_seconds"),
-    ("nous", "anthropic_wire"), ("cron", "chronos"),
-    ("display", "credits_notices"), ("dashboard", "oauth"),
+from hermes_cli.config_backend import ConfigBackendUnavailable, ConfigValueError
+
+_RETIRED_PATHS = (
+    "nous", "providers.nous", "providers.solstice", "telemetry.shared_metrics",
+    "cron.chronos", "display.credits_notices", "dashboard.oauth",
+    *(f"{section}.use_gateway" for section in ("browser", "web", "image_gen", "video_gen", "tts", "stt")),
 )
-_RETIRED_CATALOG_URLS = {
-    "https://hermes-agent.nousresearch.com/docs/api/model-catalog.json",
-    "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/website/static/api/model-catalog.json",
-}
+_RETIRED_NAMES = frozenset({"nous", "solstice", "retired-managed"})
+_MESSAGE = (
+    "Retired Nous settings are not supported. Remove the obsolete settings and configure "
+    "an independent provider. No automatic migration was performed."
+)
+
+def is_retired_service_url(value: object) -> bool:
+    """Identify retired service hosts and the former catalog mirror, never other providers."""
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = urlsplit(value.strip())
+        host = (parsed.hostname or "").lower().rstrip(".")
+    except ValueError:
+        return False
+    retired_hosts = ("nousresearch.com", "staging-nousresearch.com")
+    if any(host == root or host.endswith("." + root) for root in retired_hosts):
+        return True
+    return (host == "raw.githubusercontent.com" and parsed.path.rstrip("/").lower()
+            == "/nousresearch/hermes-agent/main/website/static/api/model-catalog.json")
 
 
-def strip_retired_settings(config: dict[str, Any]) -> dict[str, Any]:
-    """Return a detached document without removed service settings."""
-    result = copy.deepcopy(config)
-    for section, key in _RETIRED:
-        values = result.get(section)
-        if isinstance(values, dict):
-            values.pop(key, None)
-            if not values:
-                result.pop(section, None)
-    catalog = result.get("model_catalog")
-    if isinstance(catalog, dict) and catalog.get("url") in _RETIRED_CATALOG_URLS:
-        catalog["url"] = ""
-    cron = result.get("cron")
-    if isinstance(cron, dict) and cron.get("provider") == "chronos":
-        cron["provider"] = ""
-    return result
+def require_independent_endpoint(value: object) -> None:
+    """Reject a retired endpoint before routing or constructing any HTTP transport."""
+    if is_retired_service_url(value):
+        from hermes_cli.auth import AuthError
+        raise AuthError("Retired Nous service endpoints are not supported. Configure an independent provider.",
+                        code="retired_service")
 
 
-def private_config_changes(changes):
-    """Migrate whole documents and dotted writes without touching other settings."""
-    from dataclasses import replace
+def _contains_retired_setting(value: Any, path: str = "") -> bool:
+    if any(path == retired or path.startswith(retired + ".") for retired in _RETIRED_PATHS):
+        return True
+    key = path.rsplit(".", 1)[-1]
+    if isinstance(value, str):
+        name = value.strip().lower()
+        if key in {"provider", "backend", "cloud_provider", "search_backend", "extract_backend"}:
+            if name in _RETIRED_NAMES or (path == "cron.provider" and name == "chronos"):
+                return True
+        if path == "terminal.modal_mode" and name == "managed":
+            return True
+        if path.startswith("custom_providers.") and key in {"name", "id"} and name in _RETIRED_NAMES:
+            return True
+        return key in {"url", "base_url", "endpoint"} and is_retired_service_url(value)
+    if isinstance(value, Mapping):
+        return any(_contains_retired_setting(child, f"{path}.{key}" if path else str(key))
+                   for key, child in value.items())
+    if isinstance(value, list):
+        return any(_contains_retired_setting(child, f"{path}.{index}") for index, child in enumerate(value))
+    return False
 
-    retired = tuple(f"{section}.{key}" for section, key in _RETIRED)
-    updates = {key: value for key, value in changes.set.items()
-               if not any(key == path or key.startswith(path + ".") for path in retired)}
-    for section, _ in _RETIRED:
-        if section in updates:
-            updates[section] = strip_retired_settings({section: updates[section]}).get(section, {})
-    if "model_catalog" in updates:
-        updates["model_catalog"] = strip_retired_settings({"model_catalog": updates["model_catalog"]})["model_catalog"]
-    if updates.get("model_catalog.url") in _RETIRED_CATALOG_URLS:
-        updates["model_catalog.url"] = ""
-    if updates.get("cron.provider") == "chronos":
-        updates["cron.provider"] = ""
-    return replace(
-        changes,
-        document=strip_retired_settings(changes.document) if changes.document is not None else None,
-        set=updates,
-        unset=tuple(dict.fromkeys((*changes.unset, *retired))),
-    )
+
+def validate_independent_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed on obsolete settings, without editing, converting or copying the document."""
+    if _contains_retired_setting(config):
+        # SystemExit is deliberate: generic config callers must not swallow this and serve defaults.
+        raise ConfigBackendUnavailable(_MESSAGE)
+    return config
+
+
+def validate_independent_changes(changes) -> None:
+    """Refuse unsupported whole or dotted writes before any backend mutation; explicit unsets remain valid."""
+    if ((changes.document is not None and _contains_retired_setting(changes.document))
+            or _contains_retired_setting(changes.set)):
+        raise ConfigValueError(_MESSAGE)
