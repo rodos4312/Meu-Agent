@@ -1,0 +1,180 @@
+name: MEU private RC installer
+run-name: MEU 0.1.0-rc.1 - bundled Windows installer
+on:
+  push:
+    branches: [rc/meu-independence-rc1]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: meu-private-rc-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  core:
+    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          extras: '["messaging", "web", "mcp"]'
+          test-environment: 'true'
+      - name: Verify Coding Engine, chat routing, approvals and recovery
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-timeout 600 --file-retries 0
+          tests/meu_coding
+          tests/tools/test_coding_task_tool.py
+          tests/tools/test_coding_result_choice.py
+          tests/agent/test_coding_engine_guidance.py
+          -- --override-ini=addopts= -q
+      - name: Verify Nous removal and retained providers and extensions
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-timeout 600 --file-retries 0
+          tests/hermes_cli/test_meu_privacy.py
+          tests/hermes_cli/test_meu_nous_routes.py
+          tests/hermes_cli/test_meu_retired_login.py
+          tests/hermes_cli/test_meu_retired_endpoints.py
+          tests/hermes_cli/test_meu_independent_identity.py
+          tests/hermes_cli/test_config_retired_key_migrations.py
+          tests/agent/test_meu_retired_http_client.py
+          tests/agent/test_meu_deepseek_privacy.py
+          tests/tools/test_retired_credential_block.py
+          tests/tools/test_mcp_cimd.py
+          tests/tools/test_memory_tool.py
+          tests/hermes_cli/test_plugins_loader.py
+          -- --override-ini=addopts= -q
+  windows:
+    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      MEU_UPDATE_CHANNEL: rc
+      HERMES_DESKTOP_VARIANT: bundled
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Enforce private source and RC identity
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent-RC-private' -or $env:GITHUB_REF -cne 'refs/heads/rc/meu-independence-rc1') { throw 'Not the private RC source.' }
+          $package = Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json
+          if ($package.version -cne '0.1.0-rc.1') { throw 'Unexpected version.' }
+          git merge-base --is-ancestor 4d505029568faf214d64f7fc1d1f6ede1074c6b0 $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Nous-independence commit is missing.' }
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          extras: '[]'
+      - name: Install locked frontend build dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify release identity validation
+        run: node --test scripts/ci/meu-rc-smoke-validation.test.mjs
+      - name: Verify private channel and update boundaries
+        working-directory: apps/desktop
+        run: >-
+          npx vitest run --project electron --maxWorkers 2
+          electron/updater/meu-channel.test.ts
+          electron/updater/meu-client.test.ts
+          electron/updater/meu-windows.test.ts
+          electron/updater/meu-release-feed.test.ts
+          electron/product-identity.test.ts
+          scripts/write-build-stamp.test.mjs
+      - name: Stage complete locked agent payload
+        shell: pwsh
+        run: |
+          python -B scripts/bundles/stage.py --out apps/desktop/build/agent-payload --ref $env:GITHUB_SHA --cache "$env:RUNNER_TEMP/meu-rc-uv-cache"
+          if ($LASTEXITCODE -ne 0) { throw 'Agent payload preparation failed.' }
+      - name: Build RC desktop with embedded runtime
+        working-directory: apps/desktop
+        run: npm run build
+      - name: Build full Windows NSIS installer
+        working-directory: apps/desktop
+        run: npm run builder -- --win nsis --x64 --publish never
+      - name: Scan installer and unpacked application
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem apps/desktop/release/Meu-*-win-x64.exe -File)
+          if ($installer.Count -ne 1) { throw 'Expected one installer.' }
+          ./apps/desktop/scripts/scan-meu-package.ps1 -PackagePath $installer[0].FullName -ReportDirectory apps/desktop/release/security -UnpackedPath apps/desktop/release/win-unpacked
+      - name: Rehearse installation, actual core startup, renderer and repair
+        shell: pwsh
+        run: ./scripts/ci/test-meu-rc-installer.ps1
+      - name: Collect verified installer and provenance
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path private-rc-artifacts -Force | Out-Null
+          Copy-Item apps/desktop/release/Meu-*-win-x64.exe private-rc-artifacts/
+          Copy-Item apps/desktop/release/security/meu-package-security.json private-rc-artifacts/
+          Copy-Item apps/desktop/release/security/SHA256SUMS.txt private-rc-artifacts/
+          Copy-Item apps/desktop/build/install-stamp.json private-rc-artifacts/
+          Copy-Item "$env:RUNNER_TEMP/meu-rc-installed-smoke/result.json" private-rc-artifacts/installation-test.json
+          Copy-Item docs/meu/RC_0_1_0_1.md private-rc-artifacts/RELEASE-NOTES.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-0.1.0-rc.1-Windows-x64-installer
+          path: private-rc-artifacts/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve bounded build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-private-RC-diagnostics
+          path: |
+            apps/desktop/release/security/
+            ${{ runner.temp }}/meu-rc-installed-smoke/*.json
+            ${{ runner.temp }}/meu-rc-installed-smoke/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+  publish:
+    needs: [core, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: Meu-0.1.0-rc.1-Windows-x64-installer
+          path: release
+      - name: Verify provenance and publish only to the private repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'rodos4312/Meu-Agent-RC-private'
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" = true
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('release')
+          stamp=json.loads((root/'install-stamp.json').read_text(encoding='utf-8-sig'))
+          assert stamp['commit']==os.environ['GITHUB_SHA'] and not stamp['dirty']
+          assert stamp['payload']=='bundled' and stamp['meuUpdates']['channel']=='meu-rc'
+          assert stamp['meuUpdates']['repository']=='rodos4312/Meu-Agent-RC-private'
+          scan=json.loads((root/'meu-package-security.json').read_text(encoding='utf-8-sig'))
+          assert scan['status']=='clean' and len(scan['scans'])==2
+          artifact=root/scan['file']
+          assert artifact.name=='Meu-0.1.0-rc.1-win-x64.exe'
+          assert artifact.stat().st_size==scan['bytes']
+          assert hashlib.sha256(artifact.read_bytes()).hexdigest()==scan['sha256']
+          result=json.loads((root/'installation-test.json').read_text(encoding='utf-8-sig'))
+          assert result['commit']==stamp['commit'] and result['status']=='passed'
+          PY
+          tag='meu-rc-v0.1.0-rc.1'
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Existing release will not be overwritten.' >&2
+            exit 1
+          fi
+          gh release create "$tag" release/*.exe release/SHA256SUMS.txt release/meu-package-security.json release/install-stamp.json release/installation-test.json \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title 'MEU vNext 0.1.0-rc.1 — Νέος πυρήνας χωρίς υπηρεσίες Nous' --notes-file release/RELEASE-NOTES.md
