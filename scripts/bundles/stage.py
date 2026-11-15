@@ -40,6 +40,11 @@ def main(argv=None) -> int:
         from scripts.bundles.payload import snapshot
         from scripts.build.icon_environment import prepare_icon_environment
         snapshot(ROOT, args.ref, source)
+        # The generic generator intentionally excludes Meu-owned committed icons.
+        # Seed the dashboard compiler's icon input from this exact snapshot.
+        owned_favicon = products / "icons/web/public/favicon.ico"
+        owned_favicon.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / "web/public/favicon.ico", owned_favicon)
         # The staging interpreter need not be a Hermes runtime; render icons on one.
         icon_python = prepare_icon_environment(source, products / "icon-environment", args.cache)
         env = {**os.environ, "HERMES_PYTHON": str(icon_python)}
