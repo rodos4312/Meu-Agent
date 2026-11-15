@@ -16,6 +16,13 @@ def _import_chat_modules():
         except Exception:  # health: allow BLE001 -- speculative import; the actual request reports errors
             logger.debug("Chat import warm-up unavailable for %s", module, exc_info=True)
 
+    try:
+        # Importing the openai module leaves the agent's class proxy cold.
+        # Resolve through its existing cache, without constructing a client.
+        from agent.process_bootstrap import _load_openai_cls
+        _load_openai_cls()
+    except Exception:  # health: allow BLE001 -- optional warm-up; actual request reports errors
+        logger.debug("Chat SDK class warm-up unavailable", exc_info=True)
     logger.info("Chat imports ready in %.2fs", time.monotonic() - started)
 
 
