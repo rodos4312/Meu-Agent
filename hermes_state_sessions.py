@@ -1454,8 +1454,12 @@ class SessionSessionsMixin:
             from hermes_state_local import annotate_local_lineages
             sessions = annotate_local_lineages(sessions, heads)
         # last_read_at is lineage-stamped, so root and tip watermarks agree.
+        from hermes_state_origin import read_origins
+        origins = read_origins(self, [s["id"] for s in sessions])
         for s in sessions:
             s["unread"] = self.session_unread(s)
+            if s["id"] in origins:
+                s["origin"] = origins[s["id"]]
         return sessions
 
     def session_lifecycle_statuses(self, session_ids: list[str]) -> dict[str, str]:

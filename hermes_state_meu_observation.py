@@ -47,7 +47,7 @@ def validate_view(db, view):
     return sid
 
 
-def observe(db, source, view, *, personal_space=None):
+def observe(db, source, view, *, personal_space=None, origin=None):
     """Store a display snapshot separately from every canonical message row."""
     sid = validate_view(db, view)
     if not isinstance(source, str) or not re.fullmatch(r'[a-z0-9-]{1,64}', source):
@@ -65,6 +65,8 @@ def observe(db, source, view, *, personal_space=None):
             db._import_session_row(conn, normalized['session'], normalized['messages'], sid)
             if personal_space is not None:
                 conn.execute('INSERT INTO state_meta(key,value) VALUES (?,?)', ('meu.space.session:' + sid, personal_space))
+            from hermes_state_origin import record_origin
+            record_origin(conn, sid, origin)
         elif not row[0]:
             raise LookupError('Conversation unavailable')
         if personal_space is not None:

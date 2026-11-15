@@ -59,6 +59,7 @@ const SIDEBAR_ROW_META_STORAGE_KEY = 'hermes.desktop.sidebarRowMeta'
 const SIDEBAR_CARD_ROWS_STORAGE_KEY = 'hermes.desktop.sidebarCardRows'
 const SIDEBAR_SHOW_ALL_SESSIONS_STORAGE_KEY = 'hermes.desktop.sidebarShowAllSessions'
 const SIDEBAR_STATUS_FILTER_STORAGE_KEY = 'hermes.desktop.sidebarStatusFilter'
+const SIDEBAR_PHONE_ONLY_STORAGE_KEY = 'hermes.desktop.sidebarPhoneOnly'
 const SIDEBAR_SHOW_ARCHIVED_STORAGE_KEY = 'hermes.desktop.sidebarShowArchived'
 const SIDEBAR_PROJECT_FILTER_STORAGE_KEY = 'hermes.desktop.sidebarProjectFilter'
 const SIDEBAR_PROFILE_FILTER_STORAGE_KEY = 'hermes.desktop.sidebarProfileFilter'
@@ -368,6 +369,9 @@ function sameRowMeta(a: SidebarRowMeta[], b: SidebarRowMeta[]): boolean {
   return a.length === b.length && a.every(id => b.includes(id))
 }
 
+// Chats created from a paired phone only; off shows everything.
+export const $sidebarPhoneOnly = persistentAtom(SIDEBAR_PHONE_ONLY_STORAGE_KEY, false, Codecs.bool)
+
 // Archived sessions are a separate backend query (`archived: 'only'`), so this
 // flag both filters the list and drives the fetch.
 export const $sidebarShowArchived = persistentAtom(SIDEBAR_SHOW_ARCHIVED_STORAGE_KEY, false, Codecs.bool)
@@ -416,9 +420,16 @@ export const $sidebarOrdering: ReadableAtom<SidebarOrdering> = computed(
 )
 
 export const $sidebarFiltersActive: ReadableAtom<boolean> = computed(
-  [$sidebarStatusFilter, $sidebarProjectFilter, $sidebarProfileFilter, $sidebarPrFilter, $sidebarShowArchived],
-  (statuses, projects, profiles, prs, archived) =>
-    statuses.length > 0 || projects.length > 0 || profiles.length > 0 || prs.length > 0 || archived
+  [
+    $sidebarStatusFilter,
+    $sidebarProjectFilter,
+    $sidebarProfileFilter,
+    $sidebarPrFilter,
+    $sidebarPhoneOnly,
+    $sidebarShowArchived
+  ],
+  (statuses, projects, profiles, prs, phoneOnly, archived) =>
+    statuses.length > 0 || projects.length > 0 || profiles.length > 0 || prs.length > 0 || phoneOnly || archived
 )
 
 /** Anything at all moved off the shipped view — what makes a reset worth
@@ -919,6 +930,10 @@ export function toggleSidebarProfileFilter(profile: string) {
   toggleIn($sidebarProfileFilter, profile)
 }
 
+export function setSidebarPhoneOnly(on: boolean) {
+  $sidebarPhoneOnly.set(on)
+}
+
 export function toggleSidebarPrFilter(bucket: PullRequestBucket) {
   toggleIn($sidebarPrFilter, bucket)
 }
@@ -928,6 +943,7 @@ function clearSidebarFilters() {
   $sidebarProjectFilter.set([])
   $sidebarProfileFilter.set([])
   $sidebarPrFilter.set([])
+  $sidebarPhoneOnly.set(false)
   $sidebarShowArchived.set(false)
 }
 

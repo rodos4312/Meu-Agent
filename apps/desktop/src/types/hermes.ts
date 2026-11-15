@@ -528,6 +528,9 @@ export interface SessionInfo {
    *  sidebar can label the lineage; undefined against older backends and for
    *  plain rows and branches. */
   continuation_kind?: 'compression'
+  /** Where the chat was created, from the stored creation record. Absent for chats
+   *  without one (never inferred); `device` is the paired phone's label. */
+  origin?: { device: string; kind: 'phone' }
   input_tokens: number
   /** Spend for the session, straight off the `sessions` row. `actual` is set
    *  when the provider reported a price; `estimated` is our own pricing-table

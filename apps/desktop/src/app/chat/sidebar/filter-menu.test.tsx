@@ -7,6 +7,7 @@ import { $interfaceMode } from '@/store/interface-mode'
 import {
   $sidebarListGroupIds,
   $sidebarOrdering,
+  $sidebarPhoneOnly,
   $sidebarStatusFilter,
   resetSidebarView,
   setSidebarGrouping,
@@ -58,4 +59,17 @@ it('translates the live filter menu while preserving selected values and the cur
   expect(screen.getByRole('menuitemcheckbox', { name: ja.needsInput }).getAttribute('aria-checked')).toBe('true')
   expect(screen.queryByRole('menuitemcheckbox', { name: zh.needsInput })).toBeNull()
   expect($sidebarOrdering.get()).toBe('manual')
+})
+
+it('offers a phone-only filter that toggles and clears with the view', () => {
+  render(
+    <I18nProvider configClient={null} initialLocale="en">
+      <Menu />
+    </I18nProvider>
+  )
+  fireEvent.keyDown(screen.getByRole('button', { name: TRANSLATIONS.en.sidebar.filter.filters }), { key: 'Enter' })
+  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Από κινητό' }))
+  expect($sidebarPhoneOnly.get()).toBe(true)
+  resetSidebarView()
+  expect($sidebarPhoneOnly.get()).toBe(false)
 })

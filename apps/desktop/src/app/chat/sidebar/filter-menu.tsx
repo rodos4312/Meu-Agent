@@ -28,6 +28,7 @@ import {
   $sidebarGrouping,
   $sidebarListGroupIds,
   $sidebarOrdering,
+  $sidebarPhoneOnly,
   $sidebarPrFilter,
   $sidebarProfileFilter,
   $sidebarProjectFilter,
@@ -41,6 +42,7 @@ import {
   setSidebarCardRows,
   setSidebarGrouping,
   setSidebarOrdering,
+  setSidebarPhoneOnly,
   setSidebarShowAllSessions,
   setSidebarShowArchived,
   setWorkspaceNodesOpen,
@@ -68,6 +70,8 @@ import type { PullRequestBucket } from '@/store/pull-requests'
 import { $unreadFinishedSessionIds, markAllSessionsRead } from '@/store/session'
 import type { SessionStatusBucket } from '@/store/session-dot-state'
 import { $sessionsHaveCost } from '@/store/sidebar-archive'
+
+import { PHONE_ORIGIN_FILTER_LABEL } from './phone-origin'
 
 interface Option<T extends string = string> {
   /** A status dot's full className, from the row's own vocabulary. */
@@ -173,6 +177,7 @@ export function SidebarFilterMenu({ className }: { className?: string }) {
   const profileNames = useStore($profiles).map(profile => normalizeProfileKey(profile.name))
   const narrowsByProfile = showAllProfiles && profileNames.length > 1
   const prFilter = useStore($sidebarPrFilter)
+  const phoneOnly = useStore($sidebarPhoneOnly)
   const showArchived = useStore($sidebarShowArchived)
   const filtersActive = useStore($sidebarFiltersActive)
   const viewCustomized = useStore($sidebarViewCustomized)
@@ -428,6 +433,12 @@ export function SidebarFilterMenu({ className }: { className?: string }) {
               option={{ id: 'all-profiles', label: t.profiles.allProfiles }}
             />
           )}
+
+          <OptionCheckbox
+            checked={phoneOnly}
+            onCheck={() => setSidebarPhoneOnly(!phoneOnly)}
+            option={{ icon: 'device-mobile', id: 'phone-only', label: PHONE_ORIGIN_FILTER_LABEL }}
+          />
 
           <OptionCheckbox
             checked={showArchived}

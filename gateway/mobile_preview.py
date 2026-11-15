@@ -123,6 +123,7 @@ class MobilePreview:
         self.device_id = device_id
         space = personal_devices.scope(authority.profile_id, device_id)[1] if personal_devices else None
         self.personal_space = space['id'] if space and not space.get('owner') else None
+        self.origin = self._phone_origin()
         self.token_digest = None
         self.tls_pem = None
         self.tls_context = None
@@ -480,6 +481,13 @@ class MobilePreview:
         return web.json_response({"history": history, "fingerprint": fingerprint(history)}
                                  if request.query.get("recovery") == "1" else history)
 
+    def _phone_origin(self):
+        """Creation origin for chats this phone makes; owner and personal spaces alike."""
+        if not self.personal_devices:
+            return None
+        device = self.personal_devices.scope(self.authority.profile_id, self.device_id)[0]
+        return {'kind': 'phone', 'device': device.get('label') or ''}
+
     async def _sync_apply(self, request):
         from hermes_state_errors import (
             CompressionSessionClosedError, SessionCompressionInProgressError, SessionTurnLeaseLostError,
@@ -492,6 +500,8 @@ class MobilePreview:
         scope = {"profile_sync": True} if self.sync_profile else {}
         if self.personal_space:
             scope['personal_space'] = self.personal_space
+        if self.origin:
+            scope['origin'] = self.origin
         try:
             async with self.lock:
                 status = await asyncio.to_thread(self.authority.db.apply_meu_sync_history, history, **scope)

@@ -143,7 +143,6 @@ import { SidebarFilterMenu } from './filter-menu'
 import { buildGatewaySessionGroups, scopeGatewaySessionGroups, useGatewaySessionGroups } from './gateway-group-model'
 import { SidebarLoadMoreRow } from './load-more-row'
 import { orderByIds, reconcileOrderIds, resolveManualSessionOrderIds, sameIds } from './order'
-import { filterSessionsByProfileScope } from './profile-scope'
 import { ProfileRail } from './profile-switcher'
 import { ProjectDialog } from './project-dialog'
 import { filterToSessionBearingProjects, resolveLiveProjectFilter } from './project-filter'
@@ -167,6 +166,7 @@ import {
   useRepoWorktreeMap
 } from './projects'
 import { WorktreeDialog } from './projects/worktree-dialog'
+import { useProfileScoped, useScopedSessions } from './scoped-sessions'
 import {
   hasSessionArea,
   SidebarBlankState,
@@ -590,11 +590,7 @@ export function ChatSidebar({
   // Archived rows are excluded from the sessions query, so Archived is a view of
   // its own set rather than a filter over this one — a flat list of archived
   // rows, no project tree, no date or status dividers.
-  const scopedSessions = useMemo(() => {
-    const pool = showArchived ? archivedSessions : sessions
-
-    return filterSessionsByProfileScope(pool, profileScope)
-  }, [sessions, archivedSessions, showArchived, profileScope])
+  const scopedSessions = useScopedSessions(sessions, archivedSessions, showArchived, profileScope)
 
   // One predicate for the status/project filters, so the flat list and the
   // project lanes narrow by the same rule. A project lane holds rows the loaded
@@ -659,15 +655,9 @@ export function ChatSidebar({
     [visibleSessions]
   )
 
-  const visibleCronSessions = useMemo(
-    () => filterSessionsByProfileScope(cronSessions, profileScope),
-    [cronSessions, profileScope]
-  )
+  const visibleCronSessions = useProfileScoped(cronSessions, profileScope)
 
-  const visibleMessagingSessions = useMemo(
-    () => filterSessionsByProfileScope(messagingSessions, profileScope),
-    [messagingSessions, profileScope]
-  )
+  const visibleMessagingSessions = useProfileScoped(messagingSessions, profileScope)
 
   // Index sessions by every id a pin might be stored under — recents, cron,
   // AND messaging, since all three can be pinned (see session-index.ts).

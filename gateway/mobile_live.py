@@ -104,6 +104,9 @@ class LiveScope:
         sid = result.get('session_id')
         if sid and self.preview.personal_space:
             self.preview.authority.db.set_meta('meu.space.session:' + sid, self.preview.personal_space)
+        if sid and self.preview.origin:
+            from hermes_state_origin import record_origin
+            self.preview.authority.db._execute_write(lambda conn: record_origin(conn, sid, self.preview.origin))
 
 
 class LiveConnection(AuthorityConnection):
@@ -375,7 +378,7 @@ async def observation(preview, request):
             raise web.HTTPForbidden()
         source = sha256(str(preview.device_id or preview.token_digest or 'phone').encode()).hexdigest()
         async with preview.lock:
-            await asyncio.to_thread(observe, preview.authority.db, source, view, personal_space=preview.personal_space)
+            await asyncio.to_thread(observe, preview.authority.db, source, view, personal_space=preview.personal_space, origin=preview.origin)
         return web.json_response({'status': 'observed'})
     except LookupError:
         raise web.HTTPNotFound() from None

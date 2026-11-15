@@ -11,6 +11,7 @@ import { $connectionsRegistry } from '@/store/connection-registry-state'
 import {
   $pinnedSessionIds,
   $sidebarMessagingOpenIds,
+  $sidebarPhoneOnly,
   $sidebarProjectFilter,
   $sidebarShowArchived,
   $sidebarStatusFilter,
@@ -285,6 +286,37 @@ describe('ChatSidebar pinned empty state under filters', () => {
 
     expect(screen.queryByText('Shift-click a chat to pin')).toBeNull()
     expect(screen.getAllByText('No sessions match these filters')).toHaveLength(2)
+  })
+})
+
+describe('ChatSidebar phone-only filter', () => {
+  beforeEach(() => {
+    $sessions.set([
+      { ...sessionRows[0], origin: { device: 'Κινητό 1', kind: 'phone' } },
+      sessionRows[1]
+    ])
+    $sessionsLoading.set(false)
+  })
+
+  afterEach(() => {
+    cleanup()
+    $sidebarPhoneOnly.set(false)
+    $sessions.set([])
+    $sessionsLoading.set(true)
+  })
+
+  it('lists every chat by default and only phone-created chats when on', () => {
+    const { unmount } = renderSidebar('/', 'chat')
+
+    expect(screen.getByText('Tile one')).toBeTruthy()
+    expect(screen.getByText('Tile two')).toBeTruthy()
+    unmount()
+
+    act(() => $sidebarPhoneOnly.set(true))
+    renderSidebar('/', 'chat')
+
+    expect(screen.getByText('Tile one')).toBeTruthy()
+    expect(screen.queryByText('Tile two')).toBeNull()
   })
 })
 

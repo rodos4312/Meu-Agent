@@ -495,13 +495,14 @@ class SessionPortabilityMixin:
         if marker is None or marker[0] != personal_space:
             raise LookupError('Session unavailable in this personal space')
 
-    def apply_meu_sync_history(self, history, *, profile_sync=False, personal_space=None):
+    def apply_meu_sync_history(self, history, *, profile_sync=False, personal_space=None, origin=None):
         """Import text or append a strict extension. Never submit an agent turn.
 
         A divergent transcript is reported without writing either version.
         Caller owns profile authorization and conflict presentation.
         """
         from hermes_state_mutation_retirement import retired_in
+        from hermes_state_origin import record_origin
 
         if not isinstance(history, dict):
             raise ValueError("Invalid sync history")
@@ -539,6 +540,7 @@ class SessionPortabilityMixin:
                 if personal_space is not None:
                     conn.execute('INSERT INTO state_meta (key, value) VALUES (?, ?)',
                                  ('meu.space.session:' + session_id, personal_space))
+                record_origin(conn, session_id, origin)
                 return "created"
             if row["parent_session_id"] or row["end_reason"] == "compression":
                 return "conflict"
