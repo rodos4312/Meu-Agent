@@ -1,5 +1,6 @@
 """Explicit picks must survive the legacy Android gateway's Auto default and resume."""
 import copy
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -210,3 +211,26 @@ def test_reasoning_pick_marks_only_session_scoped_pins(build, monkeypatch, scope
     assert agent.reasoning_config == {"enabled": True, "effort": "medium"}
     assert agent._session_reasoning_override == (agent.reasoning_config if scope == "session" else None)
     assert bool(writes) is (scope == "global")
+
+
+@pytest.mark.parametrize("selection,enabled,physical", [
+    ("meu-auto", True, "deepseek-v4-pro"),
+    ("deepseek-flash", False, "deepseek-flash"),
+    (None, True, "deepseek-v4-pro"),
+])
+def test_first_durable_row_restores_mode_before_any_model_switch(build, tmp_path, selection, enabled, physical):
+    from hermes_state import SessionDB
+    from tui_gateway.methods_session_model_guard import create_overrides
+    server, _, make = build
+    params = {"provider": "deepseek", "model": selection} if selection else {}
+    pick, _, _ = create_overrides(params)
+    model, config = server._workdir_row_model_config({"session_key": "owned-first-row", "model_override": pick})
+    with SessionDB(db_path=tmp_path / "first-row.db") as db:
+        db.create_session("owned-first-row", source="desktop", model=model, model_config=config)
+        row = db.get_session("owned-first-row")
+    assert row["model"] == physical
+    saved = json.loads(row["model_config"])
+    assert saved["smart_model_routing"]["enabled"] is enabled
+    restored = server._stored_session_runtime_overrides(row)
+    agent = make(restored.get("model_override"))
+    assert agent._model_routing_config["enabled"] is enabled

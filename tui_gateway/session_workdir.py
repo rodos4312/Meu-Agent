@@ -552,8 +552,14 @@ def _workdir_row_model_config(session: dict) -> tuple[str, dict]:
     global default here wins the INSERT-OR-IGNORE race (a reconnect silently reverts to the profile default).
     model_config carries provider/reasoning/service_tier so resume restores effort + fast too."""
     override = raw if isinstance(raw := session.get("model_override"), dict) else {}
+    from tui_gateway.model_routing_mode import prepare_mode
+    with _session_profile_runtime_scope(session, hydrate_secrets=False):
+        resolved, routing_policy = prepare_mode(_load_cfg(), override)
+    override = resolved if isinstance(resolved, dict) else override
     row_model = str(override.get("model") or "").strip() or _session_default_route(session)[0]
     model_config: dict = {k: str(v) for k in ("model", "provider", "base_url", "api_mode") if (v := override.get(k))}
+    if routing_policy:
+        model_config["smart_model_routing"] = routing_policy
     # A RESOLVED provider "custom" (named ``providers:``/``custom_providers:`` entry) persisted bare here is the origin
     # of "No LLM provider configured" rows (resume routes to OpenRouter with no key). Recover the durable
     # ``custom:<name>`` identity (matches _runtime_model_config).

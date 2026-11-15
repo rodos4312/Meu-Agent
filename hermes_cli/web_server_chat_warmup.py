@@ -9,13 +9,6 @@ logger = logging.getLogger(__name__)
 
 def _import_chat_modules():
     started = time.monotonic()
-    for module in ('openai', 'run_agent', 'tui_gateway.agent_factory',
-                   'agent.workload_turn_route', 'gateway.run'):
-        try:
-            importlib.import_module(module)
-        except Exception:  # health: allow BLE001 -- speculative import; the actual request reports errors
-            logger.debug("Chat import warm-up unavailable for %s", module, exc_info=True)
-
     try:
         # Importing the openai module leaves the agent's class proxy cold.
         # Resolve through its existing cache, without constructing a client.
@@ -23,6 +16,13 @@ def _import_chat_modules():
         _load_openai_cls()
     except Exception:  # health: allow BLE001 -- optional warm-up; actual request reports errors
         logger.debug("Chat SDK class warm-up unavailable", exc_info=True)
+    for module in ('openai', 'run_agent', 'tui_gateway.agent_factory',
+                   'agent.workload_turn_route', 'gateway.run'):
+        try:
+            importlib.import_module(module)
+        except Exception:  # health: allow BLE001 -- speculative import; the actual request reports errors
+            logger.debug("Chat import warm-up unavailable for %s", module, exc_info=True)
+
     logger.info("Chat imports ready in %.2fs", time.monotonic() - started)
 
 
