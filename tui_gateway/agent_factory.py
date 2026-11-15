@@ -694,6 +694,8 @@ def _make_agent(
     if context_cwd_is_launch_artifact is None:
         context_cwd_is_launch_artifact = _context_cwd_is_launch_artifact(session)
     agent._model_routing_config = routing_policy
+    agent._session_reasoning_override = (
+        dict(reasoning_config_override) if isinstance(reasoning_config_override, dict) else None)
     agent._context_cwd_is_launch_artifact = bool(context_cwd_is_launch_artifact)
     if fallback_notice:
         # Emitted once on the first successful reply via _emit_pending_fallback_notice -> status_callback.

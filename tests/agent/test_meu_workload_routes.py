@@ -58,7 +58,8 @@ def test_unknown_provider_is_refused(provider):
         explicit_routes(value)
 
 
-def test_real_sdk_sends_image_and_only_the_selected_route_key_then_restores(tmp_path, monkeypatch):
+@pytest.mark.parametrize('effort', [None, 'medium', 'high'])
+def test_real_sdk_sends_image_and_only_the_selected_route_key_then_restores(tmp_path, monkeypatch, effort):
     from agent import auxiliary_client, client_lifecycle
     from agent.voice_turn_route import session_runtime_view
     from agent.workload_turn_route import begin_workload_turn_route, end_workload_turn_route
@@ -71,6 +72,9 @@ def test_real_sdk_sends_image_and_only_the_selected_route_key_then_restores(tmp_
         base_url="https://api.deepseek.com/v1", enabled_toolsets=[],
         quiet_mode=True, skip_memory=True, skip_context_files=True,
     )
+    selected_reasoning = {"enabled": True, "effort": effort} if effort else None
+    current.reasoning_config = copy.deepcopy(selected_reasoning)
+    current._session_reasoning_override = copy.deepcopy(selected_reasoning)
     seen = []
     def handle(request):
         data = json.loads(request.content)
@@ -94,6 +98,7 @@ def test_real_sdk_sends_image_and_only_the_selected_route_key_then_restores(tmp_
     try:
         assert begin_workload_turn_route(current, messages, "Stable prefix") == "Stable prefix"
         assert current.provider == "zai"
+        assert current.reasoning_config == selected_reasoning
         from agent.auxiliary_task_config import _get_auxiliary_task_config
         assert _get_auxiliary_task_config("vision")["provider"] == "zai"
         assert _get_auxiliary_task_config("vision")["fallback_chain"] == []
@@ -102,6 +107,8 @@ def test_real_sdk_sends_image_and_only_the_selected_route_key_then_restores(tmp_
         assert seen[0][0] == "api.z.ai"
         assert seen[0][1] == "Bearer zai-fixture"
         assert seen[0][2]["model"] == "glm-5.3-flash"
+        if effort:
+            assert seen[0][2]["reasoning_effort"] == effort
         assert seen[0][2]["messages"][-1]["content"][-1] == image
         assert messages == original
     finally:

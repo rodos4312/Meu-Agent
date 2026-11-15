@@ -25,6 +25,10 @@ def begin_workload_turn_route(agent, messages, system_prompt):
     agent._fallback_chain = []
     if bind_route_entry(agent, target, target["provider"], target["model"]) is None:
         raise ValueError(f"Configure the API key for {target['provider']} before using Auto.")
+    # A workload change picks a provider/model, not a different session effort.
+    # Unpinned sessions retain bind_route_entry's per-model config resolution.
+    if isinstance(pinned_reasoning := getattr(agent, "_session_reasoning_override", None), dict):
+        agent.reasoning_config = copy.deepcopy(pinned_reasoning)
     vision = explicit_routes(policy).get("vision")
     if vision:
         from agent.auxiliary_task_config import _SESSION_AUXILIARY, _AUX_ROUTE_KEYS, session_auxiliary_scope

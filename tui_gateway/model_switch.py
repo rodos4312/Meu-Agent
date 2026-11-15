@@ -20,13 +20,16 @@ def _snapshot_agent_model_runtime(agent) -> dict:
     return {**{k: getattr(agent, k, "") for k in _RUNTIME_KEYS},
             "reasoning_config": copy.deepcopy(getattr(agent, "reasoning_config", None)),
             "primary_runtime": copy.deepcopy(getattr(agent, "_primary_runtime", None)),
-            "routing_policy": copy.deepcopy(getattr(agent, "_model_routing_config", None))}
+            "routing_policy": copy.deepcopy(getattr(agent, "_model_routing_config", None)),
+            "session_reasoning_override": copy.deepcopy(getattr(agent, "_session_reasoning_override", None))}
 
 
 def _restore_agent_model_runtime(agent, snapshot: dict | None) -> None:
     """Restore an agent model runtime captured before a one-turn override."""
     if not snapshot or agent is None:
         return
+    if "session_reasoning_override" in snapshot:
+        agent._session_reasoning_override = copy.deepcopy(snapshot["session_reasoning_override"])
     if isinstance(snapshot.get("routing_policy"), dict):
         agent._model_routing_config = copy.deepcopy(snapshot["routing_policy"])
     # `/model X --reasoning high --once`: the effort leaves with the model. Set before the
@@ -298,6 +301,8 @@ def _commit_agent_switch(sid: str, session: dict, agent, result, current_model: 
                          f"staying on {getattr(agent, 'model', current_model)}.") from exc
     if routing_policy is not None:
         agent._model_routing_config = copy.deepcopy(routing_policy)
+    if isinstance(pinned_reasoning := getattr(agent, "_session_reasoning_override", None), dict):
+        agent.reasoning_config = copy.deepcopy(pinned_reasoning)
     _restart_slash_worker(sid, session)
     _persist_live_session_runtime(session)
     _persist_live_session_system_prompt(session)
@@ -445,6 +450,7 @@ def _apply_switch_reasoning(sid: str, session, agent, effort: str, *, persist_gl
         return
     if agent is not None:
         agent.reasoning_config = parsed
+        agent._session_reasoning_override = dict(parsed) if not persist_global else None
     if one_turn or not isinstance(session, dict):
         return
     if persist_global:

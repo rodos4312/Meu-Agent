@@ -40,10 +40,10 @@ def build(monkeypatch, tmp_path):
         return agent
     monkeypatch.setattr("run_agent.AIAgent", construct)
 
-    def make(pick):
+    def make(pick, **kwargs):
         return server._make_agent("owned-mode-test", "owned-mode-test", model_override=pick,
                                   session_id="owned-mode-test", context_cwd_is_launch_artifact=False,
-                                  cwd_override=str(tmp_path))
+                                  cwd_override=str(tmp_path), **kwargs)
     return server, config, make
 
 
@@ -112,12 +112,14 @@ def test_greek_web_read_requests_use_configured_web_role(build, text):
 def test_live_manual_auto_reset_and_once_preserve_mode(build, monkeypatch):
     from hermes_cli import config as cli_config, model_switch
     server, config, make = build
-    agent = make(None)
+    medium = {'enabled': True, 'effort': 'medium'}
+    agent = make(None, reasoning_config_override=medium)
     agent.api_key = 'test-only'
     agent.api_mode = 'chat_completions'
     agent.service_tier = None
     agent.switch_model = lambda **kw: (
-        setattr(agent, 'model', kw['new_model']), setattr(agent, 'provider', kw['new_provider']))
+        setattr(agent, 'model', kw['new_model']), setattr(agent, 'provider', kw['new_provider']),
+        setattr(agent, 'reasoning_config', None))
     session = {'agent': agent, 'session_key': 'owned-mode-test'}
     monkeypatch.setattr(cli_config, 'load_config', lambda: copy.deepcopy(config))
     monkeypatch.setattr(model_switch, 'switch_model', lambda **kw: SimpleNamespace(
@@ -134,6 +136,7 @@ def test_live_manual_auto_reset_and_once_preserve_mode(build, monkeypatch):
     switch = lambda model: server._apply_model_switch('owned-mode-test', session,
         model + ' --provider deepseek', confirm_expensive_model=True, persist_override=False)
     switch('deepseek-v4-pro')
+    assert agent.reasoning_config == medium
     assert saved[-1]['enabled'] is False
     assert session['model_override']['smart_model_routing']['enabled'] is False
     # Reset must restore Auto even when the physical primary model is unchanged.
@@ -147,6 +150,8 @@ def test_live_manual_auto_reset_and_once_preserve_mode(build, monkeypatch):
     assert agent._model_routing_config['enabled'] is False
     server._restore_agent_model_runtime(agent, session['one_turn_model_restore'])
     assert agent._model_routing_config['enabled'] is True
+    assert agent.reasoning_config == medium
+    assert agent._session_reasoning_override == medium
 
 
 @pytest.mark.parametrize('text', ['Γράψε μια σελίδα κειμένου για ένα βιβλίο', 'Implement a web search function in this code'])
@@ -172,3 +177,36 @@ def test_manual_chat_still_advertises_its_configured_auto_roles(build, monkeypat
     assert payload['model'] == 'deepseek-flash'
     assert payload['providers'][0]['models'][0] == 'meu-auto'
     assert agent._model_routing_config['enabled'] is False
+
+
+def test_new_auto_chat_preserves_medium_reasoning_on_persisted_resume(build):
+    from tui_gateway.methods_session_model_guard import create_overrides
+    server, _, make = build
+    pick, reasoning, _ = create_overrides({"provider": "deepseek", "model": "meu-auto",
+                                          "reasoning_effort": "medium"})
+    agent = make(pick, reasoning_config_override=reasoning)
+    assert agent._session_reasoning_override == {"enabled": True, "effort": "medium"}
+    agent.api_mode = "chat_completions"
+    agent.service_tier = None
+    saved = server._runtime_model_config(agent)
+    restored = server._stored_session_runtime_overrides({"model": agent.model, "model_config": saved})
+    resumed = make(restored.get("model_override"), reasoning_config_override=restored["reasoning_config_override"])
+    assert resumed._session_reasoning_override == agent._session_reasoning_override
+
+
+@pytest.mark.parametrize("scope", ["session", "global"])
+def test_reasoning_pick_marks_only_session_scoped_pins(build, monkeypatch, scope):
+    from tui_gateway.methods_session_model_guard import create_overrides
+    server, _, make = build
+    pick, _, _ = create_overrides({"provider": "deepseek", "model": "meu-auto"})
+    agent = make(pick)
+    session = {"agent": agent, "session_key": "owned-mode-test"}
+    monkeypatch.setattr(server, "_persist_live_session_runtime", lambda *a: None)
+    monkeypatch.setattr(server, "_emit_session_info", lambda *a: None)
+    writes = []
+    monkeypatch.setattr(server, "_write_config_key", lambda *a: writes.append(a))
+    server._set_reasoning("owned", {"session_id": "owned-mode-test", "scope": scope},
+                          "reasoning", "medium", session)
+    assert agent.reasoning_config == {"enabled": True, "effort": "medium"}
+    assert agent._session_reasoning_override == (agent.reasoning_config if scope == "session" else None)
+    assert bool(writes) is (scope == "global")
