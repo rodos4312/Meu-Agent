@@ -134,6 +134,9 @@ module.exports = {
   ...(process.platform === 'darwin' ? { afterSign: 'scripts/notarize.mjs' } : {}),
   extraResources: [
     { from: '../../LICENSE', to: 'open-source-notices/Hermes-LICENSE.txt' },
+    ...(appId === 'com.meuagent.desktop'
+      ? [{ from: 'assets/notices/electron-builder-LICENSE.txt', to: 'open-source-notices/electron-builder-LICENSE.txt' }]
+      : []),
     ...(appId === 'com.meuagent.desktop' ? [
       'meu_update_recovery.py', 'meu_update_watch.py', 'meu_recovery_runtime.py',
       'meu_recovery_resume.py', 'meu_recovery_bootstrap.py', 'meu_recovery_windows.py'
@@ -267,6 +270,9 @@ module.exports = {
   // The Meu preview installer is separate from the official MSIX packaging.
   // Installer shortcuts belong to the real installer, not the portable ZIP.
   nsis: {
+    ...(appId === 'com.meuagent.desktop'
+      ? { include: 'scripts/meu-long-path-uninstall.nsh' }
+      : {}),
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,

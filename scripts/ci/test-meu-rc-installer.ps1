@@ -1,3 +1,4 @@
+param([string]$ExpectedCommit = $env:GITHUB_SHA)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Disposable GitHub runner only.' }
@@ -11,12 +12,13 @@ function Run-Installer([string]$Exe) {
                 Select-Object Name,Free,Used)
             $destination = Join-Path $env:LOCALAPPDATA 'Programs/Meu'
             $files = @(Get-ChildItem -LiteralPath $destination -File -Recurse -ErrorAction SilentlyContinue)
-            $bytes = ($files | Measure-Object Length -Sum).Sum
+            $bytes = 0L
+            foreach ($file in $files) { $bytes += $file.Length }
             $sample = [ordered]@{ elapsedSeconds=[int]$timer.Elapsed.TotalSeconds; installerPid=$child.Id;
                 cpuSeconds=$child.TotalProcessorTime.TotalSeconds; installedFiles=$files.Count;
                 installedBytes=$bytes; disks=$disk }
             $json = $sample | ConvertTo-Json -Depth 4 -Compress
-            Write-Host $json
+            Write-Host "::notice title=Installation progress::$json"
             Add-Content -LiteralPath $progress -Value $json -Encoding utf8
             if ($timer.Elapsed.TotalMinutes -ge 30) { throw 'Installer timed out after 30 minutes; see install-progress.jsonl.' }
         }
@@ -49,11 +51,24 @@ $exe = Join-Path $env:LOCALAPPDATA 'Programs/Meu/Meu.exe'
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Installed Meu.exe missing.' }
 $info = (Get-Item -LiteralPath $exe).VersionInfo
 if ($info.ProductName -cne 'Meu') { throw 'Incorrect executable branding.' }
-node scripts/ci/meu-rc-desktop-smoke.mjs $exe $scratch $env:GITHUB_SHA
+node scripts/ci/meu-rc-desktop-smoke.mjs $exe $scratch $ExpectedCommit
 if ($LASTEXITCODE -ne 0) { throw 'Installed real-runtime smoke failed.' }
-$proof = Join-Path $scratch 'profile/.meu-rc-repair-proof'
+$proofs = @(
+    (Join-Path $scratch 'profile/.meu-rc-repair-proof'),
+    (Join-Path $env:APPDATA 'Meu/.meu-rc-repair-proof'),
+    (Join-Path $env:LOCALAPPDATA 'MeuAgent/.meu-rc-repair-proof')
+)
 $value = [guid]::NewGuid().ToString('N')
-[IO.File]::WriteAllText($proof,$value)
+foreach ($proof in $proofs) {
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($proof)) -Force | Out-Null
+    [IO.File]::WriteAllText($proof,$value)
+}
 Run-Installer $installer[0].FullName
-if ([IO.File]::ReadAllText($proof) -cne $value) { throw 'Repair changed the test profile.' }
+foreach ($proof in $proofs) {
+    if ([IO.File]::ReadAllText($proof) -cne $value) { throw 'Repair changed the test profile.' }
+}
+$resultPath=Join-Path $scratch 'result.json'
+$result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+$result | Add-Member -NotePropertyName repairPreservedProfiles -NotePropertyValue $true
+$result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resultPath -Encoding utf8
 Write-Host 'PASS: actual installer and repair with preserved isolated profile'

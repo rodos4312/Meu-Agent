@@ -25,6 +25,7 @@ async function main() {
   const embedded = JSON.parse(fs.readFileSync(path.join(payload, stamp.runtime.repoDir, 'install-stamp.json'), 'utf8'))
   validateRcStamp(embedded, commit)
   assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/Hermes-LICENSE.txt')))
+  assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/electron-builder-LICENSE.txt')))
   fs.mkdirSync(scratch, {recursive:true})
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
     !/(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS|PRIVATE_KEY)$/.test(key) &&

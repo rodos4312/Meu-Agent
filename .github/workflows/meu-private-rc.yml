@@ -60,6 +60,7 @@ jobs:
       HERMES_DESKTOP_VARIANT: bundled
       HERMES_PAYLOAD_VERSION: '0.1.0-rc.1'
       PYTHONUTF8: '1'
+      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/meu-electron-cache
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -81,6 +82,18 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify release identity validation
         run: node --test scripts/ci/meu-rc-smoke-validation.test.mjs scripts/ci/meu-rc-packager-args.test.mjs
+      - name: Verify real NSIS long paths, locked-file rollback and full uninstall
+        shell: pwsh
+        run: |
+          node scripts/ci/meu-rc-prepare-nsis-fixture.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native fixture preparation failed.' }
+          ./scripts/ci/test-meu-rc-atomic-fixture.ps1
+          Copy-Item fixture-output/result.json "$env:RUNNER_TEMP/meu-rc-atomic-proof.json"
+          $workspace=[IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd([IO.Path]::DirectorySeparatorChar)
+          $target=[IO.Path]::GetFullPath((Join-Path $workspace 'fixture-output'))
+          if (-not $target.StartsWith($workspace+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup target.' }
+          if ((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Redirected fixture cleanup target.' }
+          Remove-Item -LiteralPath $target -Recurse -Force
       - name: Verify private channel and update boundaries
         working-directory: apps/desktop
         run: >-
@@ -121,6 +134,7 @@ jobs:
           Copy-Item apps/desktop/release/security/SHA256SUMS.txt private-rc-artifacts/
           Copy-Item apps/desktop/build/install-stamp.json private-rc-artifacts/
           Copy-Item "$env:RUNNER_TEMP/meu-rc-installed-smoke/result.json" private-rc-artifacts/installation-test.json
+          Copy-Item "$env:RUNNER_TEMP/meu-rc-atomic-proof.json" private-rc-artifacts/native-installer-regression.json
           Copy-Item docs/meu/RC_0_1_0_1.md private-rc-artifacts/RELEASE-NOTES.md
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -138,6 +152,7 @@ jobs:
             ${{ runner.temp }}/meu-rc-installed-smoke/*.json
             ${{ runner.temp }}/meu-rc-installed-smoke/*.jsonl
             ${{ runner.temp }}/meu-rc-installed-smoke/*.png
+            ${{ runner.temp }}/meu-rc-atomic-proof.json
           if-no-files-found: ignore
           retention-days: 14
       - name: Retain unverified package only for failure diagnosis
@@ -185,12 +200,15 @@ jobs:
           assert hashlib.sha256(artifact.read_bytes()).hexdigest()==scan['sha256']
           result=json.loads((root/'installation-test.json').read_text(encoding='utf-8-sig'))
           assert result['commit']==stamp['commit'] and result['status']=='passed'
+          assert result['repairPreservedProfiles'] is True
+          native=json.loads((root/'native-installer-regression.json').read_text(encoding='utf-8-sig'))
+          assert native['status']=='passed' and native['actualRemovalHook'] is True
           PY
           tag='meu-rc-v0.1.0-rc.1'
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo 'Existing release will not be overwritten.' >&2
             exit 1
           fi
-          gh release create "$tag" release/*.exe release/SHA256SUMS.txt release/meu-package-security.json release/install-stamp.json release/installation-test.json \
+          gh release create "$tag" release/*.exe release/SHA256SUMS.txt release/meu-package-security.json release/install-stamp.json release/installation-test.json release/native-installer-regression.json \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
             --title 'MEU vNext 0.1.0-rc.1 — Νέος πυρήνας χωρίς υπηρεσίες Nous' --notes-file release/RELEASE-NOTES.md
