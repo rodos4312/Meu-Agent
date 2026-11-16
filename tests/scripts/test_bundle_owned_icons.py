@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 from scripts.bundles import stage
 from scripts.bundles import payload
-from scripts.build import icon_environment
 
 
 def test_bundle_build_passes_owned_favicon_to_web_compiler(tmp_path, monkeypatch):
@@ -24,7 +23,6 @@ def test_bundle_build_passes_owned_favicon_to_web_compiler(tmp_path, monkeypatch
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(payload, "snapshot", snapshot)
-    monkeypatch.setattr(icon_environment, "prepare_icon_environment", lambda *args: tmp_path / "python")
     monkeypatch.setattr(stage.shutil, "which", lambda name: "test-node")
     monkeypatch.setattr(stage.subprocess, "run", run)
     monkeypatch.setattr(stage, "stage_native", lambda args: 0)

@@ -29,6 +29,7 @@ jobs:
           scripts/run_tests.sh -j 3 --file-timeout 600 --file-retries 0
           tests/meu_coding
           tests/scripts/test_bundle_owned_icons.py
+          tests/scripts/test_bundle_native.py
           tests/tools/test_coding_task_tool.py
           tests/tools/test_coding_result_choice.py
           tests/agent/test_coding_engine_guidance.py
@@ -100,7 +101,7 @@ jobs:
         run: npm run build
       - name: Build full Windows NSIS installer
         working-directory: apps/desktop
-        run: npm run builder -- --win nsis --x64 --publish never
+        run: node scripts/run-electron-builder.mjs --native-deps build/native-deps --win nsis --x64 --publish never
       - name: Scan installer and unpacked application
         shell: pwsh
         run: |

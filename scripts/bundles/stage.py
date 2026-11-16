@@ -38,21 +38,14 @@ def main(argv=None) -> int:
         products = Path(temp)
         source = products / "source"
         from scripts.bundles.payload import snapshot
-        from scripts.build.icon_environment import prepare_icon_environment
         snapshot(ROOT, args.ref, source)
-        # The generic generator intentionally excludes Meu-owned committed icons.
-        # Seed the dashboard compiler's icon input from this exact snapshot.
-        owned_favicon = products / "icons/web/public/favicon.ico"
-        owned_favicon.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source / "web/public/favicon.ico", owned_favicon)
-        # The staging interpreter need not be a Hermes runtime; render icons on one.
-        icon_python = prepare_icon_environment(source, products / "icon-environment", args.cache)
-        env = {**os.environ, "HERMES_PYTHON": str(icon_python)}
+        # Meu's dashboard favicon is committed. Consume that exact artwork;
+        # the generic generator excludes it and draws unrelated desktop surfaces.
+        env = dict(os.environ)
         commands = [
             ["scripts/build/node-deps.mjs", "--source", str(source), "--workspace", "ui-tui", "--workspace", "web"],
-            ["scripts/generate-icons.mjs", "--source", str(source), "--out", str(products / "icons")],
             ["scripts/build/tui.mjs", "--source", str(source), "--out", str(products / "tui")],
-            ["scripts/build/web.mjs", "--source", str(source), "--icons", str(products / "icons"), "--out", str(products / "web")],
+            ["scripts/build/web.mjs", "--source", str(source), "--icons", str(source), "--out", str(products / "web")],
         ]
         for command in commands:
             subprocess.run([node, *command], cwd=ROOT, env=env, check=True)
