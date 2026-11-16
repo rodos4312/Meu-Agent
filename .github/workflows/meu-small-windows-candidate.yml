@@ -67,10 +67,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 100
-      - name: Enforce private source and RC identity
+      - name: Enforce public preview source and identity
         shell: pwsh
         run: |
-          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent' -or $env:GITHUB_REF -cne 'refs/heads/dev/meu-foundation') { throw 'Not the private RC source.' }
+          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent' -or $env:GITHUB_REF -cne 'refs/heads/dev/meu-foundation') { throw 'Not the public Meu development source.' }
           $package = Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json
           if ($package.version -cne '0.2.0-dev.1') { throw 'Unexpected version.' }
           git merge-base --is-ancestor 4d505029568faf214d64f7fc1d1f6ede1074c6b0 $env:GITHUB_SHA
@@ -102,7 +102,7 @@ jobs:
           if (-not $target.StartsWith($workspace+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup target.' }
           if ((Get-Item -LiteralPath $target).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Redirected fixture cleanup target.' }
           Remove-Item -LiteralPath $target -Recurse -Force
-      - name: Verify private channel and update boundaries
+      - name: Verify preview channel and update boundaries
         working-directory: apps/desktop
         run: >-
           npx vitest run --project electron --maxWorkers 2
@@ -133,7 +133,7 @@ jobs:
         run: |
           python -B scripts/bundles/meu_source_seed.py --out apps/desktop/build --base bac9e282159473cb58113b5fef2f0c17457ddd8d --products apps/desktop/build/products/seed --repository https://github.com/rodos4312/Meu-Agent.git
           if ($LASTEXITCODE -ne 0) { throw 'Agent payload preparation failed.' }
-      - name: Build RC desktop with pinned source bootstrap
+      - name: Build desktop with pinned source bootstrap
         working-directory: apps/desktop
         run: npm run build
       - name: Build small Windows NSIS installer

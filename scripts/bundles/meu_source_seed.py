@@ -50,8 +50,10 @@ def stage(source: Path, output: Path, base: str, products: Path | None = None, r
     objects = git(source, "rev-list", "--objects", "--no-walk", "--stdin",
                   data="\n".join(commits) + "\n")
     ids = sorted({line.split()[0] for line in objects.splitlines()})
+    output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="meu-source-seed-") as temporary:
+    # Keep Git pack renames on the output volume and away from short TEMP aliases.
+    with tempfile.TemporaryDirectory(prefix=".meu-source-seed-", dir=output) as temporary:
         bare = Path(temporary) / "source.git"
         git(source, "init", "--bare", "--template=", str(bare))
         git(source, "pack-objects", "--delta-base-offset", "--compression=6",
