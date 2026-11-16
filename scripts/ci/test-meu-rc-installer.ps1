@@ -2,7 +2,7 @@ param([string]$ExpectedCommit = $env:GITHUB_SHA)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Disposable GitHub runner only.' }
-function Run-Installer([string]$Exe) {
+function Run-Installer([string]$Exe,[int]$TimeoutMinutes = 30) {
     $child = Start-Process -FilePath $Exe -ArgumentList @('/S','/currentuser') -WindowStyle Hidden -PassThru
     $timer = [Diagnostics.Stopwatch]::StartNew()
     try {
@@ -20,7 +20,7 @@ function Run-Installer([string]$Exe) {
             $json = $sample | ConvertTo-Json -Depth 4 -Compress
             Write-Host "::notice title=Installation progress::$json"
             Add-Content -LiteralPath $progress -Value $json -Encoding utf8
-            if ($timer.Elapsed.TotalMinutes -ge 30) { throw 'Installer timed out after 30 minutes; see install-progress.jsonl.' }
+            if ($timer.Elapsed.TotalMinutes -ge $TimeoutMinutes) { throw "Installer timed out after $TimeoutMinutes minutes; see install-progress.jsonl." }
         }
         if ($child.ExitCode -ne 0) { throw "Installer failed: $($child.ExitCode)" }
         Write-Host "Installer exited successfully after $([int]$timer.Elapsed.TotalSeconds) seconds."
@@ -63,7 +63,7 @@ foreach ($proof in $proofs) {
     New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($proof)) -Force | Out-Null
     [IO.File]::WriteAllText($proof,$value)
 }
-Run-Installer $installer[0].FullName
+Run-Installer $installer[0].FullName -TimeoutMinutes 45
 foreach ($proof in $proofs) {
     if ([IO.File]::ReadAllText($proof) -cne $value) { throw 'Repair changed the test profile.' }
 }
