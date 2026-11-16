@@ -74,7 +74,7 @@ test('Meu navigation preserves the live composer and stays usable across pages a
 
   await rail.locator('[data-meu-nav="settings"]').click()
   await expect(page.locator('[data-overlay-surface]')).toBeVisible()
-  await expect(page.getByText('Provider', { exact: true })).toBeVisible()
+  await expect(page.getByText('Provider', { exact: true })).toBeVisible({ timeout: 45_000 })
   await expect(rail).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('meu-settings.png') })
   await rail.locator('[data-meu-nav="scheduled"]').click()

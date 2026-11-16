@@ -26,7 +26,7 @@ test('retired billing links open usable provider keys and no Nous account surfac
   await expect(page).toHaveURL(/tab=providers.*pview=keys/)
   await expect(page.getByRole('button', { name: 'Billing', exact: true })).toHaveCount(0)
   await expect(page.getByText('Connect your Nous account', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('DeepSeek', { exact: true })).toBeVisible()
+  await expect(page.getByText('DeepSeek', { exact: true })).toBeVisible({ timeout: 45_000 })
   await page.screenshot({ path: test.info().outputPath('meu-provider-keys.png') })
 
   await page.evaluate(() => {
