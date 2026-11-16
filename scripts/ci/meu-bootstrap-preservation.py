@@ -7,7 +7,20 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 from types import SimpleNamespace
+
+
+def config_command(home: Path, *args: str) -> str:
+    """Use the installed CLI's own loader, not the test runner's dependencies."""
+    cli = next(path for name in ("hermes.exe", "hermes.cmd")
+               if (path := home / "meu-agent/.hermes/bin" / name).is_file())
+    borrowed = {"HERMES_PYTHON", "HERMES_RUNTIME_DIR", "VIRTUAL_ENV", "PYTHONPATH", "PYTHONHOME",
+                "HERMES_PYTHON_SRC_ROOT", "HERMES_INSTALL_ROOT"}
+    env = {key: value for key, value in os.environ.items() if key not in borrowed}
+    env.update(HERMES_HOME=str(home), MEU_HOME=str(home), MEU_AGENT_MODE="1", PYTHONUTF8="1")
+    return subprocess.check_output([str(cli), "config", *args], env=env, encoding="utf-8",
+                                   timeout=90).strip()
 
 
 def main() -> None:
@@ -19,14 +32,13 @@ def main() -> None:
     if os.environ.get("GITHUB_ACTIONS") != "true" or not home.is_relative_to(Path(os.environ["RUNNER_TEMP"]).resolve()):
         raise ValueError("This fixture is restricted to a disposable GitHub runner")
     os.environ["HERMES_HOME"] = str(home)
+    os.environ["MEU_HOME"] = str(home)
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from hermes_state import SessionDB
     from gateway.mobile_spaces import PersonalDevices
     from pm.environments import selected_venv
-    import yaml
 
     record = home.parent / "preservation.json"
-    config = home / "config.yaml"
     project = home / "workspaces" / "existing-game" / "index.html"
     db = SessionDB(home / "state.db")
     try:
@@ -35,9 +47,7 @@ def main() -> None:
             db.create_session("installer-preservation", "cli")
             db.append_message("installer-preservation", "user", "Keep my existing conversation")
             device, _ = devices.add_owner(SimpleNamespace(profile_id="default"), name="Owner", label="Existing phone")
-            settings = yaml.safe_load(config.read_text(encoding="utf-8-sig")) or {}
-            settings.setdefault("agent", {})["max_turns"] = 17
-            config.write_text(yaml.safe_dump(settings, allow_unicode=True), encoding="utf-8")
+            config_command(home, "set", "agent.max_turns", "17")
             project.parent.mkdir(parents=True, exist_ok=True)
             project.write_text("<html>Existing project, keep this exact file</html>", encoding="utf-8")
             venv = selected_venv(home / "meu-agent")
@@ -49,7 +59,7 @@ def main() -> None:
             expected = json.loads(record.read_text(encoding="utf-8-sig"))
             assert any(row["content"] == "Keep my existing conversation" for row in db.get_messages("installer-preservation"))
             assert db.get_meta("meu.personal-devices.v1") == expected["devices"]
-            assert yaml.safe_load(config.read_text(encoding="utf-8-sig"))["agent"]["max_turns"] == 17
+            assert json.loads(config_command(home, "get", "agent.max_turns", "--json")) == 17
             assert hashlib.sha256(project.read_bytes()).hexdigest() == expected["project"]
             assert str(selected_venv(home / "meu-agent")) == expected["venv"]
             assert list((home / "backups").glob("meu-before-*.zip")), "Core upgrade must create its user-data backup"
