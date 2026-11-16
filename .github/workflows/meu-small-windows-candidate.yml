@@ -119,6 +119,7 @@ jobs:
         run: >-
           scripts/run_tests.sh -j 2 --file-retries 0
           tests/scripts/test_meu_source_seed.py
+          tests/pm/test_workspace_build_inputs.py
           tests/scripts/install/test_meu_seed_upgrade.py
           tests/scripts/install/test_meu_pinned_upgrade.py
           tests/hermes_cli/test_venv_sync_source_seed.py

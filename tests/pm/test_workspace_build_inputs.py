@@ -331,3 +331,24 @@ def test_a_facts_file_without_published_entries_hides_nothing(tmp_path):
     workspace._copy_core_inputs(core, destination)
 
     assert (destination / "agent/chromium-1208/kept.txt").read_text(encoding="utf-8") == "KEPT\n"
+
+
+@pytest.mark.platforms("windows")
+def test_core_snapshot_keeps_deep_files_in_a_long_generation(tmp_path):
+    """Ordinary Windows users need no LongPathsEnabled policy to install plugin graphs."""
+    from pm.filesystem import long_root
+
+    core = tmp_path / "core"
+    core.mkdir()
+    (core / "pyproject.toml").write_text(
+        '[project]\nname="core"\nversion="1"\n'
+        '[tool.setuptools.packages.find]\ninclude=["plugins"]\n', encoding="utf-8")
+    relative = Path("plugins/config_backends/remote/vendor/conformance/config-resolution") / (
+        "lock-freezes-inherited-value-with-no-value-at-locking-level.json")
+    payload = core / relative
+    long_root(payload.parent).mkdir(parents=True)
+    long_root(payload).write_text('{"retained": true}', encoding="utf-8")
+    destination = tmp_path / ("generation-" + "x" * 90) / "environments" / ("f" * 32) / "workspace"
+    assert len(str(destination / relative)) > 260
+    workspace._copy_core_inputs(core, destination)
+    assert long_root(destination / relative).read_text(encoding="utf-8") == '{"retained": true}'

@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from pm.environment import PythonEnvironment
 
 from pm import paths
+from pm.filesystem import long_root
 from pm.package import InstallError
 from pm.plugin_declarations import read_python_declaration, manifest_version_error
 
@@ -91,6 +92,7 @@ def _copy_core_inputs(source: Path, destination: Path) -> None:
     import fnmatch
     import tomllib
 
+    source, destination = long_root(source), long_root(destination)
     metadata = tomllib.loads((source / "pyproject.toml").read_text(encoding="utf-8-sig"))
     project = metadata.get("project", {})
     setuptools = metadata.get("tool", {}).get("setuptools", {})
@@ -302,7 +304,7 @@ def _workspace_member(plugin_dir: Path, root: Path, *, identity: Path) -> Path:
     pyproject = declaration.pyproject
     if pyproject is not None:
         member = root / "plugin-sources" / key
-        shutil.copytree(plugin_dir, member, symlinks=True,
+        shutil.copytree(long_root(plugin_dir), long_root(member), symlinks=True,
                         ignore=_member_ignored)
         document = tomllib.loads(pyproject.read_text(encoding="utf-8-sig"))
         # uv identifies a workspace member by [project].name, so the same virtual
@@ -432,7 +434,7 @@ def lock_and_sync(
         # Sibling generations keep external relative paths at the same depth;
         # snapshotted members and their exact lock travel with the workspace.
         # Use the snapshot's exclusions: build/ may hold an in-tree backend.
-        shutil.copytree(replay, root, symlinks=True, ignore=_member_ignored)
+        shutil.copytree(long_root(replay), long_root(root), symlinks=True, ignore=_member_ignored)
         # A generation recorded before the cutoff left the user's machine still carries it.
         manifest = root / "pyproject.toml"
         manifest.write_text(_without_release_age(manifest.read_text(encoding="utf-8-sig")), encoding="utf-8")

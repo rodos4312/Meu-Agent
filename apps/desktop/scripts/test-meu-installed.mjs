@@ -65,8 +65,8 @@ for (const launch of [1, 2]) {
       assert.equal(status.updateAvailable, false)
       assert.equal(status.mechanism, 'electron-updater')
       console.log('[PASS] Packaged Meu checks its GitHub release channel with the free trusted update key')
-      await app.evaluate(() => {
-        const version = '0.1.0-dev.999'
+      await app.evaluate(({ app }) => {
+        const version = `${Number(app.getVersion().split('.')[0]) + 1}.0.0-dev.1`
         const file = `Meu-${version}-win-x64.exe`
         const directory = `https://github.com/rodos4312/Meu-Agent/releases/download/meu-v${version}/`
         const manifest = {
