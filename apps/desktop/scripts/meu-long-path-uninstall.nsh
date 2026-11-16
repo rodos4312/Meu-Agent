@@ -23,6 +23,8 @@
 
 !ifndef MEU_LONG_PATH_UNINSTALL
 !define MEU_LONG_PATH_UNINSTALL
+!macro customHeader
+!ifdef BUILD_UNINSTALLER
 Var meuRemovalSource
 Var meuRemovalBackup
 
@@ -157,6 +159,9 @@ Function un.meuRestoreFiles
     Exch $R0
 FunctionEnd
 
+
+!endif
+!macroend
 
 !macro customRemoveFiles
   Call un.meuPrepareRemoval

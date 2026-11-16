@@ -1,8 +1,13 @@
 Unicode true
+; Match electron-builder: custom include precedes its common headers.
+!ifdef MEU_FIXED
+  !define BUILD_UNINSTALLER
+  !include "${MEU_HELPER}"
+!endif
 !include LogicLib.nsh
 !define UNINSTALL_FILENAME "fixture-uninstall.exe"
 !ifdef MEU_FIXED
-  !include "${MEU_HELPER}"
+  !insertmacro customHeader
 !else
   !include "${UPSTREAM_HELPER}"
 !endif

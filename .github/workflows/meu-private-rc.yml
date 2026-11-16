@@ -88,7 +88,13 @@ jobs:
           node scripts/ci/meu-rc-prepare-nsis-fixture.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native fixture preparation failed.' }
           ./scripts/ci/test-meu-rc-atomic-fixture.ps1
-          Copy-Item fixture-output/result.json "$env:RUNNER_TEMP/meu-rc-atomic-proof.json"
+          node scripts/ci/meu-rc-nsis-template.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Full production NSIS template failed to compile.' }
+          $proof=Get-Content fixture-output/result.json -Raw | ConvertFrom-Json
+          $template=Get-Content fixture-output/template-result.json -Raw | ConvertFrom-Json
+          if ($template.status -ne 'passed' -or -not $template.fullProductionTemplateCompiled) { throw 'Template proof is missing.' }
+          $proof | Add-Member -NotePropertyName fullProductionTemplateCompiled -NotePropertyValue $true
+          $proof | ConvertTo-Json -Depth 10 | Set-Content "$env:RUNNER_TEMP/meu-rc-atomic-proof.json" -Encoding utf8
           $workspace=[IO.Path]::GetFullPath($env:GITHUB_WORKSPACE).TrimEnd([IO.Path]::DirectorySeparatorChar)
           $target=[IO.Path]::GetFullPath((Join-Path $workspace 'fixture-output'))
           if (-not $target.StartsWith($workspace+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe fixture cleanup target.' }
@@ -201,8 +207,10 @@ jobs:
           result=json.loads((root/'installation-test.json').read_text(encoding='utf-8-sig'))
           assert result['commit']==stamp['commit'] and result['status']=='passed'
           assert result['repairPreservedProfiles'] is True
+          assert result['interactiveRenderer'] is True and result['successfulRpc'] is True
           native=json.loads((root/'native-installer-regression.json').read_text(encoding='utf-8-sig'))
           assert native['status']=='passed' and native['actualRemovalHook'] is True
+          assert native['fullProductionTemplateCompiled'] is True
           PY
           tag='meu-rc-v0.1.0-rc.1'
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then

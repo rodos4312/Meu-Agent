@@ -29,13 +29,13 @@ async function main() {
   fs.mkdirSync(scratch, {recursive:true})
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
     !/(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS|PRIVATE_KEY)$/.test(key) &&
-    !['PYTHONHOME','PYTHONPATH','VIRTUAL_ENV','HERMES_RUNTIME_DIR','ELECTRON_RUN_AS_NODE','HERMES_DESKTOP_DEV_SERVER','HERMES_DESKTOP_HERMES','HERMES_DESKTOP_HERMES_ROOT','HERMES_DESKTOP_PYTHON'].includes(key)))
+    !['PYTHONHOME','PYTHONPATH','VIRTUAL_ENV','HERMES_PYTHON','HERMES_PYTHON_SRC_ROOT','HERMES_DESKTOP_BOOT_FAKE','HERMES_RUNTIME_DIR','ELECTRON_RUN_AS_NODE','HERMES_DESKTOP_DEV_SERVER','HERMES_DESKTOP_HERMES','HERMES_DESKTOP_HERMES_ROOT','HERMES_DESKTOP_PYTHON'].includes(key)))
   Object.assign(env, {MEU_HOME:path.join(scratch,'profile'),HERMES_HOME:path.join(scratch,'profile'),
     HERMES_DESKTOP_USER_DATA_DIR:path.join(scratch,'desktop'),HERMES_DESKTOP_SKIP_PROTOCOL_REGISTRATION:'1',
     HERMES_DESKTOP_SKIP_QUIT_CONFIRM:'1',MEU_AGENT_MODE:'1',PYTHONUTF8:'1'})
   const cli = path.join(payload, stamp.runtime.commands.hermes)
   const run = args => execFileSync(cli,args,{env,cwd:scratch,encoding:'utf8',timeout:180000,windowsHide:true})
-  let app
+  let app, page
   try {
     const version = run(['--version'])
     const directory = /^Install directory: (.+)$/m.exec(version)?.[1]?.trim()
@@ -47,17 +47,67 @@ async function main() {
     assert.equal(ready.endpoint.code_sha,commit,'Running core must match the packaged commit')
     const { _electron } = await import('@playwright/test')
     app = await _electron.launch({executablePath:executable,args:['--disable-gpu'],env,timeout:90000})
-    const page = await app.firstWindow()
-    await page.waitForLoadState('domcontentloaded')
-    await page.waitForFunction(() => (document.querySelector('#root')?.textContent?.trim().length ?? 0)>10,{},{timeout:90000})
+    app.context().setDefaultTimeout(90000)
+    page = await app.firstWindow({timeout:90000})
+    await page.emulateMedia({reducedMotion:'reduce'})
+    let successfulRpc=false, skippedSetup=false, rendererState
+    page.on('websocket', socket => socket.on('framereceived', ({payload}) => {
+      try {
+        const packet=JSON.parse(String(payload))
+        if(packet.jsonrpc==='2.0' && packet.id!=null && 'result' in packet && !packet.error) successfulRpc=true
+      } catch { /* Non-JSON socket frames do not prove gateway readiness. */ }
+    }))
+    await page.reload({waitUntil:'domcontentloaded',timeout:90000})
+    const deadline=Date.now()+180000
+    while(Date.now()<deadline) {
+      // Use the normal first-run escape; never seed fake credentials or backend state.
+      const later=page.getByRole('button',{name:/^(Continue without setup|I'll choose a provider later)$/i})
+      for(const button of await later.all()) {
+        if(await button.isVisible()) {
+          await button.click({timeout:5000})
+          skippedSetup=true
+          break
+        }
+      }
+      rendererState=await page.evaluate(() => {
+        const shown=e => !!e && e.checkVisibility({opacityProperty:true,visibilityProperty:true})
+        const interactive=e => {
+          if(!shown(e)) return false
+          const rect=e.getBoundingClientRect()
+          const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)
+          return !!hit && (hit===e || e.contains(hit))
+        }
+        const connecting=[...document.querySelectorAll('[data-glass-opaque]')].some(e =>
+          e.classList.contains('z-(--z-connecting)') && shown(e))
+        const composer=[...document.querySelectorAll('[data-slot="composer-rich-input"]')].some(interactive)
+        const providerInput=[...document.querySelectorAll('input[type="password"]')].some(interactive)
+        const lookingUpProviders=[...document.querySelectorAll('[role="status"]')].some(e =>
+          shown(e) && /Looking up providers/i.test(e.textContent ?? ''))
+        return {connecting,composer,providerInput,lookingUpProviders,
+          bridge:typeof window.hermesDesktop?.getConnection==='function'}
+      })
+      if(successfulRpc && rendererState.bridge && !rendererState.connecting &&
+         !rendererState.lookingUpProviders && (rendererState.composer || rendererState.providerInput)) break
+      await page.waitForTimeout(1000)
+    }
+    fs.writeFileSync(path.join(scratch,'renderer-state.json'),JSON.stringify({
+      ...rendererState,successfulRpc,skippedSetup,cloudModelTested:false},null,2)+'\n')
+    await page.screenshot({path:path.join(scratch,'installed-rc.png')})
+    assert.ok(successfulRpc && rendererState?.bridge && !rendererState.connecting &&
+      !rendererState.lookingUpProviders && (rendererState.composer || rendererState.providerInput),
+      'Authenticated core replies and an unobscured interactive application surface are required')
     const identity = await app.evaluate(({app}) => ({version:app.getVersion(),data:app.getPath('userData')}))
     assert.equal(identity.version,'0.1.0-rc.1')
     assert.equal(path.resolve(identity.data),path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
     await page.screenshot({path:path.join(scratch,'installed-rc.png')})
     const result={status:'passed',commit,version:identity.version,payload:'bundled',
-      channel:'meu-rc',realGatewayStartup:true,rendererLaunched:true,cloudModelTested:false}
+      channel:'meu-rc',realGatewayStartup:true,rendererLaunched:true,
+      interactiveRenderer:true,successfulRpc,skippedSetup,rendererState,cloudModelTested:false}
     fs.writeFileSync(path.join(scratch,'result.json'),JSON.stringify(result,null,2)+'\n')
     console.log('PASS: installed RC identity, embedded CLI, real gateway and isolated renderer')
+  } catch(error) {
+    if(page) await page.screenshot({path:path.join(scratch,'failed-application.png')}).catch(()=>{})
+    throw error
   } finally {
     if(app) await app.close()
     run(['gateway','stop'])
