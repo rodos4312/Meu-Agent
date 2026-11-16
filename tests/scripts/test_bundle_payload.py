@@ -68,3 +68,33 @@ def test_both_launchers_keep_active_home_and_call_declared_function(tmp_path, ta
                             env={**os.environ, "HERMES_HOME": str(tmp_path / "custom/profiles/memory")}, capture_output=True, text=True, check=False)
     assert result.returncode == 7, result.stderr
     assert json.loads(result.stdout) == [str(tmp_path / "custom/profiles/memory"), ["two words", "$(nope)", ""]]
+
+
+@pytest.mark.platforms("windows")
+def test_snapshot_rebuild_removes_read_only_bytecode_without_touching_source(tmp_path):
+    import stat
+
+    repo = tmp_path / "source"
+    repo.mkdir()
+    sibling = tmp_path / "keep.txt"
+    sibling.write_text("owner data", encoding="utf-8")
+    subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
+    document = repo / "entry.txt"
+    document.write_text("first", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                    "commit", "-m", "fixture"], cwd=repo, check=True, capture_output=True)
+    target = tmp_path / "payload" / "hermes-agent"
+    snapshot(repo, "HEAD", target)
+    cached = target / "__pycache__" / "entry.pyc"
+    cached.parent.mkdir()
+    cached.write_bytes(b"baked bytecode")
+    cached.chmod(stat.S_IREAD)
+    assert not (cached.stat().st_mode & stat.S_IWRITE)
+
+    snapshot(repo, "HEAD", target)
+
+    assert (target / "entry.txt").read_text(encoding="utf-8") == "first"
+    assert not cached.exists()
+    assert document.read_text(encoding="utf-8") == "first"
+    assert sibling.read_text(encoding="utf-8") == "owner data"

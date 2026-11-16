@@ -42,7 +42,11 @@ def snapshot(repo: Path, ref: str, destination: Path, exclude: tuple[str, ...] =
             ["git", "archive", "--format=tar", "--output", str(archive), ref, "--", *pathspecs],
             cwd=repo, check=True)
         if destination.exists():
-            shutil.rmtree(destination)
+            from pm.filesystem import remove_tree
+
+            # Native payloads contain deliberately read-only baked bytecode.
+            # Reuse PM's Windows-safe cleanup; other failures still propagate.
+            remove_tree(destination)
         destination.mkdir(parents=True)
         with tarfile.open(archive) as source:
             source.extractall(destination, filter="data")
