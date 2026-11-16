@@ -161,7 +161,7 @@ def _handle_coding(args, *, task_id=None, session_id=None, turn_id=None, tool_ca
 registry.register(
     name="coding_task", toolset="project", handler=_handle_coding,
     schema={"name": "coding_task", "description": (
-        "Optional isolated Coding Engine for substantial changes in an existing local Git project. "
+        "Plan, edit and review code in an isolated Git workspace. "
         "Choose it automatically when useful; new projects, small programs and straightforward edits "
         "can use the ordinary development workflow. No separate Coding page or role selection needed. "
         "start uses this chat's selected project or current workspace, and resumes the same task on retry. "

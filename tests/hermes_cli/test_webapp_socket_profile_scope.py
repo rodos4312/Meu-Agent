@@ -35,7 +35,7 @@ def _jwt(label):
 
 def _home(home, label):
     home.mkdir(parents=True, exist_ok=True)
-    (home / "config.yaml").write_text("model:\n  provider: nous\n  default: fixture-model\n")
+    (home / "config.yaml").write_text("model:\n  provider: openai\n  default: fixture-model\n")
     (home / ".env").write_text(f"HERMES_PORTAL_BASE_URL=https://{label}-portal.invalid\n")
     (home / "auth.json").write_text(json.dumps({"version": 1, "providers": {"provider-a": {
         "access_token": _jwt(label), "refresh_token": f"{label}-refresh",

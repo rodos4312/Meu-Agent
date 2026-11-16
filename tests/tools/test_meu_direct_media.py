@@ -14,8 +14,9 @@ def media_home(tmp_path, monkeypatch):
     monkeypatch.setenv("KREA_API_KEY", "own-krea-key")
 
     def save(section, selection):
-        from hermes_cli.config import atomic_config_write
-        atomic_config_write(tmp_path / "config.yaml", {section: selection})
+        # Deliberately emulate a legacy file already on disk; supported config writes
+        # reject this data before persistence (covered separately below).
+        (tmp_path / "config.yaml").write_text(json.dumps({section: selection}), encoding="utf-8")
     return save
 
 
@@ -34,14 +35,16 @@ def test_retired_selection_refuses_direct_credentials(media_home, monkeypatch, s
         "video_gen": lambda: fal._submit_fal_video_request("example/model", {}),
         "stt": transcription_cloud._resolve_openai_audio_client_config,
     }
-    with pytest.raises(ValueError, match="removed"):
+    from hermes_cli.config_backend import ConfigBackendUnavailable
+    with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
         calls[section]()
     sdk.submit.assert_not_called()
     if section == "image_gen":
-        result = json.loads(image_generation_tool.image_generate_tool("a cat"))
-        assert not result["success"]
-        assert "removed" in result["error"]
-        assert not image_generation_tool.check_image_generation_requirements()
+        with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
+            image_generation_tool.image_generate_tool("a cat")
+        with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
+            image_generation_tool.check_image_generation_requirements()
+    sdk.submit.assert_not_called()
 
 
 @pytest.mark.parametrize("section", ["image_gen", "video_gen"])
@@ -72,3 +75,17 @@ def test_missing_fal_key_does_not_use_retired_token(media_home, monkeypatch):
     with pytest.raises(ValueError, match="FAL_KEY"):
         image_generation_tool._submit_fal_request("vendor/model", {})
     sdk.submit.assert_not_called()
+
+
+@pytest.mark.parametrize("section", ["image_gen", "video_gen", "stt"])
+def test_retired_media_config_cannot_replace_an_existing_valid_file(tmp_path, monkeypatch, section):
+    from hermes_cli.config import atomic_config_write
+    from hermes_cli.config_backend import ConfigValueError
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    config = tmp_path / "config.yaml"
+    atomic_config_write(config, {section: {"provider": "openai"}})
+    before = config.read_bytes()
+    with pytest.raises(ConfigValueError, match="Retired Nous settings"):
+        atomic_config_write(config, {section: {"provider": "nous"}})
+    assert config.read_bytes() == before

@@ -62,12 +62,11 @@ def test_retired_browser_selection_does_not_launch_a_paid_or_local_browser(setti
     monkeypatch.setattr("tools.browser_session_cdp.get_cdp_override", lambda: "")
     monkeypatch.setattr(browser_use_cli, "_resolve_local_cdp", lambda *a, **kw: pytest.fail("Unexpected local fallback"))
     provider = BrowserUseBrowserProvider()
-    assert not provider.is_available()
-    with pytest.raises(ValueError, match="has been removed"):
-        provider.create_session("test-task")
-    with pytest.raises(ValueError, match="has been removed"):
-        cloud.get_cloud_provider()
-    assert "has been removed" in browser_use_cli._resolve_backend_cdp({}, "test-task")
+    from hermes_cli.config_backend import ConfigBackendUnavailable
+    for operation in (provider.is_available, lambda: provider.create_session("test-task"),
+                      cloud.get_cloud_provider, lambda: browser_use_cli._resolve_backend_cdp({}, "test-task")):
+        with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
+            operation()
 
 
 def test_no_key_never_autodetects_a_nous_browser():

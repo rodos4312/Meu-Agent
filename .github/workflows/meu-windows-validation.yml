@@ -152,6 +152,7 @@ jobs:
           tests/ci/test_update_ci_required_step_selection.py
           tests/ci/test_stable_release_graph.py
           tests/ci/test_meu_upgrade_dispatch.py
+          tests/ci/test_private_meu_validation.py
           tests/ci/test_workflow_job_graph.py
           tests/scripts/test_version_stamping.py
           tests/scripts/test_stable_release.py
@@ -337,7 +338,7 @@ jobs:
       - name: Verify telemetry stays disabled and DeepSeek tool calls work
         shell: bash
         run: >-
-          scripts/run_tests.sh -j 2 --file-retries 0
+          scripts/run_tests.sh -j 2 --file-timeout 600 --file-retries 0
           tests/hermes_cli/test_meu_privacy.py
           tests/agent/test_model_metadata_memo_bounds.py tests/test_live_nous_services_fence.py
           tests/agent/test_request_only_empty_recovery.py
@@ -710,12 +711,15 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
       - name: Package Meu Windows application
+        if: github.repository == 'rodos4312/Meu-Agent'
         working-directory: apps/desktop
         run: npm run builder -- --win --x64 --dir
       - name: Package Meu Windows installer
+        if: github.repository == 'rodos4312/Meu-Agent'
         working-directory: apps/desktop
         run: npm run builder -- --win nsis --x64
       - name: Scan Meu installer and unpacked application before upload
+        if: github.repository == 'rodos4312/Meu-Agent'
         shell: pwsh
         working-directory: apps/desktop
         run: |
@@ -723,7 +727,7 @@ jobs:
           if (@($installer).Count -ne 1) { throw 'Expected exactly one Meu installer.' }
           ./scripts/scan-meu-package.ps1 -PackagePath $installer.FullName -ReportDirectory release/security -UnpackedPath release/win-unpacked
       - name: Prove an unsigned preview cannot pass the signed-release gate
-        if: env.MEU_RELEASE_REQUEST != 'true'
+        if: github.repository == 'rodos4312/Meu-Agent' && env.MEU_RELEASE_REQUEST != 'true'
         shell: pwsh
         working-directory: apps/desktop
         run: |
@@ -746,6 +750,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
       - name: Upload Meu installer for manual Windows testing
+        if: github.repository == 'rodos4312/Meu-Agent'
         uses: actions/upload-artifact@v4
         with:
           name: Meu-Windows-x64-installer-unsigned-preview
@@ -753,6 +758,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Smoke-test Meu installer and desktop shortcuts
+        if: github.repository == 'rodos4312/Meu-Agent'
         shell: pwsh
         working-directory: apps/desktop
         run: ./scripts/test-meu-installer.ps1
@@ -765,7 +771,7 @@ jobs:
       - name: Verify complete CI dispatch replay on Windows
         shell: bash
         run: >-
-          scripts/run_tests.sh -j 2 --file-retries 0
+          scripts/run_tests.sh -j 2 --file-timeout 600 --file-retries 0
           tests/ci/test_update_ci_routing.py
           tests/ci/test_update_ci_dispatch_non_python.py
           tests/ci/test_update_ci_dispatch_python.py
@@ -795,6 +801,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload unpacked preview for review only
+        if: github.repository == 'rodos4312/Meu-Agent'
         uses: actions/upload-artifact@v4
         with:
           name: Meu-Windows-x64-preview-unsigned
@@ -802,8 +809,41 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  private-runtime-compatibility:
+    name: Private bundled runtime and Coding Engine (no installer)
+    if: >-
+      github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/dev/meu-foundation'
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pm
+        with:
+          toolchain: python
+          extras: '[]'
+          test-environment: 'true'
+          packages: git,ripgrep
+      - name: Verify private runtime contracts, chat tasks and RPC without packaging
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 3 --file-timeout 600 --file-retries 0
+          tests/meu_coding
+          tests/tools/test_coding_task_tool.py
+          tests/tools/test_coding_result_choice.py
+          tests/agent/test_coding_engine_guidance.py
+          tests/tui_gateway/test_coding_rpc.py
+          tests/tui_gateway/test_coding_remote_rpc.py
+          tests/tui_gateway/test_coding_roadmap_rpc.py
+          tests/scripts/test_bundle_native.py
+          tests/scripts/test_bundle_payload.py
+          tests/scripts/test_bundle_owned_icons.py
+          -- --override-ini=addopts= -q
+
   backend-upgrade:
     name: Real pinned Meu backend upgrade on Windows
+    if: github.repository == 'rodos4312/Meu-Agent'
     runs-on: windows-latest
     timeout-minutes: 50
     steps:

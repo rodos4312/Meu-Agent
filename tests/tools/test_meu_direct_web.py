@@ -66,7 +66,9 @@ def test_retired_provider_requires_selection_without_network(web_home, monkeypat
         return True
 
     monkeypatch.setattr(web_tools, "async_is_safe_url", public_url)
-    result = json.loads(web_tools.web_search_tool("retired route") if capability == "search"
-                        else asyncio.run(web_tools.web_extract_tool(["https://example.com"])))
-    assert result["success"] is False
-    assert "retired managed service has been removed" in result["error"]
+    from hermes_cli.config_backend import ConfigBackendUnavailable
+    with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
+        if capability == "search":
+            web_tools.web_search_tool("retired route")
+        else:
+            asyncio.run(web_tools.web_extract_tool(["https://example.com"]))

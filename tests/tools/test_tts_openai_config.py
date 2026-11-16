@@ -28,9 +28,11 @@ def test_config_credentials_precede_environment(saved_config, base):
 def test_retired_selection_never_borrows_direct_credentials(saved_config, selection):
     saved_config({**selection, "openai": {"api_key": "own-key"}})
     with patch.object(tts_tool, "_import_openai_client") as client:
-        with pytest.raises(ValueError, match="removed"):
+        from hermes_cli.config_backend import ConfigBackendUnavailable
+        with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
             tts_tool_openai._resolve_openai_audio_client_config()
-        assert not tts_tool_openai._has_openai_audio_backend()
+        with pytest.raises(ConfigBackendUnavailable, match="Retired Nous settings"):
+            tts_tool_openai._has_openai_audio_backend()
     client.assert_not_called()
 
 def test_missing_credentials_explain_setup(saved_config):

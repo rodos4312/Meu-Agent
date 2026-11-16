@@ -8,7 +8,7 @@ from types import SimpleNamespace
 def _agent(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     from run_agent import AIAgent
-    return AIAgent(api_key="k", base_url="https://inference-api.nousresearch.com/v1", provider="nous",
+    return AIAgent(api_key="k", base_url="http://localhost:9999/v1", provider="openai",
                    api_mode="chat_completions", model="anthropic/claude-fable-5.1", session_id="t", platform="cli",
                    quiet_mode=True, skip_context_files=True, skip_memory=True, save_trajectories=False, enabled_toolsets=["file"])
 
@@ -40,7 +40,7 @@ def test_write_id_and_upstream_are_on_the_line(tmp_path, monkeypatch, caplog):
     assert " id=gen-1788636728-qMa1SbYZcwjrvUzJuF1g" in line
     assert " upstream=Anthropic" in line
     # the pre-existing prefix is unchanged, so older parsers keep matching
-    assert line.startswith("API call #1: model=anthropic/claude-fable-5.1 provider=nous in=62889 out=7 total=62896 latency=0.2s")
+    assert line.startswith("API call #1: model=anthropic/claude-fable-5.1 provider=openai in=62889 out=7 total=62896 latency=0.2s")
 
 
 def test_fields_are_omitted_when_absent(tmp_path, monkeypatch, caplog):
