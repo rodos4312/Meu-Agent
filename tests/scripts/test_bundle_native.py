@@ -56,14 +56,13 @@ def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_pat
     # The real source checkout pins LF. Its archive must carry identical lock
     # bytes even on a Windows host with core.autocrlf=true.
     shutil.copy2(source / ".gitattributes", repo / ".gitattributes")
-    shutil.copytree(source / "pm", repo / "pm", ignore=shutil.ignore_patterns("__pycache__"))
-    (repo / "hermes_cli").mkdir()
-    for name in ("__init__.py", "runtime_state.py"):
-        shutil.copy2(source / "hermes_cli" / name, repo / "hermes_cli" / name)
-    # Native launchers import the stdlib-only process bootstrap before the
-    # selected entry point; the synthetic application must ship that module too.
-    for name in ("hermes_constants.py", "hermes_bootstrap.py"):
-        shutil.copy2(source / name, repo / name)
+    # Exercise the actual startup/recovery closure. A handwritten subset of
+    # CLI modules becomes invalid whenever bootstrap gains a supported helper.
+    for package in ("pm", "hermes_cli", "hermes_platform"):
+        ignored = ("__pycache__", "_version.py", "web_dist") if package == "hermes_cli" else ("__pycache__",)
+        shutil.copytree(source / package, repo / package, ignore=shutil.ignore_patterns(*ignored))
+    for module in source.glob("hermes_*.py"):
+        shutil.copy2(module, repo / module.name)
     wheels = repo / "wheels"
     wheels.mkdir()
     witness = tmp_path / "inventory-python.json"

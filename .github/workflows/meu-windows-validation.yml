@@ -308,7 +308,8 @@ jobs:
   windows-privacy:
     name: Meu privacy, memory and DeepSeek on Windows
     runs-on: windows-latest
-    timeout-minutes: 30
+    # Preserve the complete 2,000+ test lane plus catalog/backup recovery on cold runners.
+    timeout-minutes: 45
     steps:
       - name: Checkout Meu development branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
