@@ -133,6 +133,11 @@ module.exports = {
   afterPack: 'scripts/after-pack.mjs',
   ...(process.platform === 'darwin' ? { afterSign: 'scripts/notarize.mjs' } : {}),
   extraResources: [
+    ...(process.env.MEU_SOURCE_SEED === '1' ? [
+      { from: 'build/meu-source-seed.zip', to: 'meu-bootstrap/meu-source-seed.zip' },
+      { from: 'build/install-stamp.json', to: 'meu-bootstrap/install-stamp.json' },
+      { from: '../../scripts/install-meu-seed.ps1', to: 'meu-bootstrap/scripts/install-meu-seed.ps1' }
+    ] : []),
     { from: '../../LICENSE', to: 'open-source-notices/Hermes-LICENSE.txt' },
     ...(appId === 'com.meuagent.desktop'
       ? [{ from: 'assets/notices/electron-builder-LICENSE.txt', to: 'open-source-notices/electron-builder-LICENSE.txt' }]

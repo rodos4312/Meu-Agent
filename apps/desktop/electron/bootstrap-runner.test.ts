@@ -371,3 +371,22 @@ test.skipIf(process.platform === 'win32')(
     assert.equal(result.error, 'install.sh --manifest failed: exit 3\n✗ manifest broke')
   }
 )
+
+
+test('a local private source pin uses the packaged installer, actual root and no download', () => {
+  const commit = 'a'.repeat(40)
+  const stamp = { commit, branch: 'rc/meu-small-rc3', sourceSeed: {
+    schema: 1, file: 'meu-source-seed.zip', commit, base: 'b'.repeat(40),
+    branch: 'dev/meu-foundation', repository: 'https://github.com/rodos4312/Meu-Agent-RC-private.git',
+    sha256: 'c'.repeat(64), size: 1024
+  }}
+  const root = path.join(os.tmpdir(), 'source with spaces')
+  const resources = path.join(os.tmpdir(), 'resources')
+  const args = buildPinArgs(stamp, { sourceSeedRoot: resources, activeRoot: root })
+  assert.equal(args[args.indexOf('-Commit') + 1], commit)
+  assert.equal(args[args.indexOf('-Branch') + 1], 'dev/meu-foundation')
+  assert.equal(args[args.indexOf('-InstallDir') + 1], root)
+  assert.equal(args[args.indexOf('-SourceSeed') + 1], path.join(resources, 'meu-source-seed.zip'))
+  assert.ok(args.includes('-BackendOnly'))
+  assert.throws(() => buildPinArgs(stamp), /source package is missing/)
+})

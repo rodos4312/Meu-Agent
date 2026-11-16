@@ -112,7 +112,7 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { BootstrapSingleFlight } from './bootstrap-single-flight'
-import { bootstrapSnapshot } from './bootstrap-state'
+import { bootstrapSnapshot, readCanonicalInstallStamp } from './bootstrap-state'
 import {
   BROWSER_WINDOW_HEIGHT,
   BROWSER_WINDOW_MIN_HEIGHT,
@@ -4481,27 +4481,9 @@ function activeRuntimeState(backend: SourceBackend | null): ActiveRuntimeState {
   // The canonical install stamp (written next to the runtime by the bootstrap)
   // tells the UI where this runtime came from. Prefer it over the marker so
   // the Runtime row reflects the actual install provenance.
-  state.canonicalInstallStamp = readCanonicalInstallStamp()
+  state.canonicalInstallStamp = readCanonicalInstallStamp(ACTIVE_HERMES_ROOT)
 
   return state
-}
-
-/** Read the checkout-owned install stamp in the canonical runtime root
- *  (`ACTIVE_HERMES_ROOT/install-stamp.json`), written by the Python
- *  completion tail. Returns null when absent or unreadable. */
-function readCanonicalInstallStamp() {
-  try {
-    const raw = fs.readFileSync(path.join(ACTIVE_HERMES_ROOT, 'install-stamp.json'), 'utf8')
-    const parsed = JSON.parse(raw)
-
-    if (parsed && typeof parsed === 'object' && typeof parsed.source === 'string') {
-      return parsed
-    }
-
-    return null
-  } catch {
-    return null
-  }
 }
 
 function writeBootstrapMarker(payload) {
@@ -4916,7 +4898,10 @@ async function resolveHermesBackend(backendArgs: string[]): Promise<ResolvedHerm
       if (userBackend) {
         rememberLog(`[boot] Using Meu install at ${userInstall.root} (published launcher ${userInstall.launcher})`)
 
-        return userBackend
+        return resolveMeuBackendVersion(userBackend, {
+          appId: PRODUCT_IDENTITY.appId, isPackaged: IS_PACKAGED, git: resolveGitBinary(),
+          root: userInstall.root, args: backendArgs, stamp: INSTALL_STAMP
+        })
       }
 
       rememberLog(`[bootstrap] Meu install at ${userInstall.root} (from ${userInstall.launcher}) is not usable`)
@@ -16858,7 +16843,7 @@ function resolveHermesRuntime() {
   }
 
   const root = resolveUpdateRoot()
-  const canonicalStamp = readCanonicalInstallStamp()
+  const canonicalStamp = readCanonicalInstallStamp(ACTIVE_HERMES_ROOT)
 
   // A desktop first-launch bootstrap is attested by the bootstrap-complete
   // marker, not by the stamp: the stamp is the checkout's own identity

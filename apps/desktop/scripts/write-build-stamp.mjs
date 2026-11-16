@@ -13,6 +13,7 @@ import meuRelease from "../meu-release.cjs"
 import { channelBuildRequest } from "../../../scripts/msix-shared.mjs"
 import { validateBundleEnvironment } from "./bundle-env.mjs"
 import { execFileSync } from "child_process"
+import { createHash } from "node:crypto"
 
 import { isMain } from "./utils.mjs"
 
@@ -192,7 +193,8 @@ function main() {
   const payload = bundled
     ? stageDesktopLaunchers(join(OUT_DIR, 'agent-payload'))
     : null
-  const built = buildStampPayload(stamp, process.env, process.platform, payload)
+  const seed = process.env.MEU_SOURCE_SEED === '1' ? readSourceSeed(OUT_DIR, stamp.commit) : null
+  const built = buildStampPayload(stamp, process.env, process.platform, payload, seed)
   writeDesktopStamp(OUT_DIR, built)
   console.log(
     "[write-build-stamp] wrote " +
@@ -205,10 +207,25 @@ function main() {
   )
 }
 
+/** Check the actual bytes before embedding their identity into executable code. */
+export function readSourceSeed(directory, commit) {
+  const seed = JSON.parse(readFileSync(join(directory, 'meu-source-seed.json'), 'utf8'))
+  if (seed.schema !== 1 || seed.file !== 'meu-source-seed.zip' || seed.commit !== commit ||
+      !/^[a-f0-9]{40}$/.test(seed.commit) || !/^[a-f0-9]{40}$/.test(seed.base) ||
+      seed.branch !== 'dev/meu-foundation' || seed.repository !== 'https://github.com/rodos4312/Meu-Agent-RC-private.git' ||
+      !Number.isSafeInteger(seed.size) || seed.size <= 0 || seed.size > 512 * 1024 * 1024 ||
+      !/^[a-f0-9]{64}$/.test(seed.sha256)) throw new Error('Invalid Meu source package identity')
+  const bytes = readFileSync(join(directory, seed.file))
+  if (bytes.length !== seed.size || createHash('sha256').update(bytes).digest('hex') !== seed.sha256) {
+    throw new Error('Meu source package checksum failed')
+  }
+  return seed
+}
+
 /** One artifact schema for source, bundled and Light builds.
  * The PM bundle builder supplies launch paths only for bundled artifacts.
  */
-export function buildStampPayload(stamp, env = process.env, platform = process.platform, payload = null) {
+export function buildStampPayload(stamp, env = process.env, platform = process.platform, payload = null, sourceSeed = null) {
   const meuPolicy = platform === 'win32' && productIdentity.appId === 'com.meuagent.desktop' && !env.HERMES_BUILD_COMMIT && !channelBuildRequest(env) ? meuRelease.meuReleasePolicy(env, stamp.branch) : null
   // Stable: the admitted development branch or a verified release request. RC (MEU_UPDATE_CHANNEL=rc): only an rc/* branch.
   const meuChannel = meuPolicy ? meuRelease.buildUpdateChannel(env) : null
@@ -255,6 +272,12 @@ export function buildStampPayload(stamp, env = process.env, platform = process.p
     base.displayVersion = channelBuild.version
   }
   if (variant === 'bundled') base.receiverProtocol = 1
+  if (sourceSeed) {
+    if (platform !== 'win32' || variant !== 'bootstrap' || meuPolicy?.repository !== 'rodos4312/Meu-Agent-RC-private' || sourceSeed.commit !== stamp.commit || stamp.dirty) {
+      throw new Error('The local source seed requires a clean private Windows bootstrap build.')
+    }
+    base.sourceSeed = sourceSeed
+  }
 
   const updateMechanism = {
     '': 'self',
@@ -275,7 +298,7 @@ export function buildStampPayload(stamp, env = process.env, platform = process.p
     payload: variant === "store" ? "bundled" : variant || "bootstrap",
     distribution: "desktop-app",
 
-    updateMechanism: commitBuild ? 'external' : updateMechanism,
+    updateMechanism: commitBuild ? 'external' : sourceSeed ? 'app-installer' : updateMechanism,
     tag: channelBuild?.receiverCandidate ? channelBuild.releaseTag : env.HERMES_PAYLOAD_TAG || null,
     ...(bundleEnv ? { bundleEnv } : {}),
     ...(bundled ? { runtime: payload.runtime } : {})

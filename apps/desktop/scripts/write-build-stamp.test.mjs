@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import {createHash} from 'node:crypto'
+import {readSourceSeed, buildStampPayload} from './write-build-stamp.mjs'
 
 import {
   FALLBACK_BRANCH,
@@ -139,3 +144,25 @@ test('commit builds retain exact provenance without entering an update channel',
   }
 })
 
+
+
+test('private bootstrap records the source bytes and refuses stale/tampered packages', () => {
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'meu-seed-stamp-'))
+  try {
+    const commit='a'.repeat(40), bytes=Buffer.from('real fixture bytes')
+    const seed={schema:1,file:'meu-source-seed.zip',commit,base:'b'.repeat(40),
+      branch:'dev/meu-foundation',repository:'https://github.com/rodos4312/Meu-Agent-RC-private.git',
+      sha256:createHash('sha256').update(bytes).digest('hex'),size:bytes.length}
+    fs.writeFileSync(path.join(directory,seed.file),bytes)
+    fs.writeFileSync(path.join(directory,'meu-source-seed.json'),JSON.stringify(seed))
+    assert.deepEqual(readSourceSeed(directory,commit),seed)
+    const stamp=buildStampPayload({commit,branch:'rc/meu-small-rc3',dirty:false,source:'ci'},
+      {MEU_UPDATE_CHANNEL:'rc',HERMES_DESKTOP_VARIANT:'bootstrap'},'win32',null,seed)
+    assert.equal(stamp.updateMechanism,'app-installer')
+    assert.equal(stamp.payload,'bootstrap')
+    assert.deepEqual(stamp.sourceSeed,seed)
+    assert.throws(()=>readSourceSeed(directory,'c'.repeat(40)),/identity/)
+    fs.writeFileSync(path.join(directory,seed.file),'altered')
+    assert.throws(()=>readSourceSeed(directory,commit),/checksum/)
+  } finally {fs.rmSync(directory,{recursive:true,force:true})}
+})

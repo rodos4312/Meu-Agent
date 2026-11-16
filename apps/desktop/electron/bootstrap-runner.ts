@@ -1,3 +1,4 @@
+import { sourceSeedForStamp } from './meu-runtime-upgrade'
 /**
  * bootstrap-runner.ts
  *
@@ -657,14 +658,21 @@ function spawnBash(scriptPath, args, { emit, stageName, abortSignal, hermesHome 
 // a repair/update path and must not let an old packaged app detach the checkout
 // back to the commit baked into that app. All-zero fallback stamps are never
 // passed as -Commit/--commit — only the branch is used (#50823 / #50864 review).
-function buildPinArgs(installStamp, { pinCommit = true } = {}) {
+function buildPinArgs(installStamp, { pinCommit = true, sourceSeedRoot = null, activeRoot = null } = {}) {
   const args = []
 
   if (pinCommit && installStamp && isPinnedCommit(installStamp.commit)) {
     args.push('-Commit', installStamp.commit)
   }
 
-  if (installStamp && installStamp.branch) {
+  if (activeRoot) args.push('-InstallDir', activeRoot)
+  const seed = sourceSeedForStamp(installStamp)
+  if (seed) {
+    if (!sourceSeedRoot) throw new Error('Meu source package is missing from the application.')
+    args.push('-Branch', seed.branch, '-SourceSeed', path.join(sourceSeedRoot, seed.file),
+      '-SourceSeedSha256', seed.sha256, '-SourceSeedRepository', seed.repository,
+      '-InstallStampFile', path.join(sourceSeedRoot, 'install-stamp.json'), '-BackendOnly')
+  } else if (installStamp && installStamp.branch) {
     args.push('-Branch', installStamp.branch)
   }
 
@@ -693,6 +701,7 @@ async function fetchManifest({
   activeRoot,
   installStamp,
   pinCommit,
+  sourceSeedRoot,
   abortSignal
 }) {
   abortSignal?.throwIfAborted()
@@ -700,7 +709,7 @@ async function fetchManifest({
 
   const args = isPosix
     ? ['--manifest', ...buildPosixPinArgs({ installStamp, activeRoot, hermesHome, pinCommit })]
-    : ['-Manifest', ...buildPinArgs(installStamp, { pinCommit })]
+    : ['-Manifest', ...buildPinArgs(installStamp, { pinCommit, sourceSeedRoot, activeRoot })]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
     emit,
@@ -771,7 +780,8 @@ async function runStage({
   activeRoot,
   abortSignal,
   installStamp,
-  pinCommit
+  pinCommit,
+  sourceSeedRoot
 }) {
   const startedAt = Date.now()
   emit({ type: 'stage', name: stage.name, state: 'running' })
@@ -786,7 +796,7 @@ async function runStage({
         '--json',
         ...buildPosixPinArgs({ installStamp, activeRoot, hermesHome, pinCommit })
       ]
-    : ['-Stage', stage.name, '-NonInteractive', '-Json', ...buildPinArgs(installStamp, { pinCommit })]
+    : ['-Stage', stage.name, '-NonInteractive', '-Json', ...buildPinArgs(installStamp, { pinCommit, sourceSeedRoot, activeRoot })]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
     emit,
@@ -867,7 +877,7 @@ function openRunLog(logRoot) {
 // ---------------------------------------------------------------------------
 
 function bootstrapPinPolicy(existingCheckout, opts) {
-  const pinCommit = !existingCheckout || opts.pinExistingCheckout === true
+  const pinCommit = !existingCheckout || opts.pinExistingCheckout === true || Boolean(opts.installStamp?.sourceSeed)
 
   return { pinCommit, logUnpinned: existingCheckout && !pinCommit && opts.installStamp?.commit }
 }
@@ -963,6 +973,7 @@ async function runBootstrap(opts) {
       activeRoot,
       installStamp,
       pinCommit,
+      sourceSeedRoot: bundledInstallerRoot,
       abortSignal
     })
 
@@ -996,7 +1007,8 @@ async function runBootstrap(opts) {
         activeRoot,
         abortSignal,
         installStamp,
-        pinCommit
+        pinCommit,
+        sourceSeedRoot: bundledInstallerRoot
       })
 
       if (ev.state === 'failed') {

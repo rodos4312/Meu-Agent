@@ -24,6 +24,11 @@
 param(
     [string]$Branch = "dev/meu-foundation",
     [string]$Commit = "",
+    [string]$SourceSeed = "",
+    [string]$SourceSeedSha256 = "",
+    [string]$SourceSeedRepository = "",
+    [string]$InstallStampFile = "",
+    [switch]$BackendOnly,
     [string]$Channel = $(if ($env:HERMES_INSTALL_CHANNEL) { $env:HERMES_INSTALL_CHANNEL } else { "" }),
     [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }),
     [string]$InstallDir = $(if ($env:MEU_AGENT_MODE -eq "1") { Join-Path $HermesHome "meu-agent" } elseif ($env:HERMES_HOME) { "$env:HERMES_HOME\hermes-agent" } else { "$env:LOCALAPPDATA\hermes\hermes-agent" }),
@@ -893,6 +898,13 @@ function Confirm-StableUnreachable([string]$What) {
     Fail "$What$(Get-NativeDetail). Rerun the installer to retry, or pass -Channel main to install main's tip"
 }
 
+function Get-MeuSourceSeed {
+    if (-not $SourceSeed) { return $null }
+    $helper = Join-Path $PSScriptRoot 'install-meu-seed.ps1'
+    . ([ScriptBlock]::Create([IO.File]::ReadAllText($helper)))
+    return (Expand-MeuSourceSeed)
+}
+
 function Update-MeuPinnedCheckout {
     # Desktop upgrades pair one tested artifact with exactly its backend commit.
     # Never stash, reset, switch branches, or advance to a newer untested branch tip.
@@ -905,22 +917,35 @@ function Update-MeuPinnedCheckout {
     # git's empty branch output as $null, not an empty string.
     $activeBranch = "$(Invoke-Native { git -C $InstallDir branch --show-current })".Trim()
     $origin = (Invoke-Native { git -C $InstallDir config --get remote.origin.url }).Trim()
-    if (($activeBranch -and $activeBranch -cne $Branch) -or $origin -cne 'https://github.com/rodos4312/Meu-Agent.git') {
+    $allowedOrigins = @('https://github.com/rodos4312/Meu-Agent.git')
+    if ($SourceSeed) { $allowedOrigins += 'https://github.com/rodos4312/Meu-Agent-RC-private.git' }
+    if (($activeBranch -and $activeBranch -cne $Branch) -or $origin -cnotin $allowedOrigins) {
         Fail 'Meu backend uses another branch or repository; upgrade stopped'
     }
     if (Invoke-Native { git -C $InstallDir status --porcelain }) {
         Fail 'Meu backend has local changes; upgrade stopped without changing them'
     }
-    Invoke-Logged "Fetching Meu $Branch" { git -C $InstallDir fetch --no-tags origin "+refs/heads/${Branch}:refs/remotes/origin/${Branch}" }
+    $seed = Get-MeuSourceSeed
+    if ($seed) {
+        Invoke-Logged "Loading verified Meu core $Commit" { git -C $InstallDir fetch --no-tags $seed "refs/heads/$Branch" }
+    } else {
+        Invoke-Logged "Fetching Meu $Branch" { git -C $InstallDir fetch --no-tags origin "+refs/heads/${Branch}:refs/remotes/origin/${Branch}" }
+    }
     if ($LASTEXITCODE) { Fail 'Could not fetch the Meu backend'  }
     Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit HEAD } | Out-Null
     if (-not $LASTEXITCODE) { return } # No downgrade, including an older installer.
-    Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit "origin/$Branch" } | Out-Null
+    $authority = if ($seed) { 'FETCH_HEAD' } else { "origin/$Branch" }
+    Invoke-Native { git -C $InstallDir merge-base --is-ancestor $Commit $authority } | Out-Null
     if ($LASTEXITCODE) { Fail 'The packaged commit is not on the Meu development branch'  }
     Invoke-Native { git -C $InstallDir merge-base --is-ancestor HEAD $Commit } | Out-Null
     if ($LASTEXITCODE) { Fail 'Meu backend history differs; upgrade stopped'  }
     # Existing lifecycle checks refuse to interrupt active agent work.
     Invoke-InstalledHermes @('gateway', 'stop')
+    if ($seed) {
+        $backup = Join-Path $HermesHome ("backups/meu-before-$($Commit.Substring(0,12))-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip")
+        Invoke-InstalledHermes @('backup', '--output', $backup, '--keep', '0')
+        Write-Ok "User data recovery backup: $backup"
+    }
     Invoke-Logged "Updating Meu backend to $Commit" { git -C $InstallDir merge --ff-only --no-stat $Commit }
     if ($LASTEXITCODE) { Fail 'Could not advance the Meu backend'  }
 }
@@ -955,6 +980,14 @@ function Stage-Repository {
             Write-Warn "$InstallDir is not a usable git checkout (interrupted clone or damaged .git); moving it aside to $broken"
             Move-Item -LiteralPath $InstallDir -Destination $broken
         }
+    }
+    if ($SourceSeed -and -not (Test-Path (Join-Path $InstallDir '.git'))) {
+        $seed = Get-MeuSourceSeed
+        Invoke-Logged 'Installing verified local Meu core' { git -c core.longpaths=true clone --no-local --branch $Branch $seed $InstallDir }
+        if ($LASTEXITCODE) { Fail 'Could not install the packaged Meu core' }
+        Invoke-Native { git -C $InstallDir remote set-url origin $SourceSeedRepository } | Out-Null
+        if ($LASTEXITCODE) { Fail 'Could not record the Meu source identity' }
+        return
     }
     if (Test-Path (Join-Path $InstallDir ".git")) {
         if ($env:MEU_AGENT_MODE -eq '1' -and $Commit) {
@@ -1281,7 +1314,8 @@ function Invoke-SourceCompletion([bool]$Desktop) {
     # itself only re-enters the tree on PM's selected Python.
     $bootPy = Get-BootstrapPython
     $completionArgs = @('-I', '-B', '-X', 'utf8', 'hermes_cli/source_completion.py', '--source', $InstallDir)
-    if ($Desktop) { $completionArgs += '--desktop' }
+    if ($BackendOnly) { $completionArgs += '--backend-only' }
+    elseif ($Desktop) { $completionArgs += '--desktop' }
     Push-Location $InstallDir
     try {
         Invoke-Logged "Building the hermes command and apps" { & $bootPy @completionArgs }
@@ -1328,7 +1362,21 @@ function Test-DesktopProductPresent {
 }
 
 function Stage-Products {
-    $desktop = [bool]$IncludeDesktop -or [bool](Test-DesktopProductPresent)
+    if ($SourceSeed) {
+        $seed = Get-MeuSourceSeed
+        $products = Join-Path (Split-Path -Parent $seed) 'products'
+        foreach ($relative in @('hermes_cli/web_dist', 'ui-tui/dist')) {
+            $built = Join-Path $products $relative
+            if (-not (Test-Path -LiteralPath $built -PathType Container)) { Fail "Missing packaged product: $relative" }
+            $destination = Join-Path $InstallDir $relative
+            if ((Test-Path -LiteralPath $destination) -and (Get-Item -LiteralPath $destination -Force).LinkType) {
+                Fail "Packaged product destination is redirected: $relative"
+            }
+            New-Item -ItemType Directory -Path $destination -Force | Out-Null
+            Get-ChildItem -LiteralPath $built -Force | Copy-Item -Destination $destination -Recurse -Force
+        }
+    }
+    $desktop = -not $BackendOnly -and ([bool]$IncludeDesktop -or [bool](Test-DesktopProductPresent))
     Invoke-SourceCompletion $desktop
     Publish-UserCommand
     if ($desktop) { Confirm-DesktopArtifact }
@@ -1457,6 +1505,14 @@ function Confirm-DesktopArtifact {
 }
 
 function Stage-Complete {
+    if ($SourceSeed) {
+        $stamp = Get-Content -LiteralPath $InstallStampFile -Raw | ConvertFrom-Json
+        if ($stamp.commit -cne $Commit -or $stamp.sourceSeed.sha256 -cne $SourceSeedSha256 -or
+            $stamp.payload -cne 'bootstrap' -or $stamp.updateMechanism -cne 'app-installer') {
+            Fail 'Meu app and source stamp disagree'
+        }
+        Copy-Item -LiteralPath $InstallStampFile -Destination (Join-Path $InstallDir 'install-stamp.json') -Force
+    }
     $commit = $Commit
     if (-not $commit) {
         if (-not (Ensure-Git)) { Fail "no pinned Git artifact for this Windows architecture"  }

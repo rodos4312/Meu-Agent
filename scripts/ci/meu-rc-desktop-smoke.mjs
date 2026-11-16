@@ -3,16 +3,22 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
+import {startBootstrapRuntime} from './meu-bootstrap-runtime.mjs'
 
-export function validateRcStamp(stamp, expected, branch = 'rc/meu-independence-rc1') {
+export function validateRcStamp(stamp, expected, branch = 'rc/meu-independence-rc1', payload = 'bundled') {
   assert.equal(stamp.commit, expected)
   assert.equal(stamp.dirty, false)
-  assert.equal(stamp.payload, 'bundled')
+  assert.equal(stamp.payload, payload)
   assert.equal(stamp.branch, branch)
   assert.equal(stamp.meuUpdates.repository, 'rodos4312/Meu-Agent-RC-private')
   assert.equal(stamp.meuUpdates.channel, 'meu-rc')
   assert.equal(stamp.meuUpdates.branch, stamp.branch)
-  assert.ok(stamp.runtime.repoDir && stamp.runtime.commands.hermes)
+  if(payload==='bootstrap') {
+    assert.equal(stamp.updateMechanism,'app-installer')
+    assert.equal(stamp.sourceSeed.commit,expected)
+    assert.equal(stamp.sourceSeed.repository,'https://github.com/rodos4312/Meu-Agent-RC-private.git')
+    assert.match(stamp.sourceSeed.sha256,/^[a-f0-9]{64}$/)
+  } else assert.ok(stamp.runtime.repoDir && stamp.runtime.commands.hermes)
 }
 
 async function main() {
@@ -22,10 +28,13 @@ async function main() {
   const stamp = JSON.parse(fs.readFileSync(path.join(resources, 'install-stamp.json'), 'utf8'))
   const branch = process.env.GITHUB_REF_NAME
   assert.ok(branch?.startsWith('rc/'), 'An RC source ref is required')
-  validateRcStamp(stamp, commit, branch)
+  const small=process.env.MEU_SOURCE_SEED==='1'
+  validateRcStamp(stamp, commit, branch, small?'bootstrap':'bundled')
   const payload = path.join(resources, 'agent-payload')
-  const embedded = JSON.parse(fs.readFileSync(path.join(payload, stamp.runtime.repoDir, 'install-stamp.json'), 'utf8'))
-  validateRcStamp(embedded, commit, branch)
+  if(!small) {
+    const embedded = JSON.parse(fs.readFileSync(path.join(payload, stamp.runtime.repoDir, 'install-stamp.json'), 'utf8'))
+    validateRcStamp(embedded, commit, branch)
+  }
   assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/Hermes-LICENSE.txt')))
   assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/electron-builder-LICENSE.txt')))
   fs.mkdirSync(scratch, {recursive:true})
@@ -35,20 +44,21 @@ async function main() {
   Object.assign(env, {MEU_HOME:path.join(scratch,'profile'),HERMES_HOME:path.join(scratch,'profile'),
     HERMES_DESKTOP_USER_DATA_DIR:path.join(scratch,'desktop'),HERMES_DESKTOP_SKIP_PROTOCOL_REGISTRATION:'1',
     HERMES_DESKTOP_SKIP_QUIT_CONFIRM:'1',MEU_AGENT_MODE:'1',PYTHONUTF8:'1'})
-  const cli = path.join(payload, stamp.runtime.commands.hermes)
+  let cli = small ? null : path.join(payload, stamp.runtime.commands.hermes)
   const run = args => execFileSync(cli,args,{env,cwd:scratch,encoding:'utf8',timeout:180000,windowsHide:true})
   let app, page
   try {
+    if(small) ({app,page,cli}=await startBootstrapRuntime(executable,scratch,env,stamp))
     const version = run(['--version'])
     const directory = /^Install directory: (.+)$/m.exec(version)?.[1]?.trim()
-    assert.equal(directory && path.resolve(directory).toLowerCase(),path.join(payload,stamp.runtime.repoDir).toLowerCase(), 'CLI must execute the embedded source')
+    assert.equal(directory && path.resolve(directory).toLowerCase(),(small?path.join(env.HERMES_HOME,'meu-agent'):path.join(payload,stamp.runtime.repoDir)).toLowerCase(), 'CLI must execute the exact installed source')
     const output = run(['gateway','ensure','--json'])
     const records = output.split(/\r?\n/).flatMap(line => {try{return [JSON.parse(line)]}catch{return []}})
     const ready = records.find(record => record.state==='ready')
     assert.ok(ready?.endpoint, 'Actual embedded gateway must become ready')
     assert.equal(ready.endpoint.code_sha,commit,'Running core must match the packaged commit')
     const { _electron } = await import('@playwright/test')
-    app = await _electron.launch({executablePath:executable,args:['--disable-gpu'],env,timeout:90000})
+    if(!app) app = await _electron.launch({executablePath:executable,args:['--disable-gpu'],env,timeout:90000})
     app.context().setDefaultTimeout(90000)
     page = await app.firstWindow({timeout:90000})
     await page.emulateMedia({reducedMotion:'reduce'})
@@ -102,7 +112,7 @@ async function main() {
     assert.equal(identity.version,process.env.HERMES_PAYLOAD_VERSION)
     assert.equal(path.resolve(identity.data),path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
     await page.screenshot({path:path.join(scratch,'installed-rc.png')})
-    const result={status:'passed',commit,version:identity.version,payload:'bundled',
+    const result={status:'passed',commit,version:identity.version,payload:stamp.payload,automaticBootstrap:small,
       channel:'meu-rc',realGatewayStartup:true,rendererLaunched:true,
       interactiveRenderer:true,successfulRpc,skippedSetup,rendererState,cloudModelTested:false}
     fs.writeFileSync(path.join(scratch,'result.json'),JSON.stringify(result,null,2)+'\n')
@@ -112,7 +122,7 @@ async function main() {
     throw error
   } finally {
     if(app) await app.close()
-    run(['gateway','stop'])
+    if(cli) run(['gateway','stop'])
   }
 }
 if (process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) await main()

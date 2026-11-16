@@ -53,7 +53,9 @@ def check_runtime(project_root: Path) -> str | None:
     import pm
     from hermes_cli.steward import read_install_stamp, sealed_steward
 
-    if (Path(project_root) / ".git").exists() and read_install_stamp(project_root).get("updateMechanism") != "self":
+    stamp = read_install_stamp(project_root)
+    if ((Path(project_root) / ".git").exists() and stamp.get("updateMechanism") != "self"
+            and not stamp.get("sourceSeed")):
         return None  # A developer's checkout does not owe managed products.
 
     problems = pm.activate()

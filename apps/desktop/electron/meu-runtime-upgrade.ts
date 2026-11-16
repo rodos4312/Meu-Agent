@@ -6,10 +6,24 @@ import type { InstallStamp } from './install-stamp'
 const exec = promisify(execFile)
 const BRANCH = 'dev/meu-foundation'
 const REPOSITORY = 'https://github.com/rodos4312/Meu-Agent.git'
+const PRIVATE_REPOSITORY = 'https://github.com/rodos4312/Meu-Agent-RC-private.git'
+
+export function sourceSeedForStamp(stamp: Readonly<InstallStamp> | null) {
+  const seed = stamp?.sourceSeed
+  if (!seed) return null
+  if (seed.schema !== 1 || seed.file !== 'meu-source-seed.zip' || seed.commit !== stamp.commit ||
+      !/^[a-f0-9]{40}$/.test(seed.commit) || !/^[a-f0-9]{40}$/.test(seed.base) ||
+      seed.branch !== BRANCH || seed.repository !== PRIVATE_REPOSITORY ||
+      !/^[a-f0-9]{64}$/.test(seed.sha256) || !Number.isSafeInteger(seed.size) || seed.size <= 0 || seed.size > 512 * 1024 * 1024) {
+    throw new Error('Meu source package does not match the installed application.')
+  }
+  return seed
+}
 
 /** Compare actual checkout identity with this artifact, never the mutable install marker. */
 export async function needsMeuRuntimeUpgrade(root: string, git: string, stamp: Readonly<InstallStamp> | null) {
-  if (!stamp?.commit || !/^[a-f0-9]{40}$/.test(stamp.commit) || stamp.branch !== BRANCH) {
+  const seed = sourceSeedForStamp(stamp)
+  if (!stamp?.commit || !/^[a-f0-9]{40}$/.test(stamp.commit) || (!seed && stamp.branch !== BRANCH)) {
     throw new Error('Meu cannot verify the backend version: this installer has no valid development build identity.')
   }
 
@@ -32,7 +46,7 @@ export async function needsMeuRuntimeUpgrade(root: string, git: string, stamp: R
   const branch = await run('branch', '--show-current')
   const remote = await run('config', '--get', 'remote.origin.url')
 
-  if ((branch && branch !== BRANCH) || remote.replace(/\/$/, '') !== REPOSITORY) {
+  if ((branch && branch !== BRANCH) || ![REPOSITORY, ...(seed ? [PRIVATE_REPOSITORY] : [])].includes(remote.replace(/\/$/, ''))) {
     throw new Error('Meu backend upgrade stopped: the installed checkout uses a different branch or repository.')
   }
 
@@ -43,6 +57,9 @@ export async function needsMeuRuntimeUpgrade(root: string, git: string, stamp: R
   try {
     await run('cat-file', '-e', `${stamp.commit}^{commit}`)
   } catch {
+    // The verified local source package owns this pin. Its repository stage
+    // checks ancestry before advancing; never ask a private GitHub for login.
+    if (seed) return true
     await run('fetch', '--no-tags', 'origin', BRANCH)
   }
 

@@ -1,8 +1,8 @@
 name: MEU private complete candidate
-run-name: MEU 0.1.0-rc.2 - complete private Windows candidate
+run-name: MEU 0.1.0-rc.3 - small private Windows candidate
 on:
   push:
-    branches: [rc/meu-complete-rc2]
+    branches: [rc/meu-small-rc3]
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
-    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-complete-rc2'
+    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-small-rc3'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -52,26 +52,27 @@ jobs:
           tests/hermes_cli/test_plugins_loader.py
           -- --override-ini=addopts= -q
   windows:
-    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-complete-rc2'
+    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-small-rc3'
     runs-on: windows-latest
     timeout-minutes: 150
     env:
       MEU_UPDATE_CHANNEL: rc
-      HERMES_DESKTOP_VARIANT: bundled
-      HERMES_PAYLOAD_VERSION: '0.1.0-rc.2'
+      HERMES_DESKTOP_VARIANT: bootstrap
+      MEU_SOURCE_SEED: '1'
+      HERMES_PAYLOAD_VERSION: '0.1.0-rc.3'
       PYTHONUTF8: '1'
       NODE_OPTIONS: '--max-old-space-size=6144'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-          fetch-depth: 50
+          fetch-depth: 100
       - name: Enforce private source and RC identity
         shell: pwsh
         run: |
-          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent-RC-private' -or $env:GITHUB_REF -cne 'refs/heads/rc/meu-complete-rc2') { throw 'Not the private RC source.' }
+          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent-RC-private' -or $env:GITHUB_REF -cne 'refs/heads/rc/meu-small-rc3') { throw 'Not the private RC source.' }
           $package = Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json
-          if ($package.version -cne '0.1.0-rc.2') { throw 'Unexpected version.' }
+          if ($package.version -cne '0.1.0-rc.3') { throw 'Unexpected version.' }
           git merge-base --is-ancestor 4d505029568faf214d64f7fc1d1f6ede1074c6b0 $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Nous-independence commit is missing.' }
           "ELECTRON_BUILDER_CACHE=$(Join-Path $env:RUNNER_TEMP 'meu-electron-cache')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -111,15 +112,31 @@ jobs:
           electron/updater/meu-release-feed.test.ts
           electron/product-identity.test.ts
           scripts/write-build-stamp.test.mjs
-      - name: Stage complete locked agent payload
+          electron/meu-runtime-upgrade.test.ts
+          electron/bootstrap-runner.test.ts
+      - name: Verify native source install and data preservation
+        shell: bash
+        run: >-
+          scripts/run_tests.sh -j 2 --file-retries 0
+          tests/scripts/test_meu_source_seed.py
+          tests/scripts/install/test_meu_seed_upgrade.py
+          tests/scripts/install/test_meu_pinned_upgrade.py
+          tests/hermes_cli/test_venv_sync_source_seed.py
+          tests/hermes_cli/test_venv_sync.py
+          -- --override-ini=addopts= -q
+      - name: Compile web and terminal products once for the recipient
+        run: |
+          node scripts/build/web.mjs --source . --icons . --out apps/desktop/build/products/seed/web
+          node scripts/build/tui.mjs --source . --out apps/desktop/build/products/seed/tui
+      - name: Stage small verified source package
         shell: pwsh
         run: |
-          python -B scripts/bundles/stage.py --out apps/desktop/build/agent-payload --ref $env:GITHUB_SHA --cache "$env:RUNNER_TEMP/meu-rc-uv-cache"
+          python -B scripts/bundles/meu_source_seed.py --out apps/desktop/build --base bac9e282159473cb58113b5fef2f0c17457ddd8d --products apps/desktop/build/products/seed
           if ($LASTEXITCODE -ne 0) { throw 'Agent payload preparation failed.' }
-      - name: Build RC desktop with embedded runtime
+      - name: Build RC desktop with pinned source bootstrap
         working-directory: apps/desktop
         run: npm run build
-      - name: Build full Windows NSIS installer
+      - name: Build small Windows NSIS installer
         id: package
         working-directory: apps/desktop
         run: node scripts/run-electron-builder.mjs --native-deps build/native-deps --win nsis --x64
@@ -140,12 +157,13 @@ jobs:
           Copy-Item apps/desktop/release/security/meu-package-security.json private-rc-artifacts/
           Copy-Item apps/desktop/release/security/SHA256SUMS.txt private-rc-artifacts/
           Copy-Item apps/desktop/build/install-stamp.json private-rc-artifacts/
+          Copy-Item apps/desktop/build/meu-source-seed.json private-rc-artifacts/
           Copy-Item "$env:RUNNER_TEMP/meu-rc-installed-smoke/result.json" private-rc-artifacts/installation-test.json
           Copy-Item "$env:RUNNER_TEMP/meu-rc-atomic-proof.json" private-rc-artifacts/native-installer-regression.json
-          Copy-Item docs/meu/RC_0_1_0_2.md private-rc-artifacts/RELEASE-NOTES.md
+          Copy-Item docs/meu/RC_0_1_0_3.md private-rc-artifacts/RELEASE-NOTES.md
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: Meu-0.1.0-rc.2-Windows-x64-installer
+          name: Meu-0.1.0-rc.3-Windows-x64-installer
           path: private-rc-artifacts/
           if-no-files-found: error
           retention-days: 30
