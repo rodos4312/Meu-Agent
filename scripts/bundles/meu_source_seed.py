@@ -30,7 +30,9 @@ def _digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def stage(source: Path, output: Path, base: str, products: Path | None = None) -> dict:
+def stage(source: Path, output: Path, base: str, products: Path | None = None, repository: str = REPOSITORY) -> dict:
+    if repository not in (REPOSITORY, "https://github.com/rodos4312/Meu-Agent.git"):
+        raise ValueError("Source package must belong to an admitted Meu repository")
     source = source.resolve()
     head = git(source, "rev-parse", "HEAD")
     git(source, "merge-base", "--is-ancestor", base, head)
@@ -80,7 +82,7 @@ def stage(source: Path, output: Path, base: str, products: Path | None = None) -
                             raise ValueError("Compiled products must not contain symlinks")
                         bundle.write(item, "products/" + destination + "/" + item.relative_to(product).as_posix())
     manifest = {"schema": 1, "file": archive.name, "commit": head,
-                "base": base, "branch": BRANCH, "repository": REPOSITORY,
+                "base": base, "branch": BRANCH, "repository": repository,
                 "sha256": _digest(archive),
                 "size": archive.stat().st_size}
     (output / "meu-source-seed.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -93,8 +95,9 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--base", required=True)
     parser.add_argument("--products", type=Path)
+    parser.add_argument("--repository", default=REPOSITORY, choices=(REPOSITORY, "https://github.com/rodos4312/Meu-Agent.git"))
     args = parser.parse_args()
-    print(json.dumps(stage(args.source, args.out, args.base, args.products)))
+    print(json.dumps(stage(args.source, args.out, args.base, args.products, args.repository)))
 
 
 if __name__ == "__main__":

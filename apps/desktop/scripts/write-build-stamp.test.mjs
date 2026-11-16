@@ -161,6 +161,13 @@ test('private bootstrap records the source bytes and refuses stale/tampered pack
     assert.equal(stamp.updateMechanism,'app-installer')
     assert.equal(stamp.payload,'bootstrap')
     assert.deepEqual(stamp.sourceSeed,seed)
+    const publicSeed={...seed,repository:'https://github.com/rodos4312/Meu-Agent.git'}
+    const publicStamp=buildStampPayload({commit,branch:'dev/meu-foundation',dirty:false,source:'ci'},
+      {HERMES_DESKTOP_VARIANT:''},'win32',null,publicSeed)
+    assert.equal(publicStamp.meuUpdates.repository,'rodos4312/Meu-Agent')
+    assert.equal(publicStamp.sourceSeed.repository,publicSeed.repository)
+    assert.throws(()=>buildStampPayload({commit,branch:'dev/meu-foundation',dirty:false,source:'ci'},
+      {HERMES_DESKTOP_VARIANT:''},'win32',null,seed),/matching repository authority/)
     assert.throws(()=>readSourceSeed(directory,'c'.repeat(40)),/identity/)
     fs.writeFileSync(path.join(directory,seed.file),'altered')
     assert.throws(()=>readSourceSeed(directory,commit),/checksum/)

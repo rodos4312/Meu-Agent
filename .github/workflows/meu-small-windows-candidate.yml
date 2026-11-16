@@ -1,17 +1,17 @@
-name: MEU private complete candidate
-run-name: MEU 0.1.0-rc.3 - small private Windows candidate
+name: Meu small Windows candidate
+run-name: Meu 0.2.0-dev.1 - small public Windows candidate
 on:
   push:
-    branches: [rc/meu-small-rc3]
+    branches: [dev/meu-foundation]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: meu-private-complete-candidate-${{ github.ref }}
+  group: meu-small-windows-candidate-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   core:
-    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-small-rc3'
+    if: github.repository == 'rodos4312/Meu-Agent' && !github.event.repository.private && github.ref == 'refs/heads/dev/meu-foundation'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -52,14 +52,14 @@ jobs:
           tests/hermes_cli/test_plugins_loader.py
           -- --override-ini=addopts= -q
   windows:
-    if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private && github.ref == 'refs/heads/rc/meu-small-rc3'
+    if: github.repository == 'rodos4312/Meu-Agent' && !github.event.repository.private && github.ref == 'refs/heads/dev/meu-foundation'
     runs-on: windows-latest
     timeout-minutes: 150
     env:
-      MEU_UPDATE_CHANNEL: rc
+      MEU_UPDATE_CHANNEL: stable
       HERMES_DESKTOP_VARIANT: ''
       MEU_SOURCE_SEED: '1'
-      HERMES_PAYLOAD_VERSION: '0.1.0-rc.3'
+      HERMES_PAYLOAD_VERSION: '0.2.0-dev.1'
       PYTHONUTF8: '1'
       NODE_OPTIONS: '--max-old-space-size=6144'
     steps:
@@ -70,9 +70,9 @@ jobs:
       - name: Enforce private source and RC identity
         shell: pwsh
         run: |
-          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent-RC-private' -or $env:GITHUB_REF -cne 'refs/heads/rc/meu-small-rc3') { throw 'Not the private RC source.' }
+          if ($env:GITHUB_REPOSITORY -cne 'rodos4312/Meu-Agent' -or $env:GITHUB_REF -cne 'refs/heads/dev/meu-foundation') { throw 'Not the private RC source.' }
           $package = Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json
-          if ($package.version -cne '0.1.0-rc.3') { throw 'Unexpected version.' }
+          if ($package.version -cne '0.2.0-dev.1') { throw 'Unexpected version.' }
           git merge-base --is-ancestor 4d505029568faf214d64f7fc1d1f6ede1074c6b0 $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Nous-independence commit is missing.' }
           "ELECTRON_BUILDER_CACHE=$(Join-Path $env:RUNNER_TEMP 'meu-electron-cache')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -131,7 +131,7 @@ jobs:
       - name: Stage small verified source package
         shell: pwsh
         run: |
-          python -B scripts/bundles/meu_source_seed.py --out apps/desktop/build --base bac9e282159473cb58113b5fef2f0c17457ddd8d --products apps/desktop/build/products/seed
+          python -B scripts/bundles/meu_source_seed.py --out apps/desktop/build --base bac9e282159473cb58113b5fef2f0c17457ddd8d --products apps/desktop/build/products/seed --repository https://github.com/rodos4312/Meu-Agent.git
           if ($LASTEXITCODE -ne 0) { throw 'Agent payload preparation failed.' }
       - name: Build RC desktop with pinned source bootstrap
         working-directory: apps/desktop
@@ -152,26 +152,26 @@ jobs:
       - name: Collect verified installer and provenance
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path private-rc-artifacts -Force | Out-Null
-          Copy-Item apps/desktop/release/Meu-*-win-x64.exe private-rc-artifacts/
-          Copy-Item apps/desktop/release/security/meu-package-security.json private-rc-artifacts/
-          Copy-Item apps/desktop/release/security/SHA256SUMS.txt private-rc-artifacts/
-          Copy-Item apps/desktop/build/install-stamp.json private-rc-artifacts/
-          Copy-Item apps/desktop/build/meu-source-seed.json private-rc-artifacts/
-          Copy-Item "$env:RUNNER_TEMP/meu-rc-installed-smoke/result.json" private-rc-artifacts/installation-test.json
-          Copy-Item "$env:RUNNER_TEMP/meu-rc-atomic-proof.json" private-rc-artifacts/native-installer-regression.json
-          Copy-Item docs/meu/RC_0_1_0_3.md private-rc-artifacts/RELEASE-NOTES.md
+          New-Item -ItemType Directory -Path candidate-artifacts -Force | Out-Null
+          Copy-Item apps/desktop/release/Meu-*-win-x64.exe candidate-artifacts/
+          Copy-Item apps/desktop/release/security/meu-package-security.json candidate-artifacts/
+          Copy-Item apps/desktop/release/security/SHA256SUMS.txt candidate-artifacts/
+          Copy-Item apps/desktop/build/install-stamp.json candidate-artifacts/
+          Copy-Item apps/desktop/build/meu-source-seed.json candidate-artifacts/
+          Copy-Item "$env:RUNNER_TEMP/meu-rc-installed-smoke/result.json" candidate-artifacts/installation-test.json
+          Copy-Item "$env:RUNNER_TEMP/meu-rc-atomic-proof.json" candidate-artifacts/native-installer-regression.json
+          Copy-Item docs/meu/WINDOWS_0_2_0_DEV_1.md candidate-artifacts/RELEASE-NOTES.md
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: Meu-0.1.0-rc.3-Windows-x64-installer
-          path: private-rc-artifacts/
+          name: Meu-0.2.0-dev.1-Windows-x64-installer
+          path: candidate-artifacts/
           if-no-files-found: error
           retention-days: 30
       - name: Preserve bounded build diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: Meu-private-RC-diagnostics
+          name: Meu-candidate-diagnostics
           path: |
             apps/desktop/release/security/
             ${{ runner.temp }}/meu-rc-installed-smoke/*.json
@@ -184,7 +184,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: Meu-RC-unverified-build-diagnostics
+          name: Meu-unverified-build-diagnostics
           path: |
             apps/desktop/release/Meu-*-win-x64.exe
             apps/desktop/build/install-stamp.json

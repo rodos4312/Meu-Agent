@@ -456,6 +456,9 @@ function spawnPowerShell(scriptPath, args, { emit, stageName, abortSignal, herme
   return new Promise<any>((resolve, reject) => {
     const ps = process.platform === 'win32' ? resolveWindowsPowerShell() : 'pwsh'
     const fullArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args]
+    // A PowerShell 7 parent can point Windows PowerShell 5.1 at incompatible
+    // Core modules (Get-FileHash/Expand-Archive then disappear). Let the child
+    // construct its own native module path; keep the profile and tool PATH.
 
     const child = spawn(
       ps,
@@ -464,7 +467,7 @@ function spawnPowerShell(scriptPath, args, { emit, stageName, abortSignal, herme
         stdio: ['ignore', 'pipe', 'pipe'],
         // Pass HERMES_HOME through so install.ps1 respects the caller's
         // choice rather than re-computing the default.
-        env: installerEnv(hermesHome)
+        env: Object.fromEntries(Object.entries(installerEnv(hermesHome)).filter(([key]) => key.toUpperCase() !== 'PSMODULEPATH'))
       })
     )
 

@@ -212,7 +212,7 @@ export function readSourceSeed(directory, commit) {
   const seed = JSON.parse(readFileSync(join(directory, 'meu-source-seed.json'), 'utf8'))
   if (seed.schema !== 1 || seed.file !== 'meu-source-seed.zip' || seed.commit !== commit ||
       !/^[a-f0-9]{40}$/.test(seed.commit) || !/^[a-f0-9]{40}$/.test(seed.base) ||
-      seed.branch !== 'dev/meu-foundation' || seed.repository !== 'https://github.com/rodos4312/Meu-Agent-RC-private.git' ||
+      seed.branch !== 'dev/meu-foundation' || !['https://github.com/rodos4312/Meu-Agent.git', 'https://github.com/rodos4312/Meu-Agent-RC-private.git'].includes(seed.repository) ||
       !Number.isSafeInteger(seed.size) || seed.size <= 0 || seed.size > 512 * 1024 * 1024 ||
       !/^[a-f0-9]{64}$/.test(seed.sha256)) throw new Error('Invalid Meu source package identity')
   const bytes = readFileSync(join(directory, seed.file))
@@ -273,8 +273,8 @@ export function buildStampPayload(stamp, env = process.env, platform = process.p
   }
   if (variant === 'bundled') base.receiverProtocol = 1
   if (sourceSeed) {
-    if (platform !== 'win32' || variant !== '' || meuPolicy?.repository !== 'rodos4312/Meu-Agent-RC-private' || sourceSeed.commit !== stamp.commit || stamp.dirty) {
-      throw new Error('The local source seed requires a clean private Windows bootstrap build.')
+    if (platform !== 'win32' || variant !== '' || sourceSeed.repository !== `https://github.com/${meuPolicy?.repository}.git` || sourceSeed.commit !== stamp.commit || stamp.dirty) {
+      throw new Error('The local source seed requires a clean Windows bootstrap build with matching repository authority.')
     }
     base.sourceSeed = sourceSeed
   }

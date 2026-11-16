@@ -13,7 +13,8 @@ from scripts.bundles.meu_source_seed import BRANCH, stage
 
 
 @pytest.mark.platforms("windows")
-def test_local_seed_fresh_upgrade_busy_corruption_and_user_data(tmp_path):
+@pytest.mark.parametrize("repository", ["https://github.com/rodos4312/Meu-Agent.git", "https://github.com/rodos4312/Meu-Agent-RC-private.git"])
+def test_local_seed_fresh_upgrade_busy_corruption_and_user_data(tmp_path, repository):
     source, root, home = (tmp_path / name for name in ("source", "installed", "home"))
     source.mkdir(); home.mkdir()
     def git(where, *args):
@@ -28,7 +29,7 @@ def test_local_seed_fresh_upgrade_busy_corruption_and_user_data(tmp_path):
     git(root, "remote", "set-url", "origin", "https://github.com/rodos4312/Meu-Agent-RC-private.git")
     (source / "core.py").write_text("new")
     git(source, "commit", "-am", "new")
-    manifest = stage(source, tmp_path / "package", old)
+    manifest = stage(source, tmp_path / "package", old, repository=repository)
     # Real profile-like data, including a SQLite conversation and a project.
     with sqlite3.connect(home / "state.db") as database:
         database.execute("CREATE TABLE messages (content TEXT)")
@@ -42,8 +43,8 @@ def test_local_seed_fresh_upgrade_busy_corruption_and_user_data(tmp_path):
     before = personal_files()
     installer = Path(__file__).resolve().parents[3] / "scripts/install.ps1"
     probe = tmp_path / "probe.ps1"
-    probe.write_text('''param($Installer,$Root,$HomeRoot,$Seed,$Hash,$Pin,[switch]$Busy,[switch]$Fresh,[switch]$BackupFails)
-. $Installer -InstallDir $Root -HermesHome $HomeRoot -Commit $Pin -SourceSeed $Seed -SourceSeedSha256 $Hash -SourceSeedRepository 'https://github.com/rodos4312/Meu-Agent-RC-private.git' -BackendOnly
+    probe.write_text('''param($Installer,$Root,$HomeRoot,$Seed,$Hash,$Pin,$Repository,[switch]$Busy,[switch]$Fresh,[switch]$BackupFails)
+. $Installer -InstallDir $Root -HermesHome $HomeRoot -Commit $Pin -SourceSeed $Seed -SourceSeedSha256 $Hash -SourceSeedRepository $Repository -BackendOnly
 function Invoke-InstalledHermes { param([string[]]$CommandArgs)
     if ($Busy) { throw 'active agent: stop refused' }
     if ($CommandArgs[0] -eq 'backup') {
@@ -61,7 +62,7 @@ if ($Fresh) { Stage-Repository } else { Update-MeuPinnedCheckout }
     def run(destination=root, *flags, checksum=manifest["sha256"]):
         return subprocess.run([*shell.command, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
             "-File", str(probe), "-Installer", str(installer), "-Root", str(destination), "-HomeRoot", str(home),
-            "-Seed", str(seed), "-Hash", checksum, "-Pin", manifest["commit"], *flags],
+            "-Seed", str(seed), "-Hash", checksum, "-Pin", manifest["commit"], "-Repository", repository, *flags],
             env=dict(os.environ, MEU_AGENT_MODE="1", HERMES_HOME=str(home)),
             capture_output=True, text=True, timeout=90, check=False)
     assert run(root, "-Busy").returncode != 0

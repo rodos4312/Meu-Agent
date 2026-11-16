@@ -13,7 +13,7 @@ export function sourceSeedForStamp(stamp: Readonly<InstallStamp> | null) {
   if (!seed) return null
   if (seed.schema !== 1 || seed.file !== 'meu-source-seed.zip' || seed.commit !== stamp.commit ||
       !/^[a-f0-9]{40}$/.test(seed.commit) || !/^[a-f0-9]{40}$/.test(seed.base) ||
-      seed.branch !== BRANCH || seed.repository !== PRIVATE_REPOSITORY ||
+      seed.branch !== BRANCH || ![REPOSITORY, PRIVATE_REPOSITORY].includes(seed.repository) ||
       !/^[a-f0-9]{64}$/.test(seed.sha256) || !Number.isSafeInteger(seed.size) || seed.size <= 0 || seed.size > 512 * 1024 * 1024) {
     throw new Error('Meu source package does not match the installed application.')
   }

@@ -20,3 +20,12 @@ test('accepts the complete candidate only when both source branches match',()=>{
   stamp.meuUpdates.branch='rc/meu-independence-rc1'
   assert.throws(()=>validateRcStamp(stamp,commit,'rc/meu-complete-rc2'))
 })
+
+
+test('accepts the public small candidate only with the public update authority',()=>{
+  const stamp={...valid(),payload:'bootstrap',branch:'dev/meu-foundation',updateMechanism:'app-installer',
+    meuUpdates:{repository:'rodos4312/Meu-Agent',branch:'dev/meu-foundation',channel:'meu-preview'},
+    sourceSeed:{commit,repository:'https://github.com/rodos4312/Meu-Agent.git',sha256:'a'.repeat(64)}}
+  validateRcStamp(stamp,commit,'dev/meu-foundation','bootstrap','rodos4312/Meu-Agent')
+  assert.throws(()=>validateRcStamp(stamp,commit,'dev/meu-foundation','bootstrap'))
+})

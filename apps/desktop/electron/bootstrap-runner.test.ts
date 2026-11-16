@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {execFileSync} from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -389,4 +390,32 @@ test('a local private source pin uses the packaged installer, actual root and no
   assert.equal(args[args.indexOf('-SourceSeed') + 1], path.join(resources, 'meu-source-seed.zip'))
   assert.ok(args.includes('-BackendOnly'))
   assert.throws(() => buildPinArgs(stamp), /source package is missing/)
+})
+
+
+test.skipIf(process.platform !== 'win32')('Windows bootstrap loads Windows cmdlets even when launched from PowerShell 7', async () => {
+  const home=mkTmpHome()
+  const previous=process.env.PSModulePath
+  try {
+    const psHome=execFileSync('pwsh',['-NoProfile','-Command','$PSHOME'],{encoding:'utf8',windowsHide:true}).trim()
+    process.env.PSModulePath=path.join(psHome,'Modules')
+    const source=path.join(home,'source')
+    fs.mkdirSync(path.join(source,'scripts'),{recursive:true})
+    fs.writeFileSync(path.join(source,'scripts/bytes.txt'),'verified fixture bytes')
+    fs.writeFileSync(path.join(source,'scripts/install.ps1'),`
+param([switch]$Manifest,[string]$Stage,[switch]$Json,[switch]$NonInteractive,[string]$Commit,[string]$Branch,[string]$InstallDir)
+$ErrorActionPreference='Stop'
+if ($Manifest) { Write-Output '{"stages":[{"name":"hash"}],"protocol_version":1}'; exit 0 }
+$hash=Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'bytes.txt') -Algorithm SHA256
+if ($hash.Hash.Length -ne 64) { throw 'Native hash cmdlet did not work' }
+Write-Output '{"stage":"hash","ok":true,"skipped":false}'
+`)
+    const result=await runBootstrap({installStamp:{commit:'a'.repeat(40),branch:'dev/meu-foundation'},
+      activeRoot:path.join(home,'installed'),sourceRepoRoot:source,hermesHome:home})
+    assert.equal(result.ok,true,JSON.stringify(result))
+  } finally {
+    if(previous===undefined) delete process.env.PSModulePath
+    else process.env.PSModulePath=previous
+    fs.rmSync(home,{recursive:true,force:true})
+  }
 })

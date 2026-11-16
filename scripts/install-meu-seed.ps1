@@ -2,7 +2,7 @@
 function Expand-MeuSourceSeed {
     if ($env:MEU_AGENT_MODE -ne '1' -or $Branch -cne 'dev/meu-foundation' -or
         $Commit -cnotmatch '^[a-f0-9]{40}$' -or $SourceSeedSha256 -cnotmatch '^[a-f0-9]{64}$' -or
-        $SourceSeedRepository -cne 'https://github.com/rodos4312/Meu-Agent-RC-private.git' -or -not $BackendOnly) {
+        $SourceSeedRepository -cnotin @('https://github.com/rodos4312/Meu-Agent.git', 'https://github.com/rodos4312/Meu-Agent-RC-private.git') -or -not $BackendOnly) {
         throw 'Invalid packaged Meu core authority'
     }
     $file = Get-Item -LiteralPath $SourceSeed -Force

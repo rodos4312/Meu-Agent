@@ -27,7 +27,10 @@
 | Meu Coordinator | Delegate scoped tasks, define acceptance criteria, save progress and review results. |
 | Skills, plugins and MCP | Extend the agent with specialized workflows and optional service integrations. |
 | Model choice | Connect a supported cloud provider or a compatible local model endpoint. |
+| Coding Engine | Ask Meu to build or fix a project in chat; the agent selects the coding workflow and checks the result. |
 | Windows updates | Check for a release and start installation from the app. |
+
+The current Windows development line adds an integrated **Coding Engine**: ask for a project in chat and Meu coordinates the coding work, checks and deliverables. The small installer provisions the matching Python core and reuses cached dependencies. Installable candidates are linked from Releases after validation.
 
 Meu is an actively developed preview. Availability of tools and integrations depends on your configuration; some external services require a separate account or payment.
 

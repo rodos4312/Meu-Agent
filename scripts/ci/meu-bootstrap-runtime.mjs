@@ -13,6 +13,9 @@ export async function startBootstrapRuntime(executable, scratch, env, stamp) {
   const deadline=Date.now()+20*60*1000
   try {
     while(Date.now()<deadline) {
+      for(const button of await page.getByRole('button',{name:/Install Meu locally|Use Meu on this computer/i}).all()) {
+        if(await button.isVisible()) await button.click({timeout:5000})
+      }
       const body=await page.locator('body').innerText({timeout:10000}).catch(()=> '')
       if (/Update did not finish|Failed to download install|Setup failed/i.test(body)) {
         throw new Error('Real application bootstrap failed: '+body.slice(-4000))

@@ -5,18 +5,18 @@ import { execFileSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import {startBootstrapRuntime} from './meu-bootstrap-runtime.mjs'
 
-export function validateRcStamp(stamp, expected, branch = 'rc/meu-independence-rc1', payload = 'bundled') {
+export function validateRcStamp(stamp, expected, branch = 'rc/meu-independence-rc1', payload = 'bundled', repository = 'rodos4312/Meu-Agent-RC-private') {
   assert.equal(stamp.commit, expected)
   assert.equal(stamp.dirty, false)
   assert.equal(stamp.payload, payload)
   assert.equal(stamp.branch, branch)
-  assert.equal(stamp.meuUpdates.repository, 'rodos4312/Meu-Agent-RC-private')
-  assert.equal(stamp.meuUpdates.channel, 'meu-rc')
+  assert.equal(stamp.meuUpdates.repository, repository)
+  assert.equal(stamp.meuUpdates.channel, repository === 'rodos4312/Meu-Agent' ? 'meu-preview' : 'meu-rc')
   assert.equal(stamp.meuUpdates.branch, stamp.branch)
   if(payload==='bootstrap') {
     assert.equal(stamp.updateMechanism,'app-installer')
     assert.equal(stamp.sourceSeed.commit,expected)
-    assert.equal(stamp.sourceSeed.repository,'https://github.com/rodos4312/Meu-Agent-RC-private.git')
+    assert.equal(stamp.sourceSeed.repository,`https://github.com/${repository}.git`)
     assert.match(stamp.sourceSeed.sha256,/^[a-f0-9]{64}$/)
   } else assert.ok(stamp.runtime.repoDir && stamp.runtime.commands.hermes)
 }
@@ -27,9 +27,10 @@ async function main() {
   const resources = path.join(path.dirname(executable), 'resources')
   const stamp = JSON.parse(fs.readFileSync(path.join(resources, 'install-stamp.json'), 'utf8'))
   const branch = process.env.GITHUB_REF_NAME
-  assert.ok(branch?.startsWith('rc/'), 'An RC source ref is required')
+  const repository=process.env.GITHUB_REPOSITORY || 'rodos4312/Meu-Agent-RC-private'
+  assert.ok(repository==='rodos4312/Meu-Agent' ? branch==='dev/meu-foundation' : branch?.startsWith('rc/'), 'An admitted source ref is required')
   const small=process.env.MEU_SOURCE_SEED==='1'
-  validateRcStamp(stamp, commit, branch, small?'bootstrap':'bundled')
+  validateRcStamp(stamp, commit, branch, small?'bootstrap':'bundled', repository)
   const payload = path.join(resources, 'agent-payload')
   if(!small) {
     const embedded = JSON.parse(fs.readFileSync(path.join(payload, stamp.runtime.repoDir, 'install-stamp.json'), 'utf8'))
@@ -44,6 +45,7 @@ async function main() {
   Object.assign(env, {MEU_HOME:path.join(scratch,'profile'),HERMES_HOME:path.join(scratch,'profile'),
     HERMES_DESKTOP_USER_DATA_DIR:path.join(scratch,'desktop'),HERMES_DESKTOP_SKIP_PROTOCOL_REGISTRATION:'1',
     HERMES_DESKTOP_SKIP_QUIT_CONFIRM:'1',MEU_AGENT_MODE:'1',PYTHONUTF8:'1'})
+  if(small && !fs.existsSync(path.join(env.HERMES_HOME,'meu-agent','.hermes-bootstrap-complete'))) env.HERMES_DESKTOP_IGNORE_EXISTING='1'
   let cli = small ? null : path.join(payload, stamp.runtime.commands.hermes)
   const run = args => execFileSync(cli,args,{env,cwd:scratch,encoding:'utf8',timeout:180000,windowsHide:true})
   let app, page
@@ -113,7 +115,7 @@ async function main() {
     assert.equal(path.resolve(identity.data),path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
     await page.screenshot({path:path.join(scratch,'installed-rc.png')})
     const result={status:'passed',commit,version:identity.version,payload:stamp.payload,automaticBootstrap:small,
-      channel:'meu-rc',realGatewayStartup:true,rendererLaunched:true,
+      channel:stamp.meuUpdates.channel,realGatewayStartup:true,rendererLaunched:true,
       interactiveRenderer:true,successfulRpc,skippedSetup,rendererState,cloudModelTested:false}
     fs.writeFileSync(path.join(scratch,'result.json'),JSON.stringify(result,null,2)+'\n')
     console.log('PASS: installed RC identity, embedded CLI, real gateway and isolated renderer')
