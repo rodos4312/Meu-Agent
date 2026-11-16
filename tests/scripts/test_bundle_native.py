@@ -60,7 +60,10 @@ def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_pat
     (repo / "hermes_cli").mkdir()
     for name in ("__init__.py", "runtime_state.py"):
         shutil.copy2(source / "hermes_cli" / name, repo / "hermes_cli" / name)
-    shutil.copy2(source / "hermes_constants.py", repo / "hermes_constants.py")
+    # Native launchers import the stdlib-only process bootstrap before the
+    # selected entry point; the synthetic application must ship that module too.
+    for name in ("hermes_constants.py", "hermes_bootstrap.py"):
+        shutil.copy2(source / name, repo / name)
     wheels = repo / "wheels"
     wheels.mkdir()
     witness = tmp_path / "inventory-python.json"
