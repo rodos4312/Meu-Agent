@@ -1328,6 +1328,13 @@ function Invoke-SourceCompletion([bool]$Desktop) {
 }
 
 function Publish-UserCommand {
+    if ($SourceSeed) {
+        # Source completion already published the installation's CLI and the
+        # home conveniences. Its owns_user_path guard is authoritative; a test
+        # or custom profile must never add itself to the user's global PATH.
+        Write-Ok 'Meu commands published by source completion'
+        return
+    }
     # Stage the user-facing commands into $HermesHome\bin and put that folder on
     # the User PATH. Updates repair this entry through expose_cli(), which edits
     # the User PATH only for the home that new consoles use.

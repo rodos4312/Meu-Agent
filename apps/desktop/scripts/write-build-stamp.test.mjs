@@ -157,7 +157,7 @@ test('private bootstrap records the source bytes and refuses stale/tampered pack
     fs.writeFileSync(path.join(directory,'meu-source-seed.json'),JSON.stringify(seed))
     assert.deepEqual(readSourceSeed(directory,commit),seed)
     const stamp=buildStampPayload({commit,branch:'rc/meu-small-rc3',dirty:false,source:'ci'},
-      {MEU_UPDATE_CHANNEL:'rc',HERMES_DESKTOP_VARIANT:'bootstrap'},'win32',null,seed)
+      {MEU_UPDATE_CHANNEL:'rc',HERMES_DESKTOP_VARIANT:''},'win32',null,seed)
     assert.equal(stamp.updateMechanism,'app-installer')
     assert.equal(stamp.payload,'bootstrap')
     assert.deepEqual(stamp.sourceSeed,seed)

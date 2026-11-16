@@ -273,7 +273,7 @@ export function buildStampPayload(stamp, env = process.env, platform = process.p
   }
   if (variant === 'bundled') base.receiverProtocol = 1
   if (sourceSeed) {
-    if (platform !== 'win32' || variant !== 'bootstrap' || meuPolicy?.repository !== 'rodos4312/Meu-Agent-RC-private' || sourceSeed.commit !== stamp.commit || stamp.dirty) {
+    if (platform !== 'win32' || variant !== '' || meuPolicy?.repository !== 'rodos4312/Meu-Agent-RC-private' || sourceSeed.commit !== stamp.commit || stamp.dirty) {
       throw new Error('The local source seed requires a clean private Windows bootstrap build.')
     }
     base.sourceSeed = sourceSeed

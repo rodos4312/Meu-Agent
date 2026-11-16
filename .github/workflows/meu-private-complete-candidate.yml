@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 150
     env:
       MEU_UPDATE_CHANNEL: rc
-      HERMES_DESKTOP_VARIANT: bootstrap
+      HERMES_DESKTOP_VARIANT: ''
       MEU_SOURCE_SEED: '1'
       HERMES_PAYLOAD_VERSION: '0.1.0-rc.3'
       PYTHONUTF8: '1'
