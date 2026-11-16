@@ -155,6 +155,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path candidate-artifacts -Force | Out-Null
           Copy-Item apps/desktop/release/Meu-*-win-x64.exe candidate-artifacts/
+          Copy-Item apps/desktop/build/install-stamp.json candidate-artifacts/install-stamp.json
+          Copy-Item apps/desktop/release/meu-preview.yml candidate-artifacts/meu-preview.yml
           Copy-Item apps/desktop/release/security/meu-package-security.json candidate-artifacts/
           Copy-Item apps/desktop/release/security/SHA256SUMS.txt candidate-artifacts/
           Copy-Item apps/desktop/build/install-stamp.json candidate-artifacts/
