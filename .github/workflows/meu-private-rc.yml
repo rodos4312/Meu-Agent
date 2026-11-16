@@ -60,7 +60,6 @@ jobs:
       HERMES_DESKTOP_VARIANT: bundled
       HERMES_PAYLOAD_VERSION: '0.1.0-rc.1'
       PYTHONUTF8: '1'
-      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/meu-electron-cache
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -74,6 +73,7 @@ jobs:
           if ($package.version -cne '0.1.0-rc.1') { throw 'Unexpected version.' }
           git merge-base --is-ancestor 4d505029568faf214d64f7fc1d1f6ede1074c6b0 $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { throw 'Nous-independence commit is missing.' }
+          "ELECTRON_BUILDER_CACHE=$(Join-Path $env:RUNNER_TEMP 'meu-electron-cache')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - uses: ./.github/actions/setup-pm
         with:
           toolchain: all
