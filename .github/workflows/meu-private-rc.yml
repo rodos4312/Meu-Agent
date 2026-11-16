@@ -54,7 +54,7 @@ jobs:
   windows:
     if: github.repository == 'rodos4312/Meu-Agent-RC-private' && github.event.repository.private
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       MEU_UPDATE_CHANNEL: rc
       HERMES_DESKTOP_VARIANT: bundled
@@ -136,11 +136,12 @@ jobs:
           path: |
             apps/desktop/release/security/
             ${{ runner.temp }}/meu-rc-installed-smoke/*.json
+            ${{ runner.temp }}/meu-rc-installed-smoke/*.jsonl
             ${{ runner.temp }}/meu-rc-installed-smoke/*.png
           if-no-files-found: ignore
           retention-days: 14
       - name: Retain unverified package only for failure diagnosis
-        if: failure() && steps.package.outcome == 'failure'
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: Meu-RC-unverified-build-diagnostics
@@ -149,6 +150,7 @@ jobs:
             apps/desktop/build/install-stamp.json
           if-no-files-found: ignore
           retention-days: 7
+          compression-level: 0
   publish:
     needs: [core, windows]
     runs-on: ubuntu-latest
