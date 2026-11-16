@@ -9,10 +9,6 @@ import { expect, test } from './test'
 
 let fixture: MockBackendFixture
 
-test.beforeAll(async () => {
-  fixture = await setupMockBackend()
-})
-
 test('native Coordinator status shows acceptance and version-bound review after reload', async () => {
   test.setTimeout(180_000)
   const own = await setupMockBackend({ extraConfig: '\ndelegation:\n  backend: meu_coordinator\n' })
@@ -88,7 +84,11 @@ test.afterAll(async () => {
 })
 
 test('Meu Coordinator can be selected and persists through a real desktop restart', async () => {
-  test.setTimeout(120_000)
+  // This budget now includes initial fixture startup as well as the real restart.
+  test.setTimeout(240_000)
+  // The independent progress rehearsal above owns its own app. Start this
+  // fixture only when needed, so it cannot compete with that cold gateway attach.
+  fixture = await setupMockBackend()
   const { app, page, sandbox } = fixture
   expect(await app.evaluate(() => process.env.MEU_HOME)).toBe(sandbox.hermesHome)
   expect(await app.evaluate(() => process.env.HERMES_HOME)).toBe(sandbox.hermesHome)
