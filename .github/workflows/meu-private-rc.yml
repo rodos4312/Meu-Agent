@@ -80,7 +80,7 @@ jobs:
       - name: Install locked frontend build dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify release identity validation
-        run: node --test scripts/ci/meu-rc-smoke-validation.test.mjs
+        run: node --test scripts/ci/meu-rc-smoke-validation.test.mjs scripts/ci/meu-rc-packager-args.test.mjs
       - name: Verify private channel and update boundaries
         working-directory: apps/desktop
         run: >-
@@ -100,8 +100,9 @@ jobs:
         working-directory: apps/desktop
         run: npm run build
       - name: Build full Windows NSIS installer
+        id: package
         working-directory: apps/desktop
-        run: node scripts/run-electron-builder.mjs --native-deps build/native-deps --win nsis --x64 --publish never
+        run: node scripts/run-electron-builder.mjs --native-deps build/native-deps --win nsis --x64
       - name: Scan installer and unpacked application
         shell: pwsh
         run: |
@@ -138,6 +139,16 @@ jobs:
             ${{ runner.temp }}/meu-rc-installed-smoke/*.png
           if-no-files-found: ignore
           retention-days: 14
+      - name: Retain unverified package only for failure diagnosis
+        if: failure() && steps.package.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: Meu-RC-unverified-build-diagnostics
+          path: |
+            apps/desktop/release/Meu-*-win-x64.exe
+            apps/desktop/build/install-stamp.json
+          if-no-files-found: ignore
+          retention-days: 7
   publish:
     needs: [core, windows]
     runs-on: ubuntu-latest

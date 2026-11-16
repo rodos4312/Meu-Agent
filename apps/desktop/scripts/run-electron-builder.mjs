@@ -130,6 +130,21 @@ function selectedPlatform(args) {
   return platforms[0] || process.platform
 }
 
+/** One scalar never policy: duplicate yargs flags become an array and enable publishing. */
+export function noPublishArguments(args) {
+  const clean = []
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index]
+    if (arg === '--publish' || arg === '-p') {
+      if (args[++index] !== 'never') throw new Error('Publishing belongs to the release adapter')
+      continue
+    }
+    if (arg === '--publish=never') continue
+    clean.push(arg)
+  }
+  return [...clean, '--publish', 'never']
+}
+
 /** @param {string[]} args @param {{ spawn?: typeof spawnSync }} [options] @returns {number} */
 export function runElectronBuilder(args, { spawn = spawnSync } = {}) {
   const validateOnly = args.includes('--validate-only')
@@ -159,8 +174,8 @@ export function runElectronBuilder(args, { spawn = spawnSync } = {}) {
     HERMES_PREPARED_NATIVE_DEPS: nativeDeps, HERMES_PREPARED_TARGET: inputs.target }
   if (inputs.dmgbuild) env.CUSTOM_DMGBUILD_PATH = inputs.dmgbuild
   if (inputs.windows?.dotnetRoot) env.DOTNET_ROOT = inputs.windows.dotnetRoot
-  const result = spawn(process.execPath, [...preloads, path.join(builder, bin), ...args,
-    '--config', 'electron-builder.config.cjs', '--publish', 'never', `-c.electronDist=${inputs.electron}`,
+  const result = spawn(process.execPath, [...preloads, path.join(builder, bin), ...noPublishArguments(args),
+    '--config', 'electron-builder.config.cjs', `-c.electronDist=${inputs.electron}`,
     ...toolsetArguments(inputs)], { cwd: app, stdio: 'inherit', env })
   if (result.error) throw result.error
   return result.status ?? 1
