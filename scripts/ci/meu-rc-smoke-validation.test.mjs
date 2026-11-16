@@ -11,3 +11,12 @@ test('refuses a public update identity',()=>{const stamp=valid();stamp.meuUpdate
 test('refuses a bootstrap-only package',()=>assert.throws(()=>validateRcStamp({...valid(),payload:'bootstrap'},commit)))
 test('refuses an uncommitted source build',()=>assert.throws(()=>validateRcStamp({...valid(),dirty:true},commit)))
 test('refuses a missing embedded launcher',()=>{const stamp=valid();delete stamp.runtime.commands.hermes;assert.throws(()=>validateRcStamp(stamp,commit))})
+
+test('accepts the complete candidate only when both source branches match',()=>{
+  const stamp=valid()
+  stamp.branch=stamp.meuUpdates.branch='rc/meu-complete-rc2'
+  validateRcStamp(stamp,commit,'rc/meu-complete-rc2')
+  assert.throws(()=>validateRcStamp(stamp,commit,'rc/meu-independence-rc1'))
+  stamp.meuUpdates.branch='rc/meu-independence-rc1'
+  assert.throws(()=>validateRcStamp(stamp,commit,'rc/meu-complete-rc2'))
+})

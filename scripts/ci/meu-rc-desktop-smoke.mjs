@@ -4,11 +4,11 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 
-export function validateRcStamp(stamp, expected) {
+export function validateRcStamp(stamp, expected, branch = 'rc/meu-independence-rc1') {
   assert.equal(stamp.commit, expected)
   assert.equal(stamp.dirty, false)
   assert.equal(stamp.payload, 'bundled')
-  assert.equal(stamp.branch, 'rc/meu-independence-rc1')
+  assert.equal(stamp.branch, branch)
   assert.equal(stamp.meuUpdates.repository, 'rodos4312/Meu-Agent-RC-private')
   assert.equal(stamp.meuUpdates.channel, 'meu-rc')
   assert.equal(stamp.meuUpdates.branch, stamp.branch)
@@ -20,10 +20,12 @@ async function main() {
   assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Disposable CI only')
   const resources = path.join(path.dirname(executable), 'resources')
   const stamp = JSON.parse(fs.readFileSync(path.join(resources, 'install-stamp.json'), 'utf8'))
-  validateRcStamp(stamp, commit)
+  const branch = process.env.GITHUB_REF_NAME
+  assert.ok(branch?.startsWith('rc/'), 'An RC source ref is required')
+  validateRcStamp(stamp, commit, branch)
   const payload = path.join(resources, 'agent-payload')
   const embedded = JSON.parse(fs.readFileSync(path.join(payload, stamp.runtime.repoDir, 'install-stamp.json'), 'utf8'))
-  validateRcStamp(embedded, commit)
+  validateRcStamp(embedded, commit, branch)
   assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/Hermes-LICENSE.txt')))
   assert.ok(fs.existsSync(path.join(resources, 'open-source-notices/electron-builder-LICENSE.txt')))
   fs.mkdirSync(scratch, {recursive:true})
@@ -97,7 +99,7 @@ async function main() {
       !rendererState.lookingUpProviders && (rendererState.composer || rendererState.providerInput),
       'Authenticated core replies and an unobscured interactive application surface are required')
     const identity = await app.evaluate(({app}) => ({version:app.getVersion(),data:app.getPath('userData')}))
-    assert.equal(identity.version,'0.1.0-rc.1')
+    assert.equal(identity.version,process.env.HERMES_PAYLOAD_VERSION)
     assert.equal(path.resolve(identity.data),path.resolve(env.HERMES_DESKTOP_USER_DATA_DIR))
     await page.screenshot({path:path.join(scratch,'installed-rc.png')})
     const result={status:'passed',commit,version:identity.version,payload:'bundled',
