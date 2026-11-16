@@ -345,10 +345,9 @@ class RuntimeMode:
         if not self.is_coding:
             return [], [], []
         prefix: list[str] = []
-        # The capability-aware engine brief is already emitted by system_prompt.
-        # Do not also instruct this session to bypass its approval/worktree workflow.
-        engine_available = valid_tool_names is not None and "coding_task" in valid_tool_names
-        if self.profile.guidance and not engine_available:
+        # The optional engine must not suppress normal development skills/tools.
+        # Its session-static brief defines ownership once an engine task is started.
+        if self.profile.guidance:
             brief = self.profile.guidance
             if valid_tool_names is not None and "todo_list" not in valid_tool_names:
                 brief = brief.replace(_TODO_SENTENCE, _NO_TODO_SENTENCE)

@@ -110,7 +110,8 @@ def test_restart_and_concurrent_retry_reuse_durable_task_without_execution(setup
 def test_missing_project_and_missing_identity_are_actionable(setup_chat):
     terminal_tool.register_task_env_overrides("chat-runtime", {"cwd_source": "session", "cwd": ""})
     result = call(description="Fix bug")
-    assert "Choose an existing project" in result["error"]
+    assert result["workflow"] == "chat" and result["workspace"] is None
+    assert not result["engine_task_started"]
     no_identity = json.loads(registry.dispatch("coding_task", {"action": "start", "description": "Fix"}))
     assert "identity" in no_identity["error"]
 
@@ -310,3 +311,89 @@ def test_unknown_project_never_guesses_a_folder_or_starts_work(setup_chat):
     result = call(description="Implement feature", project_name="Not registered")
     assert "existing project exactly" in result["error"]
     assert not engine.tasks and not calls and not (repo / ".worktrees").exists()
+
+
+def test_non_git_project_routes_back_to_chat_without_models_or_approval(setup_chat, tmp_path, monkeypatch):
+    from tools import project_tools
+    repo, engine, checks, _ = setup_chat
+    folder = tmp_path / "Νέο έργο"
+    folder.mkdir()
+    (folder / "existing.txt").write_text("owner data", encoding="utf-8")
+    project_tools.project_create("Νέο έργο", path=str(folder))
+    terminal_tool.register_task_env_overrides("chat-runtime", {"cwd_source": "session", "cwd": str(folder)})
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Ordinary creation must not start the engine or ask for its approval")
+    monkeypatch.setattr("meu_coding.service_registry.current_service", forbidden)
+    monkeypatch.setattr("tools.coding_task_approval.ask_coding_approval", forbidden)
+    before = snapshot(repo)
+    result = call(description="Φτιάξε μια εφαρμογή σημειώσεων")
+    assert result["workflow"] == "chat" and Path(result["workspace"]) == folder
+    assert not result["engine_task_started"] and not engine.tasks and not checks
+    assert (folder / "existing.txt").read_text() == "owner data"
+    assert not (folder / ".git").exists() and snapshot(repo) == before
+
+
+def test_unregistered_git_workspace_uses_engine_without_project_setup(setup_chat, monkeypatch):
+    repo, engine, checks, _ = setup_chat
+    with projects_db.connect_closing() as conn:
+        conn.execute("DELETE FROM projects")
+        conn.commit()
+    monkeypatch.setattr("tools.coding_task_approval.ask_coding_approval", lambda view: "approve")
+    result = call(description="Add add", files=["calc/ops.py", "tests/test_ops.py"])
+    assert result["stage"] == "awaiting_keep_reject", result
+    assert Path(result["project"]) == repo and len(engine.tasks) == 1 and checks
+    assert "worktree folder" in result["notice"]
+    assert "Do not force" in result["notice"]
+
+
+def test_unavailable_selected_workspace_is_not_a_chat_fallback(setup_chat, tmp_path):
+    from tools import project_tools
+    repo, engine, checks, _ = setup_chat
+    project_tools.project_create("Missing", path=str(tmp_path / "gone"))
+    result = call(description="Fix existing program", project_name="Missing")
+    assert "workspace is unavailable" in result["error"]
+    assert not engine.tasks and not checks and not (repo / ".worktrees").exists()
+
+
+def test_new_program_in_chat_writes_real_file_without_git_or_engine(setup_chat, tmp_path, monkeypatch):
+    """Real agent turn, dispatcher and file write; deterministic provider, not a live LLM test."""
+    from types import SimpleNamespace as NS
+    from run_agent import AIAgent
+    folder = tmp_path / "fresh-workspace"
+    folder.mkdir()
+    terminal_tool.register_task_env_overrides("chat-runtime", {"cwd_source": "session", "cwd": str(folder)})
+    _, engine, checks, _ = setup_chat
+    source = "def total(values):\n    return sum(values)\n\nif __name__ == '__main__':\n    print(total([2, 3, 5]))\n"
+    requests = []
+    def create(**kwargs):
+        requests.append(kwargs)
+        results = [m for m in kwargs["messages"] if m.get("role") == "tool"]
+        if len(results) == 0:
+            name, arguments = "coding_task", {"action": "start", "description": "Φτιάξε ένα μικρό πρόγραμμα"}
+        elif len(results) == 1:
+            data = json.loads(results[-1]["content"])
+            assert data["workflow"] == "chat" and not data["engine_task_started"]
+            name, arguments = "write_file", {"path": "my-program/app.py", "content": source}
+        else:
+            data = json.loads(results[-1]["content"])
+            assert "error" not in data, data
+            message = NS(content="Το αρχείο είναι στο my-program/app.py", reasoning=None, tool_calls=[])
+            return NS(choices=[NS(message=message, finish_reason="stop")], usage=None)
+        tool = NS(id=f"call-{len(results)}", type="function", function=NS(name=name, arguments=json.dumps(arguments)))
+        message = NS(content=None, reasoning=None, tool_calls=[tool])
+        return NS(choices=[NS(message=message, finish_reason="tool_calls")], usage=None)
+    client = NS(chat=NS(completions=NS(create=create)))
+    monkeypatch.setattr("agent.process_bootstrap.OpenAI", lambda **kw: client)
+    agent = AIAgent(model="test-model", api_key="test-key", base_url="http://localhost:9999/v1",
+                    session_id="chat-1", platform="cli", enabled_toolsets=["project", "file"],
+                    max_iterations=4, quiet_mode=True, skip_memory=True, skip_context_files=True,
+                    save_trajectories=False)
+    agent._disable_streaming = True
+    result = agent.run_conversation("Φτιάξε ένα μικρό πρόγραμμα που αθροίζει αριθμούς.", task_id="chat-runtime")
+    program = folder / "my-program" / "app.py"
+    assert program.read_text(encoding="utf-8") == source
+    execution = subprocess.run([sys.executable, str(program)], cwd=folder, text=True, capture_output=True, check=True)
+    assert execution.stdout.strip() == "10"
+    assert "my-program/app.py" in result["final_response"]
+    assert not engine.tasks and not checks and not (folder / ".git").exists()
+    assert len(requests) == 3

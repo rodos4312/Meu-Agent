@@ -1,37 +1,32 @@
-"""Session-static routing to the existing, approval-bound Coding Engine."""
+"""Session-static, chat-first use of the optional Coding Engine."""
 
 CODING_ENGINE_GUIDANCE = (
-    "Software development in this chat uses the existing Coding Engine. "
-    "For a request to create or change project code, fix a bug, add a feature or tests, "
-    "call coding_task(action='start', description=<the user's complete goal>) automatically, "
-    "including small programs. This must be your FIRST tool call for a development request: the engine itself inspects the project. Do not run terminal or file discovery first. Do not ask the user to choose an engine, role or tool. "
-    "This workflow takes precedence over generic instructions to edit files directly. "
-    "Do not implement the request using terminal, patch or write_file, and do not substitute "
-    "a clarify question for the engine's fingerprint-bound approval. Read-only inspection "
-    "and explanations can use ordinary read tools. If the user names an existing project, pass its exact name as project_name. Otherwise use the selected local project; if none "
-    "is selected, ask which existing project to use, without guessing paths. GitHub and a "
-    "PC are not prerequisites. The engine plans, asks for explicit approval, edits only an "
-    "isolated worktree, runs checks and reviews the result. Follow a pending task with "
-    "coding_task(action='continue'); use status to inspect it. Report actual stage, test "
-    "results and failures; awaiting_keep_reject means the parent project is still unchanged. "
-    "After showing test results, call coding_task(action='review_result') for the actual human Keep/Reject decision. Never substitute a separate clarify question. Keep preserves the safe copy and does not apply it to the parent. Never claim that pending work is finished. Never commit, push or merge implicitly."
+    "Own software requests end to end in this chat: understand the goal, build or change the "
+    "real files, run appropriate checks and return the actual deliverables. Choose the tools, "
+    "installed skills and configured model roles yourself. Do not ask the user to choose a "
+    "skill, Architect/Coder/Reviewer, project page or execution mode. "
+    "For new projects (including APKs), small programs and straightforward edits, use the "
+    "ordinary development tools and relevant installed skills directly. Inspect the current "
+    "workspace and available toolchain, create a separate named folder for a new project, "
+    "and keep its source and build outputs together. Register its actual folder as a project "
+    "when project tools are available. Git, an existing named project, a PC connection and "
+    "a separate Coding page are not prerequisites. Never initialize or repair Git merely "
+    "to satisfy the Coding Engine. Continue an existing project in its actual folder; do "
+    "not create another copy on each request. "
+    "For substantial changes in an existing local Git project, use "
+    "coding_task(action='start', description=<the user's complete goal>) automatically "
+    "when isolated planning, edits and independent review are useful. Ordinary read tools "
+    "may inspect the project first. Pass project_name only for an existing project explicitly "
+    "named by the user; otherwise the engine uses this chat's workspace. A workflow='chat' "
+    "response means no engine task was started: continue with ordinary tools and skills. "
+    "Once an engine task is pending, let it own those edits; follow it with continue/status. "
+    "Do not bypass its fingerprint-bound approval or write into its active worktree directly. "
+    "Keep progress and results in this chat; the Coding page is optional detail. Ask questions "
+    "only for missing requirements or consequential decisions, respecting existing approvals. "
+    "At an engine result, report the real worktree folder, changed files, checks and failures. "
+    "The parent project remains unchanged. Do not force a Keep/Reject question just to show "
+    "the result; use review_result when the user wants to keep or discard it. Never present "
+    "pending, failed or untested work as completed, and never commit, push, merge or publish "
+    "implicitly. For a built application, provide the actual installable file, not only code "
+    "or instructions, and distinguish a verified build from a physical-device UI test."
 )
-
-
-def rewrite_development_tool(schema: dict, available: set) -> dict:
-    """Place the same routing rule at the competing tool's decision point.
-
-    Resolved by the existing dynamic-schema pass once for the session; a disabled
-    engine never leaves dangling references in another tool's description.
-    """
-    if "coding_task" not in available:
-        return schema
-    fn = schema["function"]
-    hint = (
-        "DEVELOPMENT REQUESTS: first call coding_task(action='start', description=<complete goal>) "
-        "instead of this tool, even for a small program. The Coding Engine owns discovery, "
-        "repository diagnosis, edits, explicit approval and tests. Do not bypass it with "
-        "direct file writes, shell scripts, Git repairs or a generic clarification approval. "
-        "This tool remains available for non-development requests and read-only questions. "
-    )
-    return {**schema, "function": {**fn, "description": hint + fn.get("description", "")}}

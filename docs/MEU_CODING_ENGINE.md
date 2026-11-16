@@ -1,5 +1,40 @@
 # MEU Coding Engine
 
+## Chat-first entry (experimental)
+
+The normal entry is a request in the chat, not the Coding page. The agent chooses
+installed skills, workload model roles and tools. New applications (including APKs),
+small programs and straightforward edits can use the normal tools: inspect the
+available workspace/toolchain, create a named project folder, implement, run real
+checks and return the actual files and folder. Missing Git history does not require
+manual setup. Do not initialize or repair Git solely to enable the Coding Engine.
+A built APK is not proof of installation or UI testing on a physical phone.
+
+For substantial changes in an existing Git workspace, the isolated Coding Engine
+remains available in the same chat. A registered desktop Project is optional when
+the conversation already owns a local Git working directory. The exact approval,
+worktree isolation, test allowlist, result integrity and recovery rules below still
+apply. A pending engine task must not be bypassed with ordinary writes.
+
+If `coding_task.start` receives a workspace without a usable Git baseline, it returns
+`workflow: chat`, the session workspace (or null), and `engine_task_started: false`.
+No worker, model call, approval, Git initialization or second task store is created.
+Unknown explicitly named projects and unavailable selected folders remain errors.
+The agent continues the original request with the existing tools and skills, keeping
+existing tool approvals in force. It must not select another chat's active project.
+
+An engine result is already preserved in its worktree. Show its folder, changed
+files and actual check outcomes directly in the chat; do not force a Keep/Reject
+question merely to present it. The optional result decision and all integration /
+commit / publication actions retain their existing explicit approvals. Clearly state
+that the parent project is unchanged until integration really occurs.
+
+This change adds no execution backend, database, model router or dependency. It
+removes the engine-first schema overrides and restores the ordinary coding brief.
+Guidance is assembled once per session; past prompts/tool results are never rewritten.
+The Coding page remains an optional detailed view. Protected dev.33 and installed
+profiles are outside this experimental checkout. No distribution is produced here.
+
 This document describes the Coding Engine **as it is now**: its architecture, the one authoritative module
 for each concern, the security boundaries and how to work on it. The `MEU_CODING_ENGINE_PHASE*.md` files
 are historical implementation notes: they record why each phase was built the way it was, and some names
