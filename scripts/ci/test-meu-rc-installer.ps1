@@ -56,7 +56,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Installed real-runtime smoke failed.' }
 if ($env:MEU_SOURCE_SEED -eq '1') {
     $profile = Join-Path $scratch 'profile'
     $source = Join-Path $profile 'meu-agent'
-    python scripts/ci/meu-bootstrap-preservation.py seed --home $profile
+    & $env:HERMES_PYTHON scripts/ci/meu-bootstrap-preservation.py seed --home $profile
     if ($LASTEXITCODE -ne 0) { throw 'Could not seed real preservation fixture.' }
     # This is the owner's previously installed experimental core. Only the
     # disposable CI checkout is rewound, with its personal data outside it.
@@ -64,7 +64,7 @@ if ($env:MEU_SOURCE_SEED -eq '1') {
     if ($LASTEXITCODE -ne 0) { throw 'The supported previous core is missing from the source package.' }
     node scripts/ci/meu-rc-desktop-smoke.mjs $exe $scratch $ExpectedCommit
     if ($LASTEXITCODE -ne 0) { throw 'Automatic old-to-new core upgrade failed.' }
-    python scripts/ci/meu-bootstrap-preservation.py check --home $profile
+    & $env:HERMES_PYTHON scripts/ci/meu-bootstrap-preservation.py check --home $profile
     if ($LASTEXITCODE -ne 0) { throw 'Core upgrade did not preserve user data/dependencies.' }
 }
 $proofs = @(
