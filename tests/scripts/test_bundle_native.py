@@ -53,6 +53,9 @@ def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_pat
     repo = tmp_path / "repo"
     repo.mkdir()
     source = Path(__file__).resolve().parents[2]
+    # The real source checkout pins LF. Its archive must carry identical lock
+    # bytes even on a Windows host with core.autocrlf=true.
+    shutil.copy2(source / ".gitattributes", repo / ".gitattributes")
     shutil.copytree(source / "pm", repo / "pm", ignore=shutil.ignore_patterns("__pycache__"))
     (repo / "hermes_cli").mkdir()
     for name in ("__init__.py", "runtime_state.py"):
@@ -120,6 +123,7 @@ def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_pat
            "UV_CACHE_DIR": str(tmp_path / "cache"), "HERMES_PAYLOAD_VERSION": "9.9.9"}
     subprocess.run([uv, "lock", "--python", sys.executable], cwd=repo, env=env, check=True, capture_output=True)
     subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "config", "core.autocrlf", "true"], check=True)
     subprocess.run(["git", "add", "."], cwd=repo, check=True)
     subprocess.run(["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "fixture"], cwd=repo, check=True, capture_output=True)
     monkeypatch.setattr("pm.paths.repo_root", lambda: repo)

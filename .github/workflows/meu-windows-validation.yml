@@ -11,6 +11,11 @@ on:
       - 'apps/desktop/**'
       - 'apps/shared/**'
       - 'tests/ci/**'
+      - 'meu_coding/**'
+      - 'tests/meu_coding/**'
+      - 'scripts/bundles/**'
+      - 'tests/scripts/test_bundle*.py'
+      - 'tests/tools/test_coding*.py'
       - 'optional-mcps/mt5-httpapi-read/**'
       - 'optional-skills/research/mt5-market-data/**'
       - 'tests/skills/test_mt5_market*.py'
@@ -706,6 +711,8 @@ jobs:
           src/app/chat/composer/hooks/use-composer-draft.test.tsx
       - name: Typecheck desktop and Electron
         working-directory: apps/desktop
+        env:
+          NODE_OPTIONS: '--max-old-space-size=6144'
         run: npm run typecheck
       - name: Build Meu desktop renderer and backend shell
         working-directory: apps/desktop
