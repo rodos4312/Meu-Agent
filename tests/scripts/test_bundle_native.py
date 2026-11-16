@@ -327,6 +327,43 @@ def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_pat
         native._stage_native(args)
 
 
+@pytest.mark.platforms("windows")
+def test_pm_runtime_rebuild_replaces_read_only_bytecode(tmp_path, monkeypatch):
+    import stat
+
+    source = Path(__file__).resolve().parents[2]
+    repo = tmp_path / "source"
+    shutil.copytree(source / "pm", repo / "pm", ignore=shutil.ignore_patterns("__pycache__"))
+    root = tmp_path / "payload"
+    python = root / "tools/python/python.exe"
+    shutil.copytree(Path(sys.base_prefix), python.parent)
+    uv = shutil.which("uv")
+    assert uv, "native bundle test requires uv"
+    monkeypatch.setattr("pm._uv._toolchain", lambda **kwargs: (Path(uv), Path(sys.executable)))
+    stale = root / "pm-runtime/Lib/site-packages/__pycache__/obsolete.pyc"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"previous sealed bytecode")
+    stale.chmod(stat.S_IREAD)
+    assert not (stale.stat().st_mode & stat.S_IWRITE)
+    sibling = tmp_path / "keep.txt"
+    sibling.write_text("owner data", encoding="utf-8")
+
+    native.stage_pm_runtime(root, python, repo, cache=tmp_path / "cache")
+
+    assert not stale.exists()
+    runtime = root / "pm-runtime"
+    marker = json.loads((runtime / "pm-runtime.json").read_text(encoding="utf-8"))
+    checked = subprocess.run(
+        [str(python), "-I", "-S", "-B", "-c",
+         "import sys; sys.path.insert(0, sys.argv[1]); import packaging; print(packaging.__name__)",
+         str(runtime / marker["sitePackages"])],
+        cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert checked.returncode == 0, checked.stderr
+    assert checked.stdout.strip() == "packaging"
+    assert sibling.read_text(encoding="utf-8") == "owner data"
+
+
 def test_staged_cache_prunes_entries_the_lock_cannot_resolve(tmp_path, monkeypatch):
     """Ship gate: a rolled CI cache snapshot carries wheels for superseded pins;
     the staged payload cache must contain exactly what the shipped lock resolves."""

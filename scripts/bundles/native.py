@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 
+from pm.filesystem import remove_tree
 from pm.install import _lockfile
 from pm.lock import Facts
 from pm.registry import get_package, walk
@@ -91,7 +92,7 @@ def stage_pm_runtime(root: Path, python: Path, repo: Path, *, offline: bool = Fa
 
     destination = root / "pm-runtime"
     if destination.exists():
-        shutil.rmtree(destination)
+        remove_tree(destination)
     stage_manager_runtime(python=python, destination=destination, project=repo / "pm", offline=offline, cache=cache)
     seal_pm_runtime(root, python)
 
@@ -147,7 +148,7 @@ def prune_staged_store(store_dir: Path, names: list[str]) -> None:
     keep = facts.entries_in_use()
     for entry in store_dir.iterdir():
         if entry.is_dir() and not entry.name.startswith(".") and entry.name not in keep:
-            shutil.rmtree(entry)
+            remove_tree(entry)
 
 
 def prepare_native(*, out: Path, ref: str, source: Path, cache: Path,
@@ -233,7 +234,7 @@ def _prepare_native(*, out: Path, ref: str, source: Path, cache: Path,
     # must point at the payload's own tree, not this checkout.
     venv_dir = out / "venv"
     if venv_dir.exists():
-        shutil.rmtree(venv_dir)
+        remove_tree(venv_dir)
     env = dict(build_env)
     from pm import build_environment
 
@@ -263,7 +264,7 @@ def _prepare_native(*, out: Path, ref: str, source: Path, cache: Path,
     # wheels with zero network access, on every profile of this install.
     payload_cache = out / "uv-cache"
     if payload_cache.exists():
-        shutil.rmtree(payload_cache, ignore_errors=True)
+        remove_tree(payload_cache)
     src_cache = cache
     if src_cache.is_dir():
         print(f"  uv-cache: copying {src_cache} → payload...", flush=True)
